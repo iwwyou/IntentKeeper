@@ -1,0 +1,154 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{11}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{} and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showURL}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showURL #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Chaliasos et~al\mbox{.}(2024)]%
+        {defisecurity}
+\bibfield{author}{\bibinfo{person}{Stefanos Chaliasos} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Smart Contract and DeFi Security Tools: Do They
+  Meet the Needs of Practitioners?}. In \bibinfo{booktitle}{\emph{Proceedings
+  of the 46th IEEE/ACM International Conference on Software Engineering
+  (ICSE)}}. \bibinfo{pages}{1--13}.
+\newblock
+\href{https://doi.org/10.1145/3597503.3623302}{doi:\nolinkurl{10.1145/3597503.3623302}}
+
+
+\bibitem[Chen et~al\mbox{.}(2025)]%
+        {numscout}
+\bibfield{author}{\bibinfo{person}{Jiachi Chen} {et~al\mbox{.}}}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{NumScout: Unveiling Numerical Defects in Smart
+  Contracts using LLM-Pruning Symbolic Execution}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Software Engineering}}
+  (\bibinfo{year}{2025}).
+\newblock
+\href{https://doi.org/10.1109/TSE.2025.3555622}{doi:\nolinkurl{10.1109/TSE.2025.3555622}}
+
+
+\bibitem[{Consensys Diligence}(2025)]%
+        {scribble}
+\bibfield{author}{\bibinfo{person}{{Consensys Diligence}}.}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \bibinfo{title}{Scribble}.
+\newblock \bibinfo{howpublished}{\url{https://diligence.security/scribble/}}.
+\newblock
+
+
+\bibitem[Guo et~al\mbox{.}(2024)]%
+        {deepseek-coder}
+\bibfield{author}{\bibinfo{person}{Daya Guo} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \bibinfo{title}{DeepSeek-Coder: When the Large Language Model Meets
+  Programming}.
+\newblock \bibinfo{howpublished}{arXiv preprint arXiv:2401.14196}.
+\newblock
+
+
+\bibitem[Hu et~al\mbox{.}(2022)]%
+        {lora}
+\bibfield{author}{\bibinfo{person}{Edward~J. Hu} {et~al\mbox{.}}}
+  \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{LoRA: Low-Rank Adaptation of Large Language
+  Models}. In \bibinfo{booktitle}{\emph{International Conference on Learning
+  Representations (ICLR)}}.
+\newblock
+
+
+\bibitem[Jeon et~al\mbox{.}(2025)]%
+        {solqdebug}
+\bibfield{author}{\bibinfo{person}{Inseong Jeon} {et~al\mbox{.}}}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \bibinfo{title}{SolQDebug: Debug Solidity Quickly for Interactive
+  Immediacy in Smart Contract Development}.
+\newblock
+\href{https://doi.org/10.21203/rs.3.rs-8077153/v1}{doi:\nolinkurl{10.21203/rs.3.rs-8077153/v1}}
+
+
+\bibitem[Li et~al\mbox{.}(2023)]%
+        {starcoder}
+\bibfield{author}{\bibinfo{person}{Raymond Li} {et~al\mbox{.}}}
+  \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{StarCoder: May the source be with you!}. In
+  \bibinfo{booktitle}{\emph{arXiv preprint arXiv:2305.06161}}.
+\newblock
+
+
+\bibitem[Rozière et~al\mbox{.}(2023)]%
+        {codellama}
+\bibfield{author}{\bibinfo{person}{Baptiste Rozière} {et~al\mbox{.}}}
+  \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Code Llama: Open Foundation Models for Code}. In
+  \bibinfo{booktitle}{\emph{arXiv preprint arXiv:2308.12950}}.
+\newblock
+
+
+\bibitem[Sun et~al\mbox{.}(2024)]%
+        {gptscan}
+\bibfield{author}{\bibinfo{person}{Yuqiang Sun} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{GPTScan: Detecting Logic Vulnerabilities in Smart
+  Contracts by Combining GPT with Program Analysis}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the IEEE/ACM 46th International
+  Conference on Software Engineering (ICSE)}}. \bibinfo{pages}{1--13}.
+\newblock
+\href{https://doi.org/10.1145/3597503.3639117}{doi:\nolinkurl{10.1145/3597503.3639117}}
+
+
+\bibitem[Xia and Zhang(2022)]%
+        {alpharepair}
+\bibfield{author}{\bibinfo{person}{Chunqiu~Steven Xia} {and}
+  \bibinfo{person}{Lingming Zhang}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Less Training, More Repairing Please: Revisiting
+  Automated Program Repair via Zero-shot Learning}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 30th ACM Joint European Software
+  Engineering Conference and Symposium on the Foundations of Software
+  Engineering (ESEC/FSE)}}. \bibinfo{pages}{959--971}.
+\newblock
+\href{https://doi.org/10.1145/3540250.3549101}{doi:\nolinkurl{10.1145/3540250.3549101}}
+
+
+\bibitem[Xia and Zhang(2023)]%
+        {chatrepair}
+\bibfield{author}{\bibinfo{person}{Chunqiu~Steven Xia} {and}
+  \bibinfo{person}{Lingming Zhang}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Conversational Automated Program Repair}. In
+  \bibinfo{booktitle}{\emph{arXiv preprint arXiv:2301.13246}}.
+\newblock
+
+
+\end{thebibliography}

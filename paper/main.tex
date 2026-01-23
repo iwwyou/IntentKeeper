@@ -1,0 +1,221 @@
+\documentclass[sigconf,review,anonymous]{acmart}
+
+%% BibTeX command
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    Bib\TeX}}}
+
+%% Packages (booktabs is already loaded by acmart)
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+%% Solidity language definition
+\lstdefinelanguage{Solidity}{
+  keywords={contract, function, modifier, public, private, external, internal, view, pure, payable, returns, return, if, else, for, while, require, assert, mapping, address, uint256, uint, bool, string, memory, storage, calldata, event, emit, struct, enum, constructor, msg, this},
+  keywordstyle=\color{blue}\bfseries,
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{gray}\ttfamily,
+  stringstyle=\color{orange}\ttfamily,
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstset{
+  language=Solidity,
+  basicstyle=\footnotesize\ttfamily,
+  backgroundcolor=\color[RGB]{248,248,248},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=5pt,
+  breaklines=true,
+  frame=single,
+  captionpos=b
+}
+
+%% Rights management
+\setcopyright{acmcopyright}
+\copyrightyear{2025}
+\acmYear{2025}
+\acmDOI{XXXXXXX.XXXXXXX}
+
+%% Conference information (placeholder - update when accepted)
+\acmConference[ASE '25]{40th IEEE/ACM International Conference on Automated Software Engineering}{September 2025}{Sacramento, CA, USA}
+\acmISBN{978-1-4503-XXXX-X/25/09}
+
+%% Submission ID (uncomment and fill when submitting)
+%%\acmSubmissionID{123-A56-BU3}
+
+%%
+%% end of the preamble
+%%
+
+\begin{document}
+
+\title{IntentKeeper: LLM-Assisted Intent Annotation and Program Repair for Solidity Smart Contracts}
+
+\author{Anonymous Author(s)}
+\affiliation{%
+  \institution{Anonymous Institution}
+  \city{Anonymous City}
+  \country{Anonymous Country}
+}
+\email{anonymous@example.com}
+
+\begin{abstract}
+% TODO: Write abstract
+% Key points to cover:
+% - Problem: Intent annotations require manual effort; fixing violated intents is challenging
+% - Solution: LLM-assisted annotation suggestion and program repair
+% - Contribution: (1) Annotation suggestion, (2) Program repair based on validation results
+% - Results: TBD
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10011007.10011006.10011008.10011009.10011012</concept_id>
+       <concept_desc>Software and its engineering~Software verification and validation</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011039</concept_id>
+       <concept_desc>Software and its engineering~Formal language definitions</concept_desc>
+       <concept_significance>300</concept_significance>
+   </concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Software verification and validation}
+\ccsdesc[300]{Software and its engineering~Formal language definitions}
+
+\keywords{Smart Contracts, Solidity, Large Language Models, Intent Annotation, Program Repair, Developer Tools}
+
+\maketitle
+
+%% ============================================================
+\section{Introduction}\label{sec:introduction}
+%% ============================================================
+
+% TODO: Motivation
+% - Logic errors are hard to detect without knowing developer intent
+% - IntentChecker enables intent specification but requires manual annotation
+% - Two gaps: (1) annotation burden, (2) no automated repair
+
+% TODO: Our approach
+% - IntentKeeper: LLM-based extension of IntentChecker
+% - Annotation Suggestion: LLM recommends appropriate intent annotations
+% - Program Repair: LLM fixes code when intent is violated/uncertain
+
+% TODO: Contributions
+% - Annotation suggestion using LLM
+% - Program repair guided by validation results
+% - Evaluation on real-world contracts
+
+%% ============================================================
+\section{Background}\label{sec:background}
+%% ============================================================
+
+\subsection{Intent-Based Validation in Smart Contracts}
+% TODO: Brief overview of IntentChecker
+% - @During and @Post annotations
+% - Interval-domain abstract interpretation
+% - Validation results: Satisfied, Violated, Uncertain
+
+\subsection{Large Language Models for Code}
+% TODO: Overview of LLMs for code generation/repair
+% - Code LLMs (CodeLlama, StarCoder, DeepSeek-Coder, etc.)
+% - Fine-tuning approaches
+% - Prompting strategies
+
+%% ============================================================
+\section{Approach}\label{sec:approach}
+%% ============================================================
+
+\subsection{Overview}
+% TODO: System architecture of IntentKeeper
+% - Integration with IntentChecker
+% - LLM component
+
+\subsection{Annotation Suggestion}\label{sec:annotation-suggestion}
+% TODO: How LLM suggests intent annotations
+% - Input: Solidity code (function context)
+% - Output: Suggested @During/@Post annotations
+% - Prompting or fine-tuning strategy
+
+\subsection{Program Repair}\label{sec:program-repair}
+% TODO: How LLM repairs code based on validation results
+% - Input: Code + Intent annotation + Validation result (Violated/Uncertain) + Violated region
+% - Output: Repaired code that satisfies the intent
+% - Repair strategy
+
+%% ============================================================
+\section{Implementation}\label{sec:implementation}
+%% ============================================================
+
+% TODO: Implementation details
+% - LLM selection and configuration
+% - Fine-tuning dataset (if applicable)
+% - Integration with IntentChecker
+
+%% ============================================================
+\section{Evaluation}\label{sec:evaluation}
+%% ============================================================
+
+\subsection{Research Questions}
+% RQ1: How effective is annotation suggestion?
+% RQ2: How effective is program repair?
+% RQ3: How do different LLMs/strategies compare?
+
+\subsection{Experimental Setup}
+% TODO: Dataset, metrics, baselines
+
+\subsection{RQ1: Annotation Suggestion Effectiveness}
+% TODO: Results
+
+\subsection{RQ2: Program Repair Effectiveness}
+% TODO: Results
+
+\subsection{RQ3: LLM Comparison}
+% TODO: Results (if applicable)
+
+\subsection{Threats to Validity}
+% TODO: Internal, external, construct validity
+
+%% ============================================================
+\section{Discussion}\label{sec:discussion}
+%% ============================================================
+
+% TODO: Limitations and future work
+
+%% ============================================================
+\section{Related Work}\label{sec:related}
+%% ============================================================
+
+\subsection{Intent Specification for Smart Contracts}
+% TODO: IntentChecker, Scribble, other annotation approaches
+
+\subsection{LLM-Based Program Repair}
+% TODO: APR with LLMs, code generation
+
+\subsection{LLM for Smart Contract Security}
+% TODO: GPTScan, other LLM-based vulnerability detection
+
+%% ============================================================
+\section{Conclusion}\label{sec:conclusion}
+%% ============================================================
+
+% TODO: Summary and future work
+
+%% ============================================================
+%% Bibliography
+%% ============================================================
+\nocite{*}  % 모든 참고문헌을 인용 없이 포함
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

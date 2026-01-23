@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(copy \"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\\\\paper\\\\acmart-primary\\\\acmart.cls\" \"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\\\\paper\\\\acmart.cls\")"
+    ]
+  }
+}

@@ -1,0 +1,882 @@
+[
+  {
+    "contest_id": "3",
+    "bug_id": "H-04",
+    "label": "S6-2",
+    "description": "Inconsistent usage of applyInterest",
+    "reference": "https://code4rena.com/reports/2021-04-marginswap#h-04-inconsistent-usage-of-applyinterest",
+    "comment": ""
+  },
+  {
+    "contest_id": "3",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "Wrong liquidation logic",
+    "reference": "https://code4rena.com/reports/2021-04-marginswap#h-05-wrong-liquidation-logic",
+    "comment": ""
+  },
+  {
+    "contest_id": "5",
+    "bug_id": "H-07",
+    "label": "S6-4",
+    "description": "Wrong calcAsymmetricShare calculation",
+    "reference": "https://code4rena.com/reports/2021-04-vader#h-07-wrong-calcasymmetricshare-calculation",
+    "comment": ""
+  },
+  {
+    "contest_id": "5",
+    "bug_id": "H-08",
+    "label": "S6-4",
+    "description": "Wrong liquidity units calculation",
+    "reference": "https://code4rena.com/reports/2021-04-vader#h-08-wrong-liquidity-units-calculation",
+    "comment": ""
+  },
+  {
+    "contest_id": "5",
+    "bug_id": "H-12",
+    "label": "S6-4",
+    "description": "getAddedAmount can return wrong results",
+    "reference": "https://code4rena.com/reports/2021-04-vader#h-12-getaddedamount-can-return-wrong-results",
+    "comment": ""
+  },
+  {
+    "contest_id": "5",
+    "bug_id": "H-15",
+    "label": "S6-3",
+    "description": "Wrong slippage protection on Token -> Token trades",
+    "reference": "https://code4rena.com/reports/2021-04-vader#h-15-wrong-slippage-protection-on-token---token-trades",
+    "comment": ""
+  },
+  {
+    "contest_id": "8",
+    "bug_id": "H-01",
+    "label": "L7",
+    "description": "Missing overflow check in flashLoan",
+    "reference": "https://code4rena.com/reports/2021-05-nftx#h-01-missing-overflow-check-in-flashloan",
+    "comment": ""
+  },
+  {
+    "contest_id": "8",
+    "bug_id": "H-03",
+    "label": "S6-4",
+    "description": "getRandomTokenIdFromFund yields wrong probabilities for ERC1155",
+    "reference": "https://code4rena.com/reports/2021-05-nftx#h-03-getrandomtokenidfromfund-yields-wrong-probabilities-for-erc1155",
+    "comment": ""
+  },
+  {
+    "contest_id": "12",
+    "bug_id": "H-03",
+    "label": "S6-4",
+    "description": "YieldMath.sol / Log2: >= or > ?",
+    "reference": "https://code4rena.com/reports/2021-05-yield#h-03-yieldmathsol--log2--or--",
+    "comment": ""
+  },
+  {
+    "contest_id": "14",
+    "bug_id": "H-01",
+    "label": "S6-3",
+    "description": "User could lose underlying tokens when redeeming from the IdleYieldSource",
+    "reference": "https://code4rena.com/reports/2021-06-pooltogether#h-01-user-could-lose-underlying-tokens-when-redeeming-from-the-idleyieldsource",
+    "comment": ""
+  },
+  {
+    "contest_id": "14",
+    "bug_id": "H-02",
+    "label": "L7",
+    "description": "YearnV2YieldSource wrong subtraction in withdraw",
+    "reference": "https://code4rena.com/reports/2021-06-pooltogether#h-02-yearnv2yieldsource-wrong-subtraction-in-withdraw",
+    "comment": ""
+  },
+  {
+    "contest_id": "14",
+    "bug_id": "H-03",
+    "label": "S6-3",
+    "description": "BadgerYieldSource balanceOfToken share calculation seems wrong",
+    "reference": "https://code4rena.com/reports/2021-06-pooltogether#h-03-badgeryieldsource-balanceoftoken-share-calculation-seems-wrong",
+    "comment": ""
+  },
+  {
+    "contest_id": "14",
+    "bug_id": "H-05",
+    "label": "L2",
+    "description": "IdleYieldSource doesn’t use mantissa calculations",
+    "reference": "https://code4rena.com/reports/2021-06-pooltogether#h-05-idleyieldsource-doesnt-use-mantissa-calculations",
+    "comment": ""
+  },
+  {
+    "contest_id": "16",
+    "bug_id": "H-02",
+    "label": "S6-3",
+    "description": "Use of incorrect index leads to incorrect updation of funding rates",
+    "reference": "https://code4rena.com/reports/2021-06-tracer#h-02-use-of-incorrect-index-leads-to-incorrect-updation-of-funding-rates",
+    "comment": ""
+  },
+  {
+    "contest_id": "16",
+    "bug_id": "H-04",
+    "label": "S6-4",
+    "description": "Logic error in fee subtraction",
+    "reference": "https://code4rena.com/reports/2021-06-tracer#h-04-logic-error-in-fee-subtraction",
+    "comment": ""
+  },
+  {
+    "contest_id": "16",
+    "bug_id": "H-06",
+    "label": "S6-4",
+    "description": "Wrong price scale for GasOracle",
+    "reference": "https://code4rena.com/reports/2021-06-tracer#h-06-wrong-price-scale-for-gasoracle",
+    "comment": ""
+  },
+  {
+    "contest_id": "17",
+    "bug_id": "H-01",
+    "label": "L7",
+    "description": "implicit underflows",
+    "reference": "https://code4rena.com/reports/2021-06-gro#h-01-implicit-underflows",
+    "comment": ""
+  },
+  {
+    "contest_id": "17",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "Buoy3Pool.safetyCheck is not precise and has some assumptions",
+    "reference": "https://code4rena.com/reports/2021-06-gro#h-02-buoy3poolsafetycheck-is-not-precise-and-has-some-assumptions",
+    "comment": ""
+  },
+  {
+    "contest_id": "18",
+    "bug_id": "H-01",
+    "label": "S6-1",
+    "description": "Reward computation is wrong",
+    "reference": "https://code4rena.com/reports/2021-07-wildcredit#h-01-reward-computation-is-wrong",
+    "comment": ""
+  },
+  {
+    "contest_id": "25",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "CompositeMultiOracle returns wrong decimals for prices?",
+    "reference": "https://code4rena.com/reports/2021-08-yield#h-01-compositemultioracle-returns-wrong-decimals-for-prices",
+    "comment": ""
+  },
+  {
+    "contest_id": "25",
+    "bug_id": "H-03",
+    "label": "S6-4",
+    "description": "ERC20Rewards breaks when setting a different token",
+    "reference": "https://code4rena.com/reports/2021-08-yield#h-03-erc20rewards-breaks-when-setting-a-different-token",
+    "comment": ""
+  },
+  {
+    "contest_id": "25",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "Exchange rates from Compound are assumed with 18 decimals",
+    "reference": "https://code4rena.com/reports/2021-08-yield#h-05-exchange-rates-from-compound-are-assumed-with-18-decimals",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-03",
+    "label": "L7",
+    "description": "IndexPool pow overflows when weightRatio > 10.",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-03-indexpool-pow-overflows-when-weightratio--10",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "hybrid pool uses wrong non_optimal_mint_fee",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-05-hybrid-pool-uses-wrong-non_optimal_mint_fee",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-08",
+    "label": "S6-4",
+    "description": "HybridPool’s reserve is converted to “amount” twice",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-08-hybridpools-reserve-is-converted-to-amount-twice",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-09",
+    "label": "L7",
+    "description": "Unsafe cast in IndexPool mint leads to attack",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-09-unsafe-cast-in-indexpool-mint-leads-to-attack",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-11",
+    "label": "S6-3",
+    "description": "ConstantProductPool.burnSingle swap amount computations should use balance",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-11-constantproductpoolburnsingle-swap-amount-computations-should-use-balance",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-13",
+    "label": "L7",
+    "description": "Overflow in the mint function of IndexPool causes LPs’ funds to be stolen",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-13-overflow-in-the-mint-function-of-indexpool-causes-lps-funds-to-be-stolen",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-14",
+    "label": "S6-4",
+    "description": "Incorrect usage of _pow in _computeSingleOutGivenPoolIn of IndexPool",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-14-incorrect-usage-of-_pow-in-_computesingleoutgivenpoolin-of-indexpool",
+    "comment": ""
+  },
+  {
+    "contest_id": "29",
+    "bug_id": "H-15",
+    "label": "S6-4",
+    "description": "Incorrect multiplication in _computeSingleOutGivenPoolIn of IndexPool",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident#h-15-incorrect-multiplication-in-_computesingleoutgivenpoolin-of-indexpool",
+    "comment": ""
+  },
+  {
+    "contest_id": "30",
+    "bug_id": "H-01",
+    "label": "S6-3",
+    "description": "Controller.setCap sets wrong vault balance",
+    "reference": "https://code4rena.com/reports/2021-09-yaxis#h-01-controllersetcap-sets-wrong-vault-balance",
+    "comment": ""
+  },
+  {
+    "contest_id": "30",
+    "bug_id": "H-07",
+    "label": "S6-4",
+    "description": "Vault.balance() mixes normalized and standard amounts",
+    "reference": "https://code4rena.com/reports/2021-09-yaxis#h-07-vaultbalance-mixes-normalized-and-standard-amounts",
+    "comment": ""
+  },
+  {
+    "contest_id": "30",
+    "bug_id": "H-08",
+    "label": "S6-4",
+    "description": "Vault.withdraw mixes normalized and standard amounts",
+    "reference": "https://code4rena.com/reports/2021-09-yaxis#h-08-vaultwithdraw-mixes-normalized-and-standard-amounts",
+    "comment": ""
+  },
+  {
+    "contest_id": "31",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "veCVXStrategy.manualRebalance has wrong logic",
+    "reference": "https://code4rena.com/reports/2021-09-bvecvx#h-01-vecvxstrategymanualrebalance-has-wrong-logic",
+    "comment": ""
+  },
+  {
+    "contest_id": "32",
+    "bug_id": "H-01",
+    "label": "S6-3",
+    "description": "Use of tokenB’s price instead of tokenA in determining account health will lead to protocol mis-accounting and insolvency",
+    "reference": "https://code4rena.com/reports/2021-09-wildcredit#h-01-use-of-tokenbs-price-instead-of-tokena-in-determining-account-health-will-lead-to-protocol-mis-accounting-and-insolvency",
+    "comment": ""
+  },
+  {
+    "contest_id": "34",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "The formula of number of prizes for a degree is wrong",
+    "reference": "https://code4rena.com/reports/2021-10-pooltogether#h-01-the-formula-of-number-of-prizes-for-a-degree-is-wrong",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-01",
+    "label": "L7",
+    "description": "Unsafe cast in ConcentratedLiquidityPool.burn leads to attack",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-01-unsafe-cast-in-concentratedliquiditypoolburn-leads-to-attack",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-04",
+    "label": "L7",
+    "description": "Overflow in the mint function of ConcentratedLiquidityPool causes LPs’ funds to be stolen",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-04-overflow-in-the-mint-function-of-concentratedliquiditypool-causes-lps-funds-to-be-stolen",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-05",
+    "label": "L7",
+    "description": "Incorrect usage of typecasting in _getAmountsForLiquidity lets an attacker steal funds from the pool",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-05-incorrect-usage-of-typecasting-in-_getamountsforliquidity-lets-an-attacker-steal-funds-from-the-pool",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-08",
+    "label": "S6-4",
+    "description": "Wrong inequality when adding/removing liquidity in current price range",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-08-wrong-inequality-when-addingremoving-liquidity-in-current-price-range",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-09",
+    "label": "L7",
+    "description": "range fee growth underflow",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-09-range-fee-growth-underflow",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-10",
+    "label": "S6-3",
+    "description": "ConcentratedLiquidityPool.burn() Wrong implementation",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-10-concentratedliquiditypoolburn-wrong-implementation",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-11",
+    "label": "S6-4",
+    "description": "ConcentratedLiquidityPool: incorrect feeGrowthGlobal accounting when crossing ticks",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-11-concentratedliquiditypool-incorrect-feegrowthglobal-accounting-when-crossing-ticks",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-12",
+    "label": "S6-1",
+    "description": "ConcentratedLiquidityPool: secondsPerLiquidity should be modified whenever pool liquidity changes",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-12-concentratedliquiditypool-secondsperliquidity-should-be-modified-whenever-pool-liquidity-changes",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-14",
+    "label": "L7",
+    "description": "ConcentratedLiquidityPool: rangeFeeGrowth and secondsPerLiquidity math needs to be unchecked",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-14-concentratedliquiditypool-rangefeegrowth-and-secondsperliquidity-math-needs-to-be-unchecked",
+    "comment": ""
+  },
+  {
+    "contest_id": "35",
+    "bug_id": "H-15",
+    "label": "L7",
+    "description": "ConcentratedLiquidityPool: initialPrice should be checked to be within allowable range",
+    "reference": "https://code4rena.com/reports/2021-09-sushitrident-2#h-15-concentratedliquiditypool-initialprice-should-be-checked-to-be-within-allowable-range",
+    "comment": ""
+  },
+  {
+    "contest_id": "39",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "Swivel: Taker is charged fees twice in exitVaultFillingVaultInitiate",
+    "reference": "https://code4rena.com/reports/2021-09-swivel#h-02-swivel-taker-is-charged-fees-twice-in-exitvaultfillingvaultinitiate",
+    "comment": ""
+  },
+  {
+    "contest_id": "42",
+    "bug_id": "H-01",
+    "label": "S6-3",
+    "description": "Vault fails to track debt correctly that leads to bad debt",
+    "reference": "https://code4rena.com/reports/2021-10-mochi#h-01-vault-fails-to-track-debt-correctly-that-leads-to-bad-debt",
+    "comment": ""
+  },
+  {
+    "contest_id": "42",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "debts calculation is not accurate",
+    "reference": "https://code4rena.com/reports/2021-10-mochi#h-05-debts-calculation-is-not-accurate",
+    "comment": ""
+  },
+  {
+    "contest_id": "42",
+    "bug_id": "H-07",
+    "label": "L7",
+    "description": "Liquidation will never work with non-zero discounts",
+    "reference": "https://code4rena.com/reports/2021-10-mochi#h-07-liquidation-will-never-work-with-non-zero-discounts",
+    "comment": ""
+  },
+  {
+    "contest_id": "43",
+    "bug_id": "H-02",
+    "label": "S6-1",
+    "description": "unstake should update exchange rates first",
+    "reference": "https://code4rena.com/reports/2021-10-covalent#h-02-unstake-should-update-exchange-rates-first",
+    "comment": ""
+  },
+  {
+    "contest_id": "44",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "Wrong calculation of erc20Delta and ethDelta",
+    "reference": "https://code4rena.com/reports/2021-10-tally#h-02-wrong-calculation-of-erc20delta-and-ethdelta",
+    "comment": ""
+  },
+  {
+    "contest_id": "45",
+    "bug_id": "H-01",
+    "label": "S6-1",
+    "description": "borrow must accrueInterest first",
+    "reference": "https://code4rena.com/reports/2021-10-union#h-01-borrow-must-accrueinterest-first",
+    "comment": ""
+  },
+  {
+    "contest_id": "45",
+    "bug_id": "H-02",
+    "label": "S6-1",
+    "description": "Wrong implementation of CreditLimitByMedian.sol#getLockedAmount() makes it unable to unlock lockedAmount in CreditLimitByMedian model",
+    "reference": "https://code4rena.com/reports/2021-10-union#h-02-wrong-implementation-of-creditlimitbymediansolgetlockedamount-makes-it-unable-to-unlock-lockedamount-in-creditlimitbymedian-model",
+    "comment": ""
+  },
+  {
+    "contest_id": "47",
+    "bug_id": "H-02",
+    "label": "S6-3",
+    "description": "Approved spender can spend too many tokens",
+    "reference": "https://code4rena.com/reports/2021-10-badgerdao#h-02-approved-spender-can-spend-too-many-tokens",
+    "comment": ""
+  },
+  {
+    "contest_id": "49",
+    "bug_id": "H-01",
+    "label": "S6-3",
+    "description": "OverlayV1UniswapV3Market computes wrong market liquidity",
+    "reference": "https://code4rena.com/reports/2021-11-overlay#h-01-overlayv1uniswapv3market-computes-wrong-market-liquidity",
+    "comment": ""
+  },
+  {
+    "contest_id": "51",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "Can not update target price",
+    "reference": "https://code4rena.com/reports/2021-11-bootfinance#h-02-can-not-update-target-price",
+    "comment": ""
+  },
+  {
+    "contest_id": "51",
+    "bug_id": "H-04",
+    "label": "S6-4",
+    "description": "Swaps are not split when trade crosses target price",
+    "reference": "https://code4rena.com/reports/2021-11-bootfinance#h-04-swaps-are-not-split-when-trade-crosses-target-price",
+    "comment": ""
+  },
+  {
+    "contest_id": "51",
+    "bug_id": "H-06",
+    "label": "S6-3",
+    "description": "Ideal balance is not calculated correctly when providing imbalanced liquidity",
+    "reference": "https://code4rena.com/reports/2021-11-bootfinance#h-06-ideal-balance-is-not-calculated-correctly-when-providing-imbalanced-liquidity",
+    "comment": ""
+  },
+  {
+    "contest_id": "51",
+    "bug_id": "H-07",
+    "label": "L2",
+    "description": "customPrecisionMultipliers would be rounded to zero and break the pool",
+    "reference": "https://code4rena.com/reports/2021-11-bootfinance#h-07-customprecisionmultipliers-would-be-rounded-to-zero-and-break-the-pool",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-04",
+    "label": "S6-4",
+    "description": "TwapOracle doesn’t calculate VADER:USDV exchange rate correctly",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-04-twaporacle-doesnt-calculate-vaderusdv-exchange-rate-correctly",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-08",
+    "label": "L2",
+    "description": "USDV and VADER rate can be wrong",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-08-usdv-and-vader-rate-can-be-wrong",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-09",
+    "label": "S6-4",
+    "description": "VaderPoolV2 incorrectly calculates the amount of IL protection to send to LPs",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-09-vaderpoolv2-incorrectly-calculates-the-amount-of-il-protection-to-send-to-lps",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-15",
+    "label": "S6-4",
+    "description": "VaderRouter._swap performs wrong swap",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-15-vaderrouter_swap-performs-wrong-swap",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-16",
+    "label": "S6-3",
+    "description": "VaderRouter.calculateOutGivenIn calculates wrong swap",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-16-vaderroutercalculateoutgivenin-calculates-wrong-swap",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-23",
+    "label": "S6-4",
+    "description": "Synth tokens can get over-minted",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-23-synth-tokens-can-get-over-minted",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-25",
+    "label": "S6-4",
+    "description": "Wrong design of swap() results in unexpected and unfavorable outputs",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-25-wrong-design-of-swap-results-in-unexpected-and-unfavorable-outputs",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-28",
+    "label": "S6-4",
+    "description": "Incorrect Price Consultation Results",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-28-incorrect-price-consultation-results",
+    "comment": ""
+  },
+  {
+    "contest_id": "52",
+    "bug_id": "H-34",
+    "label": "S6-4",
+    "description": "Incorrect Accrual Of sumNative and sumUSD In Producing Consultation Results",
+    "reference": "https://code4rena.com/reports/2021-11-vader#h-34-incorrect-accrual-of-sumnative-and-sumusd-in-producing-consultation-results-",
+    "comment": ""
+  },
+  {
+    "contest_id": "56",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "CDP.sol update overwrites user’s credit on every positive increment",
+    "reference": "https://code4rena.com/reports/2021-11-yaxis#h-02-cdpsol-update-overwrites-users-credit-on-every-positive-increment",
+    "comment": ""
+  },
+  {
+    "contest_id": "58",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "Wrong implementation of performanceFee can cause users to lose 50% to 100% of their funds",
+    "reference": "https://code4rena.com/reports/2021-12-mellow#h-02-wrong-implementation-of-performancefee-can-cause-users-to-lose-50-to-100-of-their-funds",
+    "comment": ""
+  },
+  {
+    "contest_id": "59",
+    "bug_id": "H-04",
+    "label": "S6-4",
+    "description": "AuctionBurnReserveSkew.getPegDeltaFrequency() Wrong implementation can result in an improper amount of excess Liquidity Extension balance to be used at the end of an auction",
+    "reference": "https://code4rena.com/reports/2021-11-malt#h-04-auctionburnreserveskewgetpegdeltafrequency-wrong-implementation-can-result-in-an-improper-amount-of-excess-liquidity-extension-balance-to-be-used-at-the-end-of-an-auction-",
+    "comment": ""
+  },
+  {
+    "contest_id": "59",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "AuctionEschapeHatch.sol#exitEarly updates state of the auction wrongly",
+    "reference": "https://code4rena.com/reports/2021-11-malt#h-05-auctioneschapehatchsolexitearly-updates-state-of-the-auction-wrongly",
+    "comment": ""
+  },
+  {
+    "contest_id": "60",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "Wrong shortfall calculation",
+    "reference": "https://code4rena.com/reports/2021-12-perennial#h-01-wrong-shortfall-calculation",
+    "comment": ""
+  },
+  {
+    "contest_id": "61",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "In CreditLine#_borrowTokensToLiquidate",
+    "reference": "oracle is used wrong way\"",
+    "comment": "https://code4rena.com/reports/2021-12-sublime#h-01-in-creditline_borrowtokenstoliquidate-oracle-is-used-wrong-way"
+  },
+  {
+    "contest_id": "61",
+    "bug_id": "H-02",
+    "label": "S6-2",
+    "description": "Wrong returns of SavingsAccountUtil.depositFromSavingsAccount() can cause fund loss",
+    "reference": "https://code4rena.com/reports/2021-12-sublime#h-02-wrong-returns-of-savingsaccountutildepositfromsavingsaccount-can-cause-fund-loss",
+    "comment": ""
+  },
+  {
+    "contest_id": "61",
+    "bug_id": "H-04",
+    "label": "S6-4",
+    "description": "Yearn token <> shares conversion decimal issue",
+    "reference": "https://code4rena.com/reports/2021-12-sublime#h-04-yearn-token--shares-conversion-decimal-issue",
+    "comment": ""
+  },
+  {
+    "contest_id": "62",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "Wrong calculation of excess depositToken allows stream creator to retrieve depositTokenFlashloanFeeAmount",
+    "reference": "which may cause fund loss to users\"",
+    "comment": "https://code4rena.com/reports/2021-11-streaming#h-01-wrong-calculation-of-excess-deposittoken-allows-stream-creator-to-retrieve-deposittokenflashloanfeeamount-which-may-cause-fund-loss-to-users"
+  },
+  {
+    "contest_id": "62",
+    "bug_id": "H-03",
+    "label": "S6-4",
+    "description": "Reward token not correctly recovered",
+    "reference": "https://code4rena.com/reports/2021-11-streaming#h-03-reward-token-not-correctly-recovered",
+    "comment": ""
+  },
+  {
+    "contest_id": "62",
+    "bug_id": "H-09",
+    "label": "L7",
+    "description": "DOS while dealing with erc20 when value(i.e amount*decimals)  is high but less than type(uint112).max",
+    "reference": "https://code4rena.com/reports/2021-11-streaming#h-09-dos-while-dealing-with-erc20-when-valueie-amountdecimals--is-high-but-less-than-typeuint112max",
+    "comment": ""
+  },
+  {
+    "contest_id": "62",
+    "bug_id": "H-10",
+    "label": "S6-3",
+    "description": "recoverTokens doesn’t work when isSale is true",
+    "reference": "https://code4rena.com/reports/2021-11-streaming#h-10-recovertokens-doesnt-work-when-issale-is-true",
+    "comment": ""
+  },
+  {
+    "contest_id": "66",
+    "bug_id": "H-02",
+    "label": "S6-3",
+    "description": "Yeti token rebase checks the additional token amount incorrectly",
+    "reference": "https://code4rena.com/reports/2021-12-yetifinance#h-02-yeti-token-rebase-checks-the-additional-token-amount-incorrectly",
+    "comment": ""
+  },
+  {
+    "contest_id": "70",
+    "bug_id": "H-03",
+    "label": "S6-4",
+    "description": "Oracle doesn’t calculate USDV/VADER price correctly",
+    "reference": "https://code4rena.com/reports/2021-12-vader#h-03-oracle-doesnt-calculate-usdvvader-price-correctly",
+    "comment": ""
+  },
+  {
+    "contest_id": "70",
+    "bug_id": "H-04",
+    "label": "S6-4",
+    "description": "Vader TWAP averages wrong",
+    "reference": "https://code4rena.com/reports/2021-12-vader#h-04-vader-twap-averages-wrong",
+    "comment": ""
+  },
+  {
+    "contest_id": "70",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "Oracle returns an improperly scaled USDV/VADER price",
+    "reference": "https://code4rena.com/reports/2021-12-vader#h-05-oracle-returns-an-improperly-scaled-usdvvader-price",
+    "comment": ""
+  },
+  {
+    "contest_id": "70",
+    "bug_id": "H-08",
+    "label": "S6-4",
+    "description": "Reserve does not properly apply prices of VADER and USDV tokens",
+    "reference": "https://code4rena.com/reports/2021-12-vader#h-08-reserve-does-not-properly-apply-prices-of-vader-and-usdv-tokens",
+    "comment": ""
+  },
+  {
+    "contest_id": "70",
+    "bug_id": "H-09",
+    "label": "S6-4",
+    "description": "USDV.sol Mint and Burn Amounts Are Incorrect",
+    "reference": "https://code4rena.com/reports/2021-12-vader#h-09-usdvsol-mint-and-burn-amounts-are-incorrect",
+    "comment": ""
+  },
+  {
+    "contest_id": "71",
+    "bug_id": "H-08",
+    "label": "L2",
+    "description": "IndexTemplate.sol#compensate() will most certainly fail",
+    "reference": "https://code4rena.com/reports/2022-01-insure#h-08-indextemplatesolcompensate-will-most-certainly-fail",
+    "comment": ""
+  },
+  {
+    "contest_id": "71",
+    "bug_id": "H-11",
+    "label": "S6-4",
+    "description": "PoolTemplate.sol#resume() Wrong implementation of resume() will compensate overmuch redeem amount from index pools",
+    "reference": "https://code4rena.com/reports/2022-01-insure#h-11-pooltemplatesolresume-wrong-implementation-of-resume-will-compensate-overmuch-redeem-amount-from-index-pools",
+    "comment": ""
+  },
+  {
+    "contest_id": "77",
+    "bug_id": "H-01",
+    "label": "S6-4",
+    "description": "In the case of Single Asset Entry",
+    "reference": "new liquidity providers will suffer fund loss due to wrong formula of ΔRo\"",
+    "comment": "https://code4rena.com/reports/2022-01-elasticswap#h-01-in-the-case-of-single-asset-entry-new-liquidity-providers-will-suffer-fund-loss-due-to-wrong-formula-of-%CE%B4ro"
+  },
+  {
+    "contest_id": "78",
+    "bug_id": "H-02",
+    "label": "S6-3",
+    "description": "wrong minting amount",
+    "reference": "https://code4rena.com/reports/2022-01-behodler#h-02-wrong-minting-amount",
+    "comment": ""
+  },
+  {
+    "contest_id": "79",
+    "bug_id": "H-02",
+    "label": "S6-4",
+    "description": "Wrong token allocation computation for token decimals != 18 if floor price not reached",
+    "reference": "https://code4rena.com/reports/2022-01-trader-joe#h-02-wrong-token-allocation-computation-for-token-decimals--18-if-floor-price-not-reached",
+    "comment": ""
+  },
+  {
+    "contest_id": "83",
+    "bug_id": "H-02",
+    "label": "S6-1",
+    "description": "Masterchef: Improper handling of deposit fee",
+    "reference": "https://code4rena.com/reports/2022-02-concur#h-02-masterchef-improper-handling-of-deposit-fee",
+    "comment": ""
+  },
+  {
+    "contest_id": "90",
+    "bug_id": "H-02",
+    "label": "L7",
+    "description": "UniswapV2PriceOracle.sol currentCumulativePrices() will revert when priceCumulative addition overflow",
+    "reference": "https://code4rena.com/reports/2022-04-phuture#h-02-uniswapv2priceoraclesol-currentcumulativeprices-will-revert-when-pricecumulative-addition-overflow",
+    "comment": ""
+  },
+  {
+    "contest_id": "92",
+    "bug_id": "H-01",
+    "label": "S6-3",
+    "description": "ERC4626 mint uses wrong amount",
+    "reference": "https://code4rena.com/reports/2022-02-tribe-turbo#h-01-erc4626-mint-uses-wrong-amount",
+    "comment": ""
+  },
+  {
+    "contest_id": "97",
+    "bug_id": "H-02",
+    "label": "L7",
+    "description": "LiquidityProviders.sol The share price of the LP can be manipulated and making future liquidityProviders unable to removeLiquidity()",
+    "reference": "https://code4rena.com/reports/2022-03-biconomy#h-02-liquidityproviderssol-the-share-price-of-the-lp-can-be-manipulated-and-making-future-liquidityproviders-unable-to-removeliquidity",
+    "comment": ""
+  },
+  {
+    "contest_id": "97",
+    "bug_id": "H-03",
+    "label": "S6-4",
+    "description": "Wrong formula when add fee incentivePool can lead to loss of funds.",
+    "reference": "https://code4rena.com/reports/2022-03-biconomy#h-03-wrong-formula-when-add-fee-incentivepool-can-lead-to-loss-of-funds",
+    "comment": ""
+  },
+  {
+    "contest_id": "97",
+    "bug_id": "H-05",
+    "label": "L2",
+    "description": "Users will lose a majority or even all of the rewards when the amount of total shares is too large",
+    "reference": "due to precision loss\"",
+    "comment": "https://code4rena.com/reports/2022-03-biconomy#h-05-users-will-lose-a-majority-or-even-all-of-the-rewards-when-the-amount-of-total-shares-is-too-large-due-to-precision-loss"
+  },
+  {
+    "contest_id": "98",
+    "bug_id": "H-02",
+    "label": "L2",
+    "description": "Mint spread collateral-less and conjuring collateral claims out of thin air with implicit arithmetic rounding and flawed int to uint conversion",
+    "reference": "https://code4rena.com/reports/2022-03-rolla#h-02-mint-spread-collateral-less-and-conjuring-collateral-claims-out-of-thin-air-with-implicit-arithmetic-rounding-and-flawed-int-to-uint-conversion",
+    "comment": ""
+  },
+  {
+    "contest_id": "101",
+    "bug_id": "H-01",
+    "label": "S6-2",
+    "description": "LenderPool: Principal withdrawable is incorrectly calculated if start() is invoked with non-zero start fee",
+    "reference": "https://code4rena.com/reports/2022-03-sublime#h-01-lenderpool-principal-withdrawable-is-incorrectly-calculated-if-start-is-invoked-with-non-zero-start-fee",
+    "comment": ""
+  },
+  {
+    "contest_id": "101",
+    "bug_id": "H-02",
+    "label": "S6-3",
+    "description": "PooledCreditLine: termination likely fails because _principleWithdrawable is treated as shares",
+    "reference": "https://code4rena.com/reports/2022-03-sublime#h-02-pooledcreditline-termination-likely-fails-because-_principlewithdrawable-is-treated-as-shares",
+    "comment": ""
+  },
+  {
+    "contest_id": "102",
+    "bug_id": "H-01",
+    "label": "S6-1",
+    "description": "Oracle price does not compound",
+    "reference": "https://code4rena.com/reports/2022-03-volt#h-01-oracle-price-does-not-compound",
+    "comment": ""
+  },
+  {
+    "contest_id": "105",
+    "bug_id": "H-01",
+    "label": "L2",
+    "description": "DropPerSecond is not updated homogeneously",
+    "reference": "the rewards emission can be much higher than expected in some cases\"",
+    "comment": "https://code4rena.com/reports/2022-03-paladin#h-01-droppersecond-is-not-updated-homogeneously-the-rewards-emission-can-be-much-higher-than-expected-in-some-cases"
+  },
+  {
+    "contest_id": "110",
+    "bug_id": "H-01",
+    "label": "S6-2",
+    "description": "StakedCitadel doesn’t use correct balance for internal accounting",
+    "reference": "https://code4rena.com/reports/2022-04-badger-citadel#h-01-stakedcitadel-doesnt-use-correct-balance-for-internal-accounting",
+    "comment": ""
+  },
+  {
+    "contest_id": "112",
+    "bug_id": "H-01",
+    "label": "S6-1",
+    "description": "User can steal all rewards due to checkpoint after transfer",
+    "reference": "https://code4rena.com/reports/2022-04-backd#h-01-user-can-steal-all-rewards-due-to-checkpoint-after-transfer",
+    "comment": ""
+  },
+  {
+    "contest_id": "113",
+    "bug_id": "H-05",
+    "label": "S6-4",
+    "description": "Mistake while checking LTV to lender accepted LTV",
+    "reference": "https://code4rena.com/reports/2022-04-abranft#h-05-mistake-while-checking-ltv-to-lender-accepted-ltv",
+    "comment": ""
+  },
+  {
+    "contest_id": "192",
+    "bug_id": "H-03",
+    "label": "L7",
+    "description": "Certain fee configuration enables vaults to be drained",
+    "reference": "https://code4rena.com/reports/2022-12-tigris#h-03-certain-fee-configuration-enables-vaults-to-be-drained",
+    "comment": ""
+  },
+  {
+    "contest_id": "192",
+    "bug_id": "H-06",
+    "label": "S6-4",
+    "description": "Incorrect calculation of new price while adding position",
+    "reference": "https://code4rena.com/reports/2022-12-tigris#h-06-incorrect-calculation-of-new-price-while-adding-position",
+    "comment": ""
+  },
+  {
+    "contest_id": "192",
+    "bug_id": "H-09",
+    "label": "S6-4",
+    "description": "Users can bypass the maxWinPercent limit using a partially closing",
+    "reference": "https://code4rena.com/reports/2022-12-tigris#h-09-users-can-bypass-the-maxwinpercent-limit-using-a-partially-closing",
+    "comment": ""
+  },
+  {
+    "contest_id": "192",
+    "bug_id": "H-11",
+    "label": "S6-4",
+    "description": "Not enough margin pulled or burned from user when adding to a position",
+    "reference": "https://code4rena.com/reports/2022-12-tigris#h-11-not-enough-margin-pulled-or-burned-from-user-when-adding-to-a-position",
+    "comment": ""
+  }
+]
