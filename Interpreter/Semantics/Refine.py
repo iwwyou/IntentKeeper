@@ -56,7 +56,8 @@ class Refine:
             return self._update_comparison_condition(variables, condition_expr, is_true_branch)
 
         else:
-            raise ValueError(f"This operator '{op}' is not expected operator")
+            # 함수 호출, 타입 변환 등 refine 불가능한 연산은 스킵 (sound overapproximation)
+            return
 
     def _update_single_condition(self, vars_, cond_expr, is_true_branch):
         # bool literal인 경우는 영향 없음
@@ -116,13 +117,7 @@ class Refine:
                 if self._is_false(B_b):
                     self.update_variables_with_condition(variables, condB, False)
                     return
-                # 둘 다 불명 → 분기 2개를 만들어 정제 후 join
-                env1 = self._clone_env(variables)
-                self.update_variables_with_condition(env1, condA, False)
-                env2 = self._clone_env(variables)
-                self.update_variables_with_condition(env2, condB, False)
-                merged = self._join_two_envs(env1, env2)
-                self._apply_env_inplace(variables, merged)
+                # 둘 다 불명 → 어느 쪽이 거짓인지 알 수 없으므로 정제 skip (sound)
                 return
 
         # ───────── OR ─────────
@@ -136,13 +131,7 @@ class Refine:
                 if self._is_true(B_b):
                     self.update_variables_with_condition(variables, condB, True)
                     return
-                # 둘 다 불명 → 분기 2개를 만들어 정제 후 join
-                env1 = self._clone_env(variables)
-                self.update_variables_with_condition(env1, condA, True)
-                env2 = self._clone_env(variables)
-                self.update_variables_with_condition(env2, condB, True)
-                merged = self._join_two_envs(env1, env2)
-                self._apply_env_inplace(variables, merged)
+                # 둘 다 불명 → 어느 쪽이 참인지 알 수 없으므로 정제 skip (sound)
                 return
             else:
                 # ¬(A || B) ≡ ¬A ∧ ¬B → 둘 다 false로 정제
@@ -158,9 +147,34 @@ class Refine:
             cond_expr: Expression,
             is_true_branch: bool) -> None:
 
+        _NON_LVALUE_CONTEXTS = frozenset({
+            'FunctionCallContext', 'InterfaceFunctionCallContext',
+            'LibraryFunctionCallContext', 'SuperFunctionCallContext',
+            'ThisFunctionCallContext',
+            'BinaryExpContext', 'UnaryExpContext',
+            'LiteralExpContext', 'TupleExpContext',
+            'TypeConversionContext',
+        })
+
+        def _has_non_lvalue_in_chain(e):
+            """expression의 base chain에 refine 불가능한 context가 있는지 확인"""
+            while e is not None:
+                ctx = getattr(e, 'context', '')
+                if ctx in _NON_LVALUE_CONTEXTS:
+                    return True
+                # operator 기반 체크 (binary/unary)
+                op = getattr(e, 'operator', None)
+                if op in ('+', '-', '*', '/', '%', '**', '&&', '||', '!',
+                          '<<', '>>', '&', '|', '^', '~'):
+                    return True
+                e = getattr(e, 'base', None)
+            return False
+
         def _maybe_update(expr, variables, new_iv):
             if self._is_read_only_expr(expr, variables):
                 return  # read-only → 변수 상태 수정 X
+            if _has_non_lvalue_in_chain(expr):
+                return  # non-l-value → narrowing 대상 아님
 
             # ★ Update.py의 전략 적용: 매핑/배열 접근에서 심볼릭 인덱스 처리
             # IndexAccessContext일 때 인덱스가 interval인지 확인
@@ -216,7 +230,24 @@ class Refine:
 
         # ───────── CASE 1 : 둘 다 Interval ─────────────────────
         if VariableEnv.is_interval(left_val) and VariableEnv.is_interval(right_val):
+            # 비트 길이 통일: Solidity 비교 시 큰 쪽으로 promotion 후 refine, 결과는 원래 비트로 복원
+            orig_l_bits = left_val.type_length
+            orig_r_bits = right_val.type_length
+            if orig_l_bits != orig_r_bits:
+                promo_bits = max(orig_l_bits, orig_r_bits)
+                left_val = type(left_val)(left_val.min_value, left_val.max_value, promo_bits)
+                right_val = type(right_val)(right_val.min_value, right_val.max_value, promo_bits)
             new_l, new_r = self.refine_intervals_for_comparison(left_val, right_val, actual_op)
+            # 원래 비트 길이 복원
+            if orig_l_bits != orig_r_bits:
+                if not new_l.is_bottom():
+                    new_l = type(new_l)(new_l.min_value, new_l.max_value, orig_l_bits)
+                else:
+                    new_l = new_l.bottom(orig_l_bits)
+                if not new_r.is_bottom():
+                    new_r = type(new_r)(new_r.min_value, new_r.max_value, orig_r_bits)
+                else:
+                    new_r = new_r.bottom(orig_r_bits)
             _maybe_update(left_expr, variables, new_l)
             _maybe_update(right_expr, variables, new_r)
             return
@@ -330,6 +361,21 @@ class Refine:
                 # 동일 싱글톤이면 모순
                 return (A.bottom(A.type_length),
                         B.bottom(B.type_length))
+
+            # 상대방이 싱글톤일 때 경계값 제외 (sound refinement)
+            if B.min_value == B.max_value:
+                b_val = B.min_value
+                if A.min_value == b_val:
+                    A.min_value = b_val + 1
+                elif A.max_value == b_val:
+                    A.max_value = b_val - 1
+            if A.min_value == A.max_value:
+                a_val = A.min_value
+                if B.min_value == a_val:
+                    B.min_value = a_val + 1
+                elif B.max_value == a_val:
+                    B.max_value = a_val - 1
+
             return A, B
 
         # 알 수 없는 op → 변경 없음

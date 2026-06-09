@@ -217,18 +217,32 @@ class Update :
         #      · allowed[msg.sender][_from]   (2-단계)
         # ────────────────────────────────────────────────
         if VariableEnv.is_global_expr(expr) and isinstance(callerObject, MappingVariable):
-            key = f"{expr.base.identifier}.{member}"  # "msg.sender"
+            full_name = f"{expr.base.identifier}.{member}"  # "msg.sender"
 
             if not callerObject.struct_defs or not callerObject.enum_defs:
                 ccf = self.an.contract_cfgs[self.an.current_target_contract]
                 callerObject.struct_defs = ccf.structDefs
                 callerObject.enum_defs = ccf.enumDefs
 
+            # global var의 실제 값으로 key 결정 (identifier 경로와 동일)
+            key = full_name  # fallback
+            if full_name in variables:
+                gv_val = variables[full_name].value
+                if isinstance(gv_val, AddressSet):
+                    if gv_val.is_singleton():
+                        key = str(gv_val)  # "AddressSet({101})"
+                elif hasattr(gv_val, "min_value"):
+                    if gv_val.min_value == gv_val.max_value:
+                        key = str(gv_val.min_value)
+
             # (1) 엔트리 없으면 생성
             if key not in callerObject.mapping:
                 callerObject.mapping[key] = callerObject.get_or_create(key)
 
             entry = callerObject.mapping[key]
+            # struct/array/mapping이면 바로 반환 (외부 member access가 이어짐)
+            if isinstance(entry, (StructVariable, ArrayVariable, MappingVariable)):
+                return entry
 
             # (2-B) leaf 에 값 대입 중이면 여기서 patch
             if hasattr(entry, "value"):
@@ -662,14 +676,23 @@ class Update :
             # ── (1) ident 가 변수로 선언돼 있을 때 ──────────────────────────
             if ident in variables:
                 key_var = variables[ident]
-                # --- address / bytes / symbolic => 그대로 식별자 사용 -------
-                et = getattr(key_var.typeInfo, "elementaryTypeName", "")
-                if et == "address" or et.startswith("bytes") or not VariableEnv.is_interval(key_var.value):
+                val = getattr(key_var, "value", key_var)
+
+                # ★ AddressSet: singleton이면 str(val)을 key로 사용
+                if isinstance(val, AddressSet):
+                    if val.is_singleton():
+                        key_str = str(val)  # "AddressSet({1})"
+                    else:
+                        key_str = ident  # TOP/multi → identifier
+
+                # --- bytes / symbolic => 그대로 식별자 사용 -------
+                elif getattr(key_var.typeInfo, "elementaryTypeName", "").startswith("bytes") \
+                        or not VariableEnv.is_interval(val):
                     key_str = ident
 
                 # --- int/uint singleton interval ----------------------------
-                elif VariableEnv.is_interval(key_var.value):
-                    iv = key_var.value
+                elif VariableEnv.is_interval(val):
+                    iv = val
 
                     if not iv.is_bottom() and iv.min_value == iv.max_value:
                         key_str = str(iv.min_value)

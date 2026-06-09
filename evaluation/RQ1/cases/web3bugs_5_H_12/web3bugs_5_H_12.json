@@ -1,0 +1,256 @@
+[
+  {
+    "code": "pragma solidity 0.8.3;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract Pools {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "bool private inited;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "uint public pooledVADER;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "uint public pooledUSDV;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "address public VADER;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "address public USDV;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "address public ROUTER;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "address public FACTORY;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => bool) _isMember;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => bool) _isAsset;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => bool) _isAnchor;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint) public mapToken_Units;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => mapping(address => uint)) public mapTokenMember_Units;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint) public mapToken_baseAmount;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint) public mapToken_tokenAmount;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "function getAddedAmount(address _token, address _pool) internal returns(uint addedAmount) {\n}",
+    "startLine": 23,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "uint _balance = iERC20(_token).balanceOf(address(this));",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "if(_token == VADER && _pool != VADER){\n}",
+    "startLine": 25,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "addedAmount = _balance - pooledVADER;",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "pooledVADER = pooledVADER + addedAmount;",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "else if(_token == USDV) {\n}",
+    "startLine": 28,
+    "endLine": 29,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "addedAmount = _balance - pooledUSDV;",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "pooledUSDV = pooledUSDV + addedAmount;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 31,
+    "endLine": 32,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "addedAmount = _balance - mapToken_tokenAmount[_pool];",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "// @Post returnExpression == _balance - mapToken_tokenAmount[_token]",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _token = symbolicAddress 1",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _pool = symbolicAddress 2",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar VADER = symbolicAddress 3",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar USDV = symbolicAddress 4",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar mapToken_tokenAmount[1] = [100, 100]",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar mapToken_tokenAmount[2] = [50, 50]",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn iERC20(_token).balanceOf() = [200, 200]",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  }
+]

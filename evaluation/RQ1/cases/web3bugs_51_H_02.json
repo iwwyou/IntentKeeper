@@ -1,0 +1,719 @@
+[
+  {
+    "code": "pragma solidity 0.6.12;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "library SwapUtils {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using SafeERC20 for IERC20;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint256;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "using MathUtils for uint256;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "struct Swap {\n}",
+    "startLine": 8,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialA;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureA;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialATime;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureATime;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialA2;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureA2;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialA2Time;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureA2Time;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 swapFee;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "uint256 adminFee;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "uint256 defaultWithdrawFee;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "LPToken lpToken;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "IERC20[] pooledTokens;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "uint256[] tokenPrecisionMultipliers;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "uint256[] balances;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint256) depositTimestamp;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint256) withdrawFeeMultiplier;",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "struct TargetPrice {\n}",
+    "startLine": 28,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialTargetPrice;",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureTargetPrice;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialTargetPriceTime;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureTargetPriceTime;",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "uint256[2] originalPrecisionMultipliers;",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "struct CalculateWithdrawOneTokenDYInfo {\n}",
+    "startLine": 37,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d0;",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d1;",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "uint256 newY;",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feePerToken;",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "uint256 preciseA;",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "struct AddLiquidityInfo {\n}",
+    "startLine": 45,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d0;",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d1;",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d2;",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "uint256 preciseA;",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "struct RemoveLiquidityImbalanceInfo {\n}",
+    "startLine": 52,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d0;",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d1;",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "uint256 d2;",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "uint256 preciseA;",
+    "startLine": 56,
+    "endLine": 56,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant WEI_UNIT = 10**18;",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "uint8 public constant POOL_PRECISION_DECIMALS = 18;",
+    "startLine": 61,
+    "endLine": 61,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 62,
+    "endLine": 62,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant FEE_DENOMINATOR = 10**10;",
+    "startLine": 63,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 64,
+    "endLine": 64,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant MAX_SWAP_FEE = 10**8;",
+    "startLine": 65,
+    "endLine": 65,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 66,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant MAX_ADMIN_FEE = 10**10;",
+    "startLine": 67,
+    "endLine": 67,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant MAX_WITHDRAW_FEE = 10**8;",
+    "startLine": 69,
+    "endLine": 69,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 70,
+    "endLine": 70,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant MAX_LOOP_LIMIT = 256;",
+    "startLine": 71,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 72,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant TARGET_PRICE_PRECISION = 1;",
+    "startLine": 73,
+    "endLine": 73,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant A_PRECISION = 100;",
+    "startLine": 74,
+    "endLine": 74,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant MAX_A = 10**6;",
+    "startLine": 75,
+    "endLine": 75,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant MAX_A_CHANGE = 2;",
+    "startLine": 76,
+    "endLine": 76,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant MAX_RELATIVE_PRICE_CHANGE = 10**16;",
+    "startLine": 77,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant MIN_RAMP_TIME = 14 days;",
+    "startLine": 78,
+    "endLine": 78,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 79,
+    "endLine": 79,
+    "event": "add"
+  },
+  {
+    "code": "function _getTargetPricePrecise(TargetPrice storage self) internal view returns (uint256) {\n}",
+    "startLine": 80,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "uint256 t1 = self.futureTargetPriceTime;",
+    "startLine": 81,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "uint256 a1 = self.futureTargetPrice;",
+    "startLine": 82,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "uint256 newTargetPrice;",
+    "startLine": 83,
+    "endLine": 83,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 84,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "if (block.timestamp < t1) {\n}",
+    "startLine": 85,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "uint256 t0 = self.initialTargetPriceTime;",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "uint256 a0 = self.initialTargetPrice;",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
+    "code": "if (a1 > a0) {\n}",
+    "startLine": 88,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "newTargetPrice = a0.add(a1.sub(a0).mul(block.timestamp.sub(t0)).div(t1.sub(t0)));",
+    "startLine": 89,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 90,
+    "endLine": 91,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "newTargetPrice = a0.sub(a0.sub(a1).mul(block.timestamp.sub(t0)).div(t1.sub(t0)));",
+    "startLine": 91,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 93,
+    "endLine": 94,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "newTargetPrice = a1;",
+    "startLine": 94,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 96,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "return newTargetPrice;",
+    "startLine": 97,
+    "endLine": 97,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 99,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "function rampTargetPrice( TargetPrice storage self, uint256 futureTargetPrice_, uint256 futureTime_ ) external returns (uint256) {\n}",
+    "startLine": 100,
+    "endLine": 105,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar block.timestamp = [2000000, 2000000]",
+    "startLine": 105,
+    "endLine": 105,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.initialTargetPriceTime = [1000000, 1000000]",
+    "startLine": 106,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.futureTargetPriceTime = [1500000, 1500000]",
+    "startLine": 107,
+    "endLine": 107,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.futureTargetPrice = [1000000000000000000, 1000000000000000000]",
+    "startLine": 108,
+    "endLine": 108,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.initialTargetPrice = [1000000000000000000, 1000000000000000000]",
+    "startLine": 109,
+    "endLine": 109,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.originalPrecisionMultipliers[0] = [1000000000000000000, 1000000000000000000]",
+    "startLine": 110,
+    "endLine": 110,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar futureTargetPrice_ = [990000000000000000, 990000000000000000]",
+    "startLine": 111,
+    "endLine": 111,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar futureTime_ = [3209600, 3209600]",
+    "startLine": 112,
+    "endLine": 112,
+    "event": "add"
+  },
+  {
+    "code": "require(block.timestamp >= self.initialTargetPriceTime.add(1 days), \"Wait 1 day before starting ramp\");",
+    "startLine": 113,
+    "endLine": 113,
+    "event": "add"
+  },
+  {
+    "code": "require(futureTime_ >= block.timestamp.add(MIN_RAMP_TIME), \"Insufficient ramp time\");",
+    "startLine": 114,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "require(futureTargetPrice_ >= 0, \"futureTargetPrice_ must be >= 0\");",
+    "startLine": 115,
+    "endLine": 115,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 116,
+    "endLine": 116,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialTargetPricePrecise = _getTargetPricePrecise(self);",
+    "startLine": 117,
+    "endLine": 117,
+    "event": "add"
+  },
+  {
+    "code": "uint256 futureTargetPricePrecise = futureTargetPrice_.mul(TARGET_PRICE_PRECISION);",
+    "startLine": 118,
+    "endLine": 118,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 119,
+    "endLine": 119,
+    "event": "add"
+  },
+  {
+    "code": "if (futureTargetPricePrecise < initialTargetPricePrecise) {\n}",
+    "startLine": 120,
+    "endLine": 121,
+    "event": "add"
+  },
+  {
+    "code": "// @During require feasible",
+    "startLine": 121,
+    "endLine": 121,
+    "event": "add"
+  },
+  {
+    "code": "require(futureTargetPricePrecise.mul(MAX_RELATIVE_PRICE_CHANGE).div(WEI_UNIT) >= initialTargetPricePrecise, \"futureTargetPrice_ is too small\");",
+    "startLine": 122,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 123,
+    "endLine": 124,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "require(futureTargetPricePrecise <= initialTargetPricePrecise.mul(MAX_RELATIVE_PRICE_CHANGE).div(WEI_UNIT), \"futureTargetPrice_ is too large\");",
+    "startLine": 124,
+    "endLine": 124,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 126,
+    "endLine": 126,
+    "event": "add"
+  },
+  {
+    "code": "self.initialTargetPrice = initialTargetPricePrecise;",
+    "startLine": 127,
+    "endLine": 127,
+    "event": "add"
+  },
+  {
+    "code": "self.futureTargetPrice = futureTargetPricePrecise;",
+    "startLine": 128,
+    "endLine": 128,
+    "event": "add"
+  },
+  {
+    "code": "self.initialTargetPriceTime = block.timestamp;",
+    "startLine": 129,
+    "endLine": 129,
+    "event": "add"
+  },
+  {
+    "code": "self.futureTargetPriceTime = futureTime_;",
+    "startLine": 130,
+    "endLine": 130,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 131,
+    "endLine": 131,
+    "event": "add"
+  },
+  {
+    "code": "return self.originalPrecisionMultipliers[0].mul(initialTargetPricePrecise).div(WEI_UNIT);",
+    "startLine": 132,
+    "endLine": 132,
+    "event": "add"
+  }
+]

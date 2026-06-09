@@ -1,0 +1,146 @@
+[
+  {
+    "code": "pragma solidity ^0.6.12;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "library SafeMath {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "function div(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 4,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "return a / b;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "function mul(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 7,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "return a * b;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "library Address {\n}",
+    "startLine": 12,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "contract BoostToken {\n}",
+    "startLine": 15,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint256;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "using Address for address;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "address payable public _devWalletAddress;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "address payable public _marketingWalletAddress;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "address payable public _dipWalletAddress;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "address payable public _marketingWalletAddress2;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "function sendETHToTeam(uint256 amount) private {\n}",
+    "startLine": 24,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "_devWalletAddress.transfer(amount.div(4));",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "_marketingWalletAddress.transfer(amount.div(12).mul(5));",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "_dipWalletAddress.transfer(amount.div(9).mul(2));",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "_marketingWalletAddress2.transfer(amount.div(9));",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  }
+]

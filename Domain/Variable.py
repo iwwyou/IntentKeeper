@@ -356,7 +356,17 @@ class MappingVariable(Variables):
 
             return ev
 
-        # 4) elementary -------------------------------------------------
+        # 4) interface -------------------------------------------------
+        if sol_t.typeCategory == "interface":
+            ifc_name = getattr(sol_t, 'interfaceName', None)
+            v = Variables(identifier=sub_id, scope=self.scope)
+            v.typeInfo = sol_t
+            v.value = AddressSet.top()
+            if ifc_name:
+                v.value._cast_interface = ifc_name
+            return v
+
+        # 5) elementary -------------------------------------------------
         v = Variables(identifier=sub_id, scope=self.scope)
         v.typeInfo = sol_t
         et = sol_t.elementaryTypeName
@@ -512,7 +522,17 @@ class StructVariable(Variables):
 
                 return sv
 
-            # 4) elementary  --------------------------------------------
+            # 4) interface  --------------------------------------------
+            if sol_t.typeCategory == "interface":
+                ifc_name = getattr(sol_t, 'interfaceName', None)
+                v = Variables(identifier=var_id, scope=self.scope)
+                v.typeInfo = sol_t
+                v.value = AddressSet.top()
+                if ifc_name:
+                    v.value._cast_interface = ifc_name
+                return v
+
+            # 5) elementary  --------------------------------------------
             v = Variables(identifier=var_id, scope=self.scope)
             v.typeInfo = sol_t
 

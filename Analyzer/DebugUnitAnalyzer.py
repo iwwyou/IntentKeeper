@@ -36,7 +36,7 @@ class DebugBatchManager:
         snap = self.snapman.snapshot()
         try:
             for code, s, e in self._lines.values():
-                tree = ParserHelpers.generate_parse_tree(code, "debugUnit")
+                tree = ParserHelpers.generate_parse_tree(code, "intentUnit")
                 EnhancedSolidityVisitor(self.analyzer).visit(tree)
 
             # 선택된 한 함수만 재-해석

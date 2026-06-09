@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 from Domain.Variable import Variables, ArrayVariable, StructVariable, MappingVariable, EnumVariable
 from Domain.Type import SolType
 from Domain.Interval import Interval, IntegerInterval, BoolInterval, UnsignedIntegerInterval
+from Domain.AddressSet import AddressSet
 from Domain.IR import Expression
 
 from Utils.Helper import VariableEnv
@@ -56,6 +57,22 @@ class DebugInitializer:
                 expr, rVal, operator, variables, callerObject, callerContext)
         elif expr.context == "IntentMemberAccess":
             return self._update_left_var_of_intent_member_access_context_for_debug(
+                expr, rVal, operator, variables, callerObject, callerContext)
+        elif expr.context == "VarRefBase":
+            # VarRefBase: visitVarRef에서 생성되는 단순 변수 참조
+            return self._update_left_var_of_varref_base_context_for_debug(
+                expr, rVal, operator, variables, callerObject, callerContext)
+        elif expr.context == "VarRefMemberAccess":
+            # VarRefMemberAccess: varRef의 .member 접근 (IntentMemberAccess와 동일 구조)
+            return self._update_left_var_of_intent_member_access_context_for_debug(
+                expr, rVal, operator, variables, callerObject, callerContext)
+        elif expr.context == "VarRefIndexAccess":
+            # VarRefIndexAccess: varRef의 [index] 접근 (IntentIndexAccess와 동일 구조)
+            return self._update_left_var_of_intent_index_access_context_for_debug(
+                expr, rVal, operator, variables, callerObject, callerContext)
+        elif expr.context == "TypeConversion":
+            # TypeConversion이 mapping key로 사용되는 경우 (예: balances[address(this)])
+            return self._update_left_var_of_type_conversion_context_for_debug(
                 expr, rVal, operator, variables, callerObject, callerContext)
 
         return None
@@ -141,25 +158,23 @@ class DebugInitializer:
             if ident in variables:  # ident == 변수명
                 key_var = variables[ident]
                 val = getattr(key_var, "value", key_var)
-                # 주소형 판별
-                is_address = (
-                        hasattr(key_var, "typeInfo") and
-                        getattr(key_var.typeInfo, "elementaryTypeName", None) == "address"
-                )
 
-                if hasattr(val, "min_value"):
-                    if is_address:
-                        key_str = key_var.identifier  # "account" 그대로
-                    elif val.min_value == val.max_value:  # 숫자·bool 싱글톤
+                # ★ AddressSet: singleton이면 str(val)을 key로 사용
+                if isinstance(val, AddressSet):
+                    if val.is_singleton():
+                        key_str = str(val)  # "AddressSet({1})"
+                    else:
+                        key_str = key_var.identifier  # TOP/multi → identifier
+                elif hasattr(val, "min_value"):
+                    if val.min_value == val.max_value:  # 숫자·bool 싱글톤
                         key_str = str(val.min_value)
                     else:
                         key_str = key_var.identifier  # 여전히 TOP
                 else:
                     key_str = key_var.identifier  # string·bool 등
             else:
-                # ───── 디버깅 전용: 리터럴 키로 강제 사용 ────────────────────────────
-                # 일반 프로그램에서는 오류이지만, 디버깅에서는 허용
-                key_str = ident
+                # ───── 디버깅 전용: 리터럴/특수 expression을 key로 변환 ──────
+                key_str = self._resolve_mapping_key(ident, caller_object, variables)
 
             # ── ③ 매핑 엔트리 가져오거나 생성 ─────────────
             if not caller_object.struct_defs or not caller_object.enum_defs:
@@ -246,12 +261,23 @@ class DebugInitializer:
         #    예: allowed[_from][msg.sender], balances[msg.sender]
         # ======================================================================
         if VariableEnv.is_global_expr(expr) and isinstance(callerObject, MappingVariable):
-            key = f"{expr.base.identifier}.{member_name}"  # "msg.sender"
+            full_name = f"{expr.base.identifier}.{member_name}"  # "msg.sender"
 
             if not callerObject.struct_defs or not callerObject.enum_defs:
                 ccf = self.an.contract_cfgs[self.an.current_target_contract]
                 callerObject.struct_defs = ccf.structDefs
                 callerObject.enum_defs = ccf.enumDefs
+
+            # global var의 실제 값으로 key 결정
+            key = full_name  # fallback
+            if full_name in variables:
+                gv_val = variables[full_name].value
+                if isinstance(gv_val, AddressSet):
+                    if gv_val.is_singleton():
+                        key = str(gv_val)  # "AddressSet({101})"
+                elif hasattr(gv_val, "min_value"):
+                    if gv_val.min_value == gv_val.max_value:
+                        key = str(gv_val.min_value)
 
             # 엔트리 없으면 생성
             if key not in callerObject.mapping:
@@ -276,12 +302,22 @@ class DebugInitializer:
         if isinstance(base_obj, str) and base_obj in ("block", "tx", "msg"):
             # 글로벌 멤버 접근 - callerObject가 MappingVariable이면 키로 사용
             if isinstance(callerObject, MappingVariable):
-                key = f"{base_obj}.{member_name}"
+                full_name = f"{base_obj}.{member_name}"
 
                 if not callerObject.struct_defs or not callerObject.enum_defs:
                     ccf = self.an.contract_cfgs[self.an.current_target_contract]
                     callerObject.struct_defs = ccf.structDefs
                     callerObject.enum_defs = ccf.enumDefs
+
+                key = full_name
+                if full_name in variables:
+                    gv_val = variables[full_name].value
+                    if isinstance(gv_val, AddressSet):
+                        if gv_val.is_singleton():
+                            key = str(gv_val)
+                    elif hasattr(gv_val, "min_value"):
+                        if gv_val.min_value == gv_val.max_value:
+                            key = str(gv_val.min_value)
 
                 if key not in callerObject.mapping:
                     callerObject.mapping[key] = callerObject.get_or_create(key)
@@ -332,15 +368,7 @@ class DebugInitializer:
                 try:
                     if callerObject.typeInfo.isDynamicArray:
                         # 동적 배열은 필요하면 확장
-                        try:
-                            print(f"[DEBUG INIT] Getting/creating element {idx} in array {callerObject.identifier}, current length={len(callerObject.elements)}")
-                        except:
-                            pass
                         elem = callerObject.get_or_create_element(idx)
-                        try:
-                            print(f"[DEBUG INIT] After get_or_create: array length={len(callerObject.elements)}, elem type={type(elem).__name__}")
-                        except:
-                            pass
                         return elem
                     else:
                         # 정적 배열은 범위 내에서만
@@ -383,12 +411,23 @@ class DebugInitializer:
         # 1) 글로벌 멤버가 매핑 키로 사용되는 경우: allowed[_from][msg.sender]
         # ======================================================================
         if VariableEnv.is_global_expr(expr) and isinstance(callerObject, MappingVariable):
-            key = f"{expr.base.identifier}.{member}"  # "msg.sender"
+            full_name = f"{expr.base.identifier}.{member}"  # "msg.sender"
 
             if not callerObject.struct_defs or not callerObject.enum_defs:
                 ccf = self.an.contract_cfgs[self.an.current_target_contract]
                 callerObject.struct_defs = ccf.structDefs
                 callerObject.enum_defs = ccf.enumDefs
+
+            # global var의 실제 값으로 key 결정
+            key = full_name
+            if full_name in variables:
+                gv_val = variables[full_name].value
+                if isinstance(gv_val, AddressSet):
+                    if gv_val.is_singleton():
+                        key = str(gv_val)
+                elif hasattr(gv_val, "min_value"):
+                    if gv_val.min_value == gv_val.max_value:
+                        key = str(gv_val.min_value)
 
             # 엔트리가 없으면 새로 만든다
             if key not in callerObject.mapping:
@@ -398,10 +437,10 @@ class DebugInitializer:
 
             # ① 더 깊은 IndexAccess 가 이어질 때는 객체 그대로 반환
             if callerContext == "IntentIndexAccess":
-                return entry  # allowed[msg.sender] 의 결과
+                return entry
 
-            # ② leaf 읽기(Intent이므로 값 패치는 하지 않음)
-            return entry  # Variables / EnumVariable / Array…
+            # ② leaf 읽기
+            return entry
 
         # ======================================================================
         # 2) 일반적인 경우: base 객체를 먼저 찾고 멤버 접근
@@ -435,6 +474,18 @@ class DebugInitializer:
 
         return None
 
+    def _update_left_var_of_varref_base_context_for_debug(
+            self, expr: Expression, rVal, operator, variables, callerObject=None, callerContext=None):
+        """
+        VarRefBase 컨텍스트 처리 (디버깅 전용) - visitVarRef에서 생성되는 단순 변수 참조
+        """
+        ident = expr.identifier
+
+        if ident in variables:
+            return variables[ident]
+        else:
+            return None
+
     def apply_debug_directive_enhanced(
         self,
         *,
@@ -452,7 +503,7 @@ class DebugInitializer:
         """
 
         # ★ 특별 케이스: 동적 배열의 .length 설정
-        if (lhs_expr.context in ("MemberAccessContext", "IntentMemberAccess") and
+        if (lhs_expr.context in ("MemberAccessContext", "IntentMemberAccess", "VarRefMemberAccess") and
             lhs_expr.member == "length"):
 
             # base 객체 찾기
@@ -488,21 +539,19 @@ class DebugInitializer:
                     expr_repr += f" (identifier: {lhs_expr.identifier})"
                 if hasattr(lhs_expr, 'member') and lhs_expr.member is not None:
                     expr_repr += f" (member: {lhs_expr.member})"
+                if hasattr(lhs_expr, 'base') and lhs_expr.base is not None:
+                    base_id = getattr(lhs_expr.base, 'identifier', None)
+                    expr_repr += f" (base: {base_id})"
+                if hasattr(lhs_expr, 'index') and lhs_expr.index is not None:
+                    idx_id = getattr(lhs_expr.index, 'identifier', None)
+                    expr_repr += f" (index: {idx_id})"
             except:
                 expr_repr = "unknown"
 
             # Don't raise error, just log warning and skip this annotation
             print(f"[WARNING] Cannot resolve LHS expression: {expr_repr} (scope: {scope})")
-            print(f"[WARNING] Available variables: {list(variables.keys())[:10]}...")
+            print(f"[WARNING] Available variables: {list(variables.keys())}...")
             return  # Skip this annotation instead of raising error
-
-        # DEBUG: Show what we're patching (safe repr) - commented out for clean output
-        # try:
-        #     target_id = getattr(target, 'identifier', '?')
-        #     target_val = repr(getattr(target, 'value', '?'))
-        #     print(f"[APPLY DEBUG] Patching {target_id} with value {value}")
-        # except:
-        #     pass
 
         # ① snapshot & restore
         self._snapshot_once_for_debug(target)
@@ -514,10 +563,6 @@ class DebugInitializer:
 
         # ② 값 패치
         self._patch_var_with_new_value_for_debug(target, value)
-        # try:
-        #     print(f"[APPLY DEBUG] After patching: {target_id} value updated")
-        # except:
-        #     pass
 
         # ③ 주소-ID 바인딩
         self._bind_if_address_for_debug(target)
@@ -603,6 +648,63 @@ class DebugInitializer:
                     target_var.value = new_value
             else:
                 target_var.value = new_value
+
+    def _update_left_var_of_type_conversion_context_for_debug(
+            self, expr: Expression, rVal, operator, variables, callerObject=None, callerContext=None):
+        """
+        TypeConversion이 mapping key로 사용되는 경우 처리 (예: balances[address(this)])
+        evaluator로 expression을 평가하여 key를 결정하고 mapping entry를 반환
+        """
+        if not isinstance(callerObject, MappingVariable):
+            return None
+
+        key_val = self.an.evaluator.evaluate_expression(expr, variables, None, None)
+        if key_val is None:
+            return None
+
+        if isinstance(key_val, AddressSet):
+            key_str = str(key_val)
+        elif hasattr(key_val, "min_value") and key_val.min_value == key_val.max_value:
+            key_str = str(key_val.min_value)
+        else:
+            key_str = str(key_val)
+
+        if not callerObject.struct_defs or not callerObject.enum_defs:
+            ccf = self.an.contract_cfgs[self.an.current_target_contract]
+            callerObject.struct_defs = ccf.structDefs
+            callerObject.enum_defs = ccf.enumDefs
+
+        return callerObject.get_or_create(key_str)
+
+    def _resolve_mapping_key(self, ident: str, caller_object, variables: dict) -> str:
+        """mapping key 문자열을 evaluator와 동일한 방식으로 resolve.
+        address(this) → AddressSet({1}), 숫자 → AddressSet({N}) or str(N), 등"""
+        key_type = getattr(caller_object.typeInfo, 'mappingKeyType', None)
+        key_type_name = getattr(key_type, 'elementaryTypeName', None) if key_type else None
+
+        if key_type_name == "address":
+            # address(this) → symbolic address 1
+            if ident == "address(this)":
+                return str(AddressSet(ids={self.an.addr_mgr.make_symbolic_address(1, "this").ids.copy().pop()}))
+            # 숫자 literal → AddressSet
+            try:
+                addr_id = int(ident)
+                return str(AddressSet(ids={addr_id}))
+            except ValueError:
+                pass
+            # global variable (msg.sender 등) — MemberAccess에서 이미 처리되므로 여기 도달 안 함
+            # 변수명인 경우 variables에서 조회
+            if ident in variables:
+                val = getattr(variables[ident], "value", None)
+                if isinstance(val, AddressSet) and val.is_singleton():
+                    return str(val)
+            return ident
+
+        # address가 아닌 key type
+        try:
+            return str(int(ident))
+        except ValueError:
+            return ident
 
     def _bind_if_address_for_debug(self, target_var: Variables):
         """

@@ -1,0 +1,172 @@
+{
+  "id": "WANGMI",
+  "name": "WANGMI div_in_path",
+  "description": "_transfer 함수에서 fees.mul(sellLiquidityFee).div(sellTotalFees) 나눗셈으로 인한 precision loss - 작은 amount에서 0이 더해져 tokensForLiquidity가 증가하지 않음",
+  "source": "Dataset/Numscout/contraction/div_in_path/WANGMI_contraction.json",
+  "target_contract": "WANGMI",
+  "target_function": "_transfer",
+  "bug_lines": [428],
+  "debug_annotations": [
+    {
+      "type": "LocalVar",
+      "var": "_from",
+      "value": "symbolicAddress 1",
+      "line": 384,
+      "comment": "함수 파라미터 _from"
+    },
+    {
+      "type": "LocalVar",
+      "var": "to",
+      "value": "symbolicAddress 2",
+      "line": 385,
+      "comment": "함수 파라미터 to"
+    },
+    {
+      "type": "LocalVar",
+      "var": "amount",
+      "value": [33, 33],
+      "line": 386,
+      "comment": "amount=33일 때 fees=3, 3*3/12=0 precision loss 발생"
+    },
+    {
+      "type": "StateVar",
+      "var": "uniswapV2Pair",
+      "value": "symbolicAddress 2",
+      "line": 387,
+      "comment": "to와 동일 → sell path (to == uniswapV2Pair)"
+    },
+    {
+      "type": "StateVar",
+      "var": "sellLiquidityFee",
+      "value": [3, 3],
+      "line": 388,
+      "comment": "컨트랙트 초기값"
+    },
+    {
+      "type": "StateVar",
+      "var": "sellTxFee",
+      "value": [9, 9],
+      "line": 389,
+      "comment": "컨트랙트 초기값"
+    },
+    {
+      "type": "StateVar",
+      "var": "tokensForLiquidity",
+      "value": [100, 100],
+      "line": 390,
+      "comment": "현재 누적된 liquidity 토큰"
+    },
+    {
+      "type": "StateVar",
+      "var": "tokensForTax",
+      "value": [50, 50],
+      "line": 391,
+      "comment": "현재 누적된 tax 토큰"
+    },
+    {
+      "type": "StateVar",
+      "var": "isLaunched",
+      "value": "true",
+      "line": 392,
+      "comment": "require(isLaunched) 통과용"
+    },
+    {
+      "type": "StateVar",
+      "var": "maxTxLimit",
+      "value": [1000, 1000],
+      "line": 393,
+      "comment": "require(amount <= maxTxLimit) 통과용"
+    },
+    {
+      "type": "StateVar",
+      "var": "maxWalletLimit",
+      "value": [10000, 10000],
+      "line": 394,
+      "comment": "require(balanceOf(to)+amount <= maxWalletLimit) 통과용"
+    },
+    {
+      "type": "StateVar",
+      "var": "swapAtAmount",
+      "value": [10000, 10000],
+      "line": 395,
+      "comment": "canSwap=false로 swapBack 호출 회피"
+    },
+    {
+      "type": "StateVar",
+      "var": "swapping",
+      "value": "false",
+      "line": 396,
+      "comment": "takeFee=true 보장"
+    },
+    {
+      "type": "StateVar",
+      "var": "isExcludedFromTxLimit[_from]",
+      "value": "true",
+      "line": 397,
+      "comment": "L386 require 통과"
+    },
+    {
+      "type": "StateVar",
+      "var": "isExcludedFromTxLimit[to]",
+      "value": "true",
+      "line": 398,
+      "comment": "L386 require 통과"
+    },
+    {
+      "type": "StateVar",
+      "var": "isExcludedFromFees[_from]",
+      "value": "false",
+      "line": 399,
+      "comment": "L418 takeFee=true 유지"
+    },
+    {
+      "type": "StateVar",
+      "var": "isExcludedFromFees[to]",
+      "value": "false",
+      "line": 400,
+      "comment": "L418 takeFee=true 유지"
+    },
+    {
+      "type": "StateVar",
+      "var": "isBlacklisted[_from]",
+      "value": "false",
+      "line": 401,
+      "comment": "L389 require 통과"
+    },
+    {
+      "type": "StateVar",
+      "var": "isExcludedFromWalletLimit[to]",
+      "value": "true",
+      "line": 402,
+      "comment": "L387 require 통과 (안전용)"
+    },
+    {
+      "type": "GlobalVar",
+      "var": "block.number",
+      "value": [10, 10],
+      "line": 403,
+      "comment": "L410 조건용"
+    },
+    {
+      "type": "StateVar",
+      "var": "launchBlock",
+      "value": [5, 5],
+      "line": 404,
+      "comment": "L410 조건용"
+    }
+  ],
+  "intent_annotations": [
+    {
+      "type": "During",
+      "line": 428,
+      "expr": "tokensForLiquidity(Before < After)",
+      "expected": "violated",
+      "comment": "fees*3/12=0 -> Before==After -> violated (precision loss)"
+    }
+  ],
+  "expected_results": {
+    "total_intents": 1,
+    "expected_violations": 1,
+    "expected_satisfied": 0
+  }
+}

@@ -1,5 +1,140 @@
 pragma solidity ^0.6.12;
 
+interface IUniswapV2Router01 {
+    function factory() external pure returns (address);
+    function WETH() external pure returns (address);
+
+    function addLiquidity(
+        address tokenA,
+        address tokenB,
+        uint amountADesired,
+        uint amountBDesired,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB, uint liquidity);
+    function addLiquidityETH(
+        address token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB);
+    function removeLiquidityETH(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountToken, uint amountETH);
+    function removeLiquidityWithPermit(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountA, uint amountB);
+    function removeLiquidityETHWithPermit(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountToken, uint amountETH);
+    function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+    function swapTokensForExactTokens(
+        uint amountOut,
+        uint amountInMax,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts);
+    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts);
+    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts);
+    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts);
+
+    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
+    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
+    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
+}
+
+interface IUniswapV2Router02 is IUniswapV2Router01 {
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountETH);
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountETH);
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable;
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+}
+
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
@@ -82,7 +217,7 @@ contract ERC20 is Context {
     }
 
     function _beforeTokenTransfer(
-        address from,
+        address _from,
         address to,
         uint256 amount
     ) internal virtual {}
@@ -92,7 +227,7 @@ contract ERC20 is Context {
         address recipient,
         uint256 amount
     ) internal virtual {
-        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(sender != address(0), "ERC20: transfer _from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
         _beforeTokenTransfer(sender, recipient, amount);
@@ -107,7 +242,7 @@ contract ERC20 is Context {
         address spender,
         uint256 amount
     ) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
+        require(owner != address(0), "ERC20: approve _from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
@@ -179,10 +314,10 @@ contract WANGMI is ERC20, Ownable {
     uint256 public sellTxFee = 9;
     uint256 public tokensForLiquidity;
     uint256 public tokensForTax;
-    uint256 public _tTotal = 10**9 * 10**9;                         // 1 billion
-    uint256 public swapAtAmount = _tTotal.mul(10).div(10000);       // 0.10% of total supply
-    uint256 public maxTxLimit = _tTotal.mul(75).div(10000);         // 0.75% of total supply
-    uint256 public maxWalletLimit = _tTotal.mul(150).div(10000);    // 1.50% of total supply
+    uint256 public _tTotal = 10**9 * 10**9;                         
+    uint256 public swapAtAmount = _tTotal.mul(10).div(10000);  
+    uint256 public maxTxLimit = _tTotal.mul(75).div(10000); 
+    uint256 public maxWalletLimit = _tTotal.mul(150).div(10000);
     address public dev;
     address public deployer;
     address public uniswapV2Pair;
@@ -245,16 +380,16 @@ contract WANGMI is ERC20, Ownable {
         isBlacklisted[account] = value;
     }
 
-    function _transfer(address from, address to, uint256 amount) internal override {
-        require(from != address(0), "transfer from the zero address");
+    function _transfer(address _from, address to, uint256 amount) internal override {
+        require(_from != address(0), "transfer from the zero address");
         require(to != address(0), "transfer to the zero address");
-        require(amount <= maxTxLimit || isExcludedFromTxLimit[from] || isExcludedFromTxLimit[to], "Tx Amount too large");
+        require(amount <= maxTxLimit || isExcludedFromTxLimit[_from] || isExcludedFromTxLimit[to], "Tx Amount too large");
         require(balanceOf(to).add(amount) <= maxWalletLimit || isExcludedFromWalletLimit[to], "Transfer will exceed wallet limit");
-        require(isLaunched || isExcludedFromFees[from] || isExcludedFromFees[to], "Waiting to go live");
-        require(!isBlacklisted[from], "Sender is blacklisted");
+        require(isLaunched || isExcludedFromFees[_from] || isExcludedFromFees[to], "Waiting to go live");
+        require(!isBlacklisted[_from], "Sender is blacklisted");
 
         if(amount == 0) {
-            super._transfer(from, to, 0);
+            super._transfer(_from, to, 0);
             return;
         }
 
@@ -262,7 +397,7 @@ contract WANGMI is ERC20, Ownable {
         bool canSwap = totalTokensForFee >= swapAtAmount;
 
         if(
-            from != uniswapV2Pair &&
+            _from != uniswapV2Pair &&
             canSwap &&
             !swapping
         ) {
@@ -270,7 +405,7 @@ contract WANGMI is ERC20, Ownable {
             swapBack(totalTokensForFee);
             swapping = false;
         } else if(
-            from == uniswapV2Pair &&
+            _from == uniswapV2Pair &&
             to != uniswapV2Pair &&
             block.number < launchBlock + 2 &&
             !isExcludedFromFees[to]
@@ -280,7 +415,7 @@ contract WANGMI is ERC20, Ownable {
 
         bool takeFee = !swapping;
 
-        if(isExcludedFromFees[from] || isExcludedFromFees[to]) {
+        if(isExcludedFromFees[_from] || isExcludedFromFees[to]) {
             takeFee = false;
         }
 
@@ -301,11 +436,11 @@ contract WANGMI is ERC20, Ownable {
             }
 
             if(fees > 0){
-                super._transfer(from, address(this), fees);
+                super._transfer(_from, address(this), fees);
                 amount = amount.sub(fees);
             }
         }
 
-        super._transfer(from, to, amount);
+        super._transfer(_from, to, amount);
     }
 }

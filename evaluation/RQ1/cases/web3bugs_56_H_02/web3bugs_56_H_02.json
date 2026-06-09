@@ -1,0 +1,273 @@
+[
+  {
+    "code": "pragma solidity ^0.6.12;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "library CDP {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using CDP for Data;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using FixedPointMath for FixedPointMath.FixedDecimal;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "using SafeERC20 for IDetailedERC20;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint256;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "struct Context {\n}",
+    "startLine": 9,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "FixedPointMath.FixedDecimal collateralizationLimit;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "FixedPointMath.FixedDecimal accumulatedYieldWeight;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "struct Data {\n}",
+    "startLine": 14,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalDeposited;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalDebt;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalCredit;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "uint256 lastDeposit;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "FixedPointMath.FixedDecimal lastAccumulatedYieldWeight;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "function getEarnedYield(Data storage _self, Context storage _ctx) internal view returns (uint256) {\n}",
+    "startLine": 22,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "FixedPointMath.FixedDecimal memory _currentAccumulatedYieldWeight = _ctx.accumulatedYieldWeight;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "FixedPointMath.FixedDecimal memory _lastAccumulatedYieldWeight = _self.lastAccumulatedYieldWeight;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "if (_currentAccumulatedYieldWeight.cmp(_lastAccumulatedYieldWeight) == 0) {\n}",
+    "startLine": 26,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "return 0;",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "return _currentAccumulatedYieldWeight .sub(_lastAccumulatedYieldWeight) .mul(_self.totalDeposited) .decode();",
+    "startLine": 30,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "function update(Data storage _self, Context storage _ctx) internal {\n}",
+    "startLine": 36,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _earnedYield = _self.getEarnedYield(_ctx);",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "if (_earnedYield > _self.totalDebt) {\n}",
+    "startLine": 38,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _currentTotalDebt = _self.totalDebt;",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "_self.totalDebt = 0;",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "_self.totalCredit = _earnedYield.sub(_currentTotalDebt);",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 42,
+    "endLine": 43,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "_self.totalDebt = _self.totalDebt.sub(_earnedYield);",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "_self.lastAccumulatedYieldWeight = _ctx.accumulatedYieldWeight;",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "// @Post _self.totalCredit(Entry <= Exit)",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _self.totalCredit = [1000, 1000]",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _self.totalDebt = [0, 0]",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _self.totalDeposited = [1000, 1000]",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _self.lastAccumulatedYieldWeight.x = [1000000000000000000, 1000000000000000000]",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _ctx.accumulatedYieldWeight.x = [1200000000000000000, 1200000000000000000]",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  }
+]

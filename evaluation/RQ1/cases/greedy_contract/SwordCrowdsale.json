@@ -1,0 +1,39 @@
+{
+  "id": "SwordCrowdsale",
+  "name": "SwordCrowdsale greedy_contract",
+  "description": "refundMoney 함수에서 weiRaised -= amount 누락으로 인해 Ether가 영구 잠김",
+  "source": "Dataset/Numscout/contraction/greedy_contract/SwordCrowdsale_contraction.json",
+  "target_contract": "SwordCrowdsale",
+  "target_function": "refundMoney",
+  "bug_lines": [80],
+  "debug_annotations": [
+    {
+      "type": "StateVar",
+      "var": "contributorList[_address].contributionAmount",
+      "value": [100, 100],
+      "line": 76,
+      "comment": "환불 금액 100 wei (amount에 할당될 값)"
+    },
+    {
+      "type": "StateVar",
+      "var": "weiRaised",
+      "value": [1000, 1000],
+      "line": 76,
+      "comment": "초기 weiRaised = 1000"
+    }
+  ],
+  "intent_annotations": [
+    {
+      "type": "Post",
+      "line": 81,
+      "expr": "weiRaised(Entry > Exit)",
+      "expected": "violated",
+      "comment": "weiRaised가 감소해야 하는데 변경 안됨 (Entry == Exit)"
+    }
+  ],
+  "expected_results": {
+    "total_intents": 1,
+    "expected_violations": 1,
+    "expected_satisfied": 0
+  }
+}

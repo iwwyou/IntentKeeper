@@ -16,7 +16,8 @@ from Domain.IR import Expression
 class ParserHelpers:
     # --------------------------- 컨텍스트 → 파싱 규칙 매핑
     _CTX_MAP: dict[str, str] = {
-        'contract':'interactiveSourceUnit', 'library':'interactiveSourceUnit',
+        'contract':'interactiveSourceUnit', 'abstract contract':'interactiveSourceUnit',
+        'library':'interactiveSourceUnit',
         'interface':'interactiveSourceUnit', 'enum':'interactiveSourceUnit',
         'struct':'interactiveSourceUnit',   'functionDefinition':'interactiveSourceUnit',
         'constructor':'interactiveSourceUnit', 'fallback':'interactiveSourceUnit',
@@ -24,8 +25,12 @@ class ParserHelpers:
         'error':'interactiveSourceUnit',    'modifier':'interactiveSourceUnit',
         'stateVariableDeclaration':'interactiveSourceUnit',
         'constantVariableDeclaration': 'interactiveSourceUnit',
+        'usingDirective':'interactiveSourceUnit',
         'enumMember':'interactiveEnumUnit',
         'structMember':'interactiveStructUnit',
+        'fileLevelStruct':'interactiveSourceUnit',
+        'fileLevelStructMember':'interactiveStructUnit',
+        'fileLevelTypeAlias':'interactiveSourceUnit',
 
         'simpleStatement':'interactiveBlockUnit', 'if':'interactiveBlockUnit',
         'for':'interactiveBlockUnit',     'while':'interactiveBlockUnit',
@@ -35,6 +40,8 @@ class ParserHelpers:
         'unchecked':'interactiveBlockUnit',
 
         'doWhileWhile':'interactiveDoWhileUnit',
+
+        'intentUnit':'intentUnit',  # @LocalVar, @During, @Post etc.
         'catch':'interactiveCatchClauseUnit',
         'else_if':'interactiveIfElseUnit', 'else':'interactiveIfElseUnit',
 
@@ -261,9 +268,18 @@ class VariableEnv:
         def _should_widen(val):  # 작은 헬퍼
             return isinstance(val, (IntegerInterval, UnsignedIntegerInterval, BoolInterval))
 
+        # ⓪ None 방어: 한쪽이 None이면 다른 쪽 반환 (초기화 안 된 branch)
+        if v1 is None:
+            return v2
+        if v2 is None:
+            return v1
+
         # ① primitive -----------------------------------------------------
         if not isinstance(v1, (Variables, ArrayVariable, StructVariable,
                                MappingVariable, EnumVariable)):
+            # ★ 문자열(symbolic 값)은 str.join 등 호출 방지
+            if isinstance(v1, str):
+                return v1 if v1 == v2 else f"symbolic{mode.capitalize()}({v1},{v2})"
             if mode == "widen" and not _should_widen(v1):
                 return VariableEnv._merge_values(v1, v2, "join")
             if hasattr(v1, mode):
@@ -334,7 +350,15 @@ class VariableEnv:
         res = VariableEnv.copy_variables(left)
         for name, r_var in (right or {}).items():
             if name in res:
-                res[name] = VariableEnv._merge_values(res[name], r_var, mode)
+                try:
+                    res[name] = VariableEnv._merge_values(res[name], r_var, mode)
+                except AttributeError as e:
+                    l_val = getattr(res[name], 'value', '?')
+                    r_val = getattr(r_var, 'value', '?')
+                    raise AttributeError(
+                        f"merge '{name}': left.value={l_val} ({type(l_val).__name__}), "
+                        f"right.value={r_val} ({type(r_val).__name__}) - {e}"
+                    ) from e
             else:
                 res[name] = VariableEnv.copy_variables({name: r_var})[name]
         return res
@@ -373,6 +397,103 @@ class VariableEnv:
     def is_interval(x) -> bool:
         """Integer / UnsignedInteger 계열인지 판단 (AddressSet은 제외)"""
         return isinstance(x, (IntegerInterval, UnsignedIntegerInterval))
+
+    @staticmethod
+    def top_from_soltype(sol_t: SolType, struct_defs: dict = None, enum_defs: dict = None,
+                         identifier: str = ""):
+        """SolType → top-valued domain object 생성 (모든 타입 지원)"""
+        from Domain.BytesSet import BytesSet
+        if struct_defs is None:
+            struct_defs = {}
+        if enum_defs is None:
+            enum_defs = {}
+
+        if sol_t.typeCategory == "array":
+            arr = ArrayVariable(
+                identifier=identifier,
+                base_type=sol_t.arrayBaseType,
+                array_length=sol_t.arrayLength,
+                is_dynamic=sol_t.isDynamicArray,
+                struct_defs=struct_defs,
+                enum_defs=enum_defs,
+            )
+            arr.initialize_not_abstracted_type()
+            return arr
+
+        if sol_t.typeCategory == "mapping":
+            return MappingVariable(
+                identifier=identifier,
+                key_type=sol_t.mappingKeyType,
+                value_type=sol_t.mappingValueType,
+                struct_defs=struct_defs,
+                enum_defs=enum_defs,
+            )
+
+        if sol_t.typeCategory == "struct":
+            sv = StructVariable(
+                identifier=identifier,
+                struct_type=sol_t.structTypeName,
+            )
+            if sol_t.structTypeName in struct_defs:
+                sv.initialize_struct(struct_defs[sol_t.structTypeName])
+            return sv
+
+        if sol_t.typeCategory == "enum":
+            ev = EnumVariable(
+                identifier=identifier,
+                enum_type=sol_t.enumTypeName,
+            )
+            if sol_t.enumTypeName in enum_defs:
+                defn = enum_defs[sol_t.enumTypeName]
+                ev.members = {m: i for i, m in enumerate(defn.members)}
+                ev.valueIndex = 0
+                ev.value = defn.members[0]
+            return ev
+
+        if sol_t.typeCategory == "interface":
+            ifc_name = getattr(sol_t, 'interfaceName', None)
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = AddressSet.top()
+            if ifc_name:
+                v.value._cast_interface = ifc_name
+            return v
+
+        # elementary
+        et = sol_t.elementaryTypeName or ""
+        if et.startswith("int"):
+            bits = sol_t.intTypeLength or 256
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = IntegerInterval.top(bits)
+            return v
+        if et.startswith("uint"):
+            bits = sol_t.intTypeLength or 256
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = UnsignedIntegerInterval.top(bits)
+            return v
+        if et == "bool":
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = BoolInterval.top()
+            return v
+        if et == "address":
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = AddressSet.top()
+            return v
+        if et.startswith("bytes") and len(et) > 5:
+            byte_size = int(et[5:])
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = BytesSet.top(byte_size)
+            return v
+        # string / bytes 등
+        v = Variables(identifier=identifier)
+        v.typeInfo = sol_t
+        v.value = f"symbol_{identifier}"
+        return v
 
     @staticmethod
     def bottom_from_soltype(sol_t: SolType):

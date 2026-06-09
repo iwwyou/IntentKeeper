@@ -1,0 +1,1301 @@
+[
+  {
+    "code": "pragma solidity ^0.8.4;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract UToken is Controller, ReentrancyGuardUpgradeable {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using SafeERC20Upgradeable for IUErc20;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "bool public constant IS_UTOKEN = true;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant WAD = 1e18;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "uint256 internal constant BORROW_RATE_MAX_MANTISSA = 0.0005e16;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "uint256 internal constant RESERVE_FACTORY_MAX_MANTISSA = 1e18;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "address public underlying;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "IInterestRateModel public interestRateModel;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint256 internal initialExchangeRateMantissa;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public reserveFactorMantissa;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public accrualBlockNumber;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public borrowIndex;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public totalBorrows;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public totalReserves;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public totalRedeemable;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public overdueBlocks;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public originationFee;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public debtCeiling;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public maxBorrow;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public minBorrow;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "address public assetManager;",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "address public userManager;",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "IUErc20 public uErc20;",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "struct BorrowSnapshot {\n}",
+    "startLine": 29,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "uint256 principal;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "uint256 interest;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "uint256 interestIndex;",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "uint256 lastRepay;",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => BorrowSnapshot) internal accountBorrows;",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "event LogNewMarketInterestRateModel(address oldInterestRateModel, address newInterestRateModel);",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "event LogMint(address minter, uint256 underlyingAmount, uint256 uTokenAmount);",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "event LogRedeem(address redeemer, uint256 redeemTokensIn, uint256 redeemAmountIn, uint256 redeemAmount);",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "event LogReservesAdded(address reserver, uint256 actualAddAmount, uint256 totalReservesNew);",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "event LogReservesReduced(address receiver, uint256 reduceAmount, uint256 totalReservesNew);",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "event LogBorrow(address indexed account, uint256 amount, uint256 fee);",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "event LogRepay(address indexed account, uint256 amount);",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "modifier onlyMember(address account) {\n}",
+    "startLine": 52,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "require(IUserManager(userManager).checkIsMember(account), \"UToken: caller is not a member\");",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "_;",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 56,
+    "endLine": 56,
+    "event": "add"
+  },
+  {
+    "code": "function getRemainingLoanSize() public view returns (uint256) {\n}",
+    "startLine": 57,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "if (debtCeiling >= totalBorrows) {\n}",
+    "startLine": 58,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "return debtCeiling - totalBorrows;",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 60,
+    "endLine": 61,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "return 0;",
+    "startLine": 61,
+    "endLine": 61,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 64,
+    "endLine": 64,
+    "event": "add"
+  },
+  {
+    "code": "function calculatingFee(uint256 amount) public view returns (uint256) {\n}",
+    "startLine": 65,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "return (originationFee * amount) / WAD;",
+    "startLine": 66,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "function borrowRatePerBlock() public view returns (uint256) {\n}",
+    "startLine": 69,
+    "endLine": 70,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowRateMantissa = interestRateModel.getBorrowRate();",
+    "startLine": 70,
+    "endLine": 70,
+    "event": "add"
+  },
+  {
+    "code": "require(borrowRateMantissa <= BORROW_RATE_MAX_MANTISSA, \"borrow rate is absurdly high\");",
+    "startLine": 71,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "return borrowRateMantissa;",
+    "startLine": 72,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 74,
+    "endLine": 74,
+    "event": "add"
+  },
+  {
+    "code": "function getBlockNumber() internal view returns (uint256) {\n}",
+    "startLine": 75,
+    "endLine": 76,
+    "event": "add"
+  },
+  {
+    "code": "return block.number;",
+    "startLine": 76,
+    "endLine": 76,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 78,
+    "endLine": 78,
+    "event": "add"
+  },
+  {
+    "code": "function getLastRepay(address account) public view returns (uint256 lastRepay) {\n}",
+    "startLine": 79,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "lastRepay = accountBorrows[account].lastRepay;",
+    "startLine": 80,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 82,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "function _getCreditLimit(address account) private view returns (int256) {\n}",
+    "startLine": 83,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "return IUserManager(userManager).getCreditLimit(account);",
+    "startLine": 84,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "function borrowBalanceStoredInternal(address account) internal view returns (uint256) {\n}",
+    "startLine": 87,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "BorrowSnapshot memory loan = accountBorrows[account];",
+    "startLine": 88,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 89,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "if (loan.principal == 0) {\n}",
+    "startLine": 90,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "return 0;",
+    "startLine": 91,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 93,
+    "endLine": 93,
+    "event": "add"
+  },
+  {
+    "code": "uint256 principalTimesIndex = (loan.principal + loan.interest) * borrowIndex;",
+    "startLine": 94,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "return principalTimesIndex / loan.interestIndex;",
+    "startLine": 95,
+    "endLine": 95,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 97,
+    "endLine": 97,
+    "event": "add"
+  },
+  {
+    "code": "function checkIsOverdue(address account) public view returns (bool isOverdue) {\n}",
+    "startLine": 98,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "if (getBorrowed(account) == 0) {\n}",
+    "startLine": 99,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "isOverdue = false;",
+    "startLine": 100,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 101,
+    "endLine": 102,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "uint256 lastRepay = getLastRepay(account);",
+    "startLine": 102,
+    "endLine": 102,
+    "event": "add"
+  },
+  {
+    "code": "uint256 diff = getBlockNumber() - lastRepay;",
+    "startLine": 103,
+    "endLine": 103,
+    "event": "add"
+  },
+  {
+    "code": "isOverdue = (overdueBlocks < diff);",
+    "startLine": 104,
+    "endLine": 104,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 107,
+    "endLine": 107,
+    "event": "add"
+  },
+  {
+    "code": "function accrueInterest() public returns (bool) {\n}",
+    "startLine": 108,
+    "endLine": 109,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowRate = borrowRatePerBlock();",
+    "startLine": 109,
+    "endLine": 109,
+    "event": "add"
+  },
+  {
+    "code": "uint256 currentBlockNumber = getBlockNumber();",
+    "startLine": 110,
+    "endLine": 110,
+    "event": "add"
+  },
+  {
+    "code": "uint256 blockDelta = currentBlockNumber - accrualBlockNumber;",
+    "startLine": 111,
+    "endLine": 111,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 112,
+    "endLine": 112,
+    "event": "add"
+  },
+  {
+    "code": "uint256 simpleInterestFactor = borrowRate * blockDelta;",
+    "startLine": 113,
+    "endLine": 113,
+    "event": "add"
+  },
+  {
+    "code": "uint256 interestAccumulated = (simpleInterestFactor * totalBorrows) / WAD;",
+    "startLine": 114,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalBorrowsNew = interestAccumulated + totalBorrows;",
+    "startLine": 115,
+    "endLine": 115,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowIndexNew = (simpleInterestFactor * borrowIndex) / WAD + borrowIndex;",
+    "startLine": 116,
+    "endLine": 116,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 117,
+    "endLine": 117,
+    "event": "add"
+  },
+  {
+    "code": "accrualBlockNumber = currentBlockNumber;",
+    "startLine": 118,
+    "endLine": 118,
+    "event": "add"
+  },
+  {
+    "code": "borrowIndex = borrowIndexNew;",
+    "startLine": 119,
+    "endLine": 119,
+    "event": "add"
+  },
+  {
+    "code": "totalBorrows = totalBorrowsNew;",
+    "startLine": 120,
+    "endLine": 120,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 121,
+    "endLine": 121,
+    "event": "add"
+  },
+  {
+    "code": "return true;",
+    "startLine": 122,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 124,
+    "endLine": 124,
+    "event": "add"
+  },
+  {
+    "code": "function calculatingInterest(address account) public view returns (uint256) {\n}",
+    "startLine": 125,
+    "endLine": 126,
+    "event": "add"
+  },
+  {
+    "code": "BorrowSnapshot memory loan = accountBorrows[account];",
+    "startLine": 126,
+    "endLine": 126,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 127,
+    "endLine": 127,
+    "event": "add"
+  },
+  {
+    "code": "if (loan.principal == 0) {\n}",
+    "startLine": 128,
+    "endLine": 129,
+    "event": "add"
+  },
+  {
+    "code": "return 0;",
+    "startLine": 129,
+    "endLine": 129,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 131,
+    "endLine": 131,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowRate = borrowRatePerBlock();",
+    "startLine": 132,
+    "endLine": 132,
+    "event": "add"
+  },
+  {
+    "code": "uint256 currentBlockNumber = getBlockNumber();",
+    "startLine": 133,
+    "endLine": 133,
+    "event": "add"
+  },
+  {
+    "code": "uint256 blockDelta = currentBlockNumber - accrualBlockNumber;",
+    "startLine": 134,
+    "endLine": 134,
+    "event": "add"
+  },
+  {
+    "code": "uint256 simpleInterestFactor = borrowRate * blockDelta;",
+    "startLine": 135,
+    "endLine": 135,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowIndexNew = (simpleInterestFactor * borrowIndex) / WAD + borrowIndex;",
+    "startLine": 136,
+    "endLine": 136,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 137,
+    "endLine": 137,
+    "event": "add"
+  },
+  {
+    "code": "uint256 principalTimesIndex = (loan.principal + loan.interest) * borrowIndexNew;",
+    "startLine": 138,
+    "endLine": 138,
+    "event": "add"
+  },
+  {
+    "code": "uint256 balance = principalTimesIndex / loan.interestIndex;",
+    "startLine": 139,
+    "endLine": 139,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 140,
+    "endLine": 140,
+    "event": "add"
+  },
+  {
+    "code": "return balance - accountBorrows[account].principal;",
+    "startLine": 141,
+    "endLine": 141,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 143,
+    "endLine": 143,
+    "event": "add"
+  },
+  {
+    "code": "function borrowBalanceView(address account) public view returns (uint256) {\n}",
+    "startLine": 144,
+    "endLine": 145,
+    "event": "add"
+  },
+  {
+    "code": "return accountBorrows[account].principal + calculatingInterest(account);",
+    "startLine": 145,
+    "endLine": 145,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 147,
+    "endLine": 147,
+    "event": "add"
+  },
+  {
+    "code": "function getInterestIndex(address account) public view returns (uint256 interestIndex) {\n}",
+    "startLine": 148,
+    "endLine": 149,
+    "event": "add"
+  },
+  {
+    "code": "interestIndex = accountBorrows[account].interestIndex;",
+    "startLine": 149,
+    "endLine": 149,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 151,
+    "endLine": 151,
+    "event": "add"
+  },
+  {
+    "code": "function getLoan(address member) public view returns ( uint256 principal, uint256 totalBorrowed, address asset, uint256 apr, int256 limit, bool isOverdue, uint256 lastRepay ) {\n}",
+    "startLine": 152,
+    "endLine": 165,
+    "event": "add"
+  },
+  {
+    "code": "principal = accountBorrows[msg.sender].principal;",
+    "startLine": 165,
+    "endLine": 165,
+    "event": "add"
+  },
+  {
+    "code": "totalBorrowed = borrowBalanceStoredInternal(member);",
+    "startLine": 166,
+    "endLine": 166,
+    "event": "add"
+  },
+  {
+    "code": "asset = underlying;",
+    "startLine": 167,
+    "endLine": 167,
+    "event": "add"
+  },
+  {
+    "code": "apr = borrowRatePerBlock();",
+    "startLine": 168,
+    "endLine": 168,
+    "event": "add"
+  },
+  {
+    "code": "lastRepay = getLastRepay(member);",
+    "startLine": 169,
+    "endLine": 169,
+    "event": "add"
+  },
+  {
+    "code": "limit = _getCreditLimit(member);",
+    "startLine": 170,
+    "endLine": 170,
+    "event": "add"
+  },
+  {
+    "code": "isOverdue = checkIsOverdue(member);",
+    "startLine": 171,
+    "endLine": 171,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 173,
+    "endLine": 173,
+    "event": "add"
+  },
+  {
+    "code": "function getBorrowed(address account) public view returns (uint256 borrowed) {\n}",
+    "startLine": 174,
+    "endLine": 175,
+    "event": "add"
+  },
+  {
+    "code": "borrowed = accountBorrows[account].principal;",
+    "startLine": 175,
+    "endLine": 175,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 177,
+    "endLine": 177,
+    "event": "add"
+  },
+  {
+    "code": "function supplyRatePerBlock() public view returns (uint256) {\n}",
+    "startLine": 178,
+    "endLine": 179,
+    "event": "add"
+  },
+  {
+    "code": "return interestRateModel.getSupplyRate(reserveFactorMantissa);",
+    "startLine": 179,
+    "endLine": 179,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 181,
+    "endLine": 181,
+    "event": "add"
+  },
+  {
+    "code": "function exchangeRateStored() public view returns (uint256) {\n}",
+    "startLine": 182,
+    "endLine": 183,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalSupply_ = uErc20.totalSupply();",
+    "startLine": 183,
+    "endLine": 183,
+    "event": "add"
+  },
+  {
+    "code": "if (totalSupply_ == 0) {\n}",
+    "startLine": 184,
+    "endLine": 185,
+    "event": "add"
+  },
+  {
+    "code": "return initialExchangeRateMantissa;",
+    "startLine": 185,
+    "endLine": 185,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 186,
+    "endLine": 187,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "return (totalRedeemable * WAD) / totalSupply_;",
+    "startLine": 187,
+    "endLine": 187,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 190,
+    "endLine": 190,
+    "event": "add"
+  },
+  {
+    "code": "function exchangeRateCurrent() public nonReentrant returns (uint256) {\n}",
+    "startLine": 191,
+    "endLine": 192,
+    "event": "add"
+  },
+  {
+    "code": "require(accrueInterest(), \"UToken: accrue interest failed\");",
+    "startLine": 192,
+    "endLine": 192,
+    "event": "add"
+  },
+  {
+    "code": "return exchangeRateStored();",
+    "startLine": 193,
+    "endLine": 193,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 195,
+    "endLine": 195,
+    "event": "add"
+  },
+  {
+    "code": "function borrow(uint256 amount) external onlyMember(msg.sender) whenNotPaused nonReentrant {\n}",
+    "startLine": 196,
+    "endLine": 197,
+    "event": "add"
+  },
+  {
+    "code": "IAssetManager assetManagerContract = IAssetManager(assetManager);",
+    "startLine": 197,
+    "endLine": 197,
+    "event": "add"
+  },
+  {
+    "code": "require(amount >= minBorrow, \"UToken: amount less than loan size min\");",
+    "startLine": 198,
+    "endLine": 198,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 199,
+    "endLine": 199,
+    "event": "add"
+  },
+  {
+    "code": "require(amount <= getRemainingLoanSize(), \"UToken: amount more than loan global size max\");",
+    "startLine": 200,
+    "endLine": 200,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 201,
+    "endLine": 201,
+    "event": "add"
+  },
+  {
+    "code": "uint256 fee = calculatingFee(amount);",
+    "startLine": 202,
+    "endLine": 202,
+    "event": "add"
+  },
+  {
+    "code": "require(borrowBalanceView(msg.sender) + amount + fee <= maxBorrow, \"UToken: amount large than borrow size max\");",
+    "startLine": 203,
+    "endLine": 203,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 204,
+    "endLine": 204,
+    "event": "add"
+  },
+  {
+    "code": "require(!checkIsOverdue(msg.sender), \"UToken: Member has loans overdue\");",
+    "startLine": 205,
+    "endLine": 205,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 206,
+    "endLine": 206,
+    "event": "add"
+  },
+  {
+    "code": "require(amount <= assetManagerContract.getLoanableAmount(underlying), \"UToken: Not enough to lend out\");",
+    "startLine": 207,
+    "endLine": 207,
+    "event": "add"
+  },
+  {
+    "code": "require( uint256(_getCreditLimit(msg.sender)) >= amount + fee, \"UToken: The loan amount plus fee is greater than credit limit\" );",
+    "startLine": 208,
+    "endLine": 211,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 212,
+    "endLine": 212,
+    "event": "add"
+  },
+  {
+    "code": "require(accrueInterest(), \"UToken: accrue interest failed\");",
+    "startLine": 213,
+    "endLine": 213,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 214,
+    "endLine": 214,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowedAmount = borrowBalanceStoredInternal(msg.sender);",
+    "startLine": 215,
+    "endLine": 215,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 216,
+    "endLine": 216,
+    "event": "add"
+  },
+  {
+    "code": "if (accountBorrows[msg.sender].lastRepay == 0) {\n}",
+    "startLine": 217,
+    "endLine": 218,
+    "event": "add"
+  },
+  {
+    "code": "accountBorrows[msg.sender].lastRepay = getBlockNumber();",
+    "startLine": 218,
+    "endLine": 218,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 220,
+    "endLine": 220,
+    "event": "add"
+  },
+  {
+    "code": "uint256 accountBorrowsNew = borrowedAmount + amount + fee;",
+    "startLine": 221,
+    "endLine": 221,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalBorrowsNew = totalBorrows + amount + fee;",
+    "startLine": 222,
+    "endLine": 222,
+    "event": "add"
+  },
+  {
+    "code": "uint256 oldPrincipal = accountBorrows[msg.sender].principal;",
+    "startLine": 223,
+    "endLine": 223,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 224,
+    "endLine": 224,
+    "event": "add"
+  },
+  {
+    "code": "accountBorrows[msg.sender].principal += amount + fee;",
+    "startLine": 225,
+    "endLine": 225,
+    "event": "add"
+  },
+  {
+    "code": "uint256 newPrincipal = accountBorrows[msg.sender].principal;",
+    "startLine": 226,
+    "endLine": 226,
+    "event": "add"
+  },
+  {
+    "code": "IUserManager(userManager).updateLockedData(msg.sender, newPrincipal - oldPrincipal, true);",
+    "startLine": 227,
+    "endLine": 227,
+    "event": "add"
+  },
+  {
+    "code": "accountBorrows[msg.sender].interest = accountBorrowsNew - accountBorrows[msg.sender].principal;",
+    "startLine": 228,
+    "endLine": 228,
+    "event": "add"
+  },
+  {
+    "code": "accountBorrows[msg.sender].interestIndex = borrowIndex;",
+    "startLine": 229,
+    "endLine": 229,
+    "event": "add"
+  },
+  {
+    "code": "totalBorrows = totalBorrowsNew;",
+    "startLine": 230,
+    "endLine": 230,
+    "event": "add"
+  },
+  {
+    "code": "totalReserves += fee;",
+    "startLine": 231,
+    "endLine": 231,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 232,
+    "endLine": 232,
+    "event": "add"
+  },
+  {
+    "code": "require(assetManagerContract.withdraw(underlying, msg.sender, amount), \"UToken: Failed to withdraw\");",
+    "startLine": 233,
+    "endLine": 233,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 234,
+    "endLine": 234,
+    "event": "add"
+  },
+  {
+    "code": "emit LogBorrow(msg.sender, amount, fee);",
+    "startLine": 235,
+    "endLine": 235,
+    "event": "add"
+  },
+  {
+    "code": "// @During borrowIndex(Before < After)",
+    "startLine": 219,
+    "endLine": 219,
+    "event": "add"
+  },
+  {
+    "code": "// @During borrowIndex(Before < After)",
+    "startLine": 222,
+    "endLine": 222,
+    "event": "add"
+  },
+  {
+    "code": "// @During borrowIndex(Before < After)",
+    "startLine": 225,
+    "endLine": 225,
+    "event": "add"
+  },
+  {
+    "code": "// @During borrowIndex(Before < After)",
+    "startLine": 232,
+    "endLine": 232,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 197,
+    "endLine": 197,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar amount = [1000000000000000001, 1000000000000000001]",
+    "startLine": 197,
+    "endLine": 197,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar minBorrow = [2, 2]",
+    "startLine": 198,
+    "endLine": 198,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar debtCeiling = [1000000000000000002, 1000000000000000002]",
+    "startLine": 199,
+    "endLine": 199,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar totalBorrows = [0, 0]",
+    "startLine": 200,
+    "endLine": 200,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar originationFee = [1000000000000001, 1000000000000001]",
+    "startLine": 201,
+    "endLine": 201,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar WAD = [1000000000000000000, 1000000000000000000]",
+    "startLine": 202,
+    "endLine": 202,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar accountBorrows[msg.sender].principal = [1000000000000000001, 1000000000000000001]",
+    "startLine": 203,
+    "endLine": 203,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar accrualBlockNumber = [1, 1]",
+    "startLine": 204,
+    "endLine": 204,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar borrowIndex = [1000000000000000001, 1000000000000000001]",
+    "startLine": 205,
+    "endLine": 205,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar accountBorrows[msg.sender].interest = [1, 1]",
+    "startLine": 206,
+    "endLine": 206,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar accountBorrows[msg.sender].interestIndex = [1000000000000000001, 1000000000000000001]",
+    "startLine": 207,
+    "endLine": 207,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar accountBorrows[msg.sender].lastRepay = [1, 1]",
+    "startLine": 208,
+    "endLine": 208,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar maxBorrow = [2001005000000000005, 2001005000000000005]",
+    "startLine": 209,
+    "endLine": 209,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar overdueBlocks = [2, 2]",
+    "startLine": 210,
+    "endLine": 210,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar block.number = [2, 2]",
+    "startLine": 211,
+    "endLine": 211,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 212,
+    "endLine": 212,
+    "event": "add"
+  }
+]

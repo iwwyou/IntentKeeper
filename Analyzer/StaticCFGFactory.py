@@ -84,6 +84,14 @@ class StaticCFGFactory:
                 identifier="msg.value",
                 value=_u256(),
                 typeInfo=_sol_elem("uint")),
+            "msg.data": GlobalVariable(
+                identifier="msg.data",
+                value="symbol_msg.data",
+                typeInfo=_sol_elem("bytes")),
+            "msg.sig": GlobalVariable(
+                identifier="msg.sig",
+                value="symbol_msg.sig",
+                typeInfo=_sol_elem("bytes4")),
 
             # --- tx ---
             "tx.gasprice": GlobalVariable(
@@ -120,7 +128,10 @@ class StaticCFGFactory:
         • FunctionCFG 와 기본 abstract env 를 만들어 contract_cfg.functions 에 등록
         """
         if modifier_name in contract_cfg.functions:
-            return contract_cfg.functions[modifier_name]  # 중복 선언 방지
+            overloads = contract_cfg.functions[modifier_name]
+            if isinstance(overloads, dict):
+                return next(iter(overloads.values()))
+            return overloads  # 중복 선언 방지
 
         mod_cfg = FunctionCFG(function_type="modifier",
                               function_name=modifier_name)
@@ -146,17 +157,35 @@ class StaticCFGFactory:
 
             mod_cfg.add_related_variable(var_obj)
 
-        # ────────── 2. 상태‧글로벌 변수 얕은 참조 등록 ──────────
-        if contract_cfg.state_variable_node:
-            for var in contract_cfg.state_variable_node.variables.values():
-                mod_cfg.add_related_variable(var)
-        for gv in contract_cfg.globals.values():
-            mod_cfg.add_related_variable(gv)
+        # 상태·글로벌 변수 복사
+        ccf = an.contract_cfgs[an.current_target_contract]
 
+        # (1) state / constant variables  ─ 현재 contract + parent 체인 순회
+        def _inject_state_vars(cfg_obj):
+            sv_node = getattr(cfg_obj, "state_variable_node", None)
+            if sv_node and getattr(sv_node, "variables", None):
+                for v in sv_node.variables.values():
+                    mod_cfg.add_related_variable(v)
+            for parent_cfg in getattr(cfg_obj, "parent_cfgs", {}).values():
+                _inject_state_vars(parent_cfg)
+        _inject_state_vars(ccf)
+
+        # (2) 글로벌 변수 (block.timestamp 등) ─ ContractCFG 만 가짐
+        if getattr(ccf, "globals", None):
+            for gv in ccf.globals.values():
+                mod_cfg.add_related_variable(gv)
+
+        # ───────────────────────────────────────────────────────────────
+        # ❷  entry-env 스냅 + entry_node.variables 초기화
+        # ───────────────────────────────────────────────────────────────
         # ────────── 3. 저장 & snapshot 등록 ──────────
-        contract_cfg.functions[modifier_name] = mod_cfg
-        an.snapman.register(mod_cfg, an.ser)  # 원한다면 전체 CFG 스냅도
+        contract_cfg.add_function_cfg(modifier_name, mod_cfg)
+        an.snapman.register(mod_cfg, an.ser)
 
+        entry_vars = VariableEnv.copy_variables(mod_cfg.related_variables)
+        mod_cfg.entry_env = entry_vars  # ★ 함수 진입 스냅샷
+        mod_cfg.assign_env.update(entry_vars)
+        mod_cfg.entry_node.variables.update(entry_vars)  # ★ entry_node에도 복사
         return mod_cfg
 
     @staticmethod
@@ -180,12 +209,25 @@ class StaticCFGFactory:
 
         # 상태·글로벌 변수 복사
         ccf = an.contract_cfgs[an.current_target_contract]
-        if ccf.state_variable_node:
-            for v in ccf.state_variable_node.variables.values():
-                cfg.add_related_variable(v)
-        for gv in ccf.globals.values():
-            cfg.add_related_variable(gv)
 
+        # (1) state / constant variables  ─ 존재할 때만 주입
+        sv_node = getattr(ccf, "state_variable_node", None)
+        if sv_node and getattr(sv_node, "variables", None):
+            for v in sv_node.variables.values():
+                cfg.add_related_variable(v)
+
+        # (2) 글로벌 변수 (block.timestamp 등) ─ ContractCFG 만 가짐
+        if getattr(ccf, "globals", None):
+            for gv in ccf.globals.values():
+                cfg.add_related_variable(gv)
+
+        # ───────────────────────────────────────────────────────────────
+        # ❷  entry-env 스냅 + entry_node.variables 초기화
+        # ───────────────────────────────────────────────────────────────
+        entry_vars = VariableEnv.copy_variables(cfg.related_variables)
+        cfg.entry_env = entry_vars  # ★ 함수 진입 스냅샷
+        cfg.assign_env.update(entry_vars)
+        cfg.entry_node.variables.update(entry_vars)  # ★ entry_node에도 복사
         return cfg
 
     @staticmethod
@@ -198,6 +240,14 @@ class StaticCFGFactory:
         fcfg = FunctionCFG(function_type="function", function_name=name)
 
         for p_type, p_name in params:
+            # parameter_types에 타입 기록 (overloading signature용)
+            type_str = getattr(p_type, 'elementaryTypeName', None) or \
+                       getattr(p_type, 'structTypeName', None) or \
+                       getattr(p_type, 'enumTypeName', None) or \
+                       getattr(p_type, 'interfaceName', None) or \
+                       str(p_type.typeCategory or "unknown")
+            fcfg.parameter_types.append(type_str)
+
             if p_name:  # 이름이 있는 것만 변수화
                 var = StaticCFGFactory.make_param_variable(
                     an,  # 🔑
@@ -217,7 +267,8 @@ class StaticCFGFactory:
                     an,  # 🔑
                     r_type,
                     r_name,
-                    scope="local"
+                    scope="local",
+                    is_return_param=True  # ★ Solidity 규약: 0으로 초기화
                 )
                 fcfg.add_related_variable(rv)
                 fcfg.return_vars.append(rv)
@@ -230,10 +281,16 @@ class StaticCFGFactory:
         ccf = an.contract_cfgs[an.current_target_contract]
 
         # (1) state / constant variables  ─ 존재할 때만 주입
-        sv_node = getattr(ccf, "state_variable_node", None)
-        if sv_node and getattr(sv_node, "variables", None):
-            for v in sv_node.variables.values():
-                fcfg.add_related_variable(v)
+        #     현재 contract + parent 체인 순회
+        def _inject_state_vars(cfg_obj):
+            sv_node = getattr(cfg_obj, "state_variable_node", None)
+            if sv_node and getattr(sv_node, "variables", None):
+                for v in sv_node.variables.values():
+                    fcfg.add_related_variable(v)
+            # parent 체인 재귀
+            for parent_cfg in getattr(cfg_obj, "parent_cfgs", {}).values():
+                _inject_state_vars(parent_cfg)
+        _inject_state_vars(ccf)
 
         # (2) 글로벌 변수 (block.timestamp 등) ─ ContractCFG 만 가짐
         if getattr(ccf, "globals", None):
@@ -241,11 +298,12 @@ class StaticCFGFactory:
                 fcfg.add_related_variable(gv)
 
         # ───────────────────────────────────────────────────────────────
-        # ❷  entry-env 스냅 (변경 없음)
+        # ❷  entry-env 스냅 + entry_node.variables 초기화
         # ───────────────────────────────────────────────────────────────
         entry_vars = VariableEnv.copy_variables(fcfg.related_variables)
-        fcfg.entry_env = entry_vars  # ★ 추가: 함수 진입 스냅샷
+        fcfg.entry_env = entry_vars  # ★ 함수 진입 스냅샷
         fcfg.assign_env.update(entry_vars)
+        fcfg.entry_node.variables.update(entry_vars)  # ★ entry_node에도 복사
         return fcfg
 
     @staticmethod
@@ -253,12 +311,17 @@ class StaticCFGFactory:
                             sol_type: SolType,
                             ident: str,
                             *,
-                            scope: str = "local"
+                            scope: str = "local",
+                            is_return_param: bool = False
                             ) -> Variables | ArrayVariable | StructVariable | EnumVariable:
         """
         파라미터·리턴 변수 1개 생성 + 기본 interval 초기화.
         ▶ 기존 ContractAnalyzer._make_param_variable 의 로직 그대로,
           차이점은 `an` 인스턴스를 첫 인자로 받아 snap·structDef 등에 접근.
+
+        ★ is_return_param=True인 경우, Solidity 규약에 따라 0으로 초기화 (sound & precise)
+           - input parameter: TOP으로 초기화 (호출자가 어떤 값이든 전달 가능)
+           - return parameter: 0으로 초기화 (Solidity가 자동으로 0 초기화)
         """
         ccf = an.contract_cfgs[an.current_target_contract]
 
@@ -276,11 +339,16 @@ class StaticCFGFactory:
             if isinstance(base_t, SolType):  # 1-D 배열
                 et = base_t.elementaryTypeName
                 if et and et.startswith("int"):
-                    arr.initialize_elements(IntegerInterval.bottom(base_t.intTypeLength or 256))
+                    bits = base_t.intTypeLength or 256
+                    init_val = IntegerInterval(0, 0, bits) if is_return_param else IntegerInterval.top(bits)
+                    arr.initialize_elements(init_val)
                 elif et and et.startswith("uint"):
-                    arr.initialize_elements(UnsignedIntegerInterval.bottom(base_t.intTypeLength or 256))
+                    bits = base_t.intTypeLength or 256
+                    init_val = UnsignedIntegerInterval(0, 0, bits) if is_return_param else UnsignedIntegerInterval.top(bits)
+                    arr.initialize_elements(init_val)
                 elif et == "bool":
-                    arr.initialize_elements(BoolInterval.bottom())
+                    init_val = BoolInterval(0, 0) if is_return_param else BoolInterval.top()
+                    arr.initialize_elements(init_val)
                 else:  # address / bytes / string / struct 등
                     arr.initialize_not_abstracted_type()
             else:  # 다차원
@@ -292,10 +360,22 @@ class StaticCFGFactory:
         # ──────────────────────────── ② struct ───────────────────────────
         if sol_type.typeCategory == "struct":
             sname = sol_type.structTypeName
-            if sname not in ccf.structDefs:
+            struct_def = ccf.structDefs.get(sname) or an.sa.file_level_structs.get(sname)
+            # parent chain 검색
+            if struct_def is None:
+                def _search_parent_structs(cfg, name):
+                    for pcfg in getattr(cfg, 'parent_cfgs', {}).values():
+                        if name in pcfg.structDefs:
+                            return pcfg.structDefs[name]
+                        found = _search_parent_structs(pcfg, name)
+                        if found:
+                            return found
+                    return None
+                struct_def = _search_parent_structs(ccf, sname)
+            if struct_def is None:
                 raise ValueError(f"Undefined struct '{sname}' used as parameter/return.")
             sv = StructVariable(identifier=ident, struct_type=sname, scope=scope)
-            sv.initialize_struct(ccf.structDefs[sname])
+            sv.initialize_struct(struct_def, struct_defs=ccf.structDefs)
 
             an.register_var(sv)
             return sv
@@ -308,20 +388,31 @@ class StaticCFGFactory:
             ev.valueIndex = 0  # 기본값 : 첫 멤버
             return ev
 
-        # ──────────────────────────── ④ elementary ───────────────────────
+        # ──────────────────────────── ④ interface (address로 취급) ────────
+        if sol_type.typeCategory == "interface":
+            v = Variables(identifier=ident, scope=scope)
+            v.typeInfo = sol_type
+            v.value = AddressSet.top()
+            an.register_var(v)
+            return v
+
+        # ──────────────────────────── ⑤ elementary ───────────────────────
         if sol_type.typeCategory == "elementary":
             v = Variables(identifier=ident, scope=scope)
             v.typeInfo = sol_type
             et = sol_type.elementaryTypeName
 
             if et.startswith("int"):
-                v.value = IntegerInterval.bottom(sol_type.intTypeLength or 256)
+                bits = sol_type.intTypeLength or 256
+                v.value = IntegerInterval(0, 0, bits) if is_return_param else IntegerInterval.top(bits)
             elif et.startswith("uint"):
-                v.value = UnsignedIntegerInterval.bottom(sol_type.intTypeLength or 256)
+                bits = sol_type.intTypeLength or 256
+                v.value = UnsignedIntegerInterval(0, 0, bits) if is_return_param else UnsignedIntegerInterval.top(bits)
             elif et == "bool":
-                v.value = BoolInterval.bottom()
+                v.value = BoolInterval(0, 0) if is_return_param else BoolInterval.top()
             elif et == "address":
-                v.value = AddressSet.top()
+                # address의 기본값은 address(0)
+                v.value = AddressSet(ids={0}) if is_return_param else AddressSet.top()
             else:  # bytes / string …
                 v.value = f"symbol_{ident}"
 

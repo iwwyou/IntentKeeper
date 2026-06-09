@@ -1,4 +1,3 @@
-# SolidityGuardian/Analyzer/CFGSerializerPickle.py
 import pickle
 import pathlib
 from typing import Dict, Union
@@ -33,7 +32,9 @@ class CFGSerializerPickle:
     # =================================================================
 
     def save_library_cfg(self, library_cfg: LibraryCFG, library_name: str = None,
-                        file_path: str = None) -> str:
+                        file_path: str = None,
+                        file_level_structs: dict = None,
+                        type_aliases: dict = None) -> str:
         """
         라이브러리 CFG를 Pickle 파일로 저장
 
@@ -41,6 +42,8 @@ class CFGSerializerPickle:
             library_cfg: 저장할 LibraryCFG 객체
             library_name: 라이브러리 이름 (None이면 CFG에서 추출)
             file_path: 저장할 파일 경로 (None이면 기본 경로 사용)
+            file_level_structs: file-level struct 정보 (None이면 빈 dict)
+            type_aliases: type alias 정보 (None이면 빈 dict)
 
         Returns:
             저장된 파일 경로
@@ -56,10 +59,13 @@ class CFGSerializerPickle:
             file_path = pathlib.Path(file_path)
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
-        # Pickle로 직렬화 (매우 간단!)
+        # Pickle로 직렬화 (dict wrapper: cfg + file_level_structs + type_aliases)
         try:
             with open(file_path, 'wb') as f:
-                pickle.dump(library_cfg, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump({"cfg": library_cfg,
+                             "file_level_structs": dict(file_level_structs) if file_level_structs else {},
+                             "type_aliases": dict(type_aliases) if type_aliases else {}},
+                            f, protocol=pickle.HIGHEST_PROTOCOL)
 
             print(f"[OK] Library '{library_name}' saved to {file_path}")
             return str(file_path)
@@ -88,8 +94,10 @@ class CFGSerializerPickle:
 
         try:
             with open(file_path, 'rb') as f:
-                library_cfg = pickle.load(f)
-            return library_cfg
+                raw = pickle.load(f)
+            if isinstance(raw, dict) and "cfg" in raw:
+                return raw["cfg"]
+            return raw
 
         except Exception as e:
             print(f"Warning: Failed to load library '{library_name}': {e}")
@@ -100,7 +108,9 @@ class CFGSerializerPickle:
     # =================================================================
 
     def save_contract_cfg(self, contract_cfg: ContractCFG, contract_name: str = None,
-                         file_path: str = None) -> str:
+                         file_path: str = None,
+                         file_level_structs: dict = None,
+                         type_aliases: dict = None) -> str:
         """
         컨트랙트 CFG를 Pickle 파일로 저장
 
@@ -108,6 +118,8 @@ class CFGSerializerPickle:
             contract_cfg: 저장할 ContractCFG 객체
             contract_name: 컨트랙트 이름 (None이면 CFG에서 추출)
             file_path: 저장할 파일 경로 (None이면 기본 경로 사용)
+            file_level_structs: file-level struct 정보 (None이면 빈 dict)
+            type_aliases: type alias 정보 (None이면 빈 dict)
 
         Returns:
             저장된 파일 경로
@@ -123,10 +135,13 @@ class CFGSerializerPickle:
             file_path = pathlib.Path(file_path)
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
-        # Pickle로 직렬화
+        # Pickle로 직렬화 (dict wrapper: cfg + file_level_structs + type_aliases)
         try:
             with open(file_path, 'wb') as f:
-                pickle.dump(contract_cfg, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump({"cfg": contract_cfg,
+                             "file_level_structs": dict(file_level_structs) if file_level_structs else {},
+                             "type_aliases": dict(type_aliases) if type_aliases else {}},
+                            f, protocol=pickle.HIGHEST_PROTOCOL)
 
             print(f"[OK] Contract '{contract_name}' saved to {file_path}")
             return str(file_path)
@@ -155,8 +170,10 @@ class CFGSerializerPickle:
 
         try:
             with open(file_path, 'rb') as f:
-                contract_cfg = pickle.load(f)
-            return contract_cfg
+                raw = pickle.load(f)
+            if isinstance(raw, dict) and "cfg" in raw:
+                return raw["cfg"]
+            return raw
 
         except Exception as e:
             print(f"Warning: Failed to load contract '{contract_name}': {e}")
@@ -194,7 +211,10 @@ class CFGSerializerPickle:
             file_path = output_dir / f"{lib_name}_library.pkl"
             try:
                 with open(file_path, 'wb') as f:
-                    pickle.dump(lib_cfg, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    pickle.dump({"cfg": lib_cfg,
+                                 "file_level_structs": {},
+                                 "type_aliases": {}},
+                                f, protocol=pickle.HIGHEST_PROTOCOL)
                 saved_files[f"{lib_name}_library"] = str(file_path)
                 print(f"  [OK] {lib_name} library")
             except Exception as e:
@@ -212,7 +232,10 @@ class CFGSerializerPickle:
             file_path = output_dir / f"{contract_name}_contract.pkl"
             try:
                 with open(file_path, 'wb') as f:
-                    pickle.dump(contract_cfg, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    pickle.dump({"cfg": contract_cfg,
+                                 "file_level_structs": {},
+                                 "type_aliases": {}},
+                                f, protocol=pickle.HIGHEST_PROTOCOL)
                 saved_files[f"{contract_name}_contract"] = str(file_path)
                 print(f"  [OK] {contract_name} contract")
             except Exception as e:
@@ -250,7 +273,13 @@ class CFGSerializerPickle:
         for pkl_file in pkl_files:
             try:
                 with open(pkl_file, 'rb') as f:
-                    cfg = pickle.load(f)
+                    raw = pickle.load(f)
+
+                # unwrap dict wrapper (backward compat)
+                if isinstance(raw, dict) and "cfg" in raw:
+                    cfg = raw["cfg"]
+                else:
+                    cfg = raw
 
                 # 파일 타입에 따라 분류
                 if pkl_file.name.endswith("_library.pkl"):

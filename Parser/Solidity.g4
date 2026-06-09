@@ -166,7 +166,7 @@ functionDefinition
   (';' | block) ;
 
 eventDefinition
-  : 'event' identifier '(' (eventParameter (',' eventParameter)*)? AnonymousKeyword? ';' ;
+  : 'event' identifier '(' (eventParameter (',' eventParameter)*)? ')' AnonymousKeyword? ';' ;
 
 enumDefinition
   : 'enum' identifier '{' identifier (',' identifier)* '}' ;
@@ -175,7 +175,7 @@ parameterList
   : (typeName dataLocation? identifier?) (',' typeName dataLocation? identifier?)* ;
 
 eventParameter
-  : typeName identifier? ;
+  : typeName 'indexed'? identifier? ;
 
 variableDeclaration
   : typeName dataLocation? identifier ;
@@ -245,6 +245,8 @@ interactiveIfElseUnit
     interactiveElseStatement
   )* EOF;
 
+
+
 interactiveCatchClauseUnit
   : (
     interactiveCatchClause
@@ -260,10 +262,12 @@ debugInput
     : debugGlobalVar
     | debugStateVar
     | debugLocalVar
+    | debugIReturn
     ;
 
 debugGlobalVar
-    : '//' '@GlobalVar' identifier ('.' identifier)? '=' debugValue
+    : '//' '@GlobalVar' identifier ('.' identifier)? '=' debugValue                          # GlobalVarSimple
+    | '//' '@GlobalVar' 'address' '(' identifier ')' '.' identifier '=' debugValue            # GlobalVarAddressBalance
     ;
 
 debugStateVar
@@ -274,6 +278,21 @@ debugLocalVar
     : '//' '@LocalVar' varRef '=' debugValue
     ;
 
+debugIReturn
+    : '//' '@IReturn' identifier '.' identifier '(' ')' ireturnAccessChain? '=' debugValue        # IReturnPatternA
+    | '//' '@IReturn' identifier '(' identifier ')' '.' identifier '(' ')' ireturnAccessChain? '=' debugValue   # IReturnPatternB
+    ;
+
+ireturnAccessChain
+    : ireturnAccess+
+    ;
+
+ireturnAccess
+    : '.' identifier            # IReturnMemberAccess
+    | '[' numberLiteral ']'     # IReturnIndexAccess
+    | '.' identifier '(' ')'   # IReturnChainedCall
+    ;
+
 duringIntent
     : '//' '@During' duringClause (logicOp duringClause)*
     ;
@@ -281,6 +300,7 @@ duringIntent
 duringClause
     : intentValue '(' BEFORE  relOp AFTER   ')'                             # DuringBeforeAfter
     | intentValue '(' ASSIGN  relOp CURRENT ')'                             # DuringAssignCurrent
+    | ('require feasible' | 'assert feasible')                              # DuringFeasible
     | identifier '.' 'arg' '[' numberLiteral ']' relOp intentValue          # DuringFunctionArg
     | commonClause                                                          # DuringCommon
     ;
@@ -291,7 +311,6 @@ postIntent
 
 postClause
     : intentValue '(' ENTRY relOp EXIT ')'                                # PostEntryExit
-    | UNCHANGED '(' intentValue ')'                                       # UnchangedVar
     | commonClause                                                        # PostCommon
     ;
 
@@ -304,6 +323,7 @@ commonClause
     | intentValue relOp 'floor' '(' intentValue ',' numberLiteral ')'       # Floor
     | intentValue relOp intentValue                                         # RelationalCmp
     | intentValue '=>' intentValue                                          # Implication
+    | 'changed' '(' intentValue ',' ('true'|'false') ')'                    # VarChangedEval
     ;
 
 debugValue
@@ -323,13 +343,23 @@ intentValue
 
 //────────── 6-1)  숫자 / 비율 / 모듈러 ──────────
 arithExpr
-    : arithExpr ('+' | '-') arithTerm              #AddSub
+    : arithExpr ('<<' | '>>' | '>>>') arithAdd     #IntentShiftOp
+    | arithAdd                                     #IntentShiftRoot
+    ;
+
+arithAdd
+    : arithAdd ('+' | '-') arithTerm               #AddSub
     | arithTerm                                    #AddSubRoot
     ;
 
 arithTerm
-    : arithTerm ('*' | '/' | '%') arithFactor      #MulDivMod
-    | arithFactor                                  #MulDivModRoot
+    : arithTerm ('*' | '/' | '%') arithExp         #MulDivMod
+    | arithExp                                     #MulDivModRoot
+    ;
+
+arithExp
+    : arithFactor '**' arithExp                    #IntentExponentiation
+    | arithFactor                                  #IntentExpRoot
     ;
 
 arithFactor
@@ -455,8 +485,10 @@ forStatement
 inlineArrayExpression
  : '[' (expression (',' expression)*) ']';
 
+// Assembly 블록: 내부 Yul 코드는 별도 Yul.g4 파서가 처리
+// Solidity parser는 balanced brace만 소비
 assemblyStatement
-  : 'assembly' 'evamasm'? assemblyFlags? '{' yulStatement* '}' ;
+  : 'assembly' assemblyFlags? assemblyBlock ;
 
 assemblyFlags
   : '(' (assemblyFlagString (',' assemblyFlagString)) ')';
@@ -464,65 +496,8 @@ assemblyFlags
 assemblyFlagString
  : stringLiteral ;
 
-yulStatement
-  : yulBlock
-  | yulVariableDeclaration
-  | yulAssignment
-  | yulFunctionCall
-  | yulIfStatement
-  | yulForStatement
-  | yulSwitchStatement
-  | LeaveKeyword
-  | BreakKeyword
-  | ContinueKeyword
-  | yulFunctionDefinition;
-
-yulBlock
-  : '{' yulStatement* '}';
-
-yulVariableDeclaration
-  : 'let' YulIdentifier (':=' yulExpression)?
-  | 'let' (YulIdentifier (',' YulIdentifier)) (':=' yulFunctionCall)?;
-
-yulAssignment
-  : yulPath ':=' yulExpression
-  | yulPath (',' yulPath)+ ':=' yulFunctionCall ;
-
-yulIfStatement
-  : 'if' yulExpression yulBlock;
-
-yulForStatement
-  : 'for' yulBlock yulExpression yulBlock yulBlock;
-
-yulSwitchStatement
- : 'switch' yulExpression
- ( ('case' yulLiteral yulBlock)+ ('default' yulBlock)?
- | 'default' yulBlock);
-
-yulFunctionDefinition
-  : 'function' YulIdentifier '(' (YulIdentifier (',' YulIdentifier)*)? ')'
-  ('->' (YulIdentifier (',' YulIdentifier)*))? yulBlock;
-
-yulPath
-  : YulIdentifier ('.' (YulIdentifier | YulEvmBuiltin))* ;
-
-yulFunctionCall
-  : (YulIdentifier | YulEvmBuiltin) '(' (yulExpression (',' yulExpression)*)? ')';
-
-yulBoolean
-  : 'true' | 'false';
-
-yulLiteral
-  : YulDecimalNumber
-  | YulStringLiteral
-  | YulHexNumber
-  | yulBoolean
-  | HexString;
-
-yulExpression
- : yulPath
- | yulFunctionCall
- | yulLiteral;
+assemblyBlock
+  : '{' (~('{' | '}') | assemblyBlock)* '}' ;
 
 doWhileStatement
   : 'do' statement 'while' '(' expression ')' ';' ;
@@ -549,7 +524,7 @@ assertStatement
   : 'assert' '(' expression ')' ';' ;
 
 variableDeclarationStatement
-  : (variableDeclaration ('=' expression)?) | (variableDeclarationTuple '=' expression) ';' ;
+  : (variableDeclaration ('=' expression)?) ';' | (variableDeclarationTuple '=' expression) ';' ;
 
 interactiveStatement
   : interactiveSimpleStatement
@@ -616,9 +591,9 @@ expression
   | expression '[' expression? ':' expression? ']'        # IndexRangeAccess
   | expression '.' (identifier | 'address')               # MemberAccess
   | expression '{' (identifier ':' expression (',' identifier ':' expression)*)? '}'  # FunctionCallOptions
+  | elementaryTypeName '(' expression ')'                 # TypeConversion
   | expression callArgumentList                           # FunctionCall
   | PayableKeyword callArgumentList                       # PayableFunctionCall
-  | elementaryTypeName '(' identifier ')'                 # TypeConversion
   | 'type' '(' typeName ')'                               # MetaType
   | ('++'|'--'|'!'|'~'|'delete'|'-') expression           # UnaryPrefixOp
   | expression ('++'|'--')                                # UnarySuffixOp
@@ -795,29 +770,7 @@ VersionLiteral
 WS
   : [ \t\r\n\u000C]+ -> skip ;
 
-YulEvmBuiltin
- : 'stop' | 'add' | 'sub' | 'mul' | 'div' | 'sdiv' | 'mod' | 'smod' | 'exp' | 'not' | 'lt' | 'gt' | 'slt' | 'sgt'
- | 'eq' | 'iszero' | 'and' | 'or' | 'xor' | 'byte' | 'shl' | 'shr' | 'sar' | 'addmod' | 'mulmod' | 'signextend'
- | 'keccak256' | 'pop' | 'mload' | 'mstore' | 'mstore8' | 'sload' | 'sstore' | 'misze' | 'gas' | 'address'
- | 'balance' | 'selfbalance' | 'caller' | 'callvalue' | 'calldataload' | 'calldatasize' | 'calldatacopy'
- | 'extcodesize' | 'extcodecopy' | 'returndatasize' | 'returndatacopy' | 'extcodehash' | 'create' | 'create2'
- | 'call' | 'callcode' | 'delegatecall' | 'staticcall' | 'return' | 'revert' | 'selfdestruct' | 'invalid'
- | 'log0' | 'log1' | 'log2' | 'log3' | 'log4' | 'chainid' | 'origin' | 'gasprice' | 'blockhash' | 'coinbase'
- | 'timestamp' | 'number' | 'difficulty' | 'prevrandao' | 'gaslimit' | 'basefee' ;
-
-YulIdentifier
- : [a-zA-Z$_] [a-zA-Z0-9$_]* ;
-
-YulHexNumber
- : '0x' [0-9a-fA-F]+ ;
-
-YulDecimalNumber
- : '0'
- | [1-9] [0-9]* ;
-
-YulStringLiteral
-  : '"' (DoubleQuotedPrintable | EscapeSequence)+ '"'
-  | '\'' (SingleQuotedPrintable | EscapeSequence)+ '\'';
+// Yul lexer rules removed — Yul.g4가 별도 처리
 
 COMMENT
   : '/*' .*? '*/' -> channel(HIDDEN) ;

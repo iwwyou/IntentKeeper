@@ -1,0 +1,362 @@
+[
+  {
+    "code": "pragma solidity ^0.8.0;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract MochiVault is Initializable, IMochiVault, IERC3156FlashLender {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using Float for uint256;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using CheapERC20 for IERC20;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "IMochiEngine public immutable engine;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "IERC20 public override asset;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public debtIndex;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public lastAccrued;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public override deposits;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public override debts;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "int256 public override claimable;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public liquidated;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => Detail) public override details;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => uint256) public lastDeposit;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "function borrow( uint256 _id, uint256 _amount, bytes memory _data ) public override updateDebt(_id) {\n}",
+    "startLine": 22,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "FloatStruct memory price = engine.cssr().update(address(asset), _data);",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "FloatStruct memory cf = engine.mochiProfile().maxCollateralFactor(address(asset));",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "uint256 maxMinted = details[_id].collateral.multiply(cf).multiply(price);",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "require(engine.nft().ownerOf(_id) == msg.sender, \"!approved\");",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "require(engine.nft().asset(_id) == address(asset), \"!asset\");",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "if(details[_id].debt + _amount > maxMinted) {\n}",
+    "startLine": 32,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "_amount = maxMinted - details[_id].debt;",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "if(engine.mochiProfile().creditCap(address(asset)) < debts + _amount) {\n}",
+    "startLine": 35,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "_amount = engine.mochiProfile().creditCap(address(asset)) - debts;",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "uint256 increasingDebt = (_amount * 1005) / 1000;",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalDebt = details[_id].debt + increasingDebt;",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "require(details[_id].debt + _amount >= engine.mochiProfile().minimumDebt(), \"<minimum\");",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "require(!_liquidatable(details[_id].collateral, price, totalDebt),\"!healthy\");",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "mintFeeToPool(increasingDebt - _amount, details[_id].referrer);",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "details[_id].debtIndex = (details[_id].debtIndex * (totalDebt)) / (details[_id].debt + _amount);",
+    "startLine": 43,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "details[_id].debt = totalDebt;",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "details[_id].status = Status.Active;",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "debts += _amount;",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "engine.minter().mint(msg.sender, _amount);",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "// @During debts >= increasingDebt + 800",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar debts = [800, 800]",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar debtIndex = [1000000000000000000, 1000000000000000000]",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar block.timestamp = [1000000, 1000000]",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar lastAccrued = [1000000, 1000000]",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar details[2].collateral = [10000000000000000000, 10000000000000000000]",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar details[2].debt = [0, 0]",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar details[2].debtIndex = [1000000000000000000, 1000000000000000000]",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.mochiProfile().calculateFeeIndex() = [1000000000000000000, 1000000000000000000]",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.cssr().update() = [1000000000000000000, 1000000000000000000]",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.mochiProfile().maxCollateralFactor() = [800000000000000000, 800000000000000000]",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.mochiProfile().creditCap() = [100000000000000000000, 100000000000000000000]",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.mochiProfile().minimumDebt() = [0, 0]",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.nft().ownerOf() = symbolicAddress 1",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn engine.nft().asset() = symbolicAddress 2",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _id = [2, 2]",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _amount = [1000, 1000]",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  }
+]

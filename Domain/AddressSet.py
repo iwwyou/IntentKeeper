@@ -6,12 +6,17 @@ class AddressSet:
     - 최대 K개의 구체적인 address ID를 추적
     - K 초과 시 Top으로 확장
     """
-    __slots__ = ("ids", "is_top")
+    __slots__ = ("ids", "is_top", "_cast_interface")
     K = 8  # cap
 
     def __init__(self, ids=None, is_top=False):
         self.ids = frozenset(ids or [])
         self.is_top = is_top
+        self._cast_interface = None  # interface type cast 시 interface 이름 태깅
+
+    def is_bottom(self) -> bool:
+        """Empty set (⊥) check"""
+        return not self.is_top and len(self.ids) == 0
 
     @staticmethod
     def top():
@@ -32,9 +37,18 @@ class AddressSet:
     def join(self, other: "AddressSet") -> "AddressSet":
         """Least upper bound (union with cap)"""
         if self.is_top or other.is_top:
-            return AddressSet.top()
-        u = self.ids | other.ids
-        return AddressSet(u) if len(u) <= AddressSet.K else AddressSet.top()
+            result = AddressSet.top()
+        else:
+            u = self.ids | other.ids
+            result = AddressSet(u) if len(u) <= AddressSet.K else AddressSet.top()
+        # _cast_interface 보존: 양쪽이 같으면 유지
+        s_ci = getattr(self, '_cast_interface', None)
+        o_ci = getattr(other, '_cast_interface', None)
+        ci = s_ci or o_ci
+        if s_ci and o_ci and s_ci != o_ci:
+            ci = None
+        result._cast_interface = ci
+        return result
 
     def meet(self, other: "AddressSet") -> "AddressSet":
         """Greatest lower bound (intersection)"""
@@ -42,16 +56,19 @@ class AddressSet:
             return other
         if other.is_top:
             return self
-        return AddressSet(self.ids & other.ids)
+        result = AddressSet(self.ids & other.ids)
+        result._cast_interface = getattr(self, '_cast_interface', None) or getattr(other, '_cast_interface', None)
+        return result
 
     def narrow(self, other: "AddressSet") -> "AddressSet":
         """Narrowing operator - refine the approximation"""
-        # Narrowing: TOP인 경우 other로 구체화, 아니면 교집합
         if self.is_top:
             return other
         if other.is_top:
             return self
-        return AddressSet(self.ids & other.ids)
+        result = AddressSet(self.ids & other.ids)
+        result._cast_interface = getattr(self, '_cast_interface', None) or getattr(other, '_cast_interface', None)
+        return result
 
     def equals(self, other: "AddressSet") -> BoolInterval:
         """Abstract equality: self == other"""

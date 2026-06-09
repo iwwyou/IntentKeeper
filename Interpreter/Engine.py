@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from Analyzer.ContractAnalyzer import ContractAnalyzer
 
-from Domain.Variable import Variables, MappingVariable, ArrayVariable, StructVariable
+from Domain.Variable import Variables, MappingVariable, ArrayVariable, StructVariable, EnumVariable
 from Domain.IR import Expression
 from Domain.Interval import UnsignedIntegerInterval, IntegerInterval, BoolInterval
 from Domain.AddressSet import AddressSet
@@ -42,12 +42,12 @@ class Engine:
     # =================================================================
     #  (통합) 문장 해석기 – 기존 Runtime.* 가 여기로 이동
     # =================================================================
-    def update_statement_with_variables(self, stmt, current_variables, ret_acc=None):
+    def update_statement_with_variables(self, stmt, current_variables, ret_acc=None, node=None):
         typ = stmt.statement_type
         if   typ == 'variableDeclaration':
             return self._interpret_var_decl(stmt, current_variables)
         elif typ == 'assignment':
-            return self._interpret_assignment(stmt, current_variables)
+            return self._interpret_assignment(stmt, current_variables, node=node)
         elif typ == 'unary':
             return self._interpret_unary(stmt, current_variables)
         elif typ == 'functionCall':
@@ -99,20 +99,28 @@ class Engine:
                     )
                 variables[var_name] = vobj
             else:
-                # Elementary 타입 처리
+                # Elementary / interface 타입 처리
                 vobj = Variables(identifier=var_name, scope="local")
                 vobj.typeInfo = var_type
-                et = var_type.elementaryTypeName
-                if et and et.startswith("uint"):
-                    bits = var_type.intTypeLength or 256
-                    vobj.value = UnsignedIntegerInterval.bottom(bits)
-                elif et and et.startswith("int"):
-                    bits = var_type.intTypeLength or 256
-                    vobj.value = IntegerInterval.bottom(bits)
-                elif et == "bool":
-                    vobj.value = BoolInterval.bottom()
+                if var_type.typeCategory == "interface":
+                    ifc_name = getattr(var_type, 'interfaceName', None)
+                    vobj.value = AddressSet.top()
+                    if ifc_name:
+                        vobj.value._cast_interface = ifc_name
                 else:
-                    vobj.value = f"symbol_{var_name}"
+                    et = var_type.elementaryTypeName
+                    if et and et.startswith("uint"):
+                        bits = var_type.intTypeLength or 256
+                        vobj.value = UnsignedIntegerInterval.top(bits)
+                    elif et and et.startswith("int"):
+                        bits = var_type.intTypeLength or 256
+                        vobj.value = IntegerInterval.top(bits)
+                    elif et == "bool":
+                        vobj.value = BoolInterval.top()
+                    elif et == "address":
+                        vobj.value = AddressSet.top()
+                    else:
+                        vobj.value = f"symbol_{var_name}"
                 variables[var_name] = vobj
 
         # ──────────────────────────────────────────────────────────────
@@ -145,16 +153,24 @@ class Engine:
                         var_name=var_name,
                         var_obj=vobj
                     )
+                    # ★ assign_env에 선언 시점 값 기록 (During assignCurrent용)
+                    fcfg = self.an.current_target_function_cfg
+                    if fcfg is not None:
+                        fcfg.assign_env[var_name] = VariableEnv.copy_single_variable(vobj)
 
         return variables
 
-    def _interpret_assignment(self, stmt, variables):
+    def _interpret_assignment(self, stmt, variables, node=None):
         lexp, rexpr, op = stmt.left, stmt.right, stmt.operator
         r_val = (self.eval.evaluate_expression(rexpr, variables, None, None)
                  if isinstance(rexpr, Expression) else rexpr)
 
         should_record = self._record_enabled and not self._suppress_stmt_records
         line_num = getattr(stmt, 'src_line', None)
+
+        # ★ before_envs: 대입 직전 스냅샷 (동적 재해석 시 During beforeAfter용)
+        if should_record and line_num is not None and node is not None:
+            node.before_envs[line_num] = VariableEnv.copy_variables(variables)
 
         # stmt.src_line을 line_no로 전달
         self.up.update_left_var(lexp, r_val, op, variables, None, None, should_record, line_num)
@@ -177,12 +193,20 @@ class Engine:
         return variables
 
     def _interpret_func_call(self, stmt, variables):
+        # ★ infeasible branch(BOTTOM env)에서는 함수 호출 스킵
+        #   → caller_env 반영이 BOTTOM 값을 TOP으로 오염시키는 것을 방지
+        if self._is_bottom_env(variables):
+            return variables
         self.eval.evaluate_function_call_context(stmt.function_expr, variables, None, None)
         return variables
 
     def _interpret_return(self, stmt, variables, ret_acc=None):
         rexpr = stmt.return_expr
-        r_val = self.eval.evaluate_expression(rexpr, variables, None, None)
+        if rexpr is None:
+            # bare return; (값 없는 리턴)
+            r_val = None
+        else:
+            r_val = self.eval.evaluate_expression(rexpr, variables, None, None)
         if self._record_enabled and not self._suppress_stmt_records:
             self.rec.record_return(
                 line_no=stmt.src_line,
@@ -248,7 +272,7 @@ class Engine:
         env_out = VariableEnv.copy_variables(env_in)
         if getattr(node, "statements", None):
             for st in node.statements:
-                env_out = self.update_statement_with_variables(st, env_out)
+                env_out = self.update_statement_with_variables(st, env_out, node=node)
         node.variables = VariableEnv.copy_variables(env_out)
         return env_out
 
@@ -468,10 +492,6 @@ class Engine:
 
             out_old = out_vars[node]
 
-            # ★ widening 필요 여부를 미리 계산하고 플래그 설정
-            need_widen = (getattr(node, "fixpoint_evaluation_node", False) and
-                          visit_cnt[node] > widening_threshold)
-
             # ★ widening 모드 설정 (후속 노드들도 widening threshold 넘으면 추상화)
             old_widening = self._in_widening_mode
             if visit_cnt[node] > widening_threshold:
@@ -482,11 +502,10 @@ class Engine:
             # ★ widening 모드 복원
             self._in_widening_mode = old_widening
 
-            out_joined = (
-                VariableEnv.join_variables_with_widening(out_old, out_raw)
-                if need_widen else
-                VariableEnv.join_variables_simple(out_old, out_raw)
-            )
+            # ★ out_vars에서는 widening 적용하지 않음
+            #    표준 abstract interpretation에서 widening은 loop header의 in_vars에서만 적용
+            #    out_vars에서 widening하면 loop body로 전파되어 불필요한 over-approximation 발생
+            out_joined = VariableEnv.join_variables_simple(out_old, out_raw)
 
             if getattr(node, "fixpoint_evaluation_node", False):
                 node.fixpoint_evaluation_node_vars = VariableEnv.copy_variables(out_joined)
@@ -508,9 +527,32 @@ class Engine:
                 else:
                     succ_widen = False
 
-                in_new = (VariableEnv.join_variables_with_widening(in_vars[succ], flow)
-                          if succ_widen
-                          else VariableEnv.join_variables_simple(in_vars[succ], flow))
+                # ★ fixpoint_evaluation_node (join 노드)의 경우:
+                #    모든 predecessor의 최신 flow를 먼저 join한 후 widening 적용
+                if getattr(succ, "fixpoint_evaluation_node", False):
+                    # 모든 predecessor의 flow를 join
+                    all_pred_flows = None
+                    for pred in G.predecessors(succ):
+                        if pred in loop_nodes:
+                            pred_out = out_vars.get(pred) or getattr(pred, "variables", {}) or {}
+                        else:
+                            # 루프 밖 predecessor (initial entry) - 현재 variables 사용
+                            pred_out = getattr(pred, "variables", {}) or {}
+                        pred_flow = _edge_flow_from_node_out(pred, succ, pred_out)
+                        if pred_flow is not None:
+                            all_pred_flows = VariableEnv.join_variables_simple(all_pred_flows, pred_flow)
+
+                    # 이제 old in_vars와 새로 join된 값을 비교하여 widening
+                    if all_pred_flows is not None:
+                        in_new = (VariableEnv.join_variables_with_widening(in_vars[succ], all_pred_flows)
+                                  if succ_widen
+                                  else VariableEnv.join_variables_simple(in_vars[succ], all_pred_flows))
+                    else:
+                        in_new = in_vars[succ]
+                else:
+                    in_new = (VariableEnv.join_variables_with_widening(in_vars[succ], flow)
+                              if succ_widen
+                              else VariableEnv.join_variables_simple(in_vars[succ], flow))
 
                 changed_succ = not VariableEnv.variables_equal(in_vars[succ], in_new)
 
@@ -518,8 +560,9 @@ class Engine:
                     in_vars[succ] = VariableEnv.copy_variables(in_new)
                     WL.append(succ)
 
-        # narrowing
-        WL = deque(loop_nodes); N_MAX = 30
+        # narrowing — widening에서 도달한(reachable) node만 대상
+        reachable = [n for n in loop_nodes if out_vars.get(n) is not None]
+        WL = deque(reachable); N_MAX = 30
         while WL and N_MAX:
             N_MAX -= 1
             node = WL.popleft()
@@ -601,41 +644,109 @@ class Engine:
         return exit_node
 
     # =================================================================
-    #  interpret_function_cfg (내부 함수 호출용 - 기록 비활성화)
+    #  interpret_function_cfg (Case B: 내부 함수 호출용)
+    #  - evaluate_function_call_context 등에서 호출
+    #  - 기록 비활성화, caller env의 state/global을 callee에 공유
     # =================================================================
     def interpret_function_cfg(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None):
-        return self._interpret_function_cfg_impl(fcfg, caller_env, record_enabled=False)
-
-    # =================================================================
-    #  interpret_function_cfg_for_debug (디버깅 테스트용 - 기록 활성화)
-    # =================================================================
-    def interpret_function_cfg_for_debug(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None):
-        return self._interpret_function_cfg_impl(fcfg, caller_env, record_enabled=True)
-
-    # =================================================================
-    #  _interpret_function_cfg_impl (공통 구현)
-    # =================================================================
-    def _interpret_function_cfg_impl(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None, record_enabled: bool = False):
-        an = self.an; rec = self.rec
+        an = self.an
         _old_func = an.current_target_function
         _old_fcfg = an.current_target_function_cfg
-
-        # ★ 재귀 호출 전 _record_enabled 상태 저장 (내부 함수 호출 후 복원용)
         _old_record_enabled = self._record_enabled
 
         an.current_target_function = fcfg.function_name
         an.current_target_function_cfg = fcfg
-
-        # 기록 활성화 여부 설정
-        self._record_enabled = record_enabled
+        self._record_enabled = False
         an._seen_stmt_ids.clear()
-        for blk in fcfg.graph.nodes:
-            # ★ 노드의 variables 초기화 (이전 실행의 값 제거)
-            blk.variables = {}
-            for st in blk.statements:
-                ln = getattr(st, "src_line", None)
-                if ln is not None and ln in an.analysis_per_line:
-                    an.analysis_per_line[ln].clear()
+
+        # caller의 ireturn_registry를 callee에 전파 (sub-function에서도 IReturn 적용)
+        _saved_ireturn = dict(fcfg.ireturn_registry)
+        if _old_fcfg and _old_fcfg.ireturn_registry:
+            for key, val in _old_fcfg.ireturn_registry.items():
+                fcfg.ireturn_registry.setdefault(key, val)
+
+        _saved_node_vars = self._reset_node_vars(fcfg)
+
+        entry = fcfg.get_entry_node()
+        (start_block,) = fcfg.graph.successors(entry)
+
+        # callee env 초기화: callee 자체 정의(파라미터, 로컬) 기반
+        start_block.variables = VariableEnv.copy_variables(fcfg.related_variables)
+
+        # caller env의 state variable / global을 callee에 공유 (같은 storage)
+        # - callee에 이미 있는 key도 caller 값으로 덮어씀 (단, 파라미터는 제외)
+        if caller_env is not None:
+            param_names = set(getattr(fcfg, 'parameters', []))
+            for k, v in caller_env.items():
+                if k in param_names:
+                    continue
+                start_block.variables[k] = VariableEnv.copy_single_variable(v)
+
+        return_values = self._run_worklist(fcfg, start_block)
+
+        self._force_join_before_exit(fcfg)
+        self._sync_named_return_vars(fcfg)
+
+        # exit env를 node 복원 전에 캡처
+        _exit_env = VariableEnv.copy_variables(fcfg.get_exit_node().variables) if caller_env is not None else None
+
+        for blk, saved_vars in _saved_node_vars.items():
+            blk.variables = saved_vars
+
+        an.current_target_function = _old_func
+        an.current_target_function_cfg = _old_fcfg
+        fcfg.ireturn_registry = _saved_ireturn
+
+        # callee의 exit env를 caller에 반영 (state variable 변경 전파)
+        # callee 파라미터가 caller의 동명 변수를 오염시키지 않도록 제외
+        if caller_env is not None and _exit_env is not None:
+            _callee_params = set(getattr(fcfg, 'parameters', []))
+            for k, v in _exit_env.items():
+                if k in _callee_params:
+                    continue
+                if k in caller_env:
+                    cv = caller_env[k]
+                    if isinstance(v, MappingVariable) and isinstance(cv, MappingVariable):
+                        cv.mapping = v.mapping
+                    elif isinstance(v, ArrayVariable) and isinstance(cv, ArrayVariable):
+                        cv.elements = v.elements
+                    elif isinstance(v, StructVariable) and isinstance(cv, StructVariable):
+                        cv.members = v.members
+                    elif isinstance(v, EnumVariable) and isinstance(cv, EnumVariable):
+                        cv.value = v.value
+                        cv.valueIndex = v.valueIndex
+                    elif hasattr(cv, "value"):
+                        cv.value = v.value
+                    else:
+                        caller_env[k] = v
+                elif isinstance(v, (MappingVariable, ArrayVariable)):
+                    caller_env[k] = v
+
+        self._record_enabled = _old_record_enabled
+        return self._extract_return_value(fcfg, return_values)
+
+    # =================================================================
+    #  interpret_function_cfg_for_debug (Case A: debug batch flush용)
+    #  - ContractAnalyzer.flush에서 호출
+    #  - 기록 활성화, assign_env/entry_env 갱신, annotation 처리
+    # =================================================================
+    def interpret_function_cfg_for_debug(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None):
+        an = self.an; rec = self.rec
+        _old_func = an.current_target_function
+        _old_fcfg = an.current_target_function_cfg
+        _old_record_enabled = self._record_enabled
+
+        an.current_target_function = fcfg.function_name
+        an.current_target_function_cfg = fcfg
+        self._record_enabled = True
+        an._seen_stmt_ids.clear()
+
+
+        _saved_node_vars = self._reset_node_vars(fcfg)
+
+        # debug-patched related_variables로 assign_env / entry_env 갱신
+        fcfg.assign_env = VariableEnv.copy_variables(fcfg.related_variables)
+        fcfg.entry_env = VariableEnv.copy_variables(fcfg.related_variables)
 
         entry = fcfg.get_entry_node()
         (start_block,) = fcfg.graph.successors(entry)
@@ -644,9 +755,47 @@ class Engine:
 
         if caller_env is not None:
             for k, v in caller_env.items():
-                start_block.variables[k] = v
+                if k not in start_block.variables:
+                    start_block.variables[k] = VariableEnv.copy_single_variable(v)
 
+        return_values = self._run_worklist(fcfg, start_block)
+
+        self._force_join_before_exit(fcfg)
+        self._sync_named_return_vars(fcfg)
+
+        # ═══ Post Annotation 처리 ═══
+        self._process_post_annotations(fcfg)
+
+        for blk, saved_vars in _saved_node_vars.items():
+            blk.variables = saved_vars
+
+        an.current_target_function = _old_func
+        an.current_target_function_cfg = _old_fcfg
+
+        # 반환값 (기록 포함)
+        result = self._extract_return_value(fcfg, return_values, log_implicit=True)
+        self._record_enabled = _old_record_enabled
+        return result
+
+    # =================================================================
+    #  공통 헬퍼
+    # =================================================================
+    def _reset_node_vars(self, fcfg: FunctionCFG) -> dict:
+        """node variables 백업 및 초기화. 백업 dict 반환."""
+        an = self.an
+        saved = {blk: dict(blk.variables) for blk in fcfg.graph.nodes}
+        for blk in fcfg.graph.nodes:
+            blk.variables = {}
+            for st in blk.statements:
+                ln = getattr(st, "src_line", None)
+                if ln is not None and ln in an.analysis_per_line:
+                    an.analysis_per_line[ln].clear()
+        return saved
+
+    def _run_worklist(self, fcfg: FunctionCFG, start_block) -> list:
+        """CFG worklist 순회. return_values 리스트 반환."""
         G = fcfg.graph
+
         def _is_sink(n: CFGNode) -> bool:
             if getattr(n, "function_exit_node", False): return True
             if getattr(n, "error_exit_node", False):    return True
@@ -656,6 +805,9 @@ class Engine:
 
         def _edge_env_from_pred(pred: CFGNode, succ: CFGNode):
             base = VariableEnv.copy_variables(getattr(pred, "variables", {}) or {})
+            # BOTTOM env는 refine 불필요 (BOTTOM ⊓ cond = BOTTOM)
+            if self._is_bottom_env(base):
+                return base
             if getattr(pred, "condition_node", False):
                 cond_expr = getattr(pred, "condition_expr", None)
                 ed = G.get_edge_data(pred, succ, default=None)
@@ -673,13 +825,19 @@ class Engine:
         while work:
             node = work.popleft()
             if node in visited: continue
-            visited.add(node)
 
             preds = list(G.predecessors(node))
+            if getattr(node, 'join_point_node', False) and preds:
+                unvisited_preds = [p for p in preds if p not in visited]
+                if unvisited_preds and len(work) > 0:
+                    work.append(node)
+                    continue
+
+            visited.add(node)
+
             if preds:
                 joined = None
                 for p in preds:
-                    # ★ 이번 해석에서 이미 방문한 predecessor만 join (재해석 시 이전 값 무시)
                     if p not in visited:
                         continue
                     flow = _edge_env_from_pred(p, node)
@@ -692,9 +850,15 @@ class Engine:
             cur_vars = node.variables
             node.evaluated = True
 
+            if self._is_bottom_env(cur_vars):
+                for nxt in list(G.successors(node)):
+                    if _is_sink(nxt): continue
+                    nxt.variables = VariableEnv.copy_variables(cur_vars)
+                    work.append(nxt)
+                continue
+
             if node.condition_node:
                 condition_expr = node.condition_expr
-                ln = getattr(node, "src_line", None)
 
                 if node.condition_node_type in ["if", "else if"]:
                     true_succs  = [s for s in G.successors(node) if G.edges[node, s].get('condition') is True]
@@ -713,17 +877,17 @@ class Engine:
                     if not can_true and not can_false:
                         continue
 
-                    # ✂ branch 기록 제거
-
                     t = true_succs[0]; f = false_succs[0]
                     if can_true:
                         t.variables = true_variables;  work.append(t)
                     else:
-                        self._set_bottom_env(t.variables)
+                        t.variables = VariableEnv.copy_variables(cur_vars)
+                        self._set_bottom_env(t.variables); work.append(t)
                     if can_false:
                         f.variables = false_variables; work.append(f)
                     else:
-                        self._set_bottom_env(f.variables)
+                        f.variables = VariableEnv.copy_variables(cur_vars)
+                        self._set_bottom_env(f.variables); work.append(f)
                     continue
 
                 elif node.condition_node_type in ["require", "assert"]:
@@ -736,11 +900,14 @@ class Engine:
                         t.variables = true_variables; work.append(t)
                     else:
                         self._set_bottom_env(t.variables)
+
+                    self._process_node_intents(node, cur_vars, getattr(node, 'src_line', None))
                     continue
 
                 elif node.condition_node_type in ["while", "for", "do_while"]:
                     exit_node = self.fixpoint(node)
-                    for nxt in list(G.successors(exit_node)):
+                    _succs = list(G.successors(exit_node))
+                    for nxt in _succs:
                         if _is_sink(nxt): continue
                         nxt.variables = VariableEnv.copy_variables(exit_node.variables)
                         work.append(nxt)
@@ -760,7 +927,7 @@ class Engine:
 
             elif getattr(node, "is_for_increment", False):
                 for stmt in node.statements:
-                    cur_vars = self.update_statement_with_variables(stmt, cur_vars, return_values)
+                    cur_vars = self.update_statement_with_variables(stmt, cur_vars, return_values, node=node)
                 for succ in G.successors(node):
                     if _is_sink(succ): continue
                     succ.variables = VariableEnv.copy_variables(node.variables)
@@ -768,66 +935,46 @@ class Engine:
                 continue
 
             else:
+                if "__STOP__" in return_values:
+                    return_values.remove("__STOP__")
+
                 for stmt in node.statements:
-                    # ★ 디버그 로그 제거 (문제 파악 완료)
-                    cur_vars = self.update_statement_with_variables(stmt, cur_vars, return_values)
-                    if "__STOP__" in return_values:
-                        break
+                    cur_vars = self.update_statement_with_variables(stmt, cur_vars, return_values, node=node)
 
                     # ═══ During Annotation 처리 ═══
                     self._process_during_annotations(stmt, node, cur_vars)
+
+                    if "__STOP__" in return_values:
+                        break
 
                 for nxt in list(G.successors(node)):
                     if _is_sink(nxt): continue
                     nxt.variables = VariableEnv.copy_variables(cur_vars)
                     work.append(nxt)
 
-        self._force_join_before_exit(fcfg)
-        self._sync_named_return_vars(fcfg)
+        return return_values
 
-        # ═══ Post Annotation 처리 ═══
-        self._process_post_annotations(fcfg)
+    def _extract_return_value(self, fcfg: FunctionCFG, return_values: list, log_implicit: bool = False):
+        """return_values 리스트에서 최종 반환값을 추출."""
+        rec = self.rec
 
-        # 컨텍스트 복원
-        an.current_target_function = _old_func
-        an.current_target_function_cfg = _old_fcfg
-
-        # caller_env 반영
-        if caller_env is not None:
-            exit_env = fcfg.get_exit_node().variables
-            for k, v in exit_env.items():
-                if k in caller_env:
-                    if hasattr(caller_env[k], "value"):
-                        caller_env[k].value = v.value
-                    else:
-                        caller_env[k] = v
-                elif isinstance(v, (MappingVariable, ArrayVariable)):
-                    caller_env[k] = v
-
-        # 반환값
         def _log_implicit_return(var_objs: list[Variables]):
-            if not self._record_enabled: return
+            if not log_implicit or not self._record_enabled:
+                return
             ln = self._last_executable_line(fcfg)
             if ln is None: return
             if len(var_objs) == 1:
                 rec.record_return(line_no=ln, return_expr=None, return_val=var_objs[0].value, fn_cfg=fcfg)
             else:
-                # ★ add_env_record는 Variables 객체의 딕셔너리를 기대함
-                # 직렬화된 딕셔너리가 아닌 Variables 객체 딕셔너리를 전달
                 env_dict = {v.identifier: v for v in var_objs}
                 self.rec.add_env_record(ln, "implicitReturn", env_dict)
-
-        # ★ 반환 전 _record_enabled 복원을 위한 헬퍼
-        def _restore_and_return(val):
-            self._record_enabled = _old_record_enabled
-            return val
 
         if len(return_values) == 0:
             if fcfg.return_vars:
                 _log_implicit_return(fcfg.return_vars)
-                result = fcfg.return_vars[0].value if len(fcfg.return_vars) == 1 \
-                       else [rv.value for rv in fcfg.return_vars]
-                return _restore_and_return(result)
+                if len(fcfg.return_vars) == 1:
+                    return fcfg.return_vars[0].value
+                return [rv.value for rv in fcfg.return_vars]
             else:
                 exit_retvals = list(fcfg.get_return_exit_node().return_vals.values())
                 if exit_retvals:
@@ -836,27 +983,22 @@ class Engine:
                         if hasattr(joined, 'join') and hasattr(v, 'join'):
                             joined = joined.join(v)
                         else:
-                            # Handle tuples or other types that don't have join method
-                            return _restore_and_return(joined)
-                    return _restore_and_return(joined)
-                return _restore_and_return(None)
+                            return joined
+                    return joined
+                return None
         elif len(return_values) == 1:
-            return _restore_and_return(return_values[0])
+            return return_values[0]
         else:
-            # Filter out "__STOP__" strings from return_values
             filtered_values = [rv for rv in return_values if rv != "__STOP__"]
             if not filtered_values:
-                return _restore_and_return(None)
-
+                return None
             joined_ret = filtered_values[0]
             for rv in filtered_values[1:]:
                 if hasattr(joined_ret, 'join') and hasattr(rv, 'join'):
                     joined_ret = joined_ret.join(rv)
                 else:
-                    # Handle tuples or other types that don't have join method
-                    # For now, just return the first valid return value
-                    return _restore_and_return(joined_ret)
-            return _restore_and_return(joined_ret)
+                    return joined_ret
+            return joined_ret
 
     # =================================================================
     #  reinterpret_from (변경 없음; self.* 호출로 정리)
@@ -988,11 +1130,33 @@ class Engine:
     def _branch_feasible(self, env: dict, cond: Expression, assume_true: bool) -> bool:
         r = self.eval.evaluate_expression(cond, env, None, None)
         if isinstance(r, BoolInterval):
-            return (r.max_value == 1) if assume_true else (r.min_value == 0)
+            result = (r.max_value == 1) if assume_true else (r.min_value == 0)
+            return result
         if VariableEnv.is_interval(r):
             as_bool = VariableEnv.convert_int_to_bool_interval(r)
-            return (as_bool.max_value == 1) if assume_true else (as_bool.min_value == 0)
+            result = (as_bool.max_value == 1) if assume_true else (as_bool.min_value == 0)
+            return result
         return True
+
+    def _is_bottom_env(self, env: dict) -> bool:
+        """env가 infeasible branch를 나타내는지 검사 (하나라도 BOTTOM이면 infeasible)."""
+        for v in env.values():
+            if self._is_bottom_var(v):
+                return True
+        return False
+
+    def _is_bottom_var(self, v) -> bool:
+        """Variable 하나(또는 하위 원소)가 BOTTOM인지 재귀 검사."""
+        if isinstance(v, ArrayVariable):
+            return any(self._is_bottom_var(e) for e in v.elements)
+        if isinstance(v, StructVariable):
+            return any(self._is_bottom_var(m) for m in v.members.values())
+        if isinstance(v, MappingVariable):
+            return any(self._is_bottom_var(mv) for mv in v.mapping.values())
+        val = getattr(v, "value", None)
+        if val is not None and hasattr(val, "is_bottom"):
+            return val.is_bottom()
+        return False
 
     def _set_bottom_env(self, env: dict[str, Variables]) -> None:
         for v in env.values():
@@ -1000,11 +1164,17 @@ class Engine:
 
     def _make_bottom(self, v: Variables) -> None:
         if isinstance(v, ArrayVariable):
-            for elem in v.elements: self._make_bottom(elem); return
+            for elem in v.elements:
+                self._make_bottom(elem)
+            return
         if isinstance(v, StructVariable):
-            for m in v.members.values(): self._make_bottom(m); return
+            for m in v.members.values():
+                self._make_bottom(m)
+            return
         if isinstance(v, MappingVariable):
-            for mv in v.mapping.values(): self._make_bottom(mv); return
+            for mv in v.mapping.values():
+                self._make_bottom(mv)
+            return
         val = getattr(v, "value", None)
         if isinstance(val, UnsignedIntegerInterval):
             v.value = UnsignedIntegerInterval.bottom(val.type_length); return
@@ -1012,6 +1182,11 @@ class Engine:
             v.value = IntegerInterval.bottom(val.type_length); return
         if isinstance(val, BoolInterval):
             v.value = BoolInterval.bottom(); return
+        from Domain.AddressSet import AddressSet
+        if isinstance(val, AddressSet):
+            bot = AddressSet.bot()
+            bot._cast_interface = getattr(val, '_cast_interface', None)
+            v.value = bot; return
         v.value = None
 
     def _force_join_before_exit(self, fcfg: FunctionCFG) -> None:
@@ -1034,21 +1209,21 @@ class Engine:
         if rng is None: return None
         body_start, body_end = rng
         for ln in range(body_end, body_start - 1, -1):
-            code = self.an.full_code_lines.get(ln, "").strip()
+            code = self.an.sa.full_code_lines.get(ln, "").strip()
             if not code or code == "}" or code.startswith("//"): continue
             return ln
         return None
 
     def _function_start_line(self, fcfg: FunctionCFG) -> int | None:
         entry = fcfg.get_entry_node()
-        for ln, info in (self.an.line_info or {}).items():
+        for ln, info in (self.an.sa.line_info or {}).items():
             nodes = []
             if isinstance(info.get("cfg_nodes"), list): nodes.extend(info["cfg_nodes"])
             if entry in nodes: return ln
         return None
 
     def _function_body_range(self, fcfg: FunctionCFG) -> tuple[int, int] | None:
-        li = self.an.line_info or {}
+        li = self.an.sa.line_info or {}
         fn_start_ln = self._function_start_line(fcfg)
         if fn_start_ln is None: return None
         def _oc(ln: int) -> tuple[int, int]:
@@ -1165,8 +1340,11 @@ class Engine:
         if line_no is None:
             return
 
-        # line_info에서 during_annotations 가져오기
-        line_info = self.an.line_info.get(line_no, {})
+        # ═══ CFG 노드에 저장된 intent 검증 (새로운 메커니즘) ═══
+        self._process_node_intents(node, cur_vars, line_no)
+
+        # line_info에서 during_annotations 가져오기 (기존 메커니즘)
+        line_info = self.an.sa.line_info.get(line_no, {})
         during_annotations = line_info.get('during_annotations', [])
 
         if not during_annotations:
@@ -1199,6 +1377,74 @@ class Engine:
                         'status': 'error',
                         'message': f'During annotation processing error: {str(e)}'
                     }
+                })
+
+    def _process_node_intents(self, node, cur_vars, line_no):
+        """
+        CFG 노드에 저장된 intent 검증 (새로운 메커니즘)
+
+        Args:
+            node: CFGNode (intents 리스트 포함)
+            cur_vars: 현재 변수 환경
+            line_no: 현재 라인 번호 (코드 라인)
+        """
+        if not hasattr(node, 'intents') or not node.intents:
+            return
+
+        guardian = self.an.guardian_verifier
+
+        for intent in node.intents:
+            if intent.get("type") != "during":
+                continue
+
+            # standalone annotation은 자체 라인 번호 사용, inline은 코드 라인 번호 사용
+            report_line = intent.get("line_no", line_no)
+
+            clauses = intent.get("clauses", [])
+            logic_ops = intent.get("logic_ops", [])
+
+            try:
+                # 각 clause 검증
+                results = []
+                for clause in clauses:
+                    result = self._verify_during_clause_dynamic(clause, node, cur_vars, guardian, line_no)
+                    results.append(result)
+
+                # 논리 연산자로 조합
+                combined_result = self._combine_logic_results(results, logic_ops)
+
+                # 결과 출력 (annotation 라인 번호로 표시)
+                status = combined_result.get("status", "unknown")
+                risk = combined_result.get("risk_score", "")
+                risk_str = f" [risk={risk}]" if risk != "" else ""
+                if status == "violated":
+                    print(f"[INTENT VIOLATED] Line {report_line}: {combined_result.get('message', '')}{risk_str}")
+                elif status == "satisfied":
+                    print(f"[INTENT SATISFIED] Line {report_line}: {combined_result.get('message', '')}{risk_str}")
+                else:
+                    print(f"[INTENT {status.upper()}] Line {report_line}: {combined_result.get('message', '')}{risk_str}")
+
+                detail_str = self._format_violation_detail(results, clauses)
+                if detail_str:
+                    print(detail_str)
+
+                # analysis_per_line에 기록 (annotation 라인 번호 기준)
+                if report_line not in self.an.analysis_per_line:
+                    self.an.analysis_per_line[report_line] = []
+
+                self.an.analysis_per_line[report_line].append({
+                    'type': 'during_intent',
+                    'clauses': clauses,
+                    'result': combined_result
+                })
+
+            except Exception as e:
+                print(f"[INTENT ERROR] Line {report_line}: {str(e)}")
+                if report_line not in self.an.analysis_per_line:
+                    self.an.analysis_per_line[report_line] = []
+                self.an.analysis_per_line[report_line].append({
+                    'type': 'during_intent',
+                    'result': {'status': 'error', 'message': str(e)}
                 })
 
     def _verify_during_annotation(self, annot, node, cur_vars):
@@ -1283,12 +1529,14 @@ class Engine:
             results.append(result)
 
         # 논리 연산자로 조합
-        return self.an._combine_logic_results(results, compound.logic_ops)
+        return self._combine_logic_results(results, compound.logic_ops)
 
-    def _verify_during_clause_dynamic(self, clause: dict, node, cur_vars, guardian):
+    def _verify_during_clause_dynamic(self, clause: dict, node, cur_vars, guardian, line_no=None):
         """개별 during clause 동적 검증"""
         kind = clause["kind"]
-        line_no = node.start_line
+        if line_no is None:
+            # fallback: 노드의 첫 번째 statement에서 라인 번호 추출
+            line_no = getattr(node.statements[0], "src_line", 0) if node.statements else 0
 
         if kind == "beforeAfter":
             return guardian.verify_during_before_after(
@@ -1342,6 +1590,33 @@ class Engine:
                 line_no=line_no,
                 cfg_node=node
             )
+        elif kind == "functionArg":
+            # @During transfer.arg[0] > 27 형식
+            return guardian.verify_during_function_arg(
+                func_name=clause["func_name"],
+                arg_index=clause["arg_index"],
+                comp_op=clause["op"],
+                rhs_expr=clause["rhs"],
+                line_no=line_no,
+                cfg_node=node
+            )
+        elif kind == "feasible":
+            # @During require feasible / assert feasible
+            return guardian.verify_during_feasible(
+                target=clause["target"],
+                line_no=line_no,
+                cfg_node=node,
+                cur_vars=cur_vars
+            )
+        elif kind == "changed":
+            # @During changed(x, true/false)
+            return guardian.verify_during_changed(
+                var_ref=clause["var"],
+                expect_changed=clause["expect_changed"],
+                line_no=line_no,
+                cfg_node=node,
+                cur_vars=cur_vars
+            )
         else:
             return {"status": "error", "message": f"Unknown clause kind: {kind}"}
 
@@ -1355,9 +1630,12 @@ class Engine:
         if not self._record_enabled:
             return
 
-        # 함수 내 모든 post annotations 수집
+        # ═══ Exit 노드에 저장된 post intent 검증 (새로운 메커니즘) ═══
+        self._process_exit_node_intents(fcfg)
+
+        # 함수 내 모든 post annotations 수집 (기존 메커니즘)
         post_annotations = []
-        for line_no, line_info in self.an.line_info.items():
+        for line_no, line_info in self.an.sa.line_info.items():
             annots = line_info.get('post_annotations', [])
             post_annotations.extend(annots)
 
@@ -1395,6 +1673,137 @@ class Engine:
                     }
                 })
 
+    def _process_exit_node_intents(self, fcfg):
+        """
+        Exit 노드에 저장된 post intent 검증 (새로운 메커니즘)
+
+        Args:
+            fcfg: FunctionCFG 객체
+        """
+        if fcfg is None:
+            return
+
+        exit_node = fcfg.get_exit_node() if hasattr(fcfg, 'get_exit_node') else None
+        if exit_node is None or not hasattr(exit_node, 'intents'):
+            return
+
+        if not exit_node.intents:
+            return
+
+        guardian = self.an.guardian_verifier
+
+        for intent in exit_node.intents:
+            if intent.get("type") != "post":
+                continue
+
+            clauses = intent.get("clauses", [])
+            logic_ops = intent.get("logic_ops", [])
+            line_no = intent.get("line_no", 0)
+
+            try:
+                # 각 clause 검증
+                results = []
+                for clause in clauses:
+                    result = self._verify_post_clause_dynamic(clause, line_no, fcfg, guardian)
+                    results.append(result)
+
+                # 논리 연산자로 조합
+                combined_result = self._combine_logic_results(results, logic_ops)
+
+                # 결과 출력
+                status = combined_result.get("status", "unknown")
+                risk = combined_result.get("risk_score", "")
+                risk_str = f" [risk={risk}]" if risk != "" else ""
+                if status == "violated":
+                    print(f"[POST INTENT VIOLATED] Line {line_no}: {combined_result.get('message', '')}{risk_str}")
+                elif status == "satisfied":
+                    print(f"[POST INTENT SATISFIED] Line {line_no}: {combined_result.get('message', '')}{risk_str}")
+                else:
+                    print(f"[POST INTENT {status.upper()}] Line {line_no}: {combined_result.get('message', '')}{risk_str}")
+
+                detail_str = self._format_violation_detail(results, clauses)
+                if detail_str:
+                    print(detail_str)
+
+                # analysis_per_line에 기록
+                if line_no not in self.an.analysis_per_line:
+                    self.an.analysis_per_line[line_no] = []
+
+                self.an.analysis_per_line[line_no].append({
+                    'type': 'post_intent',
+                    'clauses': clauses,
+                    'result': combined_result
+                })
+
+            except Exception as e:
+                print(f"[POST INTENT ERROR] Line {line_no}: {str(e)}")
+                if line_no not in self.an.analysis_per_line:
+                    self.an.analysis_per_line[line_no] = []
+                self.an.analysis_per_line[line_no].append({
+                    'type': 'post_intent',
+                    'result': {'status': 'error', 'message': str(e)}
+                })
+
+    def _verify_post_clause_dynamic(self, clause: dict, fcfg, guardian):
+        """개별 post clause 동적 검증"""
+        kind = clause["kind"]
+        line_no = fcfg.start_line if hasattr(fcfg, 'start_line') else 0
+
+        if kind == "entryExit":
+            return guardian.verify_post_entry_exit(
+                var_ref=clause["var"],
+                comp_op=clause["op"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        elif kind == "changed":
+            return guardian.verify_post_changed(
+                var_ref=clause["var"],
+                expect_changed=clause["expect_changed"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        elif kind == "retExpr":
+            return guardian.verify_post_return_expression(
+                comp_op=clause["op"],
+                value_expr=clause["rhs"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        elif kind == "retIndex":
+            return guardian.verify_post_return_index(
+                index=clause["index"],
+                comp_op=clause["op"],
+                value_expr=clause["rhs"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        elif kind == "retVar":
+            return guardian.verify_post_return_variable(
+                var_ref=clause["lhs"],
+                comp_op=clause["op"],
+                value_expr=clause["rhs"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        elif kind == "direct":
+            return guardian.verify_post_direct_comparison(
+                lhs_expr=clause["lhs"],
+                comp_op=clause["op"],
+                rhs_expr=clause["rhs"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        elif kind == "implication":
+            return guardian.verify_post_implication(
+                antecedent=clause["antecedent"],
+                consequent=clause["consequent"],
+                line_no=line_no,
+                fn_cfg=fcfg
+            )
+        else:
+            return {"status": "error", "message": f"Unknown post clause kind: {kind}"}
+
     def _verify_post_annotation(self, annot, fcfg):
         """
         Post annotation 검증 (CompoundPostAnnotation 지원)
@@ -1422,9 +1831,10 @@ class Engine:
                 fn_cfg=fcfg
             )
 
-        elif atype == "unchanged":
-            return guardian.verify_post_unchanged(
+        elif atype == "changed":
+            return guardian.verify_post_changed(
                 var_ref=annot.var_ref,
+                expect_changed=getattr(annot, "expect_changed", False),
                 line_no=annot.line_no,
                 fn_cfg=fcfg
             )
@@ -1475,7 +1885,7 @@ class Engine:
             results.append(result)
 
         # 논리 연산자로 조합
-        return self.an._combine_logic_results(results, compound.logic_ops)
+        return self._combine_logic_results(results, compound.logic_ops)
 
     def _verify_post_clause_dynamic(self, clause: dict, line_no: int, fcfg, guardian):
         """개별 post clause 동적 검증"""
@@ -1488,9 +1898,10 @@ class Engine:
                 line_no=line_no,
                 fn_cfg=fcfg
             )
-        elif kind == "unchanged":
-            return guardian.verify_post_unchanged(
+        elif kind == "changed":
+            return guardian.verify_post_changed(
                 var_ref=clause["var"],
+                expect_changed=clause["expect_changed"],
                 line_no=line_no,
                 fn_cfg=fcfg
             )
@@ -1534,3 +1945,174 @@ class Engine:
             )
         else:
             return {"status": "error", "message": f"Unknown clause kind: {kind}"}
+
+    def _combine_logic_results(self, results: list[dict], logic_ops: list[str]) -> dict:
+        """
+        여러 clause 결과를 논리 연산자로 조합
+
+        Args:
+            results: 각 clause의 검증 결과 리스트
+            logic_ops: 논리 연산자 리스트 ('&&' 또는 '||')
+
+        Returns:
+            조합된 결과 딕셔너리
+        """
+        if not results:
+            return {"status": "error", "message": "No results to combine"}
+
+        if len(results) == 1:
+            r = results[0]
+            # details 내부의 risk_score를 top-level로 전파
+            if r.get("risk_score") is None and r.get("details"):
+                rs = r["details"].get("risk_score")
+                if rs is not None:
+                    r["risk_score"] = rs
+            return r
+
+        # 초기 결과
+        combined = results[0]
+        combined_status = combined.get("status", "unknown")
+
+        for i, result in enumerate(results[1:]):
+            op = logic_ops[i] if i < len(logic_ops) else "&&"
+            status = result.get("status", "unknown")
+
+            if op == "&&":
+                # AND: 하나라도 violated이면 violated, 하나라도 unknown이면 unknown
+                if combined_status == "violated" or status == "violated":
+                    combined_status = "violated"
+                elif combined_status == "unknown" or status == "unknown":
+                    combined_status = "unknown"
+                elif combined_status == "error" or status == "error":
+                    combined_status = "error"
+                else:
+                    combined_status = "satisfied"
+            elif op == "||":
+                # OR: 하나라도 satisfied이면 satisfied, 둘 다 violated이면 violated
+                if combined_status == "satisfied" or status == "satisfied":
+                    combined_status = "satisfied"
+                elif combined_status == "error" or status == "error":
+                    combined_status = "error"
+                elif combined_status == "unknown" or status == "unknown":
+                    combined_status = "unknown"
+                else:
+                    combined_status = "violated"
+
+        # 메시지 조합
+        messages = [r.get("message", "") for r in results if r.get("message")]
+        combined_msg = " ; ".join(messages) if messages else ""
+
+        # risk_score: 가장 높은 위험도를 전파 (top-level 또는 details 내부에서 추출)
+        risk_scores = []
+        for r in results:
+            rs = r.get("risk_score")
+            if rs is None:
+                rs = r.get("details", {}).get("risk_score")
+            if rs is not None:
+                risk_scores.append(rs)
+        max_risk = max(risk_scores) if risk_scores else None
+
+        out = {"status": combined_status, "message": combined_msg}
+        if max_risk is not None:
+            out["risk_score"] = max_risk
+        return out
+
+    # ── 상세 출력 헬퍼 ──────────────────────────────────────────────
+    @staticmethod
+    def _risk_type_label(risk_type: int) -> str:
+        return {1: "safe", 2: "one-side", 3: "both-side"}.get(risk_type, "unknown")
+
+    @staticmethod
+    def _risk_type_from_score(score) -> int:
+        """risk_score(0-10)에서 risk type 역산"""
+        if score is None:
+            return 0
+        score = float(score)
+        if score <= 3.3:
+            return 1
+        elif score <= 6.6:
+            return 2
+        else:
+            return 3
+
+    @staticmethod
+    def _is_literal_expr(expr) -> bool:
+        """Expression 객체가 순수 리터럴(상수)인지 판별"""
+        if expr is None:
+            return False
+        return (getattr(expr, "literal", None) is not None
+                and getattr(expr, "operator", None) is None
+                and getattr(expr, "identifier", None) is None)
+
+    @staticmethod
+    def _fmt_val(v: str) -> str:
+        """'UnsignedIntegerInterval([0, 100])' → '[0, 100]' 로 간결화"""
+        import re
+        m = re.search(r'\[([^\]]*)\]', v)
+        return f"[{m.group(1)}]" if m else v
+
+    def _format_violation_detail(self, results: list[dict], clauses: list[dict]) -> str:
+        """각 clause 결과의 상세 정보를 포맷팅하여 반환"""
+        lines = []
+        for i, result in enumerate(results):
+            details = result.get("details", {})
+            kind = result.get("kind", "")
+            clause = clauses[i] if i < len(clauses) else {}
+            risk_score = details.get("risk_score")
+            risk_type = self._risk_type_from_score(risk_score) if risk_score is not None else None
+            risk_label = self._risk_type_label(risk_type) if risk_type else None
+
+            prefix = "  "
+            if len(results) > 1:
+                prefix = f"  [{i+1}] "
+
+            fv = self._fmt_val
+
+            if kind == "duringAssignCurrent":
+                lines.append(f"{prefix}Assign  = {fv(details.get('assign_value', '?'))}")
+                lines.append(f"{prefix}Current = {fv(details.get('current_value', '?'))}")
+            elif kind == "duringBeforeAfter":
+                lines.append(f"{prefix}Before = {fv(details.get('before', '?'))}")
+                lines.append(f"{prefix}After  = {fv(details.get('after', '?'))}")
+            elif kind in ("postEntryExit", "postChanged"):
+                lines.append(f"{prefix}Entry = {fv(details.get('entry_value', '?'))}")
+                lines.append(f"{prefix}Exit  = {fv(details.get('exit_value', '?'))}")
+            elif kind in ("duringDirectCmp", "postDirectCmp"):
+                lhs_val = fv(details.get("lhs", details.get("lhs_value", "?")))
+                rhs_val = fv(details.get("rhs", details.get("rhs_value", "?")))
+                # RHS가 리터럴이면 Analysis/Intent, 아니면 LHS/RHS
+                rhs_expr = clause.get("rhs")
+                if rhs_expr is not None and self._is_literal_expr(rhs_expr):
+                    lines.append(f"{prefix}Analysis = {lhs_val}")
+                    lines.append(f"{prefix}Intent   = {rhs_val}")
+                else:
+                    lines.append(f"{prefix}LHS = {lhs_val}")
+                    lines.append(f"{prefix}RHS = {rhs_val}")
+            elif kind in ("duringRetExpr", "postRetExpr",
+                          "duringRetIndex", "postRetIndex",
+                          "duringRetVar", "postRetVar"):
+                ret_val = fv(details.get("return_value", details.get("return_join",
+                          details.get("indexed_join", details.get("actual", "?")))))
+                rhs_val = fv(details.get("expected", details.get("rhs_value", "?")))
+                lines.append(f"{prefix}Analysis = {ret_val}")
+                lines.append(f"{prefix}Intent   = {rhs_val}")
+            elif kind in ("duringFunctionArg",):
+                lines.append(f"{prefix}Analysis = {fv(details.get('arg_value', '?'))}")
+                lines.append(f"{prefix}Intent   = {fv(details.get('rhs_value', '?'))}")
+            elif kind in ("duringImplication", "postImplication"):
+                ant = details.get("antecedent", {})
+                con = details.get("consequent", {})
+                ant_status = ant.get("status", "?") if isinstance(ant, dict) else str(ant)
+                con_status = con.get("status", "?") if isinstance(con, dict) else str(con)
+                logic = details.get("logic")
+                if logic == "vacuous-true":
+                    lines.append(f"{prefix}Antecedent = false (vacuous truth)")
+                else:
+                    lines.append(f"{prefix}Antecedent = {ant_status}")
+                    lines.append(f"{prefix}Consequent = {con_status}")
+                risk_label = None  # implication은 risk type 별도 미표시
+
+            if risk_label:
+                lines.append(f"{prefix}Risk: Type {risk_type} ({risk_label})")
+
+        return "\n".join(lines) if lines else ""

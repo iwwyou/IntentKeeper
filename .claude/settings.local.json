@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(copy \"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\\\\paper\\\\acmart-primary\\\\acmart.cls\" \"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\\\\paper\\\\acmart.cls\")"
+      "Bash(copy \"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\\\\paper\\\\acmart-primary\\\\acmart.cls\" \"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\\\\paper\\\\acmart.cls\")",
+      "Bash(grep *)",
+      "Bash(du -sh evaluation/RQ1/target_contracts_contraction evaluation/RQ1/target_contracts_original/dependencies Dataset/Numscout/contraction)",
+      "Bash(du -sh evaluation/RQ1/target_contracts_original)",
+      "Skill(claude-api)",
+      "Bash(python -c ' *)"
     ]
   }
 }

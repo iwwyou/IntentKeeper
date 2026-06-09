@@ -59,4 +59,13 @@ class SnapshotManager:
 
     # 외부에서 받은 snap(dict) 전체를 되돌린다
     def restore_from_snap(self, snap):
+        # 실제 객체 상태 복원
+        for oid, snap_info in snap.items():
+            obj = self.ref.get(oid)
+            if obj is None:
+                continue
+            saved_state = snap_info.get("snap")
+            if saved_state is not None:
+                obj.__dict__.clear()
+                obj.__dict__.update(copy.deepcopy(saved_state))
         self.store = snap

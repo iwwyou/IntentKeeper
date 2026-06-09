@@ -36,11 +36,244 @@ class Evaluation :
 
     # ──────────────────── Helper functions ───────────────────────────
 
+    def _find_enum_in_chain(self, name: str):
+        """현재 contract + parent chain에서 EnumDefinition 검색. 없으면 None."""
+        cfg = self.an.contract_cfgs.get(self.an.current_target_contract)
+        return self._search_enum_recursive(cfg, name) if cfg else None
+
+    @staticmethod
+    def _search_enum_recursive(cfg, name):
+        defs = getattr(cfg, 'enumDefs', {})
+        if name in defs:
+            return defs[name]
+        for pcfg in getattr(cfg, 'parent_cfgs', {}).values():
+            result = Evaluation._search_enum_recursive(pcfg, name)
+            if result:
+                return result
+        return None
+
+    def _get_interface_name_of_var(self, var_name: str, variables: dict) -> str | None:
+        """
+        변수(function parameter 또는 state variable)의 typeInfo에서
+        interface 이름을 반환. interface 타입이 아니면 None.
+        """
+        # 1) 현재 함수의 variables (parameter 포함)
+        if var_name in variables:
+            var = variables[var_name]
+            if hasattr(var, 'typeInfo') and var.typeInfo and var.typeInfo.typeCategory == "interface":
+                return var.typeInfo.interfaceName
+
+        # 2) FunctionCFG.interface_var_types (지역변수 중 interface 타입)
+        fcfg = self.an.current_target_function_cfg
+        if fcfg and hasattr(fcfg, 'interface_var_types') and var_name in fcfg.interface_var_types:
+            return fcfg.interface_var_types[var_name]
+
+        # 3) state variable
+        current_contract = self.an.current_target_contract
+        if current_contract and current_contract in self.an.contract_cfgs:
+            ccf = self.an.contract_cfgs[current_contract]
+            if hasattr(ccf, 'state_variables') and var_name in ccf.state_variables:
+                var = ccf.state_variables[var_name]
+                if hasattr(var, 'typeInfo') and var.typeInfo and var.typeInfo.typeCategory == "interface":
+                    return var.typeInfo.interfaceName
+
+        return None
+
+    def _collect_ireturn_entries(self, registry, match_prefix):
+        """registry에서 match_prefix로 시작하는 (contract_var, func_name) entries 수집.
+        Returns: dict { access_chain_tuple: value }
+        """
+        entries = {}
+        for key, val in registry.items():
+            if key[:len(match_prefix)] == match_prefix:
+                chain = key[len(match_prefix)]  # access_chain tuple
+                entries[chain] = val
+        return entries
+
+    def _assemble_ireturn_value(self, interface_name, func_name, entries, callerObject):
+        """@IReturn entries로부터 반환값 조립.
+        entries: { access_chain_tuple: value }
+        - () → 단일 값
+        - (("member", "x"),) → struct member
+        - (("index", 0),) → tuple index
+        """
+        import pickle, pathlib
+
+        # 단일 반환 (access_chain이 빈 tuple)
+        if () in entries and len(entries) == 1:
+            return self._mapping_lookup_if_needed(entries[()], callerObject)
+
+        # struct member 또는 index가 있는 경우 → return type 조회 후 조립
+        pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{interface_name}.pkl')
+        if not pkl_path.exists():
+            # fallback: 단일 값이면 반환
+            if () in entries:
+                return self._mapping_lookup_if_needed(entries[()], callerObject)
+            return None
+
+        with open(pkl_path, 'rb') as f:
+            raw = pickle.load(f)
+        ifc_cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
+        ifc_fcfg = ifc_cfg.get_function_cfg(func_name)
+        if not ifc_fcfg or not ifc_fcfg.return_types:
+            return None
+
+        rt = ifc_fcfg.return_types[0]
+        struct_defs = getattr(ifc_cfg, 'structDefs', {})
+        enum_defs = getattr(ifc_cfg, 'enumDefs', {})
+
+        # top 값 생성
+        top_val = VariableEnv.top_from_soltype(
+            rt, struct_defs, enum_defs,
+            identifier=f"{interface_name}.{func_name}_ret")
+        # Variables wrapper → value 추출 (elementary)
+        if isinstance(top_val, Variables) and \
+           not isinstance(top_val, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
+            top_val = top_val.value
+
+        # entries의 access chain을 따라 값 설정
+        for chain, val in entries.items():
+            if chain == ():
+                top_val = val  # 전체 덮어쓰기
+                continue
+            target = top_val
+            for i, step in enumerate(chain):
+                is_last = (i == len(chain) - 1)
+                if step[0] == "member":
+                    if isinstance(target, StructVariable) and step[1] in target.members:
+                        if is_last:
+                            member_var = target.members[step[1]]
+                            if hasattr(member_var, 'value'):
+                                member_var.value = val
+                        else:
+                            target = target.members[step[1]]
+                    else:
+                        break  # member를 찾지 못함
+                elif step[0] == "index":
+                    if isinstance(target, ArrayVariable):
+                        idx = step[1]
+                        if idx < len(target.elements):
+                            if is_last:
+                                elem = target.elements[idx]
+                                if hasattr(elem, 'value'):
+                                    elem.value = val
+                            else:
+                                target = target.elements[idx]
+                    else:
+                        break
+                elif step[0] == "call":
+                    # chained interface call: target이 Variables이고
+                    # value가 AddressSet + _cast_interface면 해당 interface 함수 반환값 설정
+                    call_name = step[1]
+                    addr_val = target.value if isinstance(target, Variables) else target
+                    cast_ifc = getattr(addr_val, '_cast_interface', None)
+                    if cast_ifc and is_last:
+                        # 이 chained call의 반환값을 별도 registry에 저장하지 않고
+                        # 직접 top_val 수준에서 처리 (evaluation 시 _lookup_interface_return으로 조회)
+                        # → chained call은 registry에 full chain으로 저장되어 있으므로
+                        #   evaluation 시점에서 처리됨
+                        pass  # 값은 이미 registry에 chain 전체로 저장됨
+                    elif cast_ifc and not is_last:
+                        # 중간 chained call: 반환 타입으로 top 생성하여 다음 step 진행
+                        ret_val = self._lookup_interface_return(cast_ifc, call_name)
+                        if ret_val is not None:
+                            target = ret_val
+                        else:
+                            break
+                    else:
+                        break
+
+        return self._mapping_lookup_if_needed(top_val, callerObject)
+
+    def _resolve_ireturn_pattern_a(self, fcfg, interface_name, contract_var, func_name, callerObject):
+        """Pattern A: contractVar.funcName().<chain> 조회"""
+        if not fcfg.ireturn_registry:
+            return None
+        entries = self._collect_ireturn_entries(
+            fcfg.ireturn_registry, (contract_var, func_name))
+        if not entries:
+            return None
+        return self._assemble_ireturn_value(interface_name, func_name, entries, callerObject)
+
+    def _resolve_ireturn_pattern_b(self, fcfg, interface_name, addr_var, func_name, callerObject):
+        """Pattern B: Interface(addr).funcName().<chain> 조회"""
+        if not fcfg.ireturn_registry:
+            return None
+        entries = self._collect_ireturn_entries(
+            fcfg.ireturn_registry, (interface_name, addr_var, func_name))
+        if not entries:
+            return None
+        return self._assemble_ireturn_value(interface_name, func_name, entries, callerObject)
+
+    def _lookup_interface_return(self, interface_name, func_name):
+        """interface pkl에서 함수 return type 조회 (parent chain 포함) → top domain value"""
+        import pickle, pathlib
+        visited = set()
+        queue = [interface_name]
+        while queue:
+            ifc_name = queue.pop(0)
+            if ifc_name in visited:
+                continue
+            visited.add(ifc_name)
+            pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{ifc_name}.pkl')
+            if not pkl_path.exists():
+                continue
+            with open(pkl_path, 'rb') as f:
+                raw = pickle.load(f)
+            ifc_cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
+            ifc_fcfg = ifc_cfg.get_function_cfg(func_name)
+            if ifc_fcfg and ifc_fcfg.return_types:
+                rt = ifc_fcfg.return_types[0]
+                struct_defs = getattr(ifc_cfg, 'structDefs', {})
+                enum_defs = getattr(ifc_cfg, 'enumDefs', {})
+                top_val = VariableEnv.top_from_soltype(
+                    rt, struct_defs, enum_defs,
+                    identifier=f"{ifc_name}.{func_name}_ret")
+                if isinstance(top_val, Variables) and \
+                   not isinstance(top_val, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
+                    return top_val.value
+                return top_val
+            # parent chain 추가
+            for pname in getattr(ifc_cfg, 'parent_contracts', []):
+                if pname not in visited:
+                    queue.append(pname)
+        return None
+
+    def _mapping_lookup_if_needed(self, result, callerObject):
+        """
+        callerObject가 MappingVariable이면 result를 key로 mapping lookup 수행.
+        index access 내 함수 호출 등에서 사용.
+        """
+        if not isinstance(callerObject, MappingVariable) or result is None:
+            return result
+
+        mapping_var = callerObject
+        if not mapping_var.struct_defs or not mapping_var.enum_defs:
+            ccf = self.an.contract_cfgs[self.an.current_target_contract]
+            mapping_var.struct_defs = ccf.structDefs
+            mapping_var.enum_defs = ccf.enumDefs
+
+        # key 결정: 리턴값에서 추론
+        if isinstance(result, AddressSet):
+            key_val = str(result)
+        elif hasattr(result, "min_value"):
+            if result.min_value == result.max_value:
+                key_val = str(result.min_value)
+            else:
+                key_val = f"func_result_{id(result)}"
+        else:
+            key_val = str(result)
+
+        if key_val not in mapping_var.mapping:
+            mapping_var.mapping[key_val] = mapping_var.get_or_create(key_val)
+        mvar = mapping_var.mapping[key_val]
+        if isinstance(mvar, (StructVariable, ArrayVariable, MappingVariable)):
+            return mvar
+        else:
+            return mvar.value
+
     def find_function_in_hierarchy(self, contract_cfg, function_name: str):
         """
-        현재 컨트랙트와 부모 체인에서 함수를 검색한다 (상속 지원).
-        Solidity의 C3 linearization 순서를 따른다.
-
         Args:
             contract_cfg: 현재 컨트랙트 CFG
             function_name: 찾을 함수 이름
@@ -50,7 +283,7 @@ class Evaluation :
         """
         # 1. 현재 컨트랙트에서 검색
         if function_name in contract_cfg.functions:
-            return contract_cfg.functions[function_name]
+            return contract_cfg.get_function_cfg(function_name)
 
         # 2. 부모 컨트랙트 체인 검색 (MRO 순서)
         parent_contracts = getattr(contract_cfg, 'parent_contracts', [])
@@ -98,15 +331,6 @@ class Evaluation :
         if not struct_list:
             return None
 
-        # DEBUG: Struct joining
-        try:
-            if struct_list and hasattr(struct_list[0], 'identifier'):
-                print(f"[STRUCT DEBUG] Joining {len(struct_list)} structs")
-            else:
-                print(f"[STRUCT DEBUG] Joining {len(struct_list)} structs")
-        except:
-            pass
-
         # 첫 구조체를 복사하여 결과 구조체 생성
         result = copy.deepcopy(struct_list[0])
 
@@ -122,10 +346,6 @@ class Evaluation :
                         break
                     else:
                         val = field_var.value
-                        try:
-                            print(f"[STRUCT DEBUG]   struct[{i}].{field_name} = {repr(val)[:80]}")
-                        except:
-                            pass
                         values.append(val)
 
             # join 수행
@@ -134,10 +354,6 @@ class Evaluation :
                 for v in values[1:]:
                     if hasattr(joined_val, 'join') and hasattr(v, 'join'):
                         joined_val = joined_val.join(v)
-                try:
-                    print(f"[STRUCT DEBUG]   {field_name} joined = {repr(joined_val)[:80]}")
-                except:
-                    pass
 
                 # 결과 저장
                 if isinstance(result.members[field_name], Variables):
@@ -222,11 +438,23 @@ class Evaluation :
     def evaluate_expression(self, expr: Expression, variables, callerObject=None, callerContext=None):
         if expr.context == "LiteralExpContext":
             return self.evaluate_literal_context(expr, variables, callerObject, callerContext)
+        elif expr.context == "NumLiteralContext":
+            # Guardian DSL의 숫자 리터럴 (arithExpr에서 사용)
+            return self.evaluate_literal_context(expr, variables, callerObject, callerContext)
         elif expr.context == "IdentifierExpContext":
+            return self.evaluate_identifier_context(expr, variables, callerObject, callerContext)
+        elif expr.context == "VarRefBase":
+            # Guardian DSL의 단순 변수 참조 (IdentifierExpContext와 동일 구조)
             return self.evaluate_identifier_context(expr, variables, callerObject, callerContext)
         elif expr.context == 'MemberAccessContext':
             return self.evaluate_member_access_context(expr, variables, callerObject, callerContext)
+        elif expr.context == "VarRefMemberAccess":
+            # Guardian DSL의 멤버 접근 (MemberAccessContext와 동일 구조)
+            return self.evaluate_member_access_context(expr, variables, callerObject, callerContext)
         elif expr.context == "IndexAccessContext":
+            return self.evaluate_index_access_context(expr, variables, callerObject, callerContext)
+        elif expr.context == "VarRefIndexAccess":
+            # Guardian DSL의 인덱스 접근 (IndexAccessContext와 동일 구조)
             return self.evaluate_index_access_context(expr, variables, callerObject, callerContext)
         elif expr.context == "MetaTypeContext":
             # type(uint256), type(address) 등
@@ -237,6 +465,8 @@ class Evaluation :
             return self.evaluate_conditional_expression_context(expr, variables, callerObject, callerContext)
         elif expr.context == "InlineArrayExpression":
             return self.evaluate_inline_array_expression_context(expr, variables, callerObject, callerContext)
+        elif expr.context == "TypeWrapUnwrapContext":
+            return self.evaluate_type_wrap_unwrap(expr, variables, callerObject, callerContext)
         elif expr.context == "FunctionCallContext":
             return self.evaluate_function_call_context(expr, variables, callerObject, callerContext)
         elif expr.context == "FunctionCallOptionContext":
@@ -310,11 +540,16 @@ class Evaluation :
                 scope="memory"
             )
 
-            # ⬇ static-method 직접 호출
+            # ⬇ Solidity default: new array elements are zero-initialized
             if ArrayVariable._is_abstractable(sol_t.arrayBaseType):
-                dummy = (IntegerInterval.bottom()
-                         if str(sol_t.arrayBaseType.elementaryTypeName).startswith("int")
-                         else UnsignedIntegerInterval.bottom())
+                et = str(sol_t.arrayBaseType.elementaryTypeName)
+                bits = sol_t.arrayBaseType.intTypeLength or 256
+                if et.startswith("int"):
+                    dummy = IntegerInterval(0, 0, bits)
+                elif et == "bool":
+                    dummy = BoolInterval(0, 0)
+                else:
+                    dummy = UnsignedIntegerInterval(0, 0, bits)
                 arr.initialize_elements(dummy)
             else:
                 arr.initialize_not_abstracted_type()
@@ -497,7 +732,6 @@ class Evaluation :
 
                     if idx >= len(callerObject.elements):
                         # ❗ 요소가 아직 없음 → base-type 의 TOP 값 (알 수 없는 값)
-                        print(f"[ARRAY OOB] Array {callerObject.identifier} accessed at index {idx}, but length is {len(callerObject.elements)} - returning TOP")
                         base_t = callerObject.typeInfo.arrayBaseType
                         if base_t.elementaryTypeName and base_t.elementaryTypeName.startswith("uint"):
                             bits = base_t.intTypeLength or 256
@@ -507,8 +741,21 @@ class Evaluation :
                             return IntegerInterval.top(bits)
                         elif base_t.elementaryTypeName and base_t.elementaryTypeName == "bool":
                             return BoolInterval.top()
+                        elif base_t.elementaryTypeName and base_t.elementaryTypeName == "address":
+                            return AddressSet.top()
+                        elif isinstance(base_t, SolType) and base_t.typeCategory == "struct":
+                            # 구조체 타입: 빈 구조체 생성 후 초기화
+                            empty_struct = StructVariable(
+                                f"{callerObject.identifier}[{idx}]",
+                                base_t.structTypeName,
+                                scope=callerObject.scope
+                            )
+                            ccf = self.an.contract_cfgs[self.an.current_target_contract]
+                            if base_t.structTypeName in ccf.structDefs:
+                                empty_struct.initialize_struct(ccf.structDefs[base_t.structTypeName])
+                            return empty_struct
                         else:
-                            # 주소/bytes/string 등은 symbol
+                            # 기타 (bytes/string 등)는 symbol
                             return f"symbolic_{callerObject.identifier}[{idx}]"
 
                     elem = callerObject.elements[idx]
@@ -601,16 +848,15 @@ class Evaluation :
                 if ident_str in variables:  # ident_str == 변수명
                     key_var = variables[ident_str]
                     val = getattr(key_var, "value", key_var)
-                    # ★ 주소형 판별을 elementaryTypeName 으로
-                    is_address = (
-                            hasattr(key_var, "typeInfo") and
-                            getattr(key_var.typeInfo, "elementaryTypeName", None) == "address"
-                    )
 
-                    if hasattr(val, "min_value"):
-                        if is_address:
-                            key_val = key_var.identifier  # "msg.sender" 그대로
-                        elif val.min_value == val.max_value:  # 숫자·bool 싱글톤
+                    # ★ AddressSet: singleton이면 str(val)을 key로 사용
+                    if isinstance(val, AddressSet):
+                        if val.is_singleton():
+                            key_val = str(val)  # "AddressSet({1})"
+                        else:
+                            key_val = key_var.identifier  # TOP/multi → identifier
+                    elif hasattr(val, "min_value"):
+                        if val.min_value == val.max_value:  # 숫자·bool 싱글톤
                             key_val = str(val.min_value)
                         else:
                             # TOP 범위인 경우: 매핑에 이미 설정된 키 중 범위 내 키가 있으면 사용
@@ -650,14 +896,25 @@ class Evaluation :
         if callerContext is not None:
             if callerContext == "MemberAccessContext":  # base에 대한 접근
                 if ident_str in variables:
-                    return variables[ident_str]  # MappingVariable, StructVariable 자체를 리턴
+                    var = variables[ident_str]
+                    # interface 타입 변수: AddressSet with _cast_interface → value 반환
+                    if isinstance(var, Variables) and \
+                       not isinstance(var, (ArrayVariable, StructVariable, MappingVariable)) and \
+                       isinstance(getattr(var, 'value', None), AddressSet) and \
+                       getattr(var.value, '_cast_interface', None):
+                        return var.value
+                    return var  # MappingVariable, StructVariable 자체를 리턴
                 elif ident_str == "this":
                     # this 키워드: 현재 컨트랙트 자체를 반환
                     return "this"
+                elif ident_str == "super":
+                    return "super"
                 elif ident_str in ["block", "tx", "msg", "address", "code"]:
                     return ident_str  # block, tx, msg를 리턴
-                elif ident_str in self.an.contract_cfgs[self.an.current_target_contract].enumDefs:  # EnumDef 리턴
-                    return self.an.contract_cfgs[self.an.current_target_contract].enumDefs[ident_str]
+                elif self._find_enum_in_chain(ident_str):  # EnumDef 리턴 (parent chain 포함)
+                    return self._find_enum_in_chain(ident_str)
+                elif ident_str in self.an.library_cfgs:
+                    return {"isLibrary": True, "libraryName": ident_str}
                 else:
                     raise ValueError(f"This '{ident_str}' is may be array or struct but may not be declared")
             elif callerContext == "IndexAccessContext":  # base에 대한 접근
@@ -665,10 +922,20 @@ class Evaluation :
                     return variables[ident_str]  # ArrayVariable, MappingVariable 자체를 리턴
 
         # callerContext, callerObject 둘다 없는 경우
+        if ident_str == "this":
+            return "this"
         if ident_str in variables:  # variables에 있으면
-            return variables[ident_str].value  # 해당 value 리턴
-        else:
-            raise ValueError(f"This '{ident_str}' is may be elementary variable but may not be declared")
+            var_obj = variables[ident_str]
+            # composite 타입(Struct/Array/Mapping)은 객체 자체를 반환
+            if isinstance(var_obj, (StructVariable, ArrayVariable, MappingVariable)):
+                return var_obj
+            return var_obj.value  # 해당 value 리턴
+
+        # library 이름이면 qualified call marker 반환 (UFixed18Lib._from(x) 등)
+        if ident_str in self.an.library_cfgs:
+            return {"isLibrary": True, "libraryName": ident_str}
+
+        raise ValueError(f"This '{ident_str}' is may be elementary variable but may not be declared")
 
     def evaluate_member_access_context(
             self,
@@ -680,37 +947,78 @@ class Evaluation :
         baseVal = self.evaluate_expression(expr.base, variables, None,
                                            "MemberAccessContext")
         member = expr.member
-        
+
         # ──────────────────────────────────────────────────────────────
         # 0. Function call context 처리 (using directive 지원)
         # ──────────────────────────────────────────────────────────────
         # callerContext가 "functionCallContext"인 경우 - a.mul(b)에서 a.mul 부분이 호출될 때
         if callerContext == "functionCallContext":
-            # baseVal이 Variables, mapping, Struct 등에 대해 라이브러리 함수 호출 처리
-            if isinstance(baseVal, (Variables, MappingVariable, StructVariable)):
+            # baseVal이 Variables, mapping, Struct, 또는 interval인 경우 라이브러리 함수 호출 처리
+            base_type = None
+            implicit_arg = baseVal
+
+            # 타입 추출
+            if isinstance(baseVal, Variables):
+                base_type = self._get_variable_type_string(baseVal)
+            elif isinstance(baseVal, (UnsignedIntegerInterval, IntegerInterval)):
+                # interval인 경우: expr.base에서 원래 타입(aliasName) 복원 시도
+                alias_type = self._resolve_alias_from_expr(expr.base, variables)
+                if alias_type:
+                    base_type = alias_type
+                else:
+                    bits = getattr(baseVal, 'bits', 256)
+                    if isinstance(baseVal, UnsignedIntegerInterval):
+                        base_type = f"uint{bits}"
+                    else:
+                        base_type = f"int{bits}"
+
+            if base_type:
                 # 현재 컨트랙트의 using directive 확인
                 current_contract = self.an.current_target_contract
                 if current_contract and current_contract in self.an.contract_cfgs:
                     contract_cfg = self.an.contract_cfgs[current_contract]
-                    
-                    # baseVal의 타입 추출
-                    base_type = self._get_variable_type_string(baseVal) if isinstance(baseVal, Variables) else "unknown"
-                    
-                    # 라이브러리 함수 검색
+
+                    # 라이브러리 함수 존재 여부만 확인 (overload 해소는 function call 시점에서)
                     library_function = contract_cfg.find_library_function(base_type, member)
                     if library_function:
-                        # 라이브러리 함수가 발견되면 특별한 Expression 객체 반환
-                        # evaluate_function_call_context에서 이것을 인식하여 라이브러리 함수로 처리
                         result_expr = Expression(
                             function=Expression(identifier=member),
                             operator='library_call',
                             context='LibraryFunctionCallContext'
                         )
-                        # 라이브러리 함수 정보와 첫 번째 인자를 임시로 저장
-                        result_expr._library_function_cfg = library_function
-                        result_expr._implicit_first_arg = baseVal
+                        # overload 해소를 위한 정보 저장 (특정 FunctionCFG가 아닌 검색 키)
+                        result_expr._library_base_type = base_type
+                        result_expr._library_contract_cfg = contract_cfg
+                        result_expr._implicit_first_arg = implicit_arg
                         return result_expr
         
+        # ──────────────────────────────────────────────────────────────
+        # 0-Q. Qualified library call (UFixed18Lib._from(x) 등)
+        # ──────────────────────────────────────────────────────────────
+        if isinstance(baseVal, dict) and baseVal.get("isLibrary"):
+            lib_name = baseVal["libraryName"]
+            lib_cfg = self.an.library_cfgs.get(lib_name)
+            if lib_cfg and callerContext == "functionCallContext":
+                result_expr = Expression(
+                    function=Expression(identifier=member),
+                    operator='library_call',
+                    context='LibraryFunctionCallContext'
+                )
+                result_expr._library_base_type = None  # qualified call은 implicit first arg 없음
+                result_expr._library_contract_cfg = lib_cfg
+                result_expr._implicit_first_arg = None
+                result_expr._qualified_library_call = True
+                return result_expr
+            # function call이 아닌 경우 (상수 등)
+            if lib_cfg and member in getattr(lib_cfg, 'globals', {}):
+                return lib_cfg.globals[member].value
+            # state_variable_node에서 상수 조회
+            sv_node = getattr(lib_cfg, 'state_variable_node', None)
+            if sv_node and member in getattr(sv_node, 'variables', {}):
+                sv = sv_node.variables[member]
+                return sv.value if hasattr(sv, 'value') else sv
+            return f"symbolic({lib_name}.{member})"
+
         # ──────────────────────────────────────────────────────────────
         # 0-1. super 키워드 처리 (super.foo() → 부모 컨트랙트 함수 호출)
         # ──────────────────────────────────────────────────────────────
@@ -758,9 +1066,10 @@ class Evaluation :
                 # 함수를 찾지 못함 → Top 반환
                 return UnsignedIntegerInterval.top()
 
-            # this.balance → 컨트랙트 잔액 (uint256 Top)
+            # this.balance → GlobalVar에 값이 있으면 사용, 없으면 Top
             if member == "balance":
-                return UnsignedIntegerInterval.top()
+                gv_val = self._get_address_this_balance(variables)
+                return gv_val if gv_val is not None else UnsignedIntegerInterval.top()
 
             # 기타 this 멤버 접근은 심볼릭으로 처리
             return f"this.{member}"
@@ -773,9 +1082,26 @@ class Evaluation :
                 # 0) 함수-env 에 이미 변수로 들어와 있나?
                 full_name = f"{baseVal}.{member}"
                 if isinstance(callerObject, MappingVariable):
-                    if full_name not in callerObject.mapping:
-                        callerObject.mapping[full_name] = callerObject.get_or_create(full_name)
-                    entry = callerObject.mapping[full_name]
+                    if not callerObject.struct_defs or not callerObject.enum_defs:
+                        ccf = self.an.contract_cfgs[self.an.current_target_contract]
+                        callerObject.struct_defs = ccf.structDefs
+                        callerObject.enum_defs = ccf.enumDefs
+                    # global var의 실제 값으로 key 결정 (identifier 경로와 동일)
+                    key_val = full_name  # fallback
+                    if full_name in variables:
+                        gv_val = variables[full_name].value
+                        if isinstance(gv_val, AddressSet):
+                            if gv_val.is_singleton():
+                                key_val = str(gv_val)  # "AddressSet({101})"
+                            # else: TOP → full_name 유지
+                        elif hasattr(gv_val, "min_value"):
+                            if gv_val.min_value == gv_val.max_value:
+                                key_val = str(gv_val.min_value)
+                    if key_val not in callerObject.mapping:
+                        callerObject.mapping[key_val] = callerObject.get_or_create(key_val)
+                    entry = callerObject.mapping[key_val]
+                    if isinstance(entry, (StructVariable, ArrayVariable, MappingVariable)):
+                        return entry
                     return entry.value if hasattr(entry, "value") else entry
 
                 else:
@@ -843,6 +1169,20 @@ class Evaluation :
             if member == "code":  # <addr>.code
                 return "code"  # 상위 계층에서 재귀적으로 처리
 
+            # interface cast된 address에서 interface 함수 호출 (IERC20(x).balanceOf())
+            cast_ifc = getattr(baseVal, '_cast_interface', None)
+            import sys as _s; print(f"[CAST-CHK] member={member}, baseVal={type(baseVal).__name__}, cast_ifc={cast_ifc}, callerCtx={callerContext}", file=_s.stderr) if member in ('delayedStrategyParams','delayedProtocolParams') else None
+            if cast_ifc and callerContext == "functionCallContext":
+                # interface function lookup → return type 기반 top 반환
+                result_expr = Expression(
+                    function=Expression(identifier=member),
+                    operator='interface_call',
+                    context='InterfaceFunctionCallContext'
+                )
+                result_expr._cast_interface = cast_ifc
+                result_expr._cast_address = baseVal
+                return result_expr
+
             raise ValueError(f"member '{member}' is not a recognised global-member.")
 
         # ──────────────────────────────────────────────────────────────
@@ -852,7 +1192,6 @@ class Evaluation :
             if member == "length":
                 # ★ widening으로 TOP으로 표시된 경우 (-1)
                 if baseVal.typeInfo.arrayLength == -1:
-                    print(f"[LENGTH DEBUG] Array {baseVal.identifier} has widened arrayLength=-1, returning TOP")
                     return UnsignedIntegerInterval(0, 2 ** 256 - 1, 256)
 
                 # 동적 배열의 경우: 실제 elements 길이를 우선 사용
@@ -861,7 +1200,6 @@ class Evaluation :
                     if len(baseVal.elements) > 0:
                         # elements가 있으면 그 길이 반환
                         ln = len(baseVal.elements)
-                        print(f"[LENGTH DEBUG] Dynamic array {baseVal.identifier} has {ln} elements")
                         return UnsignedIntegerInterval(ln, ln, 256)
                     else:
                         # 빈 동적 배열: TOP 반환 (알 수 없는 길이)
@@ -950,9 +1288,10 @@ class Evaluation :
         # 3-A. AddressSet  (address.balance, address.transfer(), address.send())
         # ──────────────────────────────────────────────────────────────
         if isinstance(baseVal, AddressSet):
-            # address.balance → uint256 Top (balance can be any value)
+            # address.balance → GlobalVar에 address(this).balance가 있으면 사용
             if member == "balance":
-                return UnsignedIntegerInterval.top()
+                gv_val = self._get_address_this_balance(variables)
+                return gv_val if gv_val is not None else UnsignedIntegerInterval.top()
 
             # address.code → bytes Top
             if member == "code":
@@ -984,6 +1323,18 @@ class Evaluation :
                 # address.delegatecall(), staticcall()
                 if member in ("delegatecall", "staticcall"):
                     return BoolInterval.top()
+
+            # interface cast된 address의 함수 호출 (IERC20(x).balanceOf())
+            cast_ifc = getattr(baseVal, '_cast_interface', None)
+            if cast_ifc and callerContext == "functionCallContext":
+                result_expr = Expression(
+                    function=Expression(identifier=member),
+                    operator='interface_call',
+                    context='InterfaceFunctionCallContext'
+                )
+                result_expr._cast_interface = cast_ifc
+                result_expr._cast_address = baseVal
+                return result_expr
 
             # 기타 address 멤버는 심볼릭 처리
             return f"address.{member}"
@@ -1033,6 +1384,9 @@ class Evaluation :
         if hasattr(var, 'typeInfo') and var.typeInfo:
             type_info = var.typeInfo
             if type_info.typeCategory == "elementary":
+                # type alias가 있으면 원래 이름 반환 (library function lookup용)
+                if getattr(type_info, 'aliasName', None):
+                    return type_info.aliasName
                 return type_info.elementaryTypeName
             elif type_info.typeCategory == "array":
                 return f"{self._get_type_string_from_soltype(type_info.arrayBaseType)}[]"
@@ -1142,22 +1496,39 @@ class Evaluation :
         elif type_name == "address":
             # ★ address 타입 변환
             if isinstance(sub_val, AddressSet):
-                return sub_val  # 이미 AddressSet이면 그대로
-            if isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
+                addr_result = sub_val
+            elif isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
                 # uint → address: singleton이면 구체적 ID, 아니면 TOP
                 if sub_val.is_bottom():
-                    return AddressSet.bot()
-                if sub_val.min_value == sub_val.max_value:
-                    return AddressSet(ids={sub_val.min_value})
-                return AddressSet.top()
-            if isinstance(sub_val, str) and sub_val.startswith("0x"):
+                    addr_result = AddressSet.bot()
+                elif sub_val.min_value == sub_val.max_value:
+                    addr_result = AddressSet(ids={sub_val.min_value})
+                else:
+                    addr_result = AddressSet.top()
+            elif isinstance(sub_val, str) and sub_val.startswith("0x"):
                 addr_int = int(sub_val, 16)
-                return AddressSet(ids={addr_int})
-            # ★ address(this) 처리: "this" → 현재 컨트랙트 주소 (symbolic ID 1)
-            if isinstance(sub_val, str) and sub_val == "this":
-                # 현재 컨트랙트의 주소는 symbolic ID 1로 고정
-                return self.an.addr_mgr.make_symbolic_address(1, "this")
-            return AddressSet.top()  # 기타 → symbolic TOP
+                addr_result = AddressSet(ids={addr_int})
+            elif isinstance(sub_val, str) and sub_val == "this":
+                # ★ address(this): 현재 컨트랙트 주소 (symbolic ID 1)
+                addr_result = self.an.addr_mgr.make_symbolic_address(1, "this")
+            else:
+                addr_result = AddressSet.top()
+
+            # ★ callerObject가 MappingVariable이면 mapping lookup 수행
+            if isinstance(callerObject, MappingVariable):
+                if not callerObject.struct_defs or not callerObject.enum_defs:
+                    ccf = self.an.contract_cfgs[self.an.current_target_contract]
+                    callerObject.struct_defs = ccf.structDefs
+                    callerObject.enum_defs = ccf.enumDefs
+                key_val = str(addr_result)
+                if key_val not in callerObject.mapping:
+                    callerObject.mapping[key_val] = callerObject.get_or_create(key_val)
+                mvar = callerObject.mapping[key_val]
+                if isinstance(mvar, (StructVariable, ArrayVariable, MappingVariable)):
+                    return mvar
+                return mvar.value
+
+            return addr_result
 
         # ★ payable(addr) 타입 변환 - address와 동일하게 처리
         elif type_name == "payable" or type_name == "address payable":
@@ -1198,6 +1569,17 @@ class Evaluation :
                 except ValueError:
                     pass
             return BytesSet.top(byte_size)  # 기타 → symbolic TOP
+
+        # interface/contract type cast: IERC20(_token), IVault(addr) 등
+        elif type_name in self.an.interface_names or type_name in self.an.contract_cfgs:
+            if isinstance(sub_val, AddressSet):
+                result = sub_val
+            elif isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
+                result = AddressSet.top()
+            else:
+                result = AddressSet.top()
+            result._cast_interface = type_name
+            return result
 
         else:
             # 그 외( string, etc. ) => 필요 시 구현
@@ -1343,12 +1725,20 @@ class Evaluation :
                 return BoolInterval.bottom()
             return Interval(None, None)  # fallback – 거의 안 옴
 
-        if (isinstance(leftInterval, Interval) and leftInterval.is_bottom()) or \
-                (isinstance(rightInterval, Interval) and rightInterval.is_bottom()):
-            # 산술/비트/시프트 → ⊥,  비교/논리 → BoolInterval ⊤(= [0,1])
-            if operator in ['==', '!=', '<', '>', '<=', '>=', '&&', '||']:
-                return BoolInterval.top()
-            return _bottom(leftInterval if not leftInterval.is_bottom() else rightInterval)
+        left_bottom = isinstance(leftInterval, Interval) and leftInterval.is_bottom()
+        right_bottom = isinstance(rightInterval, Interval) and rightInterval.is_bottom()
+        if left_bottom or right_bottom:
+            # || : short-circuit — 한쪽이 true 가능하면 결과도 true 가능
+            if operator == '||':
+                if not left_bottom and isinstance(leftInterval, BoolInterval) and leftInterval.max_value == 1:
+                    return BoolInterval(0, 1)
+                if not right_bottom and isinstance(rightInterval, BoolInterval) and rightInterval.max_value == 1:
+                    return BoolInterval(0, 1)
+                return BoolInterval.bottom()
+            # && : 한쪽이 BOTTOM이면 BOTTOM
+            if operator in ['==', '!=', '<', '>', '<=', '>=', '&&']:
+                return BoolInterval.bottom()
+            return _bottom(leftInterval if not left_bottom else rightInterval)
 
         if operator == '+':
             result = leftInterval.add(rightInterval)
@@ -1411,6 +1801,11 @@ class Evaluation :
                     leftInterval, rightInterval, operator)
         # 논리 연산자 처리
         elif operator in ['&&', '||']:
+            # 피연산자가 BoolInterval이 아닌 경우 변환
+            if not isinstance(leftInterval, BoolInterval):
+                leftInterval = BoolInterval.top()
+            if not isinstance(rightInterval, BoolInterval):
+                rightInterval = BoolInterval.top()
             result = leftInterval.logical_op(rightInterval, operator)
         else:
             raise ValueError(f"Unsupported operator '{operator}' in expression: {expr}")
@@ -1421,9 +1816,43 @@ class Evaluation :
             return result
 
     def evaluate_function_call_context(self, expr, variables, callerObject=None, callerContext=None):
+        # [TRACE]
+        _fn = getattr(expr, 'function', None)
+        _fn_ctx = getattr(_fn, 'context', None) if _fn else None
+        _fn_mem = getattr(_fn, 'member', None) if _fn else None
         if expr.context == "IdentifierExpContext":
             function_name = expr.identifier
-        elif expr.function.context == "MemberAccessContext":  # dynamic array에 대한 push, pop
+        elif _fn and _fn_ctx == "MemberAccessContext":  # dynamic array에 대한 push, pop
+            # ★ @IReturn: interface call이면 registry에서 값 조회 (evaluate 전에 short-circuit)
+            base_expr = expr.function.base
+            member_name = expr.function.member
+            if hasattr(base_expr, 'identifier'):
+                contract_var = base_expr.identifier
+                fcfg = self.an.current_target_function_cfg
+                interface_name = self._get_interface_name_of_var(contract_var, variables)
+                if fcfg and interface_name:
+                    ret = self._resolve_ireturn_pattern_a(
+                        fcfg, interface_name, contract_var, member_name, callerObject)
+                    if ret is not None:
+                        return ret
+
+            # ★ @IReturn Pattern B: explicit cast — IERC20(want).balanceOf() 등
+            if (hasattr(base_expr, 'context') and base_expr.context == 'FunctionCallContext'
+                    and hasattr(base_expr, 'function') and hasattr(base_expr.function, 'identifier')):
+                cast_interface = base_expr.function.identifier
+                fcfg = self.an.current_target_function_cfg
+                if fcfg and cast_interface in self.an.interface_names:
+                    addr_var = None
+                    if base_expr.arguments and len(base_expr.arguments) == 1:
+                        arg = base_expr.arguments[0]
+                        if hasattr(arg, 'identifier'):
+                            addr_var = arg.identifier
+                    if addr_var:
+                        ret = self._resolve_ireturn_pattern_b(
+                            fcfg, cast_interface, addr_var, member_name, callerObject)
+                        if ret is not None:
+                            return ret
+
             # member access를 평가하여 라이브러리 함수인지 확인
             function_result = self.evaluate_expression(expr.function, variables, None, "functionCallContext")
             
@@ -1432,11 +1861,68 @@ class Evaluation :
                 hasattr(function_result, 'context') and
                 function_result.context == 'LibraryFunctionCallContext'):
 
-                # 라이브러리 함수 호출로 처리
-                return self.evaluate_library_function_call_context(
-                    expr, variables, function_result._implicit_first_arg,
-                    function_result._library_function_cfg
-                )
+                # function call 시점에서 인자 개수로 overload resolution
+                implicit_arg = function_result._implicit_first_arg
+                is_qualified = getattr(function_result, '_qualified_library_call', False)
+                n_explicit = len(expr.arguments) if expr.arguments else 0
+                n_args = (n_explicit if is_qualified else 1 + n_explicit)  # qualified: implicit arg 없음
+                func_name = function_result.function.identifier
+                ccfg = function_result._library_contract_cfg
+                base_type = function_result._library_base_type
+
+                # qualified call: library CFG에서 직접 함수 검색
+                if is_qualified:
+                    lib_fcfg = ccfg.get_function_cfg(func_name)
+                    # overload: 인자 개수로 매칭
+                    if lib_fcfg and len(lib_fcfg.parameters) != n_args:
+                        if func_name in ccfg.functions:
+                            for sig, fc in ccfg.functions[func_name].items():
+                                if len(fc.parameters) == n_args:
+                                    lib_fcfg = fc
+                                    break
+                else:
+                    # n_args를 전달하여 처음부터 올바른 overload 선택
+                    lib_fcfg = ccfg.find_library_function(base_type, func_name, n_args=n_args)
+
+                return self._mapping_lookup_if_needed(
+                    self.evaluate_library_function_call_context(
+                        expr, variables, implicit_arg, lib_fcfg),
+                    callerObject)
+
+            # interface cast 함수 호출인 경우 (IERC20(x).balanceOf())
+            if (isinstance(function_result, Expression) and
+                getattr(function_result, 'context', '') == 'InterfaceFunctionCallContext'):
+                cast_ifc = function_result._cast_interface
+                func_name = function_result.function.identifier
+                cast_addr = getattr(function_result, '_cast_address', None)
+
+                # IReturn registry 조회 (Pattern A/B에서 못 잡힌 경우)
+                fcfg = self.an.current_target_function_cfg
+                if fcfg and fcfg.ireturn_registry:
+                    # cast_ifc 기반으로 entries 수집 시도
+                    for prefix_len in (3, 2):  # Pattern B (4-tuple prefix 3) or A (3-tuple prefix 2)
+                        for key in fcfg.ireturn_registry:
+                            if len(key) >= prefix_len + 1 and \
+                               key[0] == cast_ifc and key[prefix_len - 1] == func_name:
+                                # 매칭되는 entries 수집
+                                match_prefix = key[:prefix_len]
+                                entries = self._collect_ireturn_entries(
+                                    fcfg.ireturn_registry, match_prefix)
+                                if entries:
+                                    ret = self._assemble_ireturn_value(
+                                        cast_ifc, func_name, entries, callerObject)
+                                    if ret is not None:
+                                        return ret
+                                break
+
+                # pkl에서 interface return type 조회 → top_from_soltype으로 반환
+                import pickle, pathlib
+                result = self._lookup_interface_return(cast_ifc, func_name)
+                if result is not None:
+                    return self._mapping_lookup_if_needed(result, callerObject)
+
+                # fallback: uint256 top
+                return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
 
             # super 함수 호출인 경우 (super.foo())
             if (isinstance(function_result, Expression) and
@@ -1444,9 +1930,10 @@ class Evaluation :
                 function_result.context == 'SuperFunctionCallContext'):
 
                 # super 함수 호출로 처리
-                return self.evaluate_super_function_call_context(
-                    expr, variables, function_result._super_function_cfg
-                )
+                return self._mapping_lookup_if_needed(
+                    self.evaluate_super_function_call_context(
+                        expr, variables, function_result._super_function_cfg),
+                    callerObject)
 
             # this 함수 호출인 경우 (this.foo())
             if (isinstance(function_result, Expression) and
@@ -1454,42 +1941,72 @@ class Evaluation :
                 function_result.context == 'ThisFunctionCallContext'):
 
                 # this 함수 호출로 처리 (일반 함수 호출과 동일)
-                return self.evaluate_this_function_call_context(
-                    expr, variables, function_result._this_function_cfg
-                )
+                return self._mapping_lookup_if_needed(
+                    self.evaluate_this_function_call_context(
+                        expr, variables, function_result._this_function_cfg),
+                    callerObject)
 
             # 일반적인 member access 결과 반환 (dynamic array push/pop 등)
-            return function_result
+            return self._mapping_lookup_if_needed(function_result, callerObject)
             
+        elif expr.function.context == "NewExpContext":
+            # new Type[](size) → FunctionCall(NewExp, [size]) 로 파싱된 경우
+            new_expr = expr.function
+            if not new_expr.arguments:
+                new_expr.arguments = expr.arguments
+            return self.evaluate_new_expression_context(new_expr, variables, callerObject, callerContext)
+
+        elif expr.function.context == "FunctionCallOptionContext":
+            # expr{value: ethAmount}(args) → options는 무시, 외부 호출이므로 Top 반환
+            return self._mapping_lookup_if_needed(
+                self.evaluate_function_call_option_context(
+                    expr.function, variables, callerObject, callerContext),
+                callerObject)
+
         elif expr.function.context == "IdentifierExpContext":
             function_name = expr.function.identifier
         else:
             raise ValueError(f"There is no function name in function call context")
+
+        # 1-B) Solidity built-in 함수 처리
+        builtin_result = self._evaluate_builtin_function(function_name, expr, variables, callerObject)
+        if builtin_result is not None:
+            return builtin_result
 
         # 2) 현재 컨트랙트 CFG 가져오기
         contract_cfg = self.an.contract_cfgs.get(self.an.current_target_contract)
         if not contract_cfg:
             raise ValueError(f"Unable to find contract CFG for {self.an.current_target_contract}")
 
-        # 2-A) 구조체 생성자인지 확인
-        if function_name in contract_cfg.structDefs:
-            # 구조체 생성자: StructName({ field1: val1, ... })
-            struct_def = contract_cfg.structDefs[function_name]
+        # 2-A) 구조체 생성자인지 확인 (현재 contract + parent chain + using libraries)
+        found = self._find_struct_def(contract_cfg, function_name)
+        if found is not None:
+            struct_def, qualified_name = found
             new_struct = StructVariable(
                 identifier=f"temp_{function_name}_{id(expr)}",
-                struct_type=function_name,
+                struct_type=qualified_name,
                 scope="memory"
             )
             new_struct.initialize_struct(struct_def)
 
             # named_arguments로 필드 초기화
             named_args = expr.named_arguments if expr.named_arguments else {}
-            for field_name, field_expr in named_args.items():
-                if field_name in new_struct.members:
-                    field_value = self.evaluate_expression(field_expr, variables, None, None)
-                    field_var = new_struct.members[field_name]
-                    if isinstance(field_var, Variables):
-                        field_var.value = field_value
+            if named_args:
+                for field_name, field_expr in named_args.items():
+                    if field_name in new_struct.members:
+                        field_value = self.evaluate_expression(field_expr, variables, None, None)
+                        field_var = new_struct.members[field_name]
+                        if isinstance(field_var, Variables):
+                            field_var.value = field_value
+            elif expr.arguments:
+                # positional arguments: StructName(val1, val2, ...)
+                member_names = list(new_struct.members.keys())
+                for i, arg_expr in enumerate(expr.arguments):
+                    if i < len(member_names):
+                        field_value = self.evaluate_expression(arg_expr, variables, None, None)
+                        field_var = new_struct.members[member_names[i]]
+                        if isinstance(field_var, Variables):
+                            field_var.value = field_value
 
             return new_struct
 
@@ -1497,8 +2014,10 @@ class Evaluation :
         function_cfg = self.find_function_in_hierarchy(contract_cfg, function_name)
         if not function_cfg:
             # 함수를 찾을 수 없음 → Top 반환 (외부 함수, interface 메서드, 미정의 함수)
+            # ★ 아직 분석 안 된 함수일 수 있음 → pending_callee_name에 기록
+            self.an.pending_callee_name = function_name
             # 반환 타입을 알 수 없으므로 uint256 Top으로 처리
-            return UnsignedIntegerInterval.top()
+            return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
 
         # 4) 함수 파라미터와 인자 매핑
         #    expr.arguments -> 위치 기반 인자
@@ -1506,12 +2025,20 @@ class Evaluation :
         arguments = expr.arguments if expr.arguments else []
         named_arguments = expr.named_arguments if expr.named_arguments else {}
 
-        # 파라미터 목록 (이 예시에서는 function_cfg.parameters를 [paramName1, paramName2, ...]로 가정)
+        # 파라미터 목록
         param_names = getattr(function_cfg, 'parameters', [])
-        # 또는 function_cfg가 paramName->type인 dict라면 list(paramName->type) 식으로 바꿔야 함
-
         total_params = len(param_names)
         total_args = len(arguments) + len(named_arguments)
+
+        # overload 재검색: 인자 개수 불일치 시 같은 이름의 다른 overload 탐색
+        if total_params != total_args and hasattr(contract_cfg, 'functions') and function_name in contract_cfg.functions:
+            for sig, fcfg_candidate in contract_cfg.functions[function_name].items():
+                if len(getattr(fcfg_candidate, 'parameters', [])) == total_args:
+                    function_cfg = fcfg_candidate
+                    param_names = function_cfg.parameters
+                    total_params = len(param_names)
+                    break
+
         if total_params != total_args:
             raise ValueError(f"Argument count mismatch in function call to '{function_name}': "
                              f"expected {total_params}, got {total_args}.")
@@ -1528,7 +2055,16 @@ class Evaluation :
 
             # function_cfg 내부의 related_variables에 param_name이 있어야
             if param_name in function_cfg.related_variables:
-                function_cfg.related_variables[param_name].value = arg_val
+                param_var = function_cfg.related_variables[param_name]
+                # struct 인자: StructVariable이면 members도 복사
+                if hasattr(param_var, 'members') and hasattr(arg_val, 'members'):
+                    param_var.members = {k: copy.deepcopy(v) for k, v in arg_val.members.items()}
+                    param_var.value = arg_val.value
+                elif hasattr(param_var, 'members') and arg_val is None:
+                    # struct 파라미터에 None이 전달됨 → members 유지 (기본 초기화 상태)
+                    pass
+                else:
+                    param_var.value = arg_val
             else:
                 raise ValueError(f"Parameter '{param_name}' not found in function '{function_name}' variables.")
         #    named 인자
@@ -1545,89 +2081,106 @@ class Evaluation :
             else:
                 raise ValueError(f"Parameter '{key}' not found in function '{function_name}' variables.")
 
-        # 5-A) ❶ caller 의 현재 env(variables)를 callee related_variables 로 병합
-        #      ─ 이미 같은 key 가 있으면(상태변수·글로벌) 그대로 두고,
-        #        caller 쪽에만 있던 로컬/임시 변수는 얕은 참조로 추가
-        for k, v in variables.items():
-            function_cfg.related_variables.setdefault(k, v)
-
         # 6) 실제 함수 CFG 해석
-        return_value = self.engine.interpret_function_cfg(function_cfg, variables)  # ← caller env 전달
+        #    caller env는 interpret_function_cfg 내에서 start_block.variables에 병합됨
+        #    related_variables는 함수 정의 시점의 변수 집합이므로 수정하지 않음
+        return_value = self.engine.interpret_function_cfg(function_cfg, variables)
 
         # 7) 함수 컨텍스트 복원
         self.an.current_target_function = saved_function
 
-        return return_value
+        return self._mapping_lookup_if_needed(return_value, callerObject)
 
     def evaluate_library_function_call_context(self, expr, variables, implicit_first_arg, library_function_cfg):
         """
         라이브러리 함수 호출 처리
         expr: 원래 FunctionCallContext Expression 객체 (arguments 포함)
-        implicit_first_arg: 첫 번째 인자로 전달될 baseVal (Variables 객체)  
+        implicit_first_arg: 첫 번째 인자로 전달될 baseVal (Variables 객체)
         library_function_cfg: 라이브러리 함수의 FunctionCFG
         """
-        
         if not library_function_cfg:
             return f"symbolic_library_call(unknown_function)"
-        
-        # 1) 인자 준비 - implicit_first_arg를 첫 번째 인자로 설정
-        arguments = [implicit_first_arg]
-        if expr.arguments:  # FunctionCallContext에서 온 인자들 추가
+
+        # 1) 인자 준비 - implicit_first_arg가 있으면 첫 번째 인자로 설정
+        arguments = []
+        if implicit_first_arg is not None:
+            arguments.append(implicit_first_arg)
+        if expr.arguments:
             arguments.extend(expr.arguments)
-        
+
         # 2) 파라미터와 인자 매핑
         param_names = getattr(library_function_cfg, 'parameters', [])
-        
-        if len(param_names) != len(arguments):
+
+        if len(param_names) > len(arguments):
+            for _ in range(len(param_names) - len(arguments)):
+                arguments.append("")
+        elif len(param_names) < len(arguments):
             return f"symbolic_library_call_mismatch({expr.function.identifier})"
-        
-        # 3) 라이브러리 함수의 related_variables에 인자 값 설정
-        caller_env = variables.copy()  # 호출자 환경 백업
-        
+
+        # 3) 파라미터는 related_variables에 설정, caller_env에는 나머지만
+        #    related_variables 수정은 파라미터에 한정 (다른 함수의 변수 오염 방지)
+        caller_env = variables.copy()
+
         for i, param_name in enumerate(param_names):
-            if isinstance(arguments[i], Variables):
-                # Variables 객체인 경우 value 추출
+            if isinstance(arguments[i], (StructVariable, ArrayVariable, MappingVariable)):
+                # 복합 타입: 객체 자체를 파라미터로 설정
+                library_function_cfg.related_variables[param_name] = arguments[i]
+            elif isinstance(arguments[i], Variables):
                 arg_val = arguments[i].value if hasattr(arguments[i], 'value') else arguments[i]
+                if param_name in library_function_cfg.related_variables:
+                    library_function_cfg.related_variables[param_name].value = arg_val
+                else:
+                    param_var = Variables(identifier=param_name, scope="local")
+                    param_var.value = arg_val
+                    library_function_cfg.related_variables[param_name] = param_var
+            elif isinstance(arguments[i], (UnsignedIntegerInterval, IntegerInterval)):
+                if param_name in library_function_cfg.related_variables:
+                    library_function_cfg.related_variables[param_name].value = arguments[i]
+                else:
+                    param_var = Variables(identifier=param_name, scope="local")
+                    param_var.value = arguments[i]
+                    library_function_cfg.related_variables[param_name] = param_var
+            elif isinstance(arguments[i], str):
+                if param_name in library_function_cfg.related_variables:
+                    library_function_cfg.related_variables[param_name].value = arguments[i]
+                else:
+                    param_var = Variables(identifier=param_name, scope="local")
+                    param_var.value = arguments[i]
+                    library_function_cfg.related_variables[param_name] = param_var
             else:
-                # Expression인 경우 평가
                 arg_val = self.evaluate_expression(arguments[i], variables, None, None)
-            
-            # 라이브러리 함수의 파라미터에 값 설정
-            if param_name in library_function_cfg.related_variables:
-                library_function_cfg.related_variables[param_name].value = arg_val
-            else:
-                # 파라미터가 없으면 새로 생성 (간단한 Variables 객체)
-                from Domain.Variable import Variables
-                param_var = Variables(identifier=param_name, scope="local")
-                param_var.value = arg_val
-                library_function_cfg.related_variables[param_name] = param_var
-        
+                # evaluate 결과가 복합 타입이면 객체 자체를 파라미터로 설정
+                if isinstance(arg_val, (StructVariable, ArrayVariable, MappingVariable)):
+                    library_function_cfg.related_variables[param_name] = arg_val
+                elif param_name in library_function_cfg.related_variables:
+                    library_function_cfg.related_variables[param_name].value = arg_val
+                else:
+                    param_var = Variables(identifier=param_name, scope="local")
+                    param_var.value = arg_val
+                    library_function_cfg.related_variables[param_name] = param_var
+
         # 4) 라이브러리 함수 실행
         try:
-            # 현재 함수 컨텍스트 저장
             saved_function = self.an.current_target_function
             saved_function_cfg = self.an.current_target_function_cfg
-            
-            # 라이브러리 함수로 컨텍스트 변경
+
             self.an.current_target_function = library_function_cfg.function_name
             self.an.current_target_function_cfg = library_function_cfg
-            
+
             # 라이브러리의 constant 변수들을 caller_env에 추가
-            # library_function_cfg가 속한 LibraryCFG 찾기
             library_cfg = None
             for lib_name, lib_cfg in self.an.library_cfgs.items():
-                if library_function_cfg in lib_cfg.functions.values():
+                if library_function_cfg in [f for _, f in lib_cfg.iter_all_functions()]:
                     library_cfg = lib_cfg
                     break
-            
-            # 라이브러리 constant 변수들을 환경에 추가
+
             if library_cfg and library_cfg.state_variable_node:
                 for var_name, var_obj in library_cfg.state_variable_node.variables.items():
-                    if var_name not in caller_env:  # 호출자 변수와 충돌하지 않도록
+                    if var_name not in caller_env:
                         caller_env[var_name] = var_obj
-            
-            # 라이브러리 함수 CFG 실행
+
             return_value = self.engine.interpret_function_cfg(library_function_cfg, caller_env)
+
 
             # 함수 컨텍스트 복원
             self.an.current_target_function = saved_function
@@ -1637,6 +2190,9 @@ class Evaluation :
             
         except Exception as e:
             # 오류 발생 시 symbolic 값 반환
+            import traceback
+            print(f"[LIBRARY CALL ERROR] {expr.function.identifier}: {str(e)}")
+            traceback.print_exc()
             return f"symbolic_library_error({expr.function.identifier}: {str(e)})"
 
     def evaluate_super_function_call_context(self, expr, variables, super_function_cfg):
@@ -1898,6 +2454,199 @@ class Evaluation :
         except (ValueError, TypeError):
             return f"symbolicInt{bits}({sub_val})"
 
+    def evaluate_type_wrap_unwrap(self, expr, variables, callerObject=None, callerContext=None):
+        """
+        user-defined value type의 wrap/unwrap 처리.
+        Fixed18.wrap(100) → int256 interval로 변환
+        Fixed18.unwrap(a) → underlying type interval로 변환
+        """
+        type_name = expr.identifier       # "Fixed18", "UFixed18"
+        method = expr.member               # "wrap" or "unwrap"
+        args = expr.arguments or []
+
+        if not args:
+            return UnsignedIntegerInterval.top()
+
+        # 인자 evaluate
+        arg_val = self.evaluate_expression(args[0], variables, None, None)
+
+        # underlying type 조회
+        underlying = self.an.sa.resolve_type(type_name)
+        if underlying is None:
+            return arg_val  # fallback
+
+        # underlying type에 맞는 interval로 변환
+        if underlying.startswith("int"):
+            bits = int(underlying[3:]) if len(underlying) > 3 else 256
+            if VariableEnv.is_interval(arg_val):
+                return IntegerInterval(arg_val.min_value, arg_val.max_value, bits)
+            elif isinstance(arg_val, (int, float)):
+                return IntegerInterval(int(arg_val), int(arg_val), bits)
+            return IntegerInterval.top(bits)
+        elif underlying.startswith("uint"):
+            bits = int(underlying[4:]) if len(underlying) > 4 else 256
+            if VariableEnv.is_interval(arg_val):
+                return UnsignedIntegerInterval(arg_val.min_value, arg_val.max_value, bits)
+            elif isinstance(arg_val, (int, float)):
+                return UnsignedIntegerInterval(int(arg_val), int(arg_val), bits)
+            return UnsignedIntegerInterval.top(bits)
+        elif underlying == "bool":
+            if isinstance(arg_val, BoolInterval):
+                return arg_val
+            return BoolInterval.top()
+
+        return arg_val  # 기타 타입은 그대로
+
+    def _resolve_alias_from_expr(self, base_expr, variables) -> str | None:
+        """expr.base에서 원래 타입의 aliasName을 복원.
+        1) Identifier → variables에서 조회
+        2) MemberAccess on struct → struct 멤버의 typeInfo 조회
+        3) 그 외 → None + error 출력"""
+        if base_expr is None:
+            return None
+
+        # 1) Identifier: someVar.add(...)
+        if getattr(base_expr, 'context', None) == 'IdentifierExpContext':
+            ident = base_expr.identifier
+            var = variables.get(ident)
+            if var and hasattr(var, 'typeInfo') and var.typeInfo:
+                return getattr(var.typeInfo, 'aliasName', None)
+            return None
+
+        # 2) MemberAccess: self.shortfall.add(...)
+        if getattr(base_expr, 'context', None) == 'MemberAccessContext':
+            member_name = base_expr.member
+            # global keyword (block, msg, tx) base는 alias 없음
+            base_ident = getattr(base_expr.base, 'identifier', None)
+            if base_ident in ('block', 'msg', 'tx'):
+                return None
+            try:
+                base_val = self.evaluate_expression(base_expr.base, variables, None, None)
+            except (ValueError, KeyError):
+                return None
+            if isinstance(base_val, StructVariable) and member_name in base_val.members:
+                member_var = base_val.members[member_name]
+                if hasattr(member_var, 'typeInfo') and member_var.typeInfo:
+                    return getattr(member_var.typeInfo, 'aliasName', None)
+            return None
+
+        # 3) TupleExpression: (expr).method() → 괄호 벗기고 재귀
+        if getattr(base_expr, 'context', None) == 'TupleExpressionContext':
+            inner = getattr(base_expr, 'elements', None)
+            if inner and len(inner) == 1:
+                return self._resolve_alias_from_expr(inner[0], variables)
+
+        # 4) IndexAccess: balances[_to].add(...) → 평가해서 Variables typeInfo 확인
+        if getattr(base_expr, 'context', None) == 'IndexAccessContext':
+            try:
+                val = self.evaluate_expression(base_expr, variables, None, None)
+                if isinstance(val, Variables) and hasattr(val, 'typeInfo') and val.typeInfo:
+                    return getattr(val.typeInfo, 'aliasName', None)
+            except (ValueError, KeyError, AttributeError):
+                pass
+            return None
+
+        # 5) FunctionCall: value.div(100000).mul(...) → 체이닝, base object 재귀 추적
+        if getattr(base_expr, 'context', None) == 'FunctionCallContext':
+            func_expr = getattr(base_expr, 'function', None) or getattr(base_expr, 'base', None)
+            if func_expr and getattr(func_expr, 'context', None) == 'MemberAccessContext':
+                result = self._resolve_alias_from_expr(func_expr.base, variables)
+                if result:
+                    return result
+                # base가 library 이름인 경우: using directive에서 역추적
+                lib_ident = getattr(func_expr.base, 'identifier', None)
+                if lib_ident and lib_ident in self.an.library_cfgs:
+                    contract_name = self.an.current_target_contract
+                    ccfg = self.an.contract_cfgs.get(contract_name)
+                    if ccfg:
+                        for type_name, libs in ccfg.using_libraries.items():
+                            for lib in libs:
+                                lib_name = getattr(lib, 'library_name', None) or getattr(lib, 'contract_name', None)
+                                if lib_name == lib_ident:
+                                    return type_name
+            return None
+
+        # 6) 그 외: alias 없음
+        return None
+
+    def _find_struct_def(self, contract_cfg, struct_name):
+        """struct 정의를 현재 contract, parent chain, using libraries에서 검색.
+        Returns: (struct_def, qualified_name) 또는 None"""
+        # 1) 현재 contract
+        if struct_name in contract_cfg.structDefs:
+            return contract_cfg.structDefs[struct_name], struct_name
+        # 2) parent chain
+        for parent_cfg in getattr(contract_cfg, 'parent_cfgs', {}).values():
+            if struct_name in parent_cfg.structDefs:
+                return parent_cfg.structDefs[struct_name], struct_name
+        # 3) using libraries
+        all_libs = []
+        for libs in getattr(contract_cfg, 'using_libraries', {}).values():
+            all_libs.extend(libs if isinstance(libs, list) else [libs])
+        all_libs.extend(getattr(contract_cfg, 'using_all_libraries', []))
+        for lib in all_libs:
+            if struct_name in lib.structDefs:
+                qualified = f"{lib.library_name}.{struct_name}"
+                return lib.structDefs[struct_name], qualified
+        # 4) library_cfgs 직접 검색
+        for lib_name, lib_cfg in self.an.library_cfgs.items():
+            if struct_name in lib_cfg.structDefs:
+                qualified = f"{lib_name}.{struct_name}"
+                return lib_cfg.structDefs[struct_name], qualified
+        return None
+
+    def _evaluate_builtin_function(self, function_name, expr, variables, callerObject):
+        """Solidity built-in 함수 처리. 해당하면 결과 반환, 아니면 None."""
+        args = expr.arguments or []
+
+        # addmod(a, b, n) → (a + b) % n
+        if function_name == "addmod" and len(args) == 3:
+            a = self.evaluate_expression(args[0], variables, None, None)
+            b = self.evaluate_expression(args[1], variables, None, None)
+            n = self.evaluate_expression(args[2], variables, None, None)
+            if VariableEnv.is_interval(a) and VariableEnv.is_interval(b) and VariableEnv.is_interval(n):
+                return self._mapping_lookup_if_needed(a.add(b).modulo(n), callerObject)
+            return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+
+        # mulmod(a, b, n) → (a * b) % n
+        if function_name == "mulmod" and len(args) == 3:
+            a = self.evaluate_expression(args[0], variables, None, None)
+            b = self.evaluate_expression(args[1], variables, None, None)
+            n = self.evaluate_expression(args[2], variables, None, None)
+            if VariableEnv.is_interval(a) and VariableEnv.is_interval(b) and VariableEnv.is_interval(n):
+                return self._mapping_lookup_if_needed(a.multiply(b).modulo(n), callerObject)
+            return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+
+        # keccak256, sha256, ripemd160, blockhash → TOP (bytes32)
+        if function_name in ("keccak256", "sha256", "ripemd160", "blockhash"):
+            return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+
+        # ecrecover → TOP (address)
+        if function_name == "ecrecover":
+            return self._mapping_lookup_if_needed(AddressSet.top(), callerObject)
+
+        # gasleft → TOP (uint256)
+        if function_name == "gasleft":
+            return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+
+        return None  # built-in이 아님
+
+    def _get_address_this_balance(self, variables):
+        """GlobalVar에서 address(this).balance 값을 조회. 없으면 None."""
+        gv_name = "address(this).balance"
+        # 1) variables(함수 env)에 있는지
+        if gv_name in variables:
+            v = variables[gv_name]
+            return v.value if hasattr(v, "value") else v
+        # 2) contract globals에 있는지
+        contract_name = self.an.current_target_contract
+        if contract_name and contract_name in self.an.contract_cfgs:
+            cfg = self.an.contract_cfgs[contract_name]
+            if gv_name in cfg.globals:
+                g = cfg.globals[gv_name]
+                return g.value
+        return None
+
     def convert_to_bool(self, sub_val):
         """
         int/uint interval -> 0 => false, !=0 => true => [0,1] 형태
@@ -2138,10 +2887,10 @@ class Evaluation :
     @staticmethod
     def compare_intervals(left_interval, right_interval, operator):
 
-        # 값이 하나라도 없으면 판단 불가 → TOP
+        # 값이 하나라도 BOTTOM이면 비교 결과도 BOTTOM (unreachable)
         if (left_interval.min_value is None or left_interval.max_value is None or
                 right_interval.min_value is None or right_interval.max_value is None):
-            return BoolInterval(0, 1)  # [0,1]
+            return BoolInterval.bottom()  # unreachable
 
         definitely_true = False
         definitely_false = False

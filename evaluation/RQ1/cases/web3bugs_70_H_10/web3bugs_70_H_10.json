@@ -1,0 +1,512 @@
+[
+  {
+    "code": "pragma solidity =0.8.9;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract LiquidityBasedTWAP is ILiquidityBasedTWAP, Ownable {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using FixedPoint for FixedPoint.uq112x112;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "using FixedPoint for FixedPoint.uq144x112;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "address public immutable vader;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "IVaderPoolV2 public immutable vaderPool;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "IUniswapV2Pair[] public vaderPairs;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "IERC20[] public usdvPairs;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public override maxUpdateWindow;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint256[2] public totalLiquidityWeight;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "uint256[2] public override previousPrices;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => ExchangePair) public twapData;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => IAggregatorV3) public oracles;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "function getChainlinkPrice(address asset) public view returns (uint256) {\n}",
+    "startLine": 20,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "IAggregatorV3 oracle = oracles[asset];",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "(uint80 roundID, int256 price, , , uint80 answeredInRound) = oracle .latestRoundData();",
+    "startLine": 23,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "require( answeredInRound >= roundID, \"LBTWAP::getChainlinkPrice: Stale Chainlink Price\" );",
+    "startLine": 26,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "require(price > 0, \"LBTWAP::getChainlinkPrice: Chainlink Malfunction\");",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "return uint256(price);",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "function _updateVaderPrice( IUniswapV2Pair pair, ExchangePair storage pairData, uint256 timeElapsed ) internal returns (uint256 currentLiquidityEvaluation) {\n}",
+    "startLine": 36,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "bool isFirst = pair.token0() == vader;",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "(uint256 reserve0, uint256 reserve1, ) = pair.getReserves();",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "(uint256 reserveNative, uint256 reserveForeign) = isFirst ? (reserve0, reserve1) : (reserve1, reserve0);",
+    "startLine": 45,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "( uint256 price0Cumulative, uint256 price1Cumulative, uint256 currentMeasurement ) = UniswapV2OracleLibrary.currentCumulativePrices(address(pair));",
+    "startLine": 49,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "uint256 nativeTokenPriceCumulative = isFirst ? price0Cumulative : price1Cumulative;",
+    "startLine": 55,
+    "endLine": 57,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "unchecked {\n}",
+    "startLine": 59,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "pairData.nativeTokenPriceAverage = FixedPoint.uq112x112( uint224( (nativeTokenPriceCumulative - pairData.nativeTokenPriceCumulative) / timeElapsed ) );",
+    "startLine": 60,
+    "endLine": 65,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 67,
+    "endLine": 67,
+    "event": "add"
+  },
+  {
+    "code": "pairData.nativeTokenPriceCumulative = nativeTokenPriceCumulative;",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 69,
+    "endLine": 69,
+    "event": "add"
+  },
+  {
+    "code": "pairData.lastMeasurement = currentMeasurement;",
+    "startLine": 70,
+    "endLine": 70,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 71,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "currentLiquidityEvaluation = (reserveNative * previousPrices[uint256(Paths.VADER)]) + (reserveForeign * getChainlinkPrice(pairData.foreignAsset));",
+    "startLine": 72,
+    "endLine": 74,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 76,
+    "endLine": 76,
+    "event": "add"
+  },
+  {
+    "code": "function syncVaderPrice() public override returns ( uint256[] memory pastLiquidityWeights, uint256 pastTotalLiquidityWeight ) {\n}",
+    "startLine": 77,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _totalLiquidityWeight;",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalPairs = vaderPairs.length;",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "pastLiquidityWeights = new uint256[](totalPairs);",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
+    "code": "pastTotalLiquidityWeight = totalLiquidityWeight[uint256(Paths.VADER)];",
+    "startLine": 88,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 89,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "for (uint256 i; i < totalPairs; ++i) {\n}",
+    "startLine": 90,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "IUniswapV2Pair pair = vaderPairs[i];",
+    "startLine": 91,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "ExchangePair storage pairData = twapData[address(pair)];",
+    "startLine": 92,
+    "endLine": 92,
+    "event": "add"
+  },
+  {
+    "code": "uint256 timeElapsed = block.timestamp - pairData.lastMeasurement;",
+    "startLine": 93,
+    "endLine": 93,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 94,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "if (timeElapsed < pairData.updatePeriod) {\n}",
+    "startLine": 95,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "continue;",
+    "startLine": 96,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "uint256 pastLiquidityEvaluation = pairData.pastLiquidityEvaluation;",
+    "startLine": 99,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "uint256 currentLiquidityEvaluation = _updateVaderPrice( pair, pairData, timeElapsed );",
+    "startLine": 100,
+    "endLine": 104,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 105,
+    "endLine": 105,
+    "event": "add"
+  },
+  {
+    "code": "pastLiquidityWeights[i] = pastLiquidityEvaluation;",
+    "startLine": 106,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 107,
+    "endLine": 107,
+    "event": "add"
+  },
+  {
+    "code": "pairData.pastLiquidityEvaluation = currentLiquidityEvaluation;",
+    "startLine": 108,
+    "endLine": 108,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 109,
+    "endLine": 109,
+    "event": "add"
+  },
+  {
+    "code": "_totalLiquidityWeight += currentLiquidityEvaluation;",
+    "startLine": 110,
+    "endLine": 110,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 112,
+    "endLine": 112,
+    "event": "add"
+  },
+  {
+    "code": "totalLiquidityWeight[uint256(Paths.VADER)] = _totalLiquidityWeight;",
+    "startLine": 113,
+    "endLine": 113,
+    "event": "add"
+  },
+  {
+    "code": "// @Post changed(previousPrices[0], true)",
+    "startLine": 114,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar block.timestamp = [10000, 10000]",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar previousPrices[0] = [1000000000000000, 1000000000000000]",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar vaderPairs.length = [1, 1]",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar totalLiquidityWeight[0] = [1, 1]",
+    "startLine": 88,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar twapData[1].lastMeasurement = [1000, 1000]",
+    "startLine": 89,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar twapData[1].updatePeriod = [60, 60]",
+    "startLine": 90,
+    "endLine": 90,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar twapData[1].pastLiquidityEvaluation = [1, 1]",
+    "startLine": 91,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar twapData[1].nativeTokenPriceCumulative = [0, 0]",
+    "startLine": 92,
+    "endLine": 92,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 93,
+    "endLine": 93,
+    "event": "add"
+  }
+]

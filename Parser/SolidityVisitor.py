@@ -1,6 +1,6 @@
-# Generated from Solidity.g4 by ANTLR 4.13.2
+# Generated from Parser/Solidity.g4 by ANTLR 4.12.0
 from antlr4 import *
-if "." in __name__:
+if __name__ is not None and "." in __name__:
     from .SolidityParser import SolidityParser
 else:
     from SolidityParser import SolidityParser
@@ -289,8 +289,13 @@ class SolidityVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by SolidityParser#debugGlobalVar.
-    def visitDebugGlobalVar(self, ctx:SolidityParser.DebugGlobalVarContext):
+    # Visit a parse tree produced by SolidityParser#GlobalVarSimple.
+    def visitGlobalVarSimple(self, ctx:SolidityParser.GlobalVarSimpleContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#GlobalVarAddressBalance.
+    def visitGlobalVarAddressBalance(self, ctx:SolidityParser.GlobalVarAddressBalanceContext):
         return self.visitChildren(ctx)
 
 
@@ -301,6 +306,36 @@ class SolidityVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SolidityParser#debugLocalVar.
     def visitDebugLocalVar(self, ctx:SolidityParser.DebugLocalVarContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IReturnPatternA.
+    def visitIReturnPatternA(self, ctx:SolidityParser.IReturnPatternAContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IReturnPatternB.
+    def visitIReturnPatternB(self, ctx:SolidityParser.IReturnPatternBContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#ireturnAccessChain.
+    def visitIreturnAccessChain(self, ctx:SolidityParser.IreturnAccessChainContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IReturnMemberAccess.
+    def visitIReturnMemberAccess(self, ctx:SolidityParser.IReturnMemberAccessContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IReturnIndexAccess.
+    def visitIReturnIndexAccess(self, ctx:SolidityParser.IReturnIndexAccessContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IReturnChainedCall.
+    def visitIReturnChainedCall(self, ctx:SolidityParser.IReturnChainedCallContext):
         return self.visitChildren(ctx)
 
 
@@ -316,6 +351,11 @@ class SolidityVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SolidityParser#DuringAssignCurrent.
     def visitDuringAssignCurrent(self, ctx:SolidityParser.DuringAssignCurrentContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#DuringFeasible.
+    def visitDuringFeasible(self, ctx:SolidityParser.DuringFeasibleContext):
         return self.visitChildren(ctx)
 
 
@@ -336,11 +376,6 @@ class SolidityVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SolidityParser#PostEntryExit.
     def visitPostEntryExit(self, ctx:SolidityParser.PostEntryExitContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#UnchangedVar.
-    def visitUnchangedVar(self, ctx:SolidityParser.UnchangedVarContext):
         return self.visitChildren(ctx)
 
 
@@ -389,6 +424,11 @@ class SolidityVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by SolidityParser#VarChangedEval.
+    def visitVarChangedEval(self, ctx:SolidityParser.VarChangedEvalContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by SolidityParser#DebugIntInterval.
     def visitDebugIntInterval(self, ctx:SolidityParser.DebugIntIntervalContext):
         return self.visitChildren(ctx)
@@ -434,6 +474,16 @@ class SolidityVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by SolidityParser#IntentShiftOp.
+    def visitIntentShiftOp(self, ctx:SolidityParser.IntentShiftOpContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IntentShiftRoot.
+    def visitIntentShiftRoot(self, ctx:SolidityParser.IntentShiftRootContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by SolidityParser#AddSub.
     def visitAddSub(self, ctx:SolidityParser.AddSubContext):
         return self.visitChildren(ctx)
@@ -451,6 +501,16 @@ class SolidityVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SolidityParser#MulDivMod.
     def visitMulDivMod(self, ctx:SolidityParser.MulDivModContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IntentExponentiation.
+    def visitIntentExponentiation(self, ctx:SolidityParser.IntentExponentiationContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#IntentExpRoot.
+    def visitIntentExpRoot(self, ctx:SolidityParser.IntentExpRootContext):
         return self.visitChildren(ctx)
 
 
@@ -634,68 +694,8 @@ class SolidityVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by SolidityParser#yulStatement.
-    def visitYulStatement(self, ctx:SolidityParser.YulStatementContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulBlock.
-    def visitYulBlock(self, ctx:SolidityParser.YulBlockContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulVariableDeclaration.
-    def visitYulVariableDeclaration(self, ctx:SolidityParser.YulVariableDeclarationContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulAssignment.
-    def visitYulAssignment(self, ctx:SolidityParser.YulAssignmentContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulIfStatement.
-    def visitYulIfStatement(self, ctx:SolidityParser.YulIfStatementContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulForStatement.
-    def visitYulForStatement(self, ctx:SolidityParser.YulForStatementContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulSwitchStatement.
-    def visitYulSwitchStatement(self, ctx:SolidityParser.YulSwitchStatementContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulFunctionDefinition.
-    def visitYulFunctionDefinition(self, ctx:SolidityParser.YulFunctionDefinitionContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulPath.
-    def visitYulPath(self, ctx:SolidityParser.YulPathContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulFunctionCall.
-    def visitYulFunctionCall(self, ctx:SolidityParser.YulFunctionCallContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulBoolean.
-    def visitYulBoolean(self, ctx:SolidityParser.YulBooleanContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulLiteral.
-    def visitYulLiteral(self, ctx:SolidityParser.YulLiteralContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#yulExpression.
-    def visitYulExpression(self, ctx:SolidityParser.YulExpressionContext):
+    # Visit a parse tree produced by SolidityParser#assemblyBlock.
+    def visitAssemblyBlock(self, ctx:SolidityParser.AssemblyBlockContext):
         return self.visitChildren(ctx)
 
 

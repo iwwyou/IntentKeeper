@@ -1,6 +1,6 @@
-# Generated from Solidity.g4 by ANTLR 4.13.2
+# Generated from Parser/Solidity.g4 by ANTLR 4.12.0
 from antlr4 import *
-if "." in __name__:
+if __name__ is not None and "." in __name__:
     from .SolidityParser import SolidityParser
 else:
     from SolidityParser import SolidityParser
@@ -512,12 +512,21 @@ class SolidityListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by SolidityParser#debugGlobalVar.
-    def enterDebugGlobalVar(self, ctx:SolidityParser.DebugGlobalVarContext):
+    # Enter a parse tree produced by SolidityParser#GlobalVarSimple.
+    def enterGlobalVarSimple(self, ctx:SolidityParser.GlobalVarSimpleContext):
         pass
 
-    # Exit a parse tree produced by SolidityParser#debugGlobalVar.
-    def exitDebugGlobalVar(self, ctx:SolidityParser.DebugGlobalVarContext):
+    # Exit a parse tree produced by SolidityParser#GlobalVarSimple.
+    def exitGlobalVarSimple(self, ctx:SolidityParser.GlobalVarSimpleContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#GlobalVarAddressBalance.
+    def enterGlobalVarAddressBalance(self, ctx:SolidityParser.GlobalVarAddressBalanceContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#GlobalVarAddressBalance.
+    def exitGlobalVarAddressBalance(self, ctx:SolidityParser.GlobalVarAddressBalanceContext):
         pass
 
 
@@ -536,6 +545,60 @@ class SolidityListener(ParseTreeListener):
 
     # Exit a parse tree produced by SolidityParser#debugLocalVar.
     def exitDebugLocalVar(self, ctx:SolidityParser.DebugLocalVarContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IReturnPatternA.
+    def enterIReturnPatternA(self, ctx:SolidityParser.IReturnPatternAContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IReturnPatternA.
+    def exitIReturnPatternA(self, ctx:SolidityParser.IReturnPatternAContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IReturnPatternB.
+    def enterIReturnPatternB(self, ctx:SolidityParser.IReturnPatternBContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IReturnPatternB.
+    def exitIReturnPatternB(self, ctx:SolidityParser.IReturnPatternBContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#ireturnAccessChain.
+    def enterIreturnAccessChain(self, ctx:SolidityParser.IreturnAccessChainContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#ireturnAccessChain.
+    def exitIreturnAccessChain(self, ctx:SolidityParser.IreturnAccessChainContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IReturnMemberAccess.
+    def enterIReturnMemberAccess(self, ctx:SolidityParser.IReturnMemberAccessContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IReturnMemberAccess.
+    def exitIReturnMemberAccess(self, ctx:SolidityParser.IReturnMemberAccessContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IReturnIndexAccess.
+    def enterIReturnIndexAccess(self, ctx:SolidityParser.IReturnIndexAccessContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IReturnIndexAccess.
+    def exitIReturnIndexAccess(self, ctx:SolidityParser.IReturnIndexAccessContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IReturnChainedCall.
+    def enterIReturnChainedCall(self, ctx:SolidityParser.IReturnChainedCallContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IReturnChainedCall.
+    def exitIReturnChainedCall(self, ctx:SolidityParser.IReturnChainedCallContext):
         pass
 
 
@@ -563,6 +626,15 @@ class SolidityListener(ParseTreeListener):
 
     # Exit a parse tree produced by SolidityParser#DuringAssignCurrent.
     def exitDuringAssignCurrent(self, ctx:SolidityParser.DuringAssignCurrentContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#DuringFeasible.
+    def enterDuringFeasible(self, ctx:SolidityParser.DuringFeasibleContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#DuringFeasible.
+    def exitDuringFeasible(self, ctx:SolidityParser.DuringFeasibleContext):
         pass
 
 
@@ -599,15 +671,6 @@ class SolidityListener(ParseTreeListener):
 
     # Exit a parse tree produced by SolidityParser#PostEntryExit.
     def exitPostEntryExit(self, ctx:SolidityParser.PostEntryExitContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#UnchangedVar.
-    def enterUnchangedVar(self, ctx:SolidityParser.UnchangedVarContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#UnchangedVar.
-    def exitUnchangedVar(self, ctx:SolidityParser.UnchangedVarContext):
         pass
 
 
@@ -692,6 +755,15 @@ class SolidityListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by SolidityParser#VarChangedEval.
+    def enterVarChangedEval(self, ctx:SolidityParser.VarChangedEvalContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#VarChangedEval.
+    def exitVarChangedEval(self, ctx:SolidityParser.VarChangedEvalContext):
+        pass
+
+
     # Enter a parse tree produced by SolidityParser#DebugIntInterval.
     def enterDebugIntInterval(self, ctx:SolidityParser.DebugIntIntervalContext):
         pass
@@ -773,6 +845,24 @@ class SolidityListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by SolidityParser#IntentShiftOp.
+    def enterIntentShiftOp(self, ctx:SolidityParser.IntentShiftOpContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IntentShiftOp.
+    def exitIntentShiftOp(self, ctx:SolidityParser.IntentShiftOpContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IntentShiftRoot.
+    def enterIntentShiftRoot(self, ctx:SolidityParser.IntentShiftRootContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IntentShiftRoot.
+    def exitIntentShiftRoot(self, ctx:SolidityParser.IntentShiftRootContext):
+        pass
+
+
     # Enter a parse tree produced by SolidityParser#AddSub.
     def enterAddSub(self, ctx:SolidityParser.AddSubContext):
         pass
@@ -806,6 +896,24 @@ class SolidityListener(ParseTreeListener):
 
     # Exit a parse tree produced by SolidityParser#MulDivMod.
     def exitMulDivMod(self, ctx:SolidityParser.MulDivModContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IntentExponentiation.
+    def enterIntentExponentiation(self, ctx:SolidityParser.IntentExponentiationContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IntentExponentiation.
+    def exitIntentExponentiation(self, ctx:SolidityParser.IntentExponentiationContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#IntentExpRoot.
+    def enterIntentExpRoot(self, ctx:SolidityParser.IntentExpRootContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#IntentExpRoot.
+    def exitIntentExpRoot(self, ctx:SolidityParser.IntentExpRootContext):
         pass
 
 
@@ -1133,120 +1241,12 @@ class SolidityListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by SolidityParser#yulStatement.
-    def enterYulStatement(self, ctx:SolidityParser.YulStatementContext):
+    # Enter a parse tree produced by SolidityParser#assemblyBlock.
+    def enterAssemblyBlock(self, ctx:SolidityParser.AssemblyBlockContext):
         pass
 
-    # Exit a parse tree produced by SolidityParser#yulStatement.
-    def exitYulStatement(self, ctx:SolidityParser.YulStatementContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulBlock.
-    def enterYulBlock(self, ctx:SolidityParser.YulBlockContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulBlock.
-    def exitYulBlock(self, ctx:SolidityParser.YulBlockContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulVariableDeclaration.
-    def enterYulVariableDeclaration(self, ctx:SolidityParser.YulVariableDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulVariableDeclaration.
-    def exitYulVariableDeclaration(self, ctx:SolidityParser.YulVariableDeclarationContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulAssignment.
-    def enterYulAssignment(self, ctx:SolidityParser.YulAssignmentContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulAssignment.
-    def exitYulAssignment(self, ctx:SolidityParser.YulAssignmentContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulIfStatement.
-    def enterYulIfStatement(self, ctx:SolidityParser.YulIfStatementContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulIfStatement.
-    def exitYulIfStatement(self, ctx:SolidityParser.YulIfStatementContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulForStatement.
-    def enterYulForStatement(self, ctx:SolidityParser.YulForStatementContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulForStatement.
-    def exitYulForStatement(self, ctx:SolidityParser.YulForStatementContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulSwitchStatement.
-    def enterYulSwitchStatement(self, ctx:SolidityParser.YulSwitchStatementContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulSwitchStatement.
-    def exitYulSwitchStatement(self, ctx:SolidityParser.YulSwitchStatementContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulFunctionDefinition.
-    def enterYulFunctionDefinition(self, ctx:SolidityParser.YulFunctionDefinitionContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulFunctionDefinition.
-    def exitYulFunctionDefinition(self, ctx:SolidityParser.YulFunctionDefinitionContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulPath.
-    def enterYulPath(self, ctx:SolidityParser.YulPathContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulPath.
-    def exitYulPath(self, ctx:SolidityParser.YulPathContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulFunctionCall.
-    def enterYulFunctionCall(self, ctx:SolidityParser.YulFunctionCallContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulFunctionCall.
-    def exitYulFunctionCall(self, ctx:SolidityParser.YulFunctionCallContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulBoolean.
-    def enterYulBoolean(self, ctx:SolidityParser.YulBooleanContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulBoolean.
-    def exitYulBoolean(self, ctx:SolidityParser.YulBooleanContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulLiteral.
-    def enterYulLiteral(self, ctx:SolidityParser.YulLiteralContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulLiteral.
-    def exitYulLiteral(self, ctx:SolidityParser.YulLiteralContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#yulExpression.
-    def enterYulExpression(self, ctx:SolidityParser.YulExpressionContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#yulExpression.
-    def exitYulExpression(self, ctx:SolidityParser.YulExpressionContext):
+    # Exit a parse tree produced by SolidityParser#assemblyBlock.
+    def exitAssemblyBlock(self, ctx:SolidityParser.AssemblyBlockContext):
         pass
 
 

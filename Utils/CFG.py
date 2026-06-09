@@ -1,4 +1,3 @@
-# SolidityGuardian/Utils/CFG.py
 import networkx as nx
 from typing import Any
 from Domain.IR import *
@@ -58,6 +57,9 @@ class CFGNode:
 
         self.src_line = src_line
         self.function_evaluated = None
+
+        # intent annotations attached to this node
+        self.intents: list[dict] = []  # @During, @Post 등
 
     def add_variable_declaration_statement(self, typeObj, varName, initExpr, line_no):
 
@@ -236,6 +238,7 @@ class ContractCFG(CFG):
     def __init__(self, contract_name):
         super().__init__('contract')
         self.contract_name = contract_name
+        self.is_interface = False
         self.state_variable_node = None
 
         self.structDefs = {}  # name -> StructDefinition 객체
@@ -249,15 +252,15 @@ class ContractCFG(CFG):
         self.receive = None
 
         #self.modifiers = {}  # name -> FunctionCFG
-        self.functions = {}  # name -> FunctionCFG
+        self.functions = {}  # name -> {signature -> FunctionCFG}  (overloading 지원)
 
         # Event 정의 저장
         self.events = {}  # name -> EventDefinition (parameters list)
 
         self.globals: dict[str, GlobalVariable] = {}
 
-        # Using directive 지원: type -> LibraryCFG
-        self.using_libraries: dict[str, 'LibraryCFG'] = {}  # "uint256" -> SafeMathLibrary
+        # Using directive 지원: type -> [LibraryCFG, ...]  (같은 타입에 여러 library 가능)
+        self.using_libraries: dict[str, list['LibraryCFG']] = {}
         self.using_all_libraries: list['LibraryCFG'] = []   # using Library for *;
 
         # 상속 지원: parent contracts
@@ -345,47 +348,116 @@ class ContractCFG(CFG):
     #    return self.modifiers.get(modifier_name)
 
     def add_function_cfg(self, function_name, function_cfg):
-        self.functions[function_name] = function_cfg
+        sig = self._build_signature(function_cfg)
+        if function_name not in self.functions:
+            self.functions[function_name] = {}
+        self.functions[function_name][sig] = function_cfg
 
-    def get_function_cfg(self, function_name):
-        return self.functions[function_name]
+    def update_function_cfg(self, function_name, function_cfg):
+        """기존에 등록된 함수의 CFG를 동일 signature로 업데이트"""
+        if function_name not in self.functions:
+            self.add_function_cfg(function_name, function_cfg)
+            return
+        sub = self.functions[function_name]
+        sig = self._build_signature(function_cfg)
+        if sig in sub:
+            sub[sig] = function_cfg
+        elif len(sub) == 1:
+            # signature 불일치지만 1개뿐이면 교체 (process 중 업데이트)
+            key = next(iter(sub))
+            sub[key] = function_cfg
+        else:
+            sub[sig] = function_cfg
+
+    def get_function_cfg(self, function_name, param_types=None):
+        """함수 CFG 반환. overload 시 param_types로 매칭."""
+        # constructor 특별 처리
+        if function_name == "constructor" and self.constructor is not None:
+            return self.constructor
+        sub = self.functions.get(function_name)
+        if sub is None:
+            return None
+        if len(sub) == 1:
+            return next(iter(sub.values()))
+        if param_types is not None:
+            sig = "(" + ",".join(param_types) + ")"
+            return sub.get(sig)
+        return next(iter(sub.values()))  # default: 첫 번째
+
+    @staticmethod
+    def _build_signature(fcfg) -> str:
+        """FunctionCFG의 파라미터 타입으로 signature 생성"""
+        if hasattr(fcfg, 'parameter_types') and fcfg.parameter_types:
+            return "(" + ",".join(fcfg.parameter_types) + ")"
+        return "()"
     
-    def add_using_library(self, library_cfg: 'LibraryCFG', target_type: str = None):
+    def add_using_library(self, library_cfg: 'LibraryCFG', target_type: str = None, prepend: bool = False):
         """
         using directive 처리: using LibraryName for TargetType;
         target_type이 None이면 모든 타입에 적용 (using LibraryName for *;)
+        prepend=True이면 리스트 앞에 삽입 (명시적 선언이 상속보다 우선)
         """
         if target_type is None:
-            self.using_all_libraries.append(library_cfg)
+            if library_cfg not in self.using_all_libraries:
+                if prepend:
+                    self.using_all_libraries.insert(0, library_cfg)
+                else:
+                    self.using_all_libraries.append(library_cfg)
         else:
-            self.using_libraries[target_type] = library_cfg
-    
-    def find_library_function(self, target_type: str, function_name: str) -> 'FunctionCFG':
+            if target_type not in self.using_libraries:
+                self.using_libraries[target_type] = []
+            if library_cfg not in self.using_libraries[target_type]:
+                if prepend:
+                    self.using_libraries[target_type].insert(0, library_cfg)
+                else:
+                    self.using_libraries[target_type].append(library_cfg)
+
+    def find_library_function(self, target_type: str, function_name: str, param_types=None, n_args: int = None) -> 'FunctionCFG':
         """
         target_type에 대한 라이브러리 함수를 찾아 반환
         예: find_library_function("uint256", "mul") -> SafeMath.mul
+        n_args가 주어지면 인자 개수가 일치하는 overload를 우선 반환
         """
+        def _search_libs(libs):
+            for library_cfg in libs:
+                if n_args is not None and function_name in library_cfg.functions:
+                    for sig, fc in library_cfg.functions[function_name].items():
+                        if len(fc.parameters) == n_args:
+                            return fc
+                else:
+                    result = library_cfg.get_function_cfg(function_name, param_types)
+                    if result is not None:
+                        return result
+            return None
+
         # 특정 타입에 대한 라이브러리 검색
         if target_type in self.using_libraries:
-            library_cfg = self.using_libraries[target_type]
-            if function_name in library_cfg.functions:
-                return library_cfg.functions[function_name]
-        
+            result = _search_libs(self.using_libraries[target_type])
+            if result:
+                return result
+
         # using * 라이브러리들에서 검색
-        for library_cfg in self.using_all_libraries:
-            if function_name in library_cfg.functions:
-                return library_cfg.functions[function_name]
-        
+        result = _search_libs(self.using_all_libraries)
+        if result:
+            return result
+
         return None
     
+    def iter_all_functions(self):
+        """모든 FunctionCFG를 (name, fcfg) 튜플로 순회"""
+        for name, sub in self.functions.items():
+            for sig, fcfg in sub.items():
+                yield name, fcfg
+
     def serialize_for_storage(self) -> dict:
         """ContractCFG를 저장을 위해 직렬화"""
         serialized_functions = {}
-        for func_name, func_cfg in self.functions.items():
-            if hasattr(func_cfg, 'serialize_for_storage'):
-                serialized_functions[func_name] = func_cfg.serialize_for_storage()
+        for func_name, fcfg in self.iter_all_functions():
+            key = func_name
+            if hasattr(fcfg, 'serialize_for_storage'):
+                serialized_functions[key] = fcfg.serialize_for_storage()
             else:
-                serialized_functions[func_name] = str(func_cfg)
+                serialized_functions[key] = str(fcfg)
         
         serialized_globals = {}
         for var_name, var_obj in self.globals.items():
@@ -395,11 +467,13 @@ class ContractCFG(CFG):
                 serialized_globals[var_name] = str(var_obj)
         
         serialized_using_libraries = {}
-        for target_type, lib_cfg in self.using_libraries.items():
-            if hasattr(lib_cfg, 'serialize_for_storage'):
-                serialized_using_libraries[target_type] = lib_cfg.serialize_for_storage()
-            else:
-                serialized_using_libraries[target_type] = str(lib_cfg)
+        for target_type, lib_list in self.using_libraries.items():
+            serialized_using_libraries[target_type] = []
+            for lib_cfg in lib_list:
+                if hasattr(lib_cfg, 'serialize_for_storage'):
+                    serialized_using_libraries[target_type].append(lib_cfg.serialize_for_storage())
+                else:
+                    serialized_using_libraries[target_type].append(str(lib_cfg))
         
         serialized_using_all_libraries = []
         for lib_cfg in self.using_all_libraries:
@@ -474,9 +548,13 @@ class FunctionCFG(CFG):
         self.modifiers: dict[str, "FunctionCFG"] = {}
         self.related_variables: dict[str, Variables] = {}
         self.parameters: list[str] = []
+        self.parameter_types: list[str] = []  # overloading 지원: ["uint256", "address", ...]
         self.return_types: list[SolType] = []
         self.return_vars: list[Variables] = []
         self.assign_env: dict[str, Variables] = {}   # 최초 스냅샷 전용
+        self.ireturn_registry: dict[tuple, object] = {}  # @IReturn: (contractVar, funcName, index|None) → interval
+        self.interface_var_types: dict[str, str] = {}  # 지역변수 중 interface 타입: var_name → interfaceName
+        self.mutability: str | None = None  # "view", "pure", "payable", or None (default/nonpayable)
 
         # ── 분리된 sink 노드들 생성(빌더가 연결) ────────────────────────
         self.exit_node.function_exit_node = True
@@ -646,22 +724,39 @@ class LibraryCFG(CFG):
     def __init__(self, library_name):
         super().__init__('library')
         self.library_name = library_name
-        self.functions = {}  # function_name -> FunctionCFG
-        
+        self.functions = {}  # name -> {signature -> FunctionCFG}  (overloading 지원)
+
         # 라이브러리도 constant 변수를 가질 수 있으므로 state_variable_node 지원
         self.state_variable_node = None
-        
+
         self.structDefs = {}  # name -> StructDefinition 객체
         self.enumDefs = {}   # name -> EnumDefinition 객체
-        
+
+        self.globals: dict[str, 'GlobalVariable'] = {}
+
+        # Library 내부의 using directive 지원 (e.g., using Address for address;)
+        self.using_libraries: dict[str, list['LibraryCFG']] = {}
+        self.using_all_libraries: list['LibraryCFG'] = []
+
     def add_function_cfg(self, function_name, function_cfg):
         """라이브러리 함수 CFG 추가"""
-        self.functions[function_name] = function_cfg
-        
-    def get_function_cfg(self, function_name):
-        """라이브러리 함수 CFG 반환"""
-        return self.functions.get(function_name)
-        
+        sig = ContractCFG._build_signature(function_cfg)
+        if function_name not in self.functions:
+            self.functions[function_name] = {}
+        self.functions[function_name][sig] = function_cfg
+
+    def get_function_cfg(self, function_name, param_types=None):
+        """라이브러리 함수 CFG 반환. overload 시 param_types로 매칭."""
+        sub = self.functions.get(function_name)
+        if sub is None:
+            return None
+        if len(sub) == 1:
+            return next(iter(sub.values()))
+        if param_types is not None:
+            sig = "(" + ",".join(param_types) + ")"
+            return sub.get(sig)
+        return next(iter(sub.values()))
+
     def has_function(self, function_name: str) -> bool:
         """라이브러리에 해당 함수가 있는지 확인"""
         return function_name in self.functions
@@ -669,7 +764,71 @@ class LibraryCFG(CFG):
     def define_struct(self, struct_def_obj):
         """라이브러리 내 구조체 정의 추가"""
         self.structDefs[struct_def_obj.struct_name] = struct_def_obj
-        
+
+    def add_struct_member(self, struct_def_name, var_name, var_obj):
+        """라이브러리 내 구조체 멤버 추가"""
+        if struct_def_name in self.structDefs:
+            self.structDefs[struct_def_name].add_member(var_name, var_obj)
+        else:
+            raise ValueError(f"Struct {struct_def_name} is not defined in library {self.library_name}.")
+
+    def add_using_library(self, library_cfg: 'LibraryCFG', target_type: str = None, prepend: bool = False):
+        """라이브러리 내 using directive 처리
+        prepend=True이면 리스트 앞에 삽입 (명시적 선언이 상속보다 우선)"""
+        if target_type is None:
+            if library_cfg not in self.using_all_libraries:
+                if prepend:
+                    self.using_all_libraries.insert(0, library_cfg)
+                else:
+                    self.using_all_libraries.append(library_cfg)
+        else:
+            if target_type not in self.using_libraries:
+                self.using_libraries[target_type] = []
+            if library_cfg not in self.using_libraries[target_type]:
+                if prepend:
+                    self.using_libraries[target_type].insert(0, library_cfg)
+                else:
+                    self.using_libraries[target_type].append(library_cfg)
+
+    def update_function_cfg(self, function_name, function_cfg):
+        """기존에 등록된 함수의 CFG를 동일 signature로 업데이트"""
+        if function_name not in self.functions:
+            self.add_function_cfg(function_name, function_cfg)
+            return
+        sub = self.functions[function_name]
+        sig = ContractCFG._build_signature(function_cfg)
+        if sig in sub:
+            sub[sig] = function_cfg
+        elif len(sub) == 1:
+            key = next(iter(sub))
+            sub[key] = function_cfg
+        else:
+            sub[sig] = function_cfg
+
+    def find_library_function(self, target_type: str, function_name: str, param_types=None, n_args: int = None) -> 'FunctionCFG':
+        """라이브러리 내 using directive로 등록된 라이브러리 함수 검색
+        n_args가 주어지면 인자 개수가 일치하는 overload를 우선 반환"""
+        def _search_libs(libs):
+            for lib in libs:
+                if n_args is not None and function_name in lib.functions:
+                    for sig, fc in lib.functions[function_name].items():
+                        if len(fc.parameters) == n_args:
+                            return fc
+                else:
+                    result = lib.get_function_cfg(function_name, param_types)
+                    if result is not None:
+                        return result
+            return None
+
+        if target_type in self.using_libraries:
+            result = _search_libs(self.using_libraries[target_type])
+            if result:
+                return result
+        result = _search_libs(self.using_all_libraries)
+        if result:
+            return result
+        return None
+
     def define_enum(self, enum_name, enum_def):
         """라이브러리 내 열거형 정의 추가"""
         if enum_name not in self.enumDefs:
@@ -715,14 +874,21 @@ class LibraryCFG(CFG):
         # (3) 변수 테이블에 등록
         self.state_variable_node.variables[variable_obj.identifier] = variable_obj
             
+    def iter_all_functions(self):
+        """모든 FunctionCFG를 (name, fcfg) 튜플로 순회"""
+        for name, sub in self.functions.items():
+            for sig, fcfg in sub.items():
+                yield name, fcfg
+
     def serialize_for_storage(self) -> dict:
         """라이브러리 CFG를 저장을 위해 직렬화"""
         serialized_functions = {}
-        for func_name, func_cfg in self.functions.items():
-            if hasattr(func_cfg, 'serialize_for_storage'):
-                serialized_functions[func_name] = func_cfg.serialize_for_storage()
+        for func_name, fcfg in self.iter_all_functions():
+            key = func_name
+            if hasattr(fcfg, 'serialize_for_storage'):
+                serialized_functions[key] = fcfg.serialize_for_storage()
             else:
-                serialized_functions[func_name] = str(func_cfg)
+                serialized_functions[key] = str(fcfg)
 
         def _ser_struct_def(def_obj):
             return {

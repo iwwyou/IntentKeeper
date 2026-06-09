@@ -260,17 +260,39 @@ class IntegerInterval(Interval):
     def divide(self, other: "IntegerInterval") -> "IntegerInterval":
         """
         self / other
-        · 분모 구간에 0 이 포함되면 ⊥
+        · 분모가 정확히 [0,0]이면 항상 revert → BOTTOM
+        · 분모가 0을 포함하면 0 제외 후 두 구간으로 나눠 계산, 보수적 합산
         · 아니면 4 개의 끝점 조합을 // 로 계산해 [min, max] 보수적 추정
-          (Python // ≈ Solidity / 과 오차가 조금 있으나 분석용으론 충분)
         """
         def _impl(x: "IntegerInterval", y: "IntegerInterval") -> "IntegerInterval":
-            # 0 포함 시 실행 불가 → bottom
-            if y.min_value <= 0 <= y.max_value:
+            # 정확히 [0,0]이면 항상 revert → BOTTOM
+            if y.min_value == 0 and y.max_value == 0:
                 return x.make_bottom()
 
             def _sdiv(a: int, b: int) -> int:
-                return a // b  # 가장 단순한 floor-연산
+                return a // b
+
+            def _div_range(x_interval, y_min, y_max):
+                vals = [
+                    _sdiv(x_interval.min_value, y_min),
+                    _sdiv(x_interval.min_value, y_max),
+                    _sdiv(x_interval.max_value, y_min),
+                    _sdiv(x_interval.max_value, y_max),
+                ]
+                return min(vals), max(vals)
+
+            if y.min_value <= 0 <= y.max_value:
+                # 0을 포함 → 음수부 [-min, -1]과 양수부 [1, max]로 분리, 보수적 합산
+                all_mins, all_maxs = [], []
+                if y.min_value < 0:
+                    lo, hi = _div_range(x, y.min_value, -1)
+                    all_mins.append(lo); all_maxs.append(hi)
+                if y.max_value > 0:
+                    lo, hi = _div_range(x, 1, y.max_value)
+                    all_mins.append(lo); all_maxs.append(hi)
+                if not all_mins:
+                    return x.make_bottom()
+                return IntegerInterval(min(all_mins), max(all_maxs), x.type_length)
 
             vals = [
                 _sdiv(x.min_value, y.min_value),
@@ -652,12 +674,15 @@ class UnsignedIntegerInterval(Interval):
 
     def divide(self, other: "UnsignedIntegerInterval") -> "UnsignedIntegerInterval":
         def _impl(a, b):
-            # 분모가 0 포함 → ⊥
-            if b.min_value <= 0 <= b.max_value:
+            # 분모가 정확히 [0,0]이면 항상 revert → BOTTOM
+            if b.min_value == 0 and b.max_value == 0:
                 return a.make_bottom()
+            # 분모가 0을 포함하면 0 제외 (Solidity div-by-zero = revert)
+            den_min = max(b.min_value, 1)
+            den_max = b.max_value
 
             nums = [a.min_value, a.max_value]
-            dens = [b.min_value, b.max_value]
+            dens = [den_min, den_max]
             cand = [n // d for n in nums for d in dens]
             return UnsignedIntegerInterval(min(cand), max(cand), a.type_length)
 
@@ -859,7 +884,7 @@ class BoolInterval(Interval):
             return self.bottom()
         return BoolInterval(new_min, new_max)
 
-    def widen(self):
+    def widen(self, current_interval=None):
         # bool에선 widen => top
         return BoolInterval.top()
 
