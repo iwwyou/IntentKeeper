@@ -149,15 +149,13 @@ def simulate_inputs(records, silent=False):
                 continue
 
             # Debug annotation (@LocalVar, @StateVar, @GlobalVar, @IReturn)
-            if ev == "add":
-                batch_mgr.add_line(code, s, e)
-            elif ev == "modify":
-                batch_mgr.modify_line(code, s, e)
-            elif ev == "delete":
-                batch_mgr.delete_line(s)
+            # list 기반 batch 전환(2026-07-03): 라인 키가 없어졌으므로 modify/delete 는
+            # 개별 라인 갱신이 불가 → add 로 누적만. (레거시 CLI 경로, 회귀 무시 승인됨)
+            if ev != "delete":
+                batch_mgr.add(code)
 
-            # BEGIN~END 밖이거나 modify/delete 면 즉시 해석
-            if (not in_testcase) or ev in {"modify", "delete"}:
+            # BEGIN~END 밖이면 즉시 해석
+            if not in_testcase:
                 batch_mgr.flush()
             continue
 

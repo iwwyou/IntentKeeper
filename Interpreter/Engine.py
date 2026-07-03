@@ -766,6 +766,13 @@ class Engine:
         # ═══ Post Annotation 처리 ═══
         self._process_post_annotations(fcfg)
 
+        # engine_api(IQDebug): 아래 restore 로 baseline 복원되기 전, 계산된 states 를 가진
+        #   fcfg 를 freeze 한다(우리 시나리오 = states 보존). 게이트 off(기본)면 게재 경로 무영향.
+        #   pickle 실패는 그대로 전파(fail-loud) — 조용한 fallback 없음.
+        if getattr(an, "_capture_debug_fcfg", False):
+            import pickle as _pickle
+            an._frozen_debug_fcfg = _pickle.loads(_pickle.dumps(fcfg))
+
         for blk, saved_vars in _saved_node_vars.items():
             blk.variables = saved_vars
 
@@ -1978,9 +1985,12 @@ class Engine:
             status = result.get("status", "unknown")
 
             if op == "&&":
-                # AND: 하나라도 violated이면 violated, 하나라도 unknown이면 unknown
+                # AND: violated > warning > unknown > error > satisfied
+                #   (warning = 증명 불가. interval 도메인에서 흔함 → 누락 시 satisfied 로 오판)
                 if combined_status == "violated" or status == "violated":
                     combined_status = "violated"
+                elif combined_status == "warning" or status == "warning":
+                    combined_status = "warning"
                 elif combined_status == "unknown" or status == "unknown":
                     combined_status = "unknown"
                 elif combined_status == "error" or status == "error":
@@ -1988,9 +1998,11 @@ class Engine:
                 else:
                     combined_status = "satisfied"
             elif op == "||":
-                # OR: 하나라도 satisfied이면 satisfied, 둘 다 violated이면 violated
+                # OR: satisfied > warning > error > unknown > violated
                 if combined_status == "satisfied" or status == "satisfied":
                     combined_status = "satisfied"
+                elif combined_status == "warning" or status == "warning":
+                    combined_status = "warning"
                 elif combined_status == "error" or status == "error":
                     combined_status = "error"
                 elif combined_status == "unknown" or status == "unknown":

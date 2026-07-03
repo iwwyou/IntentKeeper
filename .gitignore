@@ -1,0 +1,23 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+.venv/
+
+# ── Node / frontend dependencies ──
+# frontend 소스(src, package.json, lock, config)는 추적됨. 설치 산출물만 제외.
+node_modules/
+
+# ── JetBrains ──
+.idea/
+*.iml
+
+# ── LaTeX build output ──
+# out/ 산출물은 제외하되, 컴파일된 PDF(main.pdf)는 리포에 유지.
+out/*
+!out/main.pdf
+
+# ── Reference papers (용량 큼, 제외) ──
+paper/Reference/**/*.pdf
+
+# ── scratch ──
+temp/

@@ -1471,6 +1471,257 @@ class DynamicCFGBuilder:
             stk.extend(G.predecessors(n))
         return None
 
+    # ─────────────────────────────────────────────────────────────────
+    #  Code Deletion (논문 Alg. Code Deletion / IQDebug §5.6 T-stmt 2단계)
+    #  start_line 의 statement/블록을 SESE region 으로 제거 후 succ 재해석.
+    #  region = descendants(entry) ∩ ancestors(exit) ∪ {entry,exit}
+    #    → skeleton(t_blk/f_blk/while_join/body)·중첩·back-edge 자동 포함(M 의존 없음).
+    #  소스 라인/ledger 시프트는 호출자(update_code delete)가 담당. 여기는 그래프 수술 + 재해석만.
+    # ─────────────────────────────────────────────────────────────────
+    def _nearest_join(self, cond: CFGNode, fcfg: FunctionCFG) -> CFGNode | None:
+        """if/else-if cond 의 머지 join (body 유무 무관): 양 분기에서 도달하는 가장 가까운 join_point."""
+        import networkx as nx
+        G = fcfg.graph
+        t = next((s for s in G.successors(cond) if G[cond][s].get("condition") is True), None)
+        f = next((s for s in G.successors(cond) if G[cond][s].get("condition") is False), None)
+        if t is None or f is None:
+            return None
+        reach_t = nx.descendants(G, t) | {t}
+        reach_f = nx.descendants(G, f) | {f}
+        common = [n for n in (reach_t & reach_f) if getattr(n, "join_point_node", False)]
+        if not common:
+            return None
+        def _dist(n):
+            try:
+                return nx.shortest_path_length(G, cond, n)
+            except nx.NetworkXNoPath:
+                return 1 << 30
+        return min(common, key=_dist)
+
+    def _delete_endpoints(self, node0: CFGNode, fcfg: FunctionCFG) -> tuple[CFGNode, CFGNode]:
+        """삭제 영역의 (entry, exit) 식별. 단순/require/assert/basic 은 entry==exit==node0."""
+        G = fcfg.graph
+        is_cond = getattr(node0, "condition_node", False)
+        ctype = getattr(node0, "condition_node_type", None) if is_cond else None
+        if ctype in {"while", "for", "do_while", "doWhile"}:
+            entry = self.find_loop_join(node0, fcfg) or node0
+            exit_ = next((s for s in G.successors(node0)
+                          if G[node0][s].get("condition") is False
+                          and getattr(s, "loop_exit_node", False)), None) or node0
+            return entry, exit_
+        if ctype in {"if", "else if", "else_if"}:
+            return node0, (self._nearest_join(node0, fcfg) or node0)
+        # simple statement / require / assert / basic → 단일 노드
+        return node0, node0
+
+    def _delete_else_clause(self, fcfg: FunctionCFG, start_line: int,
+                            reinterpret: bool) -> list[CFGNode]:
+        """else 절 삭제 = false-분기 body 만 제거하고 빈 false-분기(else_block)→join 유지.
+        (cond/join 은 보존; if 는 plain if 가 됨.)"""
+        import networkx as nx
+        G = fcfg.graph
+        info = self.an.sa.line_info.get(start_line)
+        # Ls 의 false-분기 진입 노드(else_block) = branch_node & is_true_branch=False
+        else_block = next((n for n in (info.get("cfg_nodes", []) if info else [])
+                           if G.has_node(n) and getattr(n, "branch_node", False)
+                           and not getattr(n, "is_true_branch", True)), None)
+        if else_block is None:
+            return []  # 이미 제거됨
+        cond = next((p for p in G.predecessors(else_block)
+                     if G[p][else_block].get("condition") is False), None)
+        if cond is None:
+            return []
+        join = self._nearest_join(cond, fcfg)
+        if join is None:
+            return []
+        # else body = else_block 와 join 사이 (else_block·join 제외)
+        body = (nx.descendants(G, else_block) & nx.ancestors(G, join))
+        body.discard(join)
+        for n in list(body):
+            if G.has_node(n):
+                G.remove_node(n)
+        if not G.has_edge(else_block, join):  # 빈 false-분기 → join
+            G.add_edge(else_block, join)
+        seeds = [join]
+        if reinterpret:
+            self.eng.reinterpret_from(fcfg, seeds)
+        return seeds
+
+    def _delete_else_if_clause(self, fcfg: FunctionCFG, start_line: int,
+                               reinterpret: bool) -> list[CFGNode]:
+        """else-if 절 삭제: else-if cond+true-body+local_join 제거 → false-child(다음 else/else-if)를
+        위 cond 의 false 로 reparent, else 꼬리를 outer join 으로. (체인도 동일 일반화.)"""
+        import networkx as nx
+        G = fcfg.graph
+        info = self.an.sa.line_info.get(start_line)
+        eic = next((n for n in (info.get("cfg_nodes", []) if info else [])
+                    if G.has_node(n) and getattr(n, "condition_node", False)
+                    and getattr(n, "condition_node_type", None) in ("else if", "else_if")), None)
+        if eic is None:
+            return []
+        parent = next((p for p in G.predecessors(eic)
+                       if G[p][eic].get("condition") is False), None)
+        false_child = next((s for s in G.successors(eic)
+                            if G[eic][s].get("condition") is False), None)
+        true_succ = next((s for s in G.successors(eic)
+                          if G[eic][s].get("condition") is True), None)
+        local_join = self._nearest_join(eic, fcfg)
+        if parent is None or false_child is None or true_succ is None or local_join is None:
+            return []
+        join_succ = next((s for s in G.successors(local_join)), None)
+        true_region = (nx.descendants(G, true_succ) & nx.ancestors(G, local_join)) | {true_succ}
+        true_region.discard(local_join)
+        survivors = [p for p in G.predecessors(local_join)
+                     if p not in true_region and p is not eic]
+        for n in list(true_region) + [eic, local_join]:
+            if G.has_node(n):
+                G.remove_node(n)
+        G.add_edge(parent, false_child, condition=False)        # 위 cond[false] → else
+        if join_succ is not None:
+            for p in survivors:                                  # else 꼬리 → outer join
+                if G.has_node(p) and not G.has_edge(p, join_succ):
+                    G.add_edge(p, join_succ)
+        seeds = [join_succ] if join_succ is not None else []
+        if reinterpret and seeds:
+            self.eng.reinterpret_from(fcfg, seeds)
+        return seeds
+
+    def _walk_up_to_cond(self, node: CFGNode, fcfg: FunctionCFG) -> CFGNode | None:
+        """node 에서 선행을 거슬러 가장 가까운 condition_node 를 찾는다(분기 선두까지)."""
+        G = fcfg.graph
+        cur, seen = node, set()
+        while cur is not None and cur not in seen:
+            seen.add(cur)
+            if getattr(cur, "condition_node", False):
+                return cur
+            ps = list(G.predecessors(cur))
+            cur = ps[0] if ps else None
+        return None
+
+    def _continuation_via_other_branch(self, cond: CFGNode, exit_node: CFGNode,
+                                       fcfg: FunctionCFG) -> CFGNode | None:
+        """early-exit 이 속하지 '않은' 분기를 타고 내려가 첫 join/loop_exit(=fall-through 대상)을 찾는다."""
+        import networkx as nx
+        G = fcfg.graph
+        t = next((s for s in G.successors(cond) if G[cond][s].get("condition") is True), None)
+        f = next((s for s in G.successors(cond) if G[cond][s].get("condition") is False), None)
+        in_true = t is not None and (exit_node is t or exit_node in nx.descendants(G, t))
+        other = f if in_true else t
+        if other is None:
+            return None
+        cur, seen = other, set()
+        while cur is not None and cur not in seen:
+            seen.add(cur)
+            if getattr(cur, "join_point_node", False) or getattr(cur, "loop_exit_node", False):
+                return cur
+            succs = list(G.successors(cur))
+            cur = succs[0] if succs else None
+        return None
+
+    def _delete_early_exit(self, fcfg: FunctionCFG, start_line: int,
+                           reinterpret: bool) -> list[CFGNode]:
+        """분기 안 lone return/revert 삭제: 빌드 때 버려진 fall-through 를 복원.
+        true 쪽은 sink 로 가 join 미도달 → '다른 분기'를 타고 내려가 join 을 찾아 pred→join 연결."""
+        G = fcfg.graph
+        info = self.an.sa.line_info.get(start_line)
+
+        def _has_sink_succ(n):
+            return any(getattr(s, "function_exit_node", False) or getattr(s, "return_exit_node", False)
+                       or getattr(s, "error_exit_node", False) or getattr(s, "loop_exit_node", False)
+                       for s in G.successors(n))
+
+        node = next((n for n in (info.get("cfg_nodes", []) if info else [])
+                     if G.has_node(n) and _has_sink_succ(n)), None)
+        if node is None:
+            return []
+        preds = list(G.predecessors(node))
+        if len(preds) != 1:
+            return []
+        pred = preds[0]
+        cond = self._walk_up_to_cond(pred, fcfg)
+        if cond is None:
+            return []
+        cont = self._continuation_via_other_branch(cond, node, fcfg)
+        if cont is None:
+            return []
+        G.remove_node(node)                  # node→sink 엣지 드롭
+        if not G.has_edge(pred, cont):
+            G.add_edge(pred, cont)           # 빈 분기 → fall-through join
+        seeds = [cont]
+        if reinterpret:
+            self.eng.reinterpret_from(fcfg, seeds)
+        return seeds
+
+    def modify_condition_expr(self, fcfg: FunctionCFG, line: int, new_expr: Expression,
+                              reinterpret: bool = False) -> bool:
+        """조건 헤더 in-place modify: line 의 cond 노드 condition_expr 만 교체(body·구조 보존) 후
+        그 노드부터 재해석. 논문 Code Modification(단일 statement 인플레이스). 성공 시 True."""
+        G = fcfg.graph
+        info = self.an.sa.line_info.get(line)
+        cond = next((n for n in (info.get("cfg_nodes", []) if info else [])
+                     if G.has_node(n) and getattr(n, "condition_node", False)), None)
+        if cond is None:
+            return False
+        cond.condition_expr = new_expr
+        if reinterpret:
+            self.eng.reinterpret_from(fcfg, [cond])
+        return True
+
+    def delete_cfg_range(self, *, fcfg: FunctionCFG, start_line: int, kind: str = "auto",
+                         end_line: int | None = None, reinterpret: bool = True) -> list[CFGNode]:
+        """start_line 의 statement/블록을 CFG 에서 제거하고 pred→succ 재연결 후 succ 재해석.
+
+        kind: "auto"(simple/if/while/for = generic SESE) | "else"/"else if"(의존 절 = false-분기 collapse).
+              호출자(B1 apply)가 삭제 레코드 code 로 판별해 넘긴다.
+        반환: 재해석 seed. node0 가 이미 사라졌으면(상위 블록 삭제로) no-op([])."""
+        import networkx as nx
+        if kind == "else":
+            return self._delete_else_clause(fcfg, start_line, reinterpret)
+        if kind in ("else if", "else_if"):
+            return self._delete_else_if_clause(fcfg, start_line, reinterpret)
+        if kind in ("return", "revert"):
+            return self._delete_early_exit(fcfg, start_line, reinterpret)
+        G = fcfg.graph
+        info = self.an.sa.line_info.get(start_line)
+        node0 = next((n for n in info.get("cfg_nodes", [])), None) if info else None
+        node0 = node0 if (node0 is not None and G.has_node(node0)) else None
+        if node0 is None:
+            return []  # 이미 제거됨 → no-op
+
+        entry, exit_ = self._delete_endpoints(node0, fcfg)
+        if entry is exit_:
+            region = {entry}
+        else:
+            region = (nx.descendants(G, entry) & nx.ancestors(G, exit_)) | {entry, exit_}
+
+        def _is_shared_sink(n: CFGNode) -> bool:
+            # 공유 sink(RETURN/ERROR/EXIT)·loop_exit 은 다른 분기도 참조 → 엣지 드롭, 노드 보존
+            return (getattr(n, "function_exit_node", False)
+                    or getattr(n, "return_exit_node", False)
+                    or getattr(n, "error_exit_node", False)
+                    or getattr(n, "loop_exit_node", False))
+
+        entry_preds = [p for p in G.predecessors(entry) if p not in region]
+        exit_succs = [s for s in G.successors(exit_)
+                      if s not in region and not _is_shared_sink(s)]
+
+        # crossing 엣지 condition(True/False) 보존하며 pred→succ 재연결
+        for p in entry_preds:
+            ed = G.get_edge_data(p, entry) or {}
+            data = {"condition": ed["condition"]} if "condition" in ed else {}
+            for s in exit_succs:
+                if not G.has_edge(p, s):
+                    G.add_edge(p, s, **data)
+
+        for n in list(region):
+            if G.has_node(n):
+                G.remove_node(n)
+
+        seeds = [s for s in exit_succs if G.has_node(s)]
+        if reinterpret and seeds:
+            self.eng.reinterpret_from(fcfg, seeds)
+        return seeds
+
     def find_loop_condition(self, start: CFGNode, fcfg: FunctionCFG) -> CFGNode | None:
         G = fcfg.graph
         stk, seen = [start], set()

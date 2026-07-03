@@ -74,3 +74,33 @@ class Expression:
         self.expr_type = expr_type      # 표현식의 타입 (예: 'int', 'uint', 'bool')
         self.type_length = type_length  # 타입의 길이 (예: 256)
         self.context = context
+
+    def __str__(self) -> str:
+        """사람이 읽는 소스 근사 렌더 (verdict 메시지 등에서 `<Expression object at 0x..>` repr 노이즈 방지).
+        순수 display — 의미론·해시·동등성 불변(기본 identity 유지)."""
+        if self.literal is not None:
+            return str(self.literal)
+        if self.identifier is not None:
+            return str(self.identifier)
+        if self.base is not None and self.member is not None:
+            return f"{self.base}.{self.member}"
+        if self.expression is not None and self.member is not None:
+            return f"{self.expression}.{self.member}"
+        if self.base is not None and self.index is not None:
+            return f"{self.base}[{self.index}]"
+        if self.function is not None:
+            args = ", ".join(str(a) for a in (self.arguments or []))
+            return f"{self.function}({args})"
+        if self.typeName is not None and self.expression is not None:
+            return f"{self.typeName}({self.expression})"
+        if self.left is not None and self.operator is not None and self.right is not None:
+            return f"{self.left} {self.operator} {self.right}"
+        if self.operator is not None:
+            operand = self.expression if self.expression is not None else self.right
+            if operand is not None:
+                return f"{operand}{self.operator}" if self.is_postfix else f"{self.operator}{operand}"
+        if self.condition is not None:
+            return f"{self.condition} ? {self.true_expr} : {self.false_expr}"
+        if self.expression is not None:
+            return str(self.expression)
+        return ""

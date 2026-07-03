@@ -1980,6 +1980,11 @@ class ContractAnalyzer:
             raise ValueError("No active function CFG.")
         fcfg = self.current_target_function_cfg
 
+        # modify(IQDebug): 조건만 바뀐 in-place 수정 → 새 if 빌드 대신 condition_expr 만 교체(body 보존).
+        if self.current_edit_event == "modify":
+            if self.builder.modify_condition_expr(fcfg, self.current_start_line, condition_expr):
+                return
+
         cur_blk = self.builder.get_current_block()
 
         base_env = VariableEnv.copy_variables(cur_blk.variables)
@@ -2124,6 +2129,12 @@ class ContractAnalyzer:
         if self.current_target_function_cfg is None:
             raise ValueError("No active function CFG.")
 
+        # modify(IQDebug): 루프 조건만 바뀐 in-place 수정 → condition_expr 만 교체(body 보존).
+        if self.current_edit_event == "modify":
+            if self.builder.modify_condition_expr(
+                    self.current_target_function_cfg, self.current_start_line, condition_expr):
+                return
+
         cur_blk = self.builder.get_current_block()
 
         # 2. 분기별 변수 환경 ----------------------------------------------
@@ -2167,6 +2178,13 @@ class ContractAnalyzer:
         self.current_target_function_cfg = ccf.get_function_cfg(self.current_target_function, param_types=self.current_target_function_param_types)
         if self.current_target_function_cfg is None:
             raise ValueError("No active function CFG.")
+
+        # modify(IQDebug): for 조건(bound)만 바뀐 in-place 수정 → cond_expr 만 교체(body 보존).
+        #   (init/incr 변경은 미반영 — 흔한 케이스는 조건 변경이라 cond swap 으로 커버.)
+        if self.current_edit_event == "modify" and condition_expr is not None:
+            if self.builder.modify_condition_expr(
+                    self.current_target_function_cfg, self.current_start_line, condition_expr):
+                return
 
         cur_blk = self.builder.get_current_block()
 
