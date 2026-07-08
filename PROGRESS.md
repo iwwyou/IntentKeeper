@@ -578,15 +578,38 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
     Apply 배치에서 함께 seed → **emit 순서 무관**(#30 의 "먼저 emit" 제약 불필요). 완전 심볼릭 인덱스(`arr[i]`)는
     #30 대로 사용자·solver 몫 — 스캐너 정책(심볼릭 키째 emit vs skip) 구현 시 결정.
   **위치**: 이 프로젝트만 변경, **SolidityGuardian 반영 안 함**(사용자 지시). evaluator 코어 훅 대체 → 코어 무변경.
-  **★ 도중 발견 별개 엔진 버그 2개**(슬롯 도출 무관, compound **값 evaluate** 시 물림 — 나중에 수선 필요):
-    (b1) nested-literal-key 쓰기 `_allowances[1][101]=p` → "Literal '101' cannot appear standalone on LHS".
+  **★ 도중 발견 별개 엔진 갭 2개**(슬롯 도출 무관, compound **값 evaluate** 시 물림):
+    (b1) nested-literal-key 쓰기 `_allowances[1][101]=p` → "Literal '101' cannot appear standalone on LHS"
+      (안쪽 `[101]` 처리 때 부모 매핑을 caller_object 로 안 넘김; Update.py:386).
     (b2) nested-literal-key 읽기 `q=_allowances[1][101]` → `Evaluation.update_mapping_in_cfg` 가 없는 속성
       `self.current_target_function` 참조 → AttributeError.
+    **성격 재평가(사용자 지적, 후순위 격하)**: 두 케이스 다 **벌거벗은 이중 정수 리터럴 키** — 실 RQ1 입력엔
+    안 나오는 인위적 코너(실 키는 `msg.sender`·변수·타입 있는 표현식). int/address 모호성도 실은
+    매핑 **선언된 키 타입**(`ref_var.typeInfo`)으로 해소되므로 "리터럴 금지"가 아니라 **중첩 전파 구멍**.
+    단일 리터럴 키(`_balances[1]`)는 정상. → 실입력 무관, 우선순위 낮음.
+
+- **(35) forward 네비게이션 "dead-branch" 버그 수정 ✅**(프론트-only, 엔진 무결 확인):
+  **증상**: withdraw 에 `a=bal=token.balanceOf()=[10,10]` 넣고 require(`a<=bal`)에서 forward → **error_exit 로 샘**.
+  **진단(`.venv` repro 실측)**: 엔진은 **정상** — IReturn 값이 로컬 `bal` 에 정상 바인딩(`bal=[10,10]`),
+    require true 후속 채워짐, ERROR state 는 빈 `{}`(미도달), 최종 `balance=[0,0]` 정확. 문제는 프론트 네비:
+    `stepForward` 가 `succ()[0]` 만 집음 → require 엣지 순서가 `false→ERROR` 먼저라 죽은 sink 로 감.
+    게다가 `isBottom` 이 `⊥`만 봐서 **빈-state ERROR(⊥ 아님)를 못 걸렀음**.
+  **수정 = 엔진 `_run_worklist` 알고리즘 1:1 이식**(사용자 지시): `engineDead(id)` =
+    `id===cfg.error_exit`(엔진 `_is_sink`, error_exit **만** — return_exit 은 정상도달이라 제외)
+    **OR** state 에 `⊥`(엔진 `_is_bottom_env` "하나라도 BOTTOM"). 빈-state 휴리스틱 대신 **id 로 sink 직접 식별**
+    (직렬화가 세 exit 를 `'exit'` 플래그로 뭉개지만 `cfg.error_exit/return_exit/exit` id 는 분리 보존).
+    `forwardPick` = 살아있는 후속 우선(전부 죽으면 `ss[0]` 폴백). `stepForward/stepInto/continueRun` +
+    자동배치 effect(run-to-bp, 같은 잠재버그) 일괄 적용. tsc 통과.
+  **잔여 정책**: 양쪽 다 live 인 조건(require 통과·실패 둘 다 가능)에선 여전히 엣지 순서 first-live —
+    명시적 "true 우선" tie-break 는 엔진 의미가 아닌 UX 결정이라 **미적용**(요청대로).
+  **부수**: mock `result.withdraw.json` 의 유령 intent(`before: bal>=a`·`changed(balance)`, 잘못된 문법) 제거.
+    단 이 파일은 import 안 되는 죽은 mock — 실 유령 intent 출처는 **localStorage persist(`intents`)** 일 수 있음
+    (store `partialize` 가 저장, `migrate` 가 v3 서 debugInputs 만 지우고 intents 는 안 지움). 필요시 version bump.
 
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
-~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) →
-① **브라우저 재확인**(6·7·10·8·9 육안 — 값 입력→적용→변수별 결과·경로 슬롯 표시) →
-② compound **값 evaluate** 경로 엔진 버그 수선(#34 b1/b2) → ③ L2(decision #31) → ④ try/catch pre-state(#33 잔여).
+~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) →
+① **브라우저 재확인**(6·7·10·8·9·#35 육안 — 값 입력→적용→변수별 결과·경로 슬롯·require forward 경로) →
+② L2(decision #31) → ③ try/catch pre-state(#33 잔여). (#34 b1/b2 는 인위적 코너라 후순위 격하)
 
 **세션 노트**: 서버 세션은 메모리에 `contract.func` 키로 영속 → **테스트 컨트랙트가 프론트 세션 오염** 가능
 (재시작으로 클리어). 콘솔 한글 mojibake 는 cp949 출력 문제일 뿐 JSON 은 UTF-8 정상.
