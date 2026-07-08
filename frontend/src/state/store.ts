@@ -8,7 +8,6 @@ import { persist } from 'zustand/middleware'
 import type { AnalysisResult, RangeValue, DepItem, IntentItem } from '../types/result'
 import { analyzeStructure, evaluate, verify } from '../engine/analyzeClient'
 import workspace from '../mock/workspace.json'
-import withdrawResult from '../mock/result.withdraw.json'
 
 export interface FunctionMeta {
   name: string
@@ -47,6 +46,7 @@ interface AppState {
   analyzing: boolean
   analyzeError: string | null // 분석 실패(서버 500/네트워크) — 배너 표시
   valueErrors: { line: number; message: string }[] // debug 값 입력 오류(슬롯 옆 표시)
+  applyTick: number // Apply(evaluate) 실행마다 +1 — nav 가 결과 노드로 커서 재배치하는 신호
 
   setView: (v: View) => void
 
@@ -61,6 +61,7 @@ interface AppState {
   openDebug: (contract: string, func: string) => void
   setActiveFunction: (func: string) => void
   setDebugValue: (func: string, slotKey: string, value: RangeValue) => void
+  applyDebug: (func?: string) => void // Apply 버튼/Enter → 모든 슬롯 값 한 번에 evaluate
 
   // intent (코드 밖 패널, lineRef로 부착 — 코드 삽입/밀림 없음)
   addIntent: (key: string, item: IntentItem) => void
@@ -111,17 +112,16 @@ export const useStore = create<AppState>()(
       activeContract: ws.contracts[0] ?? 'Vault',
       activeFunction: ws.functions[0]?.name ?? 'withdraw',
 
-      debugInputs: {
-        'Vault.withdraw': {
-          a: { t: 'interval', lo: '0', hi: '500' },
-          'token.balanceOf()': { t: 'interval', lo: '0', hi: '1000' },
-        },
-      },
-      intents: { 'Vault.withdraw': (withdrawResult as { intents: IntentItem[] }).intents },
+      // 디버그 값은 빈 칸으로 시작(자동입력 X) — 사용자가 채우고 Apply(decision #32).
+      debugInputs: {},
+      // intent 도 빈 상태로 시작 — mock intent 를 시드하면 실엔진 verify 로 유령 @During 이 새서
+      // crash(파싱실패)를 유발했음(debugInputs 누수와 동형). 사용자가 패널에서 추가할 때만 전송.
+      intents: {},
       results: {},
       analyzing: false,
       analyzeError: null,
       valueErrors: [],
+      applyTick: 0,
 
       setView: (v) => set({ view: v }),
 
@@ -157,20 +157,27 @@ export const useStore = create<AppState>()(
 
       openDebug: (contract, func) => {
         set({ view: 'debug', activeContract: contract, activeFunction: func })
-        void get().runAnalysis(func, 'structure')
+        // 디버그는 워크스페이스 편집 때 만들어진 CFG 를 가져다 씀(fetch) — 캐시 없을 때만 1회 빌드.
+        if (!get().results[keyOf(contract, func)]) void get().runAnalysis(func, 'structure')
       },
 
       setActiveFunction: (func) => {
         set({ activeFunction: func })
-        void get().runAnalysis(func, 'structure')
+        if (!get().results[keyOf(get().activeContract, func)]) void get().runAnalysis(func, 'structure')
       },
 
       setDebugValue: (func, slotKey, value) => {
         // 키는 keyOf(contract, func) 로 통일 — 표시(DebugInputPanel)·시드와 동일 키.
+        // ★ 값 변경은 상태만 갱신하고 evaluate 는 발사하지 않음(per-keystroke 낭비 제거).
+        //   실제 실행은 applyDebug(Apply 버튼/Enter)에서 한 번에. (decision #32)
         const fk = keyOf(get().activeContract, func)
         const cur = get().debugInputs[fk] ?? {}
         set({ debugInputs: { ...get().debugInputs, [fk]: { ...cur, [slotKey]: value } } })
-        void get().runAnalysis(func, 'evaluate') // 값 변경 = evaluate부터
+      },
+
+      applyDebug: (func) => {
+        // 모든 슬롯 값 통째로 evaluate(백엔드는 이미 debugInputs 전체 전송 → 번들 무변경).
+        void get().runAnalysis(func ?? get().activeFunction, 'evaluate')
       },
 
       addIntent: (key, item) => {
@@ -218,7 +225,10 @@ export const useStore = create<AppState>()(
 
         const cur = get().results[key]
         const needStructure = tier === 'structure' || !cur
-        const needEvaluate = needStructure || tier === 'evaluate'
+        // ★ evaluate 는 structure 와 분리(decision #32): 코드편집·디버그진입(structure)은 CFG 구조만,
+        //   값 계산은 Apply(evaluate)에서만. (진입만으로 자동 계산되던 버그 제거)
+        const needEvaluate = tier === 'evaluate'
+        const needVerify = needEvaluate || tier === 'verify' // states 의미있을 때만 verdict 갱신
 
         // 새 분석 시작 → 이전 오류 클리어. finally 로 analyzing 항상 해제(멈춤 방지).
         set({ analyzing: true, analyzeError: null })
@@ -247,19 +257,25 @@ export const useStore = create<AppState>()(
               valueErrors = (ev.diagnostics ?? []).map((d) => ({ line: d.line, message: d.message }))
             }
           }
-          // verify는 항상 (states/intent 변동 → verdict 변동 가능)
-          const vf = await verify(req)
+          // verify 는 states 가 의미있을 때만(Apply=evaluate 또는 intent 변경). structure-only 진입엔 스킵.
+          let verdict = cur?.verdict ?? []
+          if (needVerify) {
+            const vf = await verify(req)
+            verdict = vf.verdict
+          }
 
           if (!cfg) return
           const result: AnalysisResult = {
             scope,
             cfg,
-            verdict: vf.verdict,
+            verdict,
             top_vars: topVars,
             intents,
             debugSlots,
           }
           set({ results: { ...get().results, [key]: result }, valueErrors })
+          // evaluate 가 실제로 돈 경우에만 nav 재배치 신호(intent-only verify 는 커서 안 옮김).
+          if (needEvaluate) set({ applyTick: get().applyTick + 1 })
         } catch (e) {
           // 서버 500/네트워크 실패 → 배너로 표시(과거엔 여기서 analyzing 이 안 풀려 멈춤).
           set({ analyzeError: e instanceof Error ? e.message : String(e) })
@@ -270,13 +286,17 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'iqdebug-workspace',
-      version: 2, // debugInputs 구조 변경(배열 → slotKey 맵)
+      version: 3, // v3: debugInputs 는 세션성(persist 제외) — what-if 값 자동복원 안 함
       migrate: (persisted: unknown, version: number) => {
         const p = persisted as Record<string, unknown> | null
         if (p && version < 2) {
           // 구버전 debugInputs(배열)·intents 폐기 → 초기 seed 사용
           delete p.debugInputs
           delete p.intents
+        }
+        if (p && version < 3) {
+          // debugInputs 세션성 전환 → 잔재 클리어(자동입력 방지)
+          delete p.debugInputs
         }
         return p
       },
@@ -285,8 +305,8 @@ export const useStore = create<AppState>()(
         activeFile: s.activeFile,
         deps: s.deps,
         depContents: s.depContents,
-        debugInputs: s.debugInputs,
         intents: s.intents,
+        // debugInputs 제외: 새로고침 시 빈 칸으로 시작(세션성).
       }),
     }
   )

@@ -447,15 +447,84 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
    - **검증(HTTP)**: Vault.deposit, balance=[10,20]+amt=[100,200] → `Assign_5`·`EXIT` 노드에서
      `balance=[110,220]`, `amt=[100,200]`, diagnostics 없음. 충돌 소멸 확정.
 
+**✅ 추가 수정완료 (7번 — 라인 좌표계, 2026-07-06):**
+7. **★ #3 라인 좌표계 불일치 (표시 안 됨의 핵심) — 해결**: 엔진 `CFGNode.src_line` 은 **컨트랙트-절대 라인**
+   (`balance=balance+amt` = 25)인데 CodePane 이 **함수-로컬 소스**(`fnMeta.source`, 그 문장=라인 2)를 표시 →
+   데코/네비/State&Locals/intent glyph 전부 어긋나 값이 계산돼도 안 보임.
+   - **결정 (a) 채택**: 프론트를 **절대라인 = 전체 컨트랙트 소스 표시**로 통일. 데코/네비/breakpoint/intent 가
+     이미 절대 src_line 을 쓰므로 **소스만 전체로 교체하면 오프셋 코드 없이 자동 정합**((b) 매핑층 불필요).
+   - **적용**: `DebugView.tsx` = CodePane 에 `fullSource`(활성파일 전체) + `focusLine`(함수 startLine) 전달.
+     `CodePane.tsx` = `focusLine` prop → 마운트/함수전환 시 `revealLineInCenter` 스크롤.
+     `mock/result.withdraw.json` = 시딩 intent `line 9`(구 로컬) → **21**(절대). tsc 통과.
+   - **검증**: 엔진이 전체 mock 소스로 `Assign_25 src_line=25 balance=[110,220]` emit 확인 → Monaco 25번 줄
+     (=`balance=balance+amt;`)에 정확 정합. **육안(브라우저) 확인은 미완**(Monaco 헤드리스 불가).
+   - 잔재: `result.withdraw.json` 의 cfg/verdict 는 구 로컬좌표(src_line 1~10)지만 **표시 미사용**(store 는
+     `intents` 만 읽음) → 방치. 오프라인 mock 표시 되살리면 전체 변환 필요.
+
+**✅ 추가 구현완료 (10번 — Apply 버튼, 2026-07-06):**
+10. **디버그 입력 "적용" 버튼 + 결과 표시** (decision #32) — 구현:
+    - `store.ts`: `setDebugValue` 에서 자동 evaluate 제거(값 변경=상태만). `applyDebug(func)` 액션 신설
+      (runAnalysis evaluate). `applyTick` 카운터 추가 → evaluate 실제 실행 시에만 +1(intent-only verify 는
+      커서 안 옮김).
+    - `DebugInputPanel.tsx`: `▶ 적용 (Enter)` 버튼(`analyzing` 시 비활성·"적용 중…"), 패널 `onKeyDown` Enter →
+      apply. `styles.css` `.apply-btn`.
+    - `useNavigation.ts`: `applyTick` 변화 시 커서 재배치 = **run-to-breakpoint** (entry→비-⊥ successor 따라
+      전진, 첫 breakpoint 라인에서 정지; 없으면 **EXIT** 최종상태). → State&Locals 가 변수별 결과 즉시 표시.
+    - `StateLocals.tsx`: 전역(block./msg./tx.) `<details>` 접기(기본 접힘)로 실변수 결과 강조. path 음수라인 필터.
+    - tsc 통과. **브라우저 육안 확인 미완**.
+
+**✅ 추가 수정완료 (자동계산 제거 + 함수-only 뷰, 2026-07-06 이어서):**
+11. **자동 계산 버그 제거 (구조/값 분리)**: 브라우저에서 "디버그 진입만 해도 값이 자동 입력·계산됨" 보고.
+    - 원인 (A) 값 자동입력 = mock seed(`Vault.withdraw` a/token) + zustand persist 가 `debugInputs` 를
+      localStorage 저장 → 이전 세션 값 복원. (B) 자동계산 = tier 로직 `needEvaluate = needStructure || …` 라
+      **structure(편집·디버그진입)가 evaluate 까지 발사**. Apply 버튼 무색.
+    - 수정: `store.ts` `needEvaluate = tier==='evaluate'` (structure 는 CFG 만), `needVerify = evaluate||verify`
+      로 verify 게이트. **openDebug/setActiveFunction = 캐시 있으면 재빌드 안 함(fetch), 없을 때만 1회 빌드**
+      (사용자 방향: "workspace 편집 때 CFG 만들고 debug 는 가져오기" — updateActiveContent 가 이미 편집 시
+      structure 빌드 중. per-func 세션이라 미방문 함수 첫 진입만 증분 빌드). mock 값 seed 제거 → 빈 칸 시작.
+      persist 에서 `debugInputs` 제외 + version 3 migrate 로 잔재 클리어(what-if 값 세션성).
+12. **함수-only 뷰 + 컨트랙트-절대 라인넘버 (#7 재조정)**: 전체 컨트랙트 대신 **해당 함수만** 표시하되 gutter
+    라인넘버는 절대. `CodePane` = `startLine` prop, `offset=startLine-1`, `toLocal(abs)=abs-offset`,
+    Monaco `lineNumbers:(n)=>n+offset`, 데코/breakpoint/intent 를 절대↔내부 변환(함수범위 밖 스킵). breakpoint
+    클릭은 내부→절대 저장. `DebugView` = `fnMeta.source`+`startLine` 전달. 검증(수식): deposit offset=23,
+    src_line25→내부2줄 정합. **(a)에서 없앴던 오프셋을 헬퍼 2개로 중앙화** — 손댈 곳 CodePane 1파일로 한정.
+13. **breakpoint pre-state 표시 (실행 후 값 보이던 버그 · 단일선행)**: 브라우저에서 `balance=balance+amt;`
+    에 breakpoint 찍으면 **실행 후**(`[110,220]`)가 보임. 원인 = 엔진 `CFGNode.state` 는 **out-state**(실행 후)
+    라 커서 노드 state 를 그대로 표시하면 pre-state 가 아님. **사용자 통찰**: 새 in-state 필드 불필요 — "이 줄
+    실행 직전" = **선행(predecessor) 노드의 out-state**. 구현(`StateLocals.tsx`): 커서 노드의 (단일)선행
+    out-state 를 표시. 선행이 ENTRY(빈 상태)면 = **함수 첫 문장** → 노드 out-state 에서 시드된 진입값만 override
+    하는 폴백(미시드/전역은 불변이라 out=in). EXIT 은 최종상태 그대로. note 라벨("이 줄 실행 전"/"진입 상태"/
+    "최종 상태") 표시. tsc 통과.
+
 **☐ 미해결:**
-7. **★ #3 라인 좌표계 불일치 (표시 안 됨의 핵심)**: 백엔드는 states 정확히 계산(로그 `L25 balance=[..]`)하나
-   **프론트에 안 뜸**. 원인 = **CodePane 이 함수-로컬 소스**(`fnMeta.source`, `balance=balance+amt` 가 라인 2)
-   표시하는데 **엔진 CFGNode.src_line 은 컨트랙트-절대 라인**(25). → State&Locals(커서 노드 state)·navigation·
-   Monaco 데코(cursor/violated/intent glyph)·**intent lineRef 부착**이 전부 어긋남. 값이 계산돼도 커서가 안 맞아
-   안 보임. **결정 필요**: (a) 프론트를 절대라인(전체 컨트랙트 표시)로 갈지, (b) 엔진 src_line 을 함수-로컬로
-   투영하는 매핑층을 둘지. intent 입력 라인 기준도 여기에 종속(패널 2 vs 워크스페이스 25).
-8. **compound(mapping/struct/array) 값 입력**: 현재 opaque=입력불가. **설계 확정**(아래 결정) 했으나 미구현.
-9. **@IReturn 슬롯 도출**: 여전히 미구현(compound 스캐너와 공유).
+8·9. **compound 슬롯 + @IReturn 슬롯 = 통합 "접근-경로 스캐너" ✅ 구현·e2e 검증 완료** (decision #34):
+    `engine_api._derive_debug_slots` 에 통합 스캐너(`_ap_*`) 추가 — node.statements AST 정적 순회로
+    compound(mapping/struct/array) 경로 + 인터페이스 호출(IReturn)을 도출. compound root 상태변수는 opaque
+    통짜 슬롯 대신 경로 슬롯으로 대체, 인터페이스 핸들 변수는 IReturn 이 대체(스칼라 방출 스킵).
+    **e2e(.venv 실측)**: `_balances[u]`(mapping→interval) / `accountBorrows[u].principal`(mapping→struct→member
+    →interval, **leaf 해소 성공**) / `token.balanceOf()`(IReturn, 인자 드롭·opaque). 스칼라 `total`·파라미터 유지.
+    **잔여**: ① compound **값 evaluate** 경로의 엔진 버그 2개(아래 #34 b1/b2) ② IReturn leaf 가 address 반환일 때
+    valueKind 세분(현재 interval 기본) ③ LocalVar-compound(로컬이 mapping/struct, RQ1 부재) 미처리 ④ 브라우저 육안.
+14. **breakpoint pre-state — 조인(다중 선행) 지점 (decision #33) — 해결(A: 프론트-only), try/catch 잔여**:
+    위 13 은 단일 선행만 정확했고, 조인 지점 표시가 문제였다. **엔진 구조 확인으로 프론트-only 해결 확정**:
+    - **엔진 사실(확인)**: `ContractAnalyzer.process_if_statement` 이 **join 을 즉시 생성**(`if_join`,
+      `join_point_node=True`) 후 body 채워지면 `engine.reinterpret_from(join)` → join out-state = **sound merge**.
+      else-if/else 는 같은 join 재사용. join 의 `src_line = end_line`(= `}` 라인). 루프는
+      `build_while/for_statement` 이 `loop_exit_node`(src_line=end_line) 생성, do-while 은 `fixpoint_evaluation_node`(φ).
+      루프 멤버십 = `is_loop_body`(부모→자식 전파). **이 모두 프론트로 직렬화됨**(`engine_api._node_flags`:
+      flag `merge`/`loop_exit`/`fixpoint_evaluation`/`loop_body`/`exit` + `cond_type` + `src_line`).
+    - **정리(theorem)**: 이 CFG 에서 forward-pred(≥2)인 노드는 오직 ① join(`merge`) ② loop_exit(cond-false+모든 `break`)
+      ③ do-while φ 뿐(루프 헤더는 back-edge 제외 시 단일). 따라서 **이 flag 노드만 breakpoint 타겟에서 빼면**
+      남는 착지 노드는 전부 forward-pred=1 → 위 13 의 "선행 out-state = pre-state" 로직이 이미 정답.
+    - **구현(프론트-only, 코어 무변경, tsc OK)**:
+      · `useNavigation.ts`: `isForbiddenTarget`(flag merge/loop_exit/fixpoint_evaluation/exit) + `canBreakpointOnLine`
+        (그 라인에 비-금지 노드 하나라도 있으면 허용). run-to-bp walk 정지조건에 `!isForbiddenTarget` 안전망.
+      · `CodePane.tsx`: `}`/구조적 라인 gutter 클릭 시 breakpoint 설정 무시(+onMount 클로저 stale 방지 ref).
+      · `StateLocals.tsx`: `loop_body` 노드는 pre-state 가 **fixpoint 불변식**이므로 note 에 "· 루프 불변식(모든
+        iteration)" 부기. (루프 안은 **금지 안 함** — 디버깅 가치 큼, 라벨로 의미만 명확화.)
+    - **잔여 ☐ try/catch**: `try_join` 은 `merge` 라 자동 포함(타겟 금지)되나, **catch 블록 진입(catch_entry/
+      catch_end)의 "예외 발생 직전" pre-state** 의미는 미검증(선행 단일 여부·정상/예외 경로 구분). 별도 과제.
+    - **미검증**: 브라우저 육안(특히 while/for 루프 함수 = 실엔진 필요, mock 엔 루프 없음).
 
 **이번 세션 설계 결정 (decisions log 확장):**
 - **(29) DebugBatch = 번들 모델** (라인키·BEGIN/END 폐기, snapshot/restore 유지). 위 6 참조.
@@ -475,8 +544,49 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
   few-shot·magnitude 주입엔 유용하나 **누수 경계**(RQ1=평가셋 → few-shot 전용, 성능평가는 held-out) +
   objective 명시("bug witness" vs "plausible"). **후순위** — 결정론 코어(6→8→7) 먼저.
 
-**다음 우선순위 (6 완료 후 갱신):** ~~6 리스트-batch~~ ✅ → ① **8 compound 경로 자동도출 + @IReturn 스캐너**
-(decision #30) → ② **7 라인 좌표계 결정·수정**(표시 복원) → ③ 브라우저 재확인 → ④ L2(decision #31).
+- **(32) 디버그 입력 = Apply 버튼 트리거 + 결과 State&Locals 노출** (신규, 위 10): per-keystroke evaluate 는
+  interval 여러 글자 입력 중 매 글자 발사 → 낭비·partial 값 transient 에러. 디버거 멘탈모델("여러 변수 what-if
+  세팅 → 한 번 실행")에 맞춰 **명시 Apply 버튼(+Enter)** 로 전환. 백엔드는 이미 `debugInputs` 통째 전송이라
+  번들 무변경. **적용 = "run"**: breakpoint 있으면 그 지점까지, 없으면 EXIT(최종상태)로 커서 자동 이동 →
+  State&Locals 가 변수별 값을 즉시 표시(7번 좌표계 수정으로 이제 의미 있음). 대안(debounce/onBlur)보다
+  예측가능. ★"안 뜸"의 해결책은 7번이고 버튼은 UX 개선임을 구분.
+
+- **(33) breakpoint 표시상태 = 선행 out-state(= pre-state) — 확정(A: 프론트-only)** (위 13·14): CFGNode.state
+  는 out-state 라 커서 노드 그대로 표시하면 "실행 후". "이 줄 실행 직전" = **선행 노드 out-state**(별도 in-state
+  필드 불필요 — 사용자 통찰). 단일선행·ENTRY(시드 override)·EXIT(최종) 구현완료. **조인(다중선행) 문제는 옵션
+  (a)/(b) 대신 "타겟 제한"으로 회피 확정**: 엔진이 join 을 명시 노드(`merge`)로 즉시 만들고 sound merge 하며,
+  join/loop_exit/φ/exit flag 가 프론트로 직렬화되므로 — **이 구조적 노드에는 breakpoint 를 못 걸게** 하면 남는
+  타겟은 전부 forward-pred=1 → 선행 out-state 로 정확. 엔진 in-state 노출/프론트 merge 둘 다 불필요. 루프 본문은
+  금지 대신 "루프 불변식" 라벨. 구현 = `useNavigation`(isForbiddenTarget/canBreakpointOnLine)+`CodePane`(클릭 차단)
+  +`StateLocals`(loop_body 라벨). **잔여**: try/catch catch-블록 pre-state 미검증. 위 14 참조.
+
+- **(34) compound + @IReturn = 통합 정적 "접근-경로 스캐너" ✅ 구현완료** (decision #30 확장, item 8·9 병합; 전제·결과 e2e 검증):
+  둘은 **동형 문제** — 슬롯 = **ROOT + accessor\*** , 키 = `str(maximal_path_expr)`. accessor(공통) = index/member/call.
+  ROOT 만 분기: compound 상태/로컬변수(mapping/struct/array typeInfo) → StateVar/LocalVar / 인터페이스 호출
+  `v.f()`·캐스트 `I(a).f()`(interface 타입·`interface_names`) → IReturn(opaque).
+  **어디서 하나 = evaluator 아님, `_derive_debug_slots`(engine_api, 비코어)가 `node.statements` AST 를 훑음**:
+    - evaluator 는 bottom-up 재귀라 **maximal 경로 경계("재귀의 끝")를 모름** → 중간 인터페이스 핸들이 가짜
+      슬롯으로 샘. 또 fixpoint 로 여러 번·값 있을 때만 돌고 재평가 유발. statement 레벨 순회는 `stmt.left/right/
+      init_expr` = 애초에 maximal 표현식에서 base 따라 root 로 하강 → 경계 공짜·1회·구문+타입만. (사용자 통찰)
+  **전제 검증(e2e, `.venv` 실측)**:
+    ① `Expression.__str__` 이 경로를 정규 직렬화 — `accountBorrows[msg.sender].principal`,
+      `engine.mochiProfile().calculateFeeIndex()`, `IERC20(baseToken).balanceOf()` 등 6/6 정확.
+    ② analyze 후 `node.statements` 에 expr AST **보존됨**(`VarDecl.init_expr=Expression:'_balances[u]'`,
+      `Assign.left/right`) → 정적 스캔 실현가능. (사용자가 의심한 "evaluation 후 폐기"는 아님.)
+    ③ 현 도출 갭 실증: `_balances` 매핑을 opaque 슬롯 1개로만 냄(필요한 `_balances[u]` 못 줌).
+  **키-변수 의존성**: `[u]`·`[msg.sender]` 등 변수 키는 그 자체가 스칼라 슬롯(param/global/local)로 이미 도출 →
+    Apply 배치에서 함께 seed → **emit 순서 무관**(#30 의 "먼저 emit" 제약 불필요). 완전 심볼릭 인덱스(`arr[i]`)는
+    #30 대로 사용자·solver 몫 — 스캐너 정책(심볼릭 키째 emit vs skip) 구현 시 결정.
+  **위치**: 이 프로젝트만 변경, **SolidityGuardian 반영 안 함**(사용자 지시). evaluator 코어 훅 대체 → 코어 무변경.
+  **★ 도중 발견 별개 엔진 버그 2개**(슬롯 도출 무관, compound **값 evaluate** 시 물림 — 나중에 수선 필요):
+    (b1) nested-literal-key 쓰기 `_allowances[1][101]=p` → "Literal '101' cannot appear standalone on LHS".
+    (b2) nested-literal-key 읽기 `q=_allowances[1][101]` → `Evaluation.update_mapping_in_cfg` 가 없는 속성
+      `self.current_target_function` 참조 → AttributeError.
+
+**다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
+~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) →
+① **브라우저 재확인**(6·7·10·8·9 육안 — 값 입력→적용→변수별 결과·경로 슬롯 표시) →
+② compound **값 evaluate** 경로 엔진 버그 수선(#34 b1/b2) → ③ L2(decision #31) → ④ try/catch pre-state(#33 잔여).
 
 **세션 노트**: 서버 세션은 메모리에 `contract.func` 키로 영속 → **테스트 컨트랙트가 프론트 세션 오염** 가능
 (재시작으로 클리어). 콘솔 한글 mojibake 는 cp949 출력 문제일 뿐 JSON 은 UTF-8 정상.

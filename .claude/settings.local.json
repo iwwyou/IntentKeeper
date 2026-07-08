@@ -50,7 +50,13 @@
       "PowerShell($c = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { Stop-Process -Id $c.OwningProcess -Force; Write-Output \"killed $\\($c.OwningProcess\\)\" } else { Write-Output \"no listener\" })",
       "PowerShell($c = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { Stop-Process -Id $c.OwningProcess -Force; Write-Output \"killed\" } else { Write-Output \"none\" })",
       "Bash(netstat -ano)",
-      "Bash(taskkill //PID 25812 //F)"
+      "Bash(taskkill //PID 25812 //F)",
+      "Bash(echo \"=== tsc exit: $? ===\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\('src/mock/result.withdraw.json'\\)\\); print\\('intents:', json.dumps\\(d.get\\('intents'\\), ensure_ascii=False\\)\\)\")",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(./.venv/Scripts/python.exe -m py_compile engine_api.py)",
+      "Bash(PYTHONPATH=\"C:/Users/isjeon/PycharmProjects/pythonProject/IntentKeeper\" .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/repro_require.py\")",
+      "Bash(PYTHONPATH=\"C:/Users/isjeon/PycharmProjects/pythonProject/IntentKeeper\" PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/repro_require.py\")"
     ]
   }
 }

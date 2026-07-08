@@ -39,9 +39,9 @@ export default function DebugView() {
         </div>
       )}
 
-      {/* 좌측 = 코드 (크게) */}
+      {/* 좌측 = 코드 (함수만 표시 · 라인넘버는 컨트랙트-절대) */}
       <div className="dpanel code">
-        <CodePane source={fnMeta?.source ?? ''} nav={nav} result={result} />
+        <CodePane source={fnMeta?.source ?? ''} startLine={fnMeta?.startLine} nav={nav} result={result} />
       </div>
 
       {/* 우측 사이드바 = 세로 3분할 */}

@@ -10,8 +10,12 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
   const activeFunction = useStore((s) => s.activeFunction)
   const debugInputs = useStore((s) => s.debugInputs)
   const setDebugValue = useStore((s) => s.setDebugValue)
+  const applyDebug = useStore((s) => s.applyDebug)
+  const analyzing = useStore((s) => s.analyzing)
 
   const valueErrors = useStore((s) => s.valueErrors)
+
+  const apply = () => applyDebug(activeFunction)
 
   const fkey = keyOf(activeContract, activeFunction)
   const values = debugInputs[fkey] ?? {}
@@ -22,7 +26,16 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
   const valueOf = (slot: DebugSlot): RangeValue => values[slot.key] ?? emptyValue(slot)
 
   return (
-    <div style={{ marginTop: 14 }}>
+    <div
+      style={{ marginTop: 14 }}
+      onKeyDown={(e) => {
+        // 어느 입력 필드에서든 Enter → 전체 값 한 번에 적용(run).
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          apply()
+        }
+      }}
+    >
       <div className="panel-title">Debug Input (슬롯 자동 · 값만 입력)</div>
 
       {valueErrors.length > 0 && (
@@ -36,24 +49,48 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
       {groups.map((g) => {
         const slots = bySlot(g)
         if (slots.length === 0) return null
+        const rows = slots.map((slot) => (
+          <SlotRow
+            key={slot.key}
+            slot={slot}
+            value={valueOf(slot)}
+            onChange={(v) => setDebugValue(activeFunction, slot.key, v)}
+          />
+        ))
+        // 전역(block/msg/tx)은 자주 안 건드리므로 접이식(기본 접힘) — State/Locals 전역 fold 와 일관.
+        if (g === 'GlobalVar') {
+          return (
+            <details key={g} className="globals dbg-globals">
+              <summary>@GlobalVar (block/msg/tx) · {slots.length}</summary>
+              {rows}
+            </details>
+          )
+        }
         return (
           <div key={g} className="dbg-group">
             <div className="dbg-group-title">@{g}</div>
-            {slots.map((slot) => (
-              <SlotRow
-                key={slot.key}
-                slot={slot}
-                value={valueOf(slot)}
-                onChange={(v) => setDebugValue(activeFunction, slot.key, v)}
-              />
-            ))}
+            {rows}
           </div>
         )
       })}
 
+      <button className="apply-btn" onClick={apply} disabled={analyzing}>
+        {analyzing ? '적용 중…' : '▶ 적용 (Enter)'}
+      </button>
+
+      {analyzing && (
+        <div className="analyzing-bar" role="status" aria-live="polite">
+          <div className="analyzing-track">
+            <div className="analyzing-fill" />
+          </div>
+          <span className="analyzing-label">백엔드 분석 중…</span>
+        </div>
+      )}
+
       <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>
         값 타입은 슬롯이 결정 (numeric→interval, bool→bool, address→symbolicAddress).
         interval 은 <b>한쪽을 비우면 무제약</b>(예: <code>[5, ]</code> = ≥5, <code>[ , 10]</code> = ≤10).
+        <br />값 입력 후 <b>적용</b>을 눌러야 실행됩니다. breakpoint 있으면 그 지점까지, 없으면 함수 끝(EXIT)에서 정지.
       </div>
     </div>
   )

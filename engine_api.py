@@ -460,42 +460,205 @@ def _referenced(name: str, text: str) -> bool:
     return _re.search(r"\b" + _re.escape(name) + r"\b", text) is not None
 
 
-def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "") -> list[DebugSlot]:
+# ── 통합 접근-경로 스캐너 (decision #34): compound(mapping/struct/array) + @IReturn 슬롯 도출 ──
+#   슬롯 = ROOT + accessor* , key = _ap_label(maximal_expr). node.statements AST 를 정적 순회(재평가 X).
+#   evaluator 가 아닌 이유: 재귀 bottom-up 이라 maximal 경로 경계를 모름 + fixpoint 로 여러 번·값 있을 때만 실행.
+def _ap_member_base(e):
+    b = getattr(e, "base", None)
+    return b if b is not None else getattr(e, "expression", None)
+
+def _ap_is_index(e):  return getattr(e, "base", None) is not None and getattr(e, "index", None) is not None
+def _ap_is_member(e): return getattr(e, "member", None) is not None and _ap_member_base(e) is not None
+def _ap_is_call(e):   return getattr(e, "function", None) is not None
+def _ap_is_ident(e):  return getattr(e, "identifier", None) is not None
+def _ap_is_access(e): return _ap_is_index(e) or _ap_is_member(e) or _ap_is_call(e)
+
+def _ap_label(e) -> str:
+    """접근-경로 → 어노테이션 키 문자열. 메서드 호출 인자는 드롭(`f()`), 캐스트 인자는 유지(`I(a)`)."""
+    from Domain.IR import Expression
+    if not isinstance(e, Expression):
+        return str(e)
+    if _ap_is_index(e):
+        return f"{_ap_label(e.base)}[{_ap_label(e.index)}]"
+    if _ap_is_member(e):
+        return f"{_ap_label(_ap_member_base(e))}.{e.member}"
+    if _ap_is_call(e):
+        fn = e.function
+        if _ap_is_member(fn):                       # 메서드 호출 → 인자 드롭 (token.balanceOf())
+            return f"{_ap_label(fn)}()"
+        args = ",".join(_ap_label(a) for a in (getattr(e, "arguments", None) or []))
+        return f"{_ap_label(fn)}({args})"           # 캐스트 등 → 인자 유지 (IERC20(baseToken))
+    if _ap_is_ident(e):
+        return str(e.identifier)
+    if getattr(e, "literal", None) is not None:
+        return str(e.literal)
+    if getattr(e, "typeName", None) is not None and getattr(e, "expression", None) is not None:
+        return f"{e.typeName}({_ap_label(e.expression)})"
+    return str(e)
+
+def _ap_spine(e):
+    """maximal 접근식 → (root_expr, accessors root→leaf). accessor=('index',None)/('member',name)/('call',None)."""
+    accs = []
+    cur = e
+    while True:
+        if _ap_is_index(cur):    accs.append(("index", None)); cur = cur.base
+        elif _ap_is_member(cur): accs.append(("member", cur.member)); cur = _ap_member_base(cur)
+        elif _ap_is_call(cur):   accs.append(("call", None)); cur = cur.function
+        else: break
+    accs.reverse()
+    return cur, accs
+
+def _ap_side_exprs(e):
+    """spine 상의 index 키·call 인자(별도 하위식) 수집 — 중첩 경로 스캔용."""
+    out, cur = [], e
+    while True:
+        if _ap_is_index(cur):
+            if cur.index is not None: out.append(cur.index)
+            cur = cur.base
+        elif _ap_is_member(cur):
+            cur = _ap_member_base(cur)
+        elif _ap_is_call(cur):
+            for a in (getattr(cur, "arguments", None) or []):
+                if a is not None: out.append(a)
+            cur = cur.function
+        else: break
+    return out
+
+def _ap_children(e):
+    from Domain.IR import Expression
+    for a in ("left", "right", "base", "index", "function", "expression",
+              "condition", "true_expr", "false_expr", "start_index", "end_index"):
+        v = getattr(e, a, None)
+        if isinstance(v, Expression): yield v
+    for a in ("arguments", "elements"):
+        for x in (getattr(e, a, None) or []):
+            if isinstance(x, Expression): yield x
+
+def _ap_node_exprs(n):
+    for stm in getattr(n, "statements", []) or []:
+        for a in ("init_expr", "left", "right", "operand", "function_expr", "return_expr"):
+            v = getattr(stm, a, None)
+            if v is not None: yield v
+        for a in (getattr(stm, "arguments", None) or []):
+            if a is not None: yield a
+    ce = getattr(n, "condition_expr", None)
+    if ce is not None: yield ce
+
+
+def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
+                        interface_names=None) -> list[DebugSlot]:
     """구조적 debug 슬롯 도출(값 이전). *이 함수와 관련된* 변수만, 타입별 valueKind로.
-      LocalVar = 함수 파라미터(항상) / StateVar = 이 함수가 참조하는 상태변수만(func_src 단어 매치)
-      GlobalVar = 이 함수가 쓰는 글로벌만(GlobalVariable.usage_sites, 없으면 func_src 폴백)
-      IReturn = 인터페이스 호출(ireturn_registry, opaque).
-    valueKind = 변수 typeInfo(SolType) 기반(address/bool/interval/…); signed/bits 는 Fix B 경계 치환용."""
+      LocalVar = 함수 파라미터 / StateVar = 이 함수가 참조하는 상태변수(func_src 매치)
+      GlobalVar = 이 함수가 쓰는 글로벌 / IReturn = 인터페이스 호출.
+    compound(mapping/struct/array 접근 경로)·IReturn 은 통합 접근-경로 스캐너(_ap_*, decision #34)로
+    node.statements AST 에서 도출: 슬롯 key = 경로 문자열(`_balances[u]`·`accountBorrows[k].principal`·
+    `token.balanceOf()`), valueKind = leaf 타입. compound 로 잡힌 상태변수는 opaque 통짜 슬롯 대신 경로 슬롯으로.
+    valueKind = 변수 typeInfo(SolType) 기반; signed/bits 는 Fix B 경계 치환용."""
+    from Domain.IR import Expression
+    from Domain.Variable import MappingVariable, StructVariable, ArrayVariable
+    interface_names = interface_names or set()
     slots: list[DebugSlot] = []
 
+    svn = getattr(ccf, "state_variable_node", None) if ccf is not None else None
+    statevars = (getattr(svn, "variables", {}) if svn is not None else {}) or {}
+    def _is_ifc_type(ti):
+        return getattr(ti, "typeCategory", None) == "interface" or bool(getattr(ti, "interfaceName", None))
+    interface_var_names = {nm for nm, var in statevars.items()
+                           if _is_ifc_type(getattr(var, "typeInfo", None))}
+
+    # ── 접근-경로 스캔 ─────────────────────────────────────────────
+    compound: dict[str, tuple] = {}        # label -> (valueKind, opaque, signed, bits)
+    compound_roots: set[str] = set()
+    ireturn_labels: set[str] = set()
+
+    def classify(root):
+        if _ap_is_ident(root):
+            nm = root.identifier
+            if nm in interface_names or nm in interface_var_names: return "IReturn"
+            if nm in statevars: return "StateVar"
+            return None
+        tn = getattr(root, "typeName", None)
+        if tn and tn in interface_names: return "IReturn"
+        return None
+
+    def leaf_vk(root, accs):
+        cur = statevars.get(root.identifier) if _ap_is_ident(root) else None
+        for kind, key in accs:
+            if cur is None: break
+            if kind == "member":
+                cur = cur.members.get(key) if isinstance(cur, StructVariable) else None
+            elif kind == "index":
+                if isinstance(cur, MappingVariable):
+                    cur = cur._create_value_virtual("0")
+                elif isinstance(cur, ArrayVariable):
+                    try: cur = cur._create_new_array_element(0)
+                    except Exception: cur = None
+                else: cur = None
+            else:
+                cur = None
+        if cur is None:
+            return "interval", False, False, 256  # 해소 실패 → 기본 수치
+        return _valuekind_of(getattr(cur, "typeInfo", None), type(cur).__name__)
+
+    def scan(e):
+        if not isinstance(e, Expression): return
+        if _ap_is_access(e):
+            root, accs = _ap_spine(e)
+            cls = classify(root)
+            if cls is not None:
+                label = _ap_label(e)
+                if cls == "IReturn":
+                    ireturn_labels.add(label)
+                elif accs:  # compound = accessor 가 있을 때만(단순 스칼라 상태변수 제외)
+                    compound_roots.add(root.identifier)
+                    compound.setdefault(label, leaf_vk(root, accs))
+                for side in _ap_side_exprs(e):
+                    scan(side)
+                return
+        for c in _ap_children(e):
+            scan(c)
+
+    for n in fcfg.graph.nodes():
+        for e in _ap_node_exprs(n):
+            scan(e)
+
+    # 1) 파라미터 (LocalVar, 스칼라)
     for p in getattr(fcfg, "parameters", []) or []:
         slots.append(DebugSlot(kind="LocalVar", key=p, label=p,
                                valueKind="interval", signed=False, bits=256))
 
-    svn = getattr(ccf, "state_variable_node", None) if ccf is not None else None
-    statevars = (getattr(svn, "variables", {}) if svn is not None else {}) or {}
+    # 2) 상태변수 — compound root 는 경로 슬롯이, 인터페이스 핸들은 IReturn 이 대체하므로 스킵, 나머지는 스칼라
     for name, var in statevars.items():
+        if name in compound_roots or name in interface_var_names:
+            continue
         if func_src and not _referenced(name, func_src):
-            continue  # 이 함수와 무관한 상태변수 제외
+            continue
         vk, opaque, signed, bits = _valuekind_of(getattr(var, "typeInfo", None),
                                                  type(var).__name__, name)
         slots.append(DebugSlot(kind="StateVar", key=name, label=name, valueKind=vk,
                                opaque=opaque, signed=signed, bits=bits))
 
+    # 3) compound 경로 슬롯 (StateVar)
+    for label, (vk, opaque, signed, bits) in compound.items():
+        slots.append(DebugSlot(kind="StateVar", key=label, label=label, valueKind=vk,
+                               opaque=bool(opaque), signed=signed, bits=bits))
+
+    # 4) 글로벌
     globs = (getattr(ccf, "globals", {}) if ccf is not None else {}) or {}
     for g, gvar in (globs.items() if hasattr(globs, "items") else ((x, None) for x in globs)):
         sites = getattr(gvar, "usage_sites", None)
         used = (func_name in sites) if sites else _referenced(g, func_src)
         if not used:
-            continue  # 이 함수가 쓰지 않는 글로벌 제외
+            continue
         vk, opaque, signed, bits = _valuekind_of(getattr(gvar, "typeInfo", None),
                                                  type(gvar).__name__, g)
         slots.append(DebugSlot(kind="GlobalVar", key=g, label=g, valueKind=vk,
                                opaque=opaque, signed=signed, bits=bits))
 
+    # 5) @IReturn — 코드 스캔(신규) ∪ registry(@IReturn 어노테이션 값) — label dedup
     for key in getattr(fcfg, "ireturn_registry", {}) or {}:
-        # key = (interface_name, addr_var, func_name, access_chain) 튜플
-        label = ".".join(str(x) for x in key if x)
+        ireturn_labels.add(".".join(str(x) for x in key if x))
+    for label in ireturn_labels:
         slots.append(DebugSlot(kind="IReturn", key=label, label=label,
                                valueKind="interval", opaque=True))
     return slots
@@ -594,6 +757,7 @@ class EngineSession:
         self._slots: dict[str, DebugSlot] = {}  # key → slot (evaluate 가 kind 조회)
         self._last_debug_values: dict[str, RangeValue] = {}  # 마지막 적용 debug 값(verify 재해석용)
         self._last_value_errors: list[Diagnostic] = []       # 마지막 debug 값 입력 오류(Fix A)
+        self._last_intent_errors: list[Diagnostic] = []      # 마지막 intent 파싱/처리 오류(Fix B, crash 대신)
         self._intents: list[IntentItem] = []                 # 현재 등록된 intent
         # values_version → freeze 된 fcfg (Stage1 states 캐시). 키는 debug 값 직렬화 해시.
         self._states_cache: dict[str, object] = {}
@@ -670,13 +834,21 @@ class EngineSession:
         for n in fcfg.graph.nodes():
             if hasattr(n, "intents"):
                 n.intents = []
+        # Fix B: intent 하나의 파싱/처리 실패가 전체 요청을 500 으로 죽이지 않게 per-intent 격리.
+        #   (debug 값 경로 _queue_debug_values 와 대칭 — 실패는 diagnostic 으로 수집·skip.)
+        errors: list[Diagnostic] = []
         for it in intents:
             kw = "@During" if it.scopeKind == "During" else "@Post"
             if it.line is not None:
                 self._ca.current_start_line = it.line
             code = f"// {kw} {it.text}"
-            tree = ParserHelpers.generate_parse_tree(code, "intentUnit")
-            EnhancedSolidityVisitor(self._ca).visit(tree)
+            try:
+                tree = ParserHelpers.generate_parse_tree(code, "intentUnit")
+                EnhancedSolidityVisitor(self._ca).visit(tree)
+            except Exception as e:  # 파싱실패(문법위반)·처리실패 모두 흡수
+                errors.append(Diagnostic(line=(it.line or 0),
+                                         message=f"intent 무시됨 ({kw} {it.text}): {e}"))
+        self._last_intent_errors = errors
 
     def _queue_debug_values(self, debug_values: dict[str, RangeValue]) -> int:
         """debug 값 → 캐논 어노테이션 라인 → batch. 적용 개수 반환.
@@ -778,7 +950,8 @@ class EngineSession:
         lo_ln, hi_ln = (min(body_lines), max(body_lines)) if body_lines else (0, 1 << 30)
         func_src = "\n".join(r.get("code", "") for r in self._prev_records
                              if lo_ln <= r.get("startLine", -1) <= hi_ln)
-        slots = _derive_debug_slots(fcfg, ccf, func_src, func or "")
+        slots = _derive_debug_slots(fcfg, ccf, func_src, func or "",
+                                    interface_names=getattr(self._ca, "interface_names", None))
         self._slots = {s.key: s for s in slots}
         return Structure(scope=self._scope, cfg=cfg, debug_slots=slots, diagnostics=diags)
 
@@ -875,7 +1048,8 @@ class EngineSession:
         self._last_debug_values = debug_values
 
         fcfg, frozen = self._interpret()
-        diags = list(self._last_value_errors)  # 값 입력 오류(Fix A) — 모든 반환 경로에 부착
+        # 값 입력 오류(Fix A) + intent 파싱 오류(Fix B) — 모든 반환 경로에 부착
+        diags = list(self._last_value_errors) + list(self._last_intent_errors)
         if fcfg is None:
             return CfgWithStates(scope=self._scope or Scope("", ""),
                                  cfg=CFG(entry="ENTRY", exit="EXIT"), diagnostics=diags)

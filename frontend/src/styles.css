@@ -121,6 +121,18 @@ body {
 .kv .v.top { color: #f0c040; }
 .kv .v.neg { color: #f06060; }
 
+.state-note { font-size: 11px; color: #6ac46a; margin-bottom: 5px; font-style: italic; }
+
+.globals { margin-top: 6px; }
+.dbg-globals { margin: 6px 0 8px; }
+.globals > summary {
+  cursor: pointer; color: #888; font-size: 11px; padding: 2px 0;
+  list-style: none; user-select: none;
+}
+.globals > summary::before { content: '▸ '; color: #666; }
+.globals[open] > summary::before { content: '▾ '; }
+.globals > summary:hover { color: #b5cea8; }
+
 .path { margin-top: 8px; color: #888; font-size: 12px; }
 .preds { margin-top: 6px; color: #f0c040; font-size: 12px; }
 
@@ -145,6 +157,30 @@ body {
   width: 52px; background: #2d2d2d; color: #b5cea8; border: 1px solid #3a3a3a;
   border-radius: 3px; padding: 2px 4px; font-family: 'Consolas', monospace;
 }
+.apply-btn {
+  margin-top: 8px; width: 100%;
+  background: #2d6b2d; color: #fff; border: 1px solid #3a8a3a;
+  border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.apply-btn:hover:not(:disabled) { background: #348034; }
+.apply-btn:disabled { background: #3a3a3a; color: #888; cursor: default; border-color: #444; }
+
+/* 백엔드 분석 중 indeterminate 진행 바 ("렉 아님" 피드백) */
+.analyzing-bar { margin-top: 6px; }
+.analyzing-track {
+  position: relative; height: 3px; background: #333; border-radius: 2px; overflow: hidden;
+}
+.analyzing-fill {
+  position: absolute; top: 0; height: 100%; width: 40%;
+  background: #4fc1ff; border-radius: 2px;
+  animation: indeterminate 1.1s ease-in-out infinite;
+}
+@keyframes indeterminate {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
+.analyzing-label { display: block; font-size: 11px; color: #4fc1ff; margin-top: 3px; }
+
 .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; }
 .badge.opaque { background: #5a3a1a; color: #f0c040; }
 .ghost { color: #777; font-style: italic; font-size: 12px; margin: 2px 0 6px 60px; }
