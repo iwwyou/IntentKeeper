@@ -27,6 +27,8 @@
   end-to-end analyze→update→evaluate→verify 가 fresh 빌드와 등가(temp 테스트 61개 통과). 코어 변경:
   `DynamicCFGBuilder`(delete/modify 메서드 추가), `ContractAnalyzer`(process_if/while/for modify 분기),
   `Engine.py`(freeze 게이트 + warning-combine), `engine_api`(update/closeBefore). 상세·잔여 = §5.6.
+  **⚠️ 정정(2026-07-13, decision #37)**: 이 "동작"은 **주석 없는 인공 소스 한정**이었음. 실제 .sol(첫 줄
+  `// SPDX-…`)은 SyntaxValid 게이트가 거부해 **증분 편집이 전혀 적용되지 않는다**(조용히 실패). #37 참조.
 - 툴명 = IQDebug, repo/project = IntentKeeper 유지.
 
 ---
@@ -606,10 +608,65 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
     단 이 파일은 import 안 되는 죽은 mock — 실 유령 intent 출처는 **localStorage persist(`intents`)** 일 수 있음
     (store `partialize` 가 저장, `migrate` 가 v3 서 debugInputs 만 지우고 intents 는 안 지움). 필요시 version bump.
 
+- **(36) 서버 세션이 "클라이언트 상태의 주인" 노릇 → 유령 상태 버그 3종 ✅ 2건 수정, 1건 미결**:
+  **발단**(사용자 보고): 서버는 켠 채 **프론트만 껐다 켜니** withdraw 의 debug 슬롯이 `balance`+`amt`
+  (= **deposit** 의 것)로 나옴. 첫 실행 땐 정상(`a`/`balance`/`fee`/`token.balanceOf()`).
+  **근본 원인 = 스코프를 요청에서 안 받고 세션 기억에서 "추측"**: `_resolve_fcfg(None, None)` 의 폴백은
+    `contract=candidates[-1]`, `func=names[-1]` = **"컨트랙트의 마지막 함수"**(engine_api:809-811). Vault 의
+    마지막 함수가 `deposit` 이라 그 슬롯이 나온 것. 프론트는 `results` 를 persist 안 하므로(store `partialize`)
+    재접속 시 `/analyze` 재요청 → 서버 세션은 살아있음 → `_build`(스코프 명시) 대신 **`update`+`structure()`**
+    (스코프 **미전달**) 경로를 탐. → **프론트 재시작 전용 아님**: 세션 생존 중 **코드 편집**도 같은 경로라 상시 발화.
+  **(a) `/analyze` 스코프 명시 ✅** `engine_server:90` `sess.structure(r.contract, r.func)`.
+    e2e 실증: 같은 세션 재-analyze 시 OLD=`Vault.deposit`/`[amt,balance]` → NEW=`Vault.withdraw`/원래 5슬롯.
+    (부수 피해였던 `_slots` 오염도 해소 — 오염 시 `token.balanceOf()` 가 `@LocalVar` 로 방출돼 IReturn 이 조용히 깨짐.)
+  **(b) `/verify` 가 요청 inputs 를 무시 → 이전 브라우저 생애의 debug 값으로 verdict ✅**:
+    `verify()` 가 서버 기억(`_last_debug_values`)만 봄. 프론트는 debugInputs 를 **persist 안 함**(#32 세션성) →
+    재접속 후 값 없이 intent 만 건드리면(`addIntent` → verify-only) **유령 값 verdict**. decision #22 소프트
+    게이트("값 없으면 verdict 없음") 무력화. 실증: OLD=`Violated`(유령) / NEW=`[]`.
+    수정: `verify(..., debug_values=r.inputs)`, states 캐시도 **이번 요청 값의 키**로 조회(`_values_key` 헬퍼 추출,
+    evaluate/verify 공용). Apply 흐름(evaluate→verify 동일 값)은 여전히 캐시 적중 = 재해석 없음. 죽은
+    `_last_values_key` 필드 제거.
+  **원칙(결정)**: **세션 = 소스의 캐시일 뿐, 클라이언트 상태(스코프·debug 값·intent)의 주인이 아니다.**
+    매 요청이 진실의 원천. → "새로 접속하면 코드는 남고 분석/판정은 빈 상태" 라는 기대 동작이 자동으로 나옴.
+    (대안이던 "페이지 로드마다 세션 폐기(clientId)" 는 B1 증분 CFG 를 함께 버려서 기각. 채택 시 대형 컨트랙트
+    full-rebuild 비용 측정이 선행돼야 함 — 미측정.)
+  **(c) `_apply_delete` 도 같은 추측 사용 — 수정했으나 검증 불가(37 에 막힘)**: `_resolve_fcfg(None,None)` 으로
+    수술 대상 fcfg 를 고름 → 타겟이 "마지막 함수"가 아니면 **엉뚱한 CFG 를 수술**(타겟엔 지운 문장 노드가
+    유령으로 잔존, 소스 장부만 줄어 소스/CFG 이탈). 스코프 명시로 수정해뒀으나 **아래 37 때문에 delete 가
+    애초에 실행되지 않아 실증 불가** — 37 해결 후 재검증 필요. 기존 B1 테스트가 못 잡은 이유: 테스트 컨트랙트가
+    **함수 1개**라 "마지막 함수" 폴백이 우연히 정답.
+
+- **(37) ★ B1 증분 편집이 실제 앱에서 **항상 거부**되고 있었음 (미수정, 최우선)**:
+  **증상**: withdraw 에서 `balance = bal - a;` 한 줄 삭제 → `update()` 가 **아무것도 적용 안 함**. CFG 에 노드
+    잔존 + 그 문장이 **여전히 실행됨**(EXIT `balance=[0,0]`, 삭제됐다면 입력 `[10,10]` 유지가 정상).
+  **원인**: `incremental.syntax_valid` 가 풀소스를 `sourceUnit` 으로 **엄격 파스**하는데,
+    **`Parser/Solidity.g4` 에 일반 라인 주석 규칙이 없음** — `//` 는 **어노테이션 전용 토큰**
+    (`'//' '@During'`·`'@StateVar'`… 255-309행). 771-776 엔 WS skip 과 `/* */` HIDDEN 만 있음.
+    → 실 .sol 의 첫 줄 `// SPDX-License-Identifier: MIT` 에서 `extraneous input '//'` → 게이트 **거부**
+    → `update()` 가 `{"ok": False}` 조기 반환 → **첫 analyze 이후의 모든 코드 편집이 CFG 에 반영 안 됨**.
+  **왜 여태 안 걸렸나**: ① `temp/` 의 B1 테스트 소스에 `//` 주석이 **하나도 없음**(grep 확인) → "67개 통과" 는
+    주석 없는 인공 소스 한정. ② 프론트가 `/analyze` 의 diagnostics 를 **무시**(store.ts:249 `// TODO: squiggle`)
+    → 게이트가 거부해도 **아무 표시 없이 조용히 실패**. (첫 analyze 는 `slice_solidity`+record apply 경로라
+    ANTLR 에러 복구로 관용 → 정상 동작. 매 실행 콘솔의 `[ANTLR] 1:0 extraneous input '//'` 노이즈가 그 흔적.)
+  **수정안 → A 채택 (2026-07-13, Guardian 제약이 결정)**:
+    - **A. 게이트 전용 주석 스트립 ✅채택**(`incremental.py`): 파스 전 `//`~EOL 제거(문자열 `"http://"`·블록주석
+      내부 보존하는 스캐너, 개행 유지 → 진단 라인번호 보존). 게이트의 일은 **구조적 유효성**(brace 짝·orphan else)
+      판정이지 주석 검사가 아니므로 의미상으로도 옳음.
+    - **B. 문법 근본 수정 = 보류**(폐기 아님): `Solidity.g4` 에
+      `LINE_COMMENT : '//' [ \t]* ~[@\r\n] ~[\r\n]* -> skip;` — 렉서 **최장일치**로 `// SPDX` 는 LINE_COMMENT 가
+      이기고 `// @During` 은 `@` 때문에 매치 실패해 기존 `'//'` 토큰으로 감(구분 가능). ANTLR 에러 노이즈도 소멸.
+    - **A 를 고른 이유 = Guardian 논문 리비전 중이라 코어 반영 금지(사용자 지시)**. `Solidity.g4`·`Parser/*.py` 는
+      **Guardian → IntentKeeper 단방향 동기화**로 들어온 코어라, 여기서만 고치면 **다음 동기화 때 조용히
+      덮어써진다**(생성물이라 diff 수천 줄 → fork 가 눈에 안 띔). `incremental.py` 는 §5.6 에서 신설한
+      **IntentKeeper 고유 파일** → divergence 0. B 는 리비전 종료 후 **Guardian 에 먼저 넣고 동기화받는** 순서로.
+  **연쇄**: 37 해결 전엔 36(c) 검증 불가. 프론트 diagnostics 무시(store.ts:249)도 별건으로 처리 필요.
+
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
-~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) →
-① **브라우저 재확인**(6·7·10·8·9·#35 육안 — 값 입력→적용→변수별 결과·경로 슬롯·require forward 경로) →
-② L2(decision #31) → ③ try/catch pre-state(#33 잔여). (#34 b1/b2 는 인위적 코너라 후순위 격하)
+~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) ·
+~~세션 스코프/유령 값~~ ✅(#36 a·b) →
+① **#37 라인 주석 게이트**(A/B 택일 → 증분 편집 부활) → ② #36(c) delete 스코프 **재검증** →
+③ 프론트 analyze diagnostics 표시(조용한 실패 제거) → ④ **브라우저 재확인**(6·7·10·8·9·#35 육안) →
+⑤ L2(decision #31) → ⑥ try/catch pre-state(#33 잔여). (#34 b1/b2 는 인위적 코너라 후순위 격하)
 
 **세션 노트**: 서버 세션은 메모리에 `contract.func` 키로 영속 → **테스트 컨트랙트가 프론트 세션 오염** 가능
 (재시작으로 클리어). 콘솔 한글 mojibake 는 cp949 출력 문제일 뿐 JSON 은 UTF-8 정상.

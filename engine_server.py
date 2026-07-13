@@ -87,7 +87,9 @@ def analyze(r: Req) -> dict:
         diags = [asdict(d) for d in st.diagnostics]
     else:
         res = sess.update(r.source)         # invalid 면 상태 유지 + diagnostics 반환
-        st = sess.structure()               # 갱신(또는 거부 시 직전) 구조 재직렬화
+        # ★ 스코프 명시 필수: 생략하면 structure() → _resolve_fcfg(None, None) 폴백이
+        #   "컨트랙트의 마지막 함수"를 집어 다른 함수의 슬롯/CFG 를 돌려준다(_slots 도 오염).
+        st = sess.structure(r.contract, r.func)  # 갱신(또는 거부 시 직전) 구조 재직렬화
         diags = res["diagnostics"]          # [{line, column, message, severity}]
     return {
         "scope": asdict(st.scope),
@@ -110,7 +112,9 @@ def evaluate(r: Req) -> dict:
 
 @app.post("/verify")
 def verify(r: Req) -> dict:
-    verdict = _session(r).verify(_to_intents(r.intents), contract=r.contract, func=r.func)
+    # 스코프·intent·debug 값 모두 요청이 진실의 원천(세션 기억에서 추측 금지 — 유령 상태 차단).
+    verdict = _session(r).verify(_to_intents(r.intents), contract=r.contract, func=r.func,
+                                 debug_values=r.inputs)
     return {"verdict": [asdict(v) for v in verdict]}
 
 

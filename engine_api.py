@@ -729,6 +729,11 @@ def _is_risky_op(op) -> bool:
     return t.startswith(("do ", "do{", "try ", "try{", "} catch", "catch"))
 
 
+def _values_key(debug_values: dict[str, RangeValue]) -> str:
+    """debug 값 묶음 → states 캐시 키. evaluate 가 심고 verify 가 찾는다(같은 값 = 같은 states)."""
+    return repr(sorted((k, tuple(sorted(v.items()))) for k, v in debug_values.items()))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Root A — 타겟 분석 세션 (결정론 코어)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -761,7 +766,6 @@ class EngineSession:
         self._intents: list[IntentItem] = []                 # 현재 등록된 intent
         # values_version → freeze 된 fcfg (Stage1 states 캐시). 키는 debug 값 직렬화 해시.
         self._states_cache: dict[str, object] = {}
-        self._last_values_key: Optional[str] = None
         self._prev_records: list[dict] = []  # B1 증분 diff 기준 (마지막 적용 records)
         self._deps = deps or []
         # deps 선별 로드(@IReturn/cross-contract 해소). 없으면 단순 케이스로 동작.
@@ -931,7 +935,6 @@ class EngineSession:
         self._prev_records = list(records)  # B1 증분 diff 기준
         # 코드 변경 → 이전 states 캐시 전부 무효화 (analyze→evaluate→verify 체인 종속).
         self._states_cache.clear()
-        self._last_values_key = None
         return self.structure(contract, func, diagnostics)
 
     def structure(self, contract: Optional[str] = None, func: Optional[str] = None,
@@ -993,7 +996,6 @@ class EngineSession:
                 self._full_rebuild(new_records)  # surgical 실패 → 안전 폴백
 
         self._states_cache.clear()
-        self._last_values_key = None
         return {"ok": True, "diagnostics": []}
 
     def _full_rebuild(self, records: list) -> None:
@@ -1012,8 +1014,14 @@ class EngineSession:
         self._prev_records = list(records)
 
     def _apply_delete(self, start: int, end: int, kind: str) -> None:
-        """CFG surgery(delete_cfg_range, line_info 사용) → 소스 라인 장부(update_code delete) 순."""
-        _, _, fcfg = self._resolve_fcfg(None, None)
+        """CFG surgery(delete_cfg_range, line_info 사용) → 소스 라인 장부(update_code delete) 순.
+
+        ★ 수술 대상 fcfg 는 반드시 현재 타겟 스코프로 지정. 생략하면 _resolve_fcfg 폴백이
+          "컨트랙트의 마지막 함수"를 집어 **엉뚱한 CFG 를 수술**한다 → 타겟 함수엔 지운 문장
+          노드가 그대로 남고(유령 노드) 소스 장부만 줄어 소스/CFG 가 어긋난다.
+        """
+        sc = self._scope or Scope(contract="", function="")
+        _, _, fcfg = self._resolve_fcfg(sc.contract or None, sc.function or None)
         if fcfg is not None:
             self._ca.builder.delete_cfg_range(fcfg=fcfg, start_line=start, kind=kind,
                                               reinterpret=False)
@@ -1058,34 +1066,41 @@ class EngineSession:
             cfg = _serialize_cfg(fcfg, self._ca.recorder, with_states=False)
             return CfgWithStates(scope=self._scope, cfg=cfg, top_vars=[], diagnostics=diags)
 
-        vkey = repr(sorted((k, tuple(sorted(v.items()))) for k, v in debug_values.items()))
-        self._states_cache[vkey] = frozen
-        self._last_values_key = vkey
+        self._states_cache[_values_key(debug_values)] = frozen
 
         cfg = _serialize_cfg(frozen, self._ca.recorder, with_states=True)
         top_vars = _collect_top_vars(frozen, scope=self._scope.function)
         return CfgWithStates(scope=self._scope, cfg=cfg, top_vars=top_vars, diagnostics=diags)
 
     def verify(self, intents: list[IntentItem],
-               contract: Optional[str] = None, func: Optional[str] = None) -> list[VerdictItem]:
+               contract: Optional[str] = None, func: Optional[str] = None,
+               debug_values: Optional[dict[str, RangeValue]] = None) -> list[VerdictItem]:
         """intent 판정 → verdict. [intent 변경 트리거]
 
-        Stage 1(inline verify): intent 를 노드에 등록 후 마지막 debug 값으로 재해석 →
+        Stage 1(inline verify): intent 를 노드에 등록 후 debug 값으로 재해석 →
           해석 중 inline 검증이 analysis_per_line 에 verdict 기록 → 그걸 VerdictItem 으로 변환.
           (Stage 2 에서 보존 states 에 guardian 사후 호출하는 standalone P2 로 재해석 제거 예정.)
 
         소프트 게이트(결정 22): debug 값이 없으면 verdict 없음([]) — 프론트가 auto-fill 유도.
+
+        ★ 세션은 "소스의 캐시"일 뿐 클라이언트 상태의 주인이 아니다: debug 값은 항상 호출자가
+          싣고 온 것(debug_values)을 쓴다. 서버 기억(_last_debug_values)에 기대면, 값을 persist
+          하지 않는 프론트(세션성, decision #32)가 재접속했을 때 **이전 생애의 유령 값**으로
+          verdict 가 나와 위 소프트 게이트가 무력화된다.
         """
         if contract or func:
             sc = self._scope or Scope(contract="", function="")
             self._scope = Scope(contract=contract or sc.contract, function=func or sc.function)
+        if debug_values is not None:
+            self._last_debug_values = debug_values
         self._intents = intents or []
 
         if not self._last_debug_values:
             return []  # debug 컨텍스트 없음 → auto-fill 유도
 
-        # Stage 2 standalone P2: 직전 evaluate 의 보존 states 가 있으면 재해석 없이 사후 검증.
-        frozen = self._states_cache.get(self._last_values_key) if self._last_values_key else None
+        # Stage 2 standalone P2: 이번 값으로 계산된 보존 states 가 있으면 재해석 없이 사후 검증.
+        #   (직전 evaluate 의 키가 아니라 "이번 요청 값"의 키로 조회 — Apply 흐름에선 동일 키라 적중.)
+        frozen = self._states_cache.get(_values_key(self._last_debug_values))
         if frozen is not None:
             return self._verify_standalone(frozen, self._intents)
 
