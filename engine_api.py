@@ -845,7 +845,7 @@ class EngineSession:
             kw = "@During" if it.scopeKind == "During" else "@Post"
             if it.line is not None:
                 self._ca.current_start_line = it.line
-            code = f"// {kw} {it.text}"
+            code = f"{kw} {it.text}"
             try:
                 tree = ParserHelpers.generate_parse_tree(code, "intentUnit")
                 EnhancedSolidityVisitor(self._ca).visit(tree)
@@ -870,7 +870,7 @@ class EngineSession:
             if text is None:
                 continue
             kw = _KIND_KW.get(slot.kind if slot else "LocalVar", "@LocalVar")
-            self._batch.add(f"// {kw} {key} = {text}")
+            self._batch.add(f"{kw} {key} = {text}")
             applied += 1
         self._last_value_errors = errors
         return applied

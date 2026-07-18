@@ -63,7 +63,17 @@
       "PowerShell($env:PYTHONIOENCODING=\"utf-8\"; $env:PYTHONPATH=\"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\"; & \".venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\isjeon\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper\\\\18f473f0-cc81-43f3-b6dc-ed8eef5561c8\\\\scratchpad\\\\repro_delete_scope.py\" 2>$null | Select-String -NotMatch '^\\\\[ANTLR\\\\]')",
       "PowerShell($env:PYTHONIOENCODING=\"utf-8\"; $env:PYTHONPATH=\"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\"; & \".venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\isjeon\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper\\\\18f473f0-cc81-43f3-b6dc-ed8eef5561c8\\\\scratchpad\\\\repro_delete_ops.py\" 2>$null | Select-String -NotMatch '^\\\\[ANTLR\\\\]')",
       "PowerShell($env:PYTHONIOENCODING=\"utf-8\"; $env:PYTHONPATH=\"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\"; & \".venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\isjeon\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper\\\\18f473f0-cc81-43f3-b6dc-ed8eef5561c8\\\\scratchpad\\\\repro_lineinfo.py\" 2>$null | Select-String -NotMatch '^\\\\[ANTLR\\\\]')",
-      "PowerShell($env:PYTHONIOENCODING=\"utf-8\"; $env:PYTHONPATH=\"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\"; & \".venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\isjeon\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper\\\\18f473f0-cc81-43f3-b6dc-ed8eef5561c8\\\\scratchpad\\\\repro_delete_trace.py\" 2>$null | Select-String -NotMatch '^\\\\[ANTLR\\\\]')"
+      "PowerShell($env:PYTHONIOENCODING=\"utf-8\"; $env:PYTHONPATH=\"C:\\\\Users\\\\isjeon\\\\PycharmProjects\\\\pythonProject\\\\IntentKeeper\"; & \".venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\isjeon\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper\\\\18f473f0-cc81-43f3-b6dc-ed8eef5561c8\\\\scratchpad\\\\repro_delete_trace.py\" 2>$null | Select-String -NotMatch '^\\\\[ANTLR\\\\]')",
+      "Bash(.venv/Scripts/python.exe -c \"import antlr4, importlib.metadata as m; print\\('runtime', m.version\\('antlr4-python3-runtime'\\)\\)\")",
+      "Bash(antlr4)",
+      "Bash(echo \"--- '//' 토큰 잔존 여부 ---\")",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=\"C:/Users/isjeon/PycharmProjects/pythonProject/IntentKeeper\" .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/repro_delete_trace.py\")",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=\"C:/Users/isjeon/PycharmProjects/pythonProject/IntentKeeper\" .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/repro_ghost_values.py\")",
+      "Bash(.venv/Scripts/python.exe -m pip install \"antlr4-python3-runtime==4.13.2\")",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe evaluation/RQ1/run_all.py)",
+      "Bash(npx vite *)",
+      "Read(//c/Users/isjeon/.claude/projects/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/memory/**)",
+      "Bash(rm guardian-no-core-sync-during-revision.md)"
     ]
   }
 }

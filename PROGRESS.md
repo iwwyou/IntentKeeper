@@ -27,8 +27,10 @@
   end-to-end analyze→update→evaluate→verify 가 fresh 빌드와 등가(temp 테스트 61개 통과). 코어 변경:
   `DynamicCFGBuilder`(delete/modify 메서드 추가), `ContractAnalyzer`(process_if/while/for modify 분기),
   `Engine.py`(freeze 게이트 + warning-combine), `engine_api`(update/closeBefore). 상세·잔여 = §5.6.
-  **⚠️ 정정(2026-07-13, decision #37)**: 이 "동작"은 **주석 없는 인공 소스 한정**이었음. 실제 .sol(첫 줄
-  `// SPDX-…`)은 SyntaxValid 게이트가 거부해 **증분 편집이 전혀 적용되지 않는다**(조용히 실패). #37 참조.
+  **⚠️ 정정(2026-07-13) → 해결(2026-07-18, decision #37)**: 이 "동작"은 오래도록 **주석 없는 인공 소스
+  한정**이었음 — 실제 .sol(첫 줄 `// SPDX-…`)은 SyntaxValid 게이트가 거부해 증분 편집이 전혀 적용되지
+  않았고, 프론트가 diagnostics 를 삼켜 **조용히 실패**했다. 문법에서 어노테이션의 `'//'` 를 제거하고
+  `LINE_COMMENT` 를 복원해 해결(#37), 진단 표시도 추가(#38). **이제 실제 .sol 에서 동작한다.**
 - 툴명 = IQDebug, repo/project = IntentKeeper 유지.
 
 ---
@@ -115,6 +117,8 @@
 - → 결론: `update_code`를 어노테이션에 호출 안 하고 텍스트만 파싱+visit하면 밀림 없음. 침습도 낮음~중간.
 
 ### 2.3 debug annotation 문법/시그니처 (`Parser/Solidity.g4`)
+- **⚠ 2026-07-18(#37) 이후 어노테이션 규칙에 `'//'` 가 없다** — `@During x > 0` 처럼 접두어 없이 파싱한다
+  (소스 주석이 아니라 API 입력이므로). `'//'` 는 이제 일반 `LINE_COMMENT`(HIDDEN) 전용.
 - `debugInput`(g4 268-294), `debugValue`(329-338).
 - @StateVar/@LocalVar: `varRef '=' debugValue`. varRef는 복합경로(`config.fee[user]`, `token.decimals`) 지원.
 - @GlobalVar: simple(`block.X`/`msg.X`/`tx.X` 화이트리스트) | addressBalance(`address(this).balance`).
@@ -630,13 +634,14 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
     매 요청이 진실의 원천. → "새로 접속하면 코드는 남고 분석/판정은 빈 상태" 라는 기대 동작이 자동으로 나옴.
     (대안이던 "페이지 로드마다 세션 폐기(clientId)" 는 B1 증분 CFG 를 함께 버려서 기각. 채택 시 대형 컨트랙트
     full-rebuild 비용 측정이 선행돼야 함 — 미측정.)
-  **(c) `_apply_delete` 도 같은 추측 사용 — 수정했으나 검증 불가(37 에 막힘)**: `_resolve_fcfg(None,None)` 으로
+  **(c) `_apply_delete` 도 같은 추측 사용 ✅ (2026-07-18 검증 완료)**: `_resolve_fcfg(None,None)` 으로
     수술 대상 fcfg 를 고름 → 타겟이 "마지막 함수"가 아니면 **엉뚱한 CFG 를 수술**(타겟엔 지운 문장 노드가
-    유령으로 잔존, 소스 장부만 줄어 소스/CFG 이탈). 스코프 명시로 수정해뒀으나 **아래 37 때문에 delete 가
-    애초에 실행되지 않아 실증 불가** — 37 해결 후 재검증 필요. 기존 B1 테스트가 못 잡은 이유: 테스트 컨트랙트가
-    **함수 1개**라 "마지막 함수" 폴백이 우연히 정답.
+    유령으로 잔존, 소스 장부만 줄어 소스/CFG 이탈). 스코프 명시로 수정. **37 해결 후 실증**:
+    `scope=Vault.withdraw` 로 해석 → `line_info[21].cfg_nodes[0]=Assign_21` 이 해당 그래프에 존재 → 수술 성공,
+    withdraw CFG 에서 L21 소멸. 기존 B1 테스트가 못 잡은 이유: 테스트 컨트랙트가 **함수 1개**라 "마지막 함수"
+    폴백이 우연히 정답.
 
-- **(37) ★ B1 증분 편집이 실제 앱에서 **항상 거부**되고 있었음 (미수정, 최우선)**:
+- **(37) ★ B1 증분 편집이 실제 앱에서 **항상 거부**되고 있었음 ✅해결 (2026-07-18)**:
   **증상**: withdraw 에서 `balance = bal - a;` 한 줄 삭제 → `update()` 가 **아무것도 적용 안 함**. CFG 에 노드
     잔존 + 그 문장이 **여전히 실행됨**(EXIT `balance=[0,0]`, 삭제됐다면 입력 `[10,10]` 유지가 정상).
   **원인**: `incremental.syntax_valid` 가 풀소스를 `sourceUnit` 으로 **엄격 파스**하는데,
@@ -648,25 +653,57 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
     주석 없는 인공 소스 한정. ② 프론트가 `/analyze` 의 diagnostics 를 **무시**(store.ts:249 `// TODO: squiggle`)
     → 게이트가 거부해도 **아무 표시 없이 조용히 실패**. (첫 analyze 는 `slice_solidity`+record apply 경로라
     ANTLR 에러 복구로 관용 → 정상 동작. 매 실행 콘솔의 `[ANTLR] 1:0 extraneous input '//'` 노이즈가 그 흔적.)
-  **수정안 → A 채택 (2026-07-13, Guardian 제약이 결정)**:
-    - **A. 게이트 전용 주석 스트립 ✅채택**(`incremental.py`): 파스 전 `//`~EOL 제거(문자열 `"http://"`·블록주석
-      내부 보존하는 스캐너, 개행 유지 → 진단 라인번호 보존). 게이트의 일은 **구조적 유효성**(brace 짝·orphan else)
-      판정이지 주석 검사가 아니므로 의미상으로도 옳음.
-    - **B. 문법 근본 수정 = 보류**(폐기 아님): `Solidity.g4` 에
-      `LINE_COMMENT : '//' [ \t]* ~[@\r\n] ~[\r\n]* -> skip;` — 렉서 **최장일치**로 `// SPDX` 는 LINE_COMMENT 가
-      이기고 `// @During` 은 `@` 때문에 매치 실패해 기존 `'//'` 토큰으로 감(구분 가능). ANTLR 에러 노이즈도 소멸.
-    - **A 를 고른 이유 = Guardian 논문 리비전 중이라 코어 반영 금지(사용자 지시)**. `Solidity.g4`·`Parser/*.py` 는
-      **Guardian → IntentKeeper 단방향 동기화**로 들어온 코어라, 여기서만 고치면 **다음 동기화 때 조용히
-      덮어써진다**(생성물이라 diff 수천 줄 → fork 가 눈에 안 띔). `incremental.py` 는 §5.6 에서 신설한
-      **IntentKeeper 고유 파일** → divergence 0. B 는 리비전 종료 후 **Guardian 에 먼저 넣고 동기화받는** 순서로.
-  **연쇄**: 37 해결 전엔 36(c) 검증 불가. 프론트 diagnostics 무시(store.ts:249)도 별건으로 처리 필요.
+  **채택안 = C. 문법에서 `'//'` 제거 + 원본 `LINE_COMMENT` 복원 (2026-07-18)**:
+    - 검토했던 A(게이트에서 주석 스트립)·B(`'//' ~[@\r\n]…` 조건부 LINE_COMMENT)는 **둘 다 기각**.
+      B 는 애초에 성립 안 함 — 이 프로젝트가 실제로 뱉는 형태가 `// @During`(공백 有, `Domain/Annotation.py:178`
+      ·`ContractAnalyzer.py:3013`·`frontend/src/editor/solidity.ts:59`)이라 `[ \t]*` 가 0글자로 백트랙하고
+      `~[@\r\n]` 가 **공백을 먹어** 어노테이션을 삼킨다. 데이터셋에 `// @notice`·`// @dev` 도 있어 "`@` 시작 주석
+      전면 배제"도 불가.
+    - **근본 관찰(사용자 지적)**: IntentKeeper 에선 intent·debug 값이 **소스 주석에서 읽히지 않는다**. 프론트가
+      구조화 데이터로 보내고 `engine_api` 가 `f"// {kw} …"` 문자열을 **직접 만들어** `intentUnit` 단독 파싱에
+      넘길 뿐 — 붙였다 떼는 왕복이라 정보량 0. `'//'` 는 Guardian 시절 "주석이 곧 입력" 워크플로의 잔재.
+    - **변경**: `Solidity.g4` 의 `debugGlobalVar`/`debugStateVar`/`debugLocalVar`/`debugIReturn`/`duringIntent`/
+      `postIntent` 에서 `'//'` 제거 → 충돌이 사라져 원본 `LINE_COMMENT : '//' ~[\r\n]* -> channel(HIDDEN);` 를
+      **그대로 복원**(휴리스틱 불필요). 재컴파일 `antlr4 -Dlanguage=Python3 -visitor Solidity.g4`.
+      호출부는 `engine_api.py:848`(intent)·`:873`(debug 값) 두 줄에서 `// ` 접두어 제거.
+    - **부수 확인**: `DebugBatchManager.flush()` 는 **소스를 전혀 안 건드림**(`update_code` 없음). `snapman`
+      snapshot/restore 는 소스 롤백이 아니라 배치별 값 초기화용. 주석 14-15 행에 "디버그 값 주석엔 라인번호가
+      무의미" 명시 → **debug 값 위치정보 불필요**가 코드로 확인됨(`ireturn_registry` 키도
+      `(contractVar, funcName, index)` 로 라인 없음, `Utils/CFG.py:555`). 따라서 검토했던 "debug 값 직접 주입
+      리팩터링"은 **불필요**로 결론. sentinel 6파일(`startswith("// @")`)도 사용자 소스 레코드만 보는
+      Guardian/CLI 경로라 손대지 않음.
+    - **검증**: `update() → {"ok": True, "diagnostics": []}` (이전 `{"ok": False}`), delete 실제 반영,
+      intent·debug 값 파싱 회귀 없음(`bal [10,10]`·`fee [0,0]`·`balance [0,0]` + verdict + states 캐시 적중).
+    - **대가(수용됨)**: `evaluation/RQ1/run_all.py` 가 **20/20 VIOLATED → 0/20 (전부 SATISFIED)** 로 회귀.
+      RQ1 은 `.sol` 안에 `// @During` 이 적힌 형태로 인텐트를 먹이는데 이제 그 줄이 주석으로 스킵된다. 즉
+      **위반이 조용히 "만족"으로 둔갑** — 가장 나쁜 실패 형태. `main.py:142` sentinel 에서 파서에 넘기기 직전
+      `// ` 만 떼면 복구 가능하지만(소스 형식과 API 형식 공존), **RQ1 은 Guardian 복붙본이고 IntentKeeper 는
+      웹 기반이라 실험 방식 자체를 다시 짜기로 결정(사용자)** → 패치하지 않음.
+      ⚠ **그때까지 e2e 회귀 커버리지 0** — 위와 같은 조용한 둔갑을 잡아줄 스위트가 없다.
+  **연쇄**: 36(c) 재검증 ✅ 완료. 프론트 diagnostics 표시 ✅ 완료(아래).
+
+- **(38) 프론트가 `/analyze` diagnostics 를 삼키던 문제 ✅해결 (2026-07-18)**: 서버는 원래 정상 반환
+  (`engine_server.py:93,98`), 프론트만 `store.ts:249 // TODO` 로 버림 → **37 이 반년 가까이 안 보인 직접 원인**.
+  `store.ts` 에 `syntaxErrors` 상태 추가(structure tier 에서만 갱신 — evaluate-only 에서 빈 배열로 덮으면
+  squiggle 이 잘못 사라짐), `WorkspacePanel.tsx` 에 Monaco `setModelMarkers` squiggle + 배너,
+  `DebugView.tsx` 에 "아래 결과는 직전 유효 코드 기준" 배너. `line:0` 전역 진단은 1행 클램프.
+
+- **(39) ANTLR 버전 정합 ✅ (2026-07-18)**: 생성물은 4.13.2, `.venv` 런타임은 4.12.0 이라 실행마다
+  `versions disagree` 경고가 쏟아지던 상태(우리 변경과 무관한 기존 간극). 런타임을 **4.13.2 로 올리고**
+  `requirements.txt` 반영 → 경고 소멸, 동작 동일.
 
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
 ~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) ·
-~~세션 스코프/유령 값~~ ✅(#36 a·b) →
-① **#37 라인 주석 게이트**(A/B 택일 → 증분 편집 부활) → ② #36(c) delete 스코프 **재검증** →
-③ 프론트 analyze diagnostics 표시(조용한 실패 제거) → ④ **브라우저 재확인**(6·7·10·8·9·#35 육안) →
-⑤ L2(decision #31) → ⑥ try/catch pre-state(#33 잔여). (#34 b1/b2 는 인위적 코너라 후순위 격하)
+~~세션 스코프/유령 값~~ ✅(#36 a·b) · ~~#37 라인 주석 게이트~~ ✅ · ~~#36(c) delete 스코프 재검증~~ ✅ ·
+~~프론트 diagnostics 표시~~ ✅(#38) · ~~ANTLR 버전 정합~~ ✅(#39) →
+① **브라우저 재확인**(증분 편집 부활 + 6·7·10·8·9·#35 육안) → ② L2(decision #31) →
+③ try/catch pre-state(#33 잔여) → ④ **IntentKeeper 전용 실험 스크립트**(RQ1 대체, 주석 .sol 대신
+`EngineSession` 에 구조화 intent/debug 값 투입 — 개발 얼추 끝난 뒤로 미룸, 사용자 결정).
+(#34 b1/b2 는 인위적 코너라 후순위 격하)
+
+**Guardian 동기화 방침 변경(2026-07-18)**: 더 이상 동기화하지 않기로 함(사용자) → 코어
+(`Analyzer/ Domain/ Interpreter/ Libraries/ Parser/ Utils/ Dependencies/` + `main.py`)를 **IntentKeeper 에서
+직접 고쳐도 무방**. #37 이 이 방침 덕에 우회안(A) 대신 근본 수정(C)으로 갈 수 있었다.
 
 **세션 노트**: 서버 세션은 메모리에 `contract.func` 키로 영속 → **테스트 컨트랙트가 프론트 세션 오염** 가능
 (재시작으로 클리어). 콘솔 한글 mojibake 는 cp949 출력 문제일 뿐 JSON 은 UTF-8 정상.
@@ -675,7 +712,12 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
 
 ## 6. 실행/환경 메모
 
-- 엔진 실행: **반드시 `.venv\Scripts\python.exe`** (글로벌 Python310 networkx 2.5.1 깨짐). 검증: `.venv\Scripts\python.exe evaluation\RQ1\run_all.py` → 20/20 VIOLATED.
+- 엔진 실행: **반드시 `.venv\Scripts\python.exe`** (글로벌 Python310 networkx 2.5.1 깨짐).
+  ⚠ **과거 검증 커맨드였던 `evaluation\RQ1\run_all.py` → 20/20 VIOLATED 는 더 이상 유효하지 않다**
+  (decision #37 로 0/20 SATISFIED 회귀, 의도된 것). IntentKeeper 전용 스크립트로 대체 예정 — 그전까지
+  e2e 회귀 스위트 없음.
+- ANTLR: 생성 CLI `antlr4` 4.13.2 / 런타임 `antlr4-python3-runtime==4.13.2` (2026-07-18 정합).
+  파서 재생성 = `Parser/` 에서 `antlr4 -Dlanguage=Python3 -visitor Solidity.g4`.
 - `load_dependencies`는 3개 디렉토리 interface 스캔 필요(`evaluation/RQ1/target_contracts_contraction`, `.../target_contracts_original/dependencies`, `Dataset/Numscout/contraction`).
 - 프론트: `cd frontend && npm install` (1회), `npm run dev`. 타입체크 `npx tsc --noEmit`.
 - 작업 규칙(CLAUDE.md): 객관적·비판적 검토 / 제안 도구(코어 수정 전 승인) / 모호하면 질의.

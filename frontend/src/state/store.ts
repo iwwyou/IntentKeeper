@@ -46,6 +46,9 @@ interface AppState {
   analyzing: boolean
   analyzeError: string | null // 분석 실패(서버 500/네트워크) — 배너 표시
   valueErrors: { line: number; message: string }[] // debug 값 입력 오류(슬롯 옆 표시)
+  // 코드 문법 오류(/analyze diagnostics) — 편집기 squiggle. 이게 비어있지 않으면 증분 편집이
+  // 거부된 상태(엔진은 직전 구조 유지)이므로 반드시 보여야 한다. 삼키면 편집이 조용히 무시된다.
+  syntaxErrors: { line: number; message: string }[]
   applyTick: number // Apply(evaluate) 실행마다 +1 — nav 가 결과 노드로 커서 재배치하는 신호
 
   setView: (v: View) => void
@@ -121,6 +124,7 @@ export const useStore = create<AppState>()(
       analyzing: false,
       analyzeError: null,
       valueErrors: [],
+      syntaxErrors: [],
       applyTick: 0,
 
       setView: (v) => set({ view: v }),
@@ -238,6 +242,9 @@ export const useStore = create<AppState>()(
         let debugSlots = cur?.debugSlots ?? []
         let topVars = cur?.top_vars ?? []
         let valueErrors: { line: number; message: string }[] = []
+        // structure 를 안 도는 tier(evaluate-only)에선 직전 문법오류를 유지 — 값 계산이
+        // 문법 상태를 바꾸진 않으므로 빈 배열로 덮으면 squiggle 이 잘못 사라진다.
+        let syntaxErrors = get().syntaxErrors
 
         try {
           if (needStructure) {
@@ -246,7 +253,9 @@ export const useStore = create<AppState>()(
             scope = st.scope
             cfg = st.cfg
             debugSlots = st.debugSlots
-            // TODO: st.diagnostics → 편집기 squiggle (지금 mock은 빈 배열)
+            // 문법 오류 → 편집기 squiggle. 비어있지 않으면 이 편집은 엔진에 반영되지 않았고
+            // cfg/debugSlots 는 직전(마지막 유효) 구조다.
+            syntaxErrors = (st.diagnostics ?? []).map((d) => ({ line: d.line, message: d.message }))
           }
           if (needEvaluate) {
             const ev = await evaluate(req)
@@ -273,7 +282,7 @@ export const useStore = create<AppState>()(
             intents,
             debugSlots,
           }
-          set({ results: { ...get().results, [key]: result }, valueErrors })
+          set({ results: { ...get().results, [key]: result }, valueErrors, syntaxErrors })
           // evaluate 가 실제로 돈 경우에만 nav 재배치 신호(intent-only verify 는 커서 안 옮김).
           if (needEvaluate) set({ applyTick: get().applyTick + 1 })
         } catch (e) {

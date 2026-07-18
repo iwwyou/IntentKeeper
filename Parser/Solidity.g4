@@ -266,21 +266,21 @@ debugInput
     ;
 
 debugGlobalVar
-    : '//' '@GlobalVar' identifier ('.' identifier)? '=' debugValue                          # GlobalVarSimple
-    | '//' '@GlobalVar' 'address' '(' identifier ')' '.' identifier '=' debugValue            # GlobalVarAddressBalance
+    : '@GlobalVar' identifier ('.' identifier)? '=' debugValue                          # GlobalVarSimple
+    | '@GlobalVar' 'address' '(' identifier ')' '.' identifier '=' debugValue            # GlobalVarAddressBalance
     ;
 
 debugStateVar
-    : '//' '@StateVar' varRef '=' debugValue
+    : '@StateVar' varRef '=' debugValue
     ;
 
 debugLocalVar
-    : '//' '@LocalVar' varRef '=' debugValue
+    : '@LocalVar' varRef '=' debugValue
     ;
 
 debugIReturn
-    : '//' '@IReturn' identifier '.' identifier '(' ')' ireturnAccessChain? '=' debugValue        # IReturnPatternA
-    | '//' '@IReturn' identifier '(' identifier ')' '.' identifier '(' ')' ireturnAccessChain? '=' debugValue   # IReturnPatternB
+    : '@IReturn' identifier '.' identifier '(' ')' ireturnAccessChain? '=' debugValue        # IReturnPatternA
+    | '@IReturn' identifier '(' identifier ')' '.' identifier '(' ')' ireturnAccessChain? '=' debugValue   # IReturnPatternB
     ;
 
 ireturnAccessChain
@@ -294,7 +294,7 @@ ireturnAccess
     ;
 
 duringIntent
-    : '//' '@During' duringClause (logicOp duringClause)*
+    : '@During' duringClause (logicOp duringClause)*
     ;
 
 duringClause
@@ -306,7 +306,7 @@ duringClause
     ;
 
 postIntent
-    : '//' '@Post' postClause (logicOp postClause)*
+    : '@Post' postClause (logicOp postClause)*
     ;
 
 postClause
@@ -774,4 +774,12 @@ WS
 
 COMMENT
   : '/*' .*? '*/' -> channel(HIDDEN) ;
+
+// 라인 주석 복원(2026-07-18). 과거 제거했던 이유 = 최장일치로 `// @During ...` 한 줄을
+// 통째로 삼켜 intentUnit 이 매치되지 않았기 때문. 이제 어노테이션 규칙에서 '//' 를 없애
+// (intent/debug 값은 소스 주석이 아니라 API 입력으로 전달) 충돌이 사라져 그냥 복원 가능.
+// 이게 없으면 `// SPDX-License-Identifier` 로 시작하는 실제 .sol 이 sourceUnit 파스에서
+// 거부되어 증분 편집 게이트(incremental.syntax_valid)가 항상 실패한다.
+LINE_COMMENT
+  : '//' ~[\r\n]* -> channel(HIDDEN) ;
 

@@ -14,6 +14,7 @@ export default function DebugView() {
   const functions = useStore((s) => s.functions)
 
   const analyzeError = useStore((s) => s.analyzeError)
+  const syntaxErrors = useStore((s) => s.syntaxErrors)
   const result = results[keyOf(activeContract, activeFunction)]
   const fnMeta = functions.find((f) => f.name === activeFunction)
   const nav = useNavigation(result)
@@ -36,6 +37,13 @@ export default function DebugView() {
       {analyzeError && (
         <div className="analyze-error" title={analyzeError}>
           ⚠ 분석 실패: {analyzeError}
+        </div>
+      )}
+
+      {/* 문법 오류 상태에선 아래 CFG/값이 "직전 유효 코드"의 것이다 — 최신으로 오인하면 안 됨 */}
+      {syntaxErrors.length > 0 && (
+        <div className="analyze-error" title={syntaxErrors.map((e) => `L${e.line}: ${e.message}`).join('\n')}>
+          ⚠ 문법 오류 {syntaxErrors.length}건 — 아래 결과는 직전 유효 코드 기준입니다
         </div>
       )}
 
