@@ -1398,6 +1398,25 @@ class Engine:
         if not hasattr(node, 'intents') or not node.intents:
             return
 
+        # A2 (PROGRESS decision #40): 이 program point 가 도달불가면 clause 검사 없이 Unreachable.
+        # env 의 변수 중 하나라도 BOTTOM = 곱집합 공집합 = 도달하는 구체 실행 없음(건전).
+        # _is_bottom_env 는 엔진 자신의 infeasibility 기준(:1148)과 동일 → 분기 pruning 판단과 일관.
+        # 한계: 구간 도메인이 bottom 으로 판정한 것만 잡음. 파생 변수 상관 소실(x=a+b 후 x·a 제약)은
+        # bottom 이 아니라 놓침(기존 한계, A2 가 악화시키지 않음). during 만 처리(post 는 별도 경로).
+        if not cur_vars or self._is_bottom_env(cur_vars):
+            for intent in node.intents:
+                if intent.get("type") != "during":
+                    continue
+                report_line = intent.get("line_no", line_no)
+                print(f"[INTENT UNREACHABLE] Line {report_line}: 경로 조건상 도달 불가")
+                self.an.analysis_per_line.setdefault(report_line, []).append({
+                    'type': 'during_intent',
+                    'clauses': intent.get("clauses", []),
+                    'result': {'status': 'unreachable',
+                               'message': 'intent 위치 도달 불가 (경로 조건상 실행되지 않음)'}
+                })
+            return
+
         guardian = self.an.guardian_verifier
 
         for intent in node.intents:

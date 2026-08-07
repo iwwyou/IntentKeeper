@@ -63,7 +63,7 @@ NodeFlag = Literal[
     "fixpoint_evaluation", "loop_exit", "loop_body", "exit",
 ]
 EdgeKind = Literal["normal", "true", "false", "back_edge"]
-VerdictStatus = Literal["Satisfied", "Warning", "Violated"]
+VerdictStatus = Literal["Satisfied", "Warning", "Violated", "Unreachable"]
 DebugKind = Literal["StateVar", "LocalVar", "GlobalVar", "IReturn"]
 ValueKind = Literal["interval", "bool", "address", "array", "bytes", "enum"]
 Backend = Literal["llm", "solver", "hybrid"]
@@ -381,6 +381,7 @@ _VSTATUS: dict[str, VerdictStatus] = {
     "satisfied": "Satisfied", "success": "Satisfied",
     "violated": "Violated", "violation": "Violated",
     "warning": "Warning",
+    "unreachable": "Unreachable",  # A2: 도달불가 노드(BOTTOM env)에 걸린 intent
 }
 
 

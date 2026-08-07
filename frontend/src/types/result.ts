@@ -39,7 +39,7 @@ export interface CFG {
   edges: CFGEdge[]
 }
 
-export type Verdict = 'Satisfied' | 'Warning' | 'Violated'
+export type Verdict = 'Satisfied' | 'Warning' | 'Violated' | 'Unreachable'
 
 // 위반 영역. **출력공간**(비교되는 값의 구간)이지 입력 파라미터 구간이 아니다 —
 // 입력공간 역전파/분할은 decision #40 (B) 몫. warning·단일 절(during)일 때만 존재.

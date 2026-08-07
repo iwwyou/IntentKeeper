@@ -64,6 +64,7 @@ body {
 .marker.Violated { color: #f06060; }
 .marker.Warning { color: #f0c040; }
 .marker.Satisfied { color: #6ac46a; }
+.marker.Unreachable { color: #6b6b6b; }
 .marker.none { color: #555; }
 
 .editor-wrap { min-width: 0; }
@@ -140,6 +141,7 @@ body {
 .verdict-item.Violated { border-color: #f06060; }
 .verdict-item.Warning { border-color: #f0c040; }
 .verdict-item.Satisfied { border-color: #6ac46a; }
+.verdict-item.Unreachable { border-color: #6b6b6b; opacity: 0.7; } /* 검증 대상 아님(죽은 코드) */
 .verdict-item .risk { float: right; color: #f06060; font-weight: 700; }
 .verdict-item .msg { color: #bbb; font-size: 12px; margin-top: 3px; }
 

@@ -785,22 +785,36 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
     `falseRegions={lowerViolation:None, upperViolation:['51','100'], overlapZone:['50','50']}` 프론트 verdict 까지 도달.
     (스크래치패드 `smoke_false_regions.py`.) **제약: warning·단일 절만**(복합 절은 `_combine_logic_results`
     가 드롭 = #40⑥ "박스 여러 개" 케이스, 후속). **출력공간**임을 UI 라벨에 명시("위반 영역(출력값 기준)").
-  - **(A2) Unreachable 탐지 + 판정 [미착수]**: 배관 아님 — 엔진이 깨끗한 도달불가 판정을 **계산 안 함**.
-    현 동작: intent 노드가 unreachable(빈 env)이면 verify 가 error→`_VSTATUS` 기본 `Warning` 으로 뭉갬(또는
-    누락). 근거: `VerdictStatus` 3값뿐, verify_* 에 도달불가 분기 없음(`verify_during_feasible` 는 명시적
-    `require feasible` 전용, 무관), 메인 walk(`Engine.py:1075→1109`)에 unreachable 게이트 없음(루프 루틴
-    `:582` 엔 있음). 필요작업 = `_process_node_intents` 진입부 빈-env 감지 → `Unreachable` emit + `VerdictStatus`
-    4번째 값. **정확한 알고리즘 미정**(사용자 노트: join 노드가 자기 if/분기 라인을 알면 "이 안쪽 intent는
-    도달 애매" 판정 가능 — 설계 필요). 승인 후 착수.
+  - **(A2) Unreachable 탐지 + 판정 ✅ 완료·e2e 검증 (during 한정)**: 배관 아님 — 엔진이 깨끗한 도달불가
+    판정을 계산 안 했음(현 동작: unreachable intent 가 `Warning` 으로 뭉개짐, risk 낮게). **핵심 관찰**:
+    도달불가는 이미 추상해석이 **BOTTOM env 로 전파**해 둠(CFG 구조 추론 불필요). 판정 = `_process_node_intents`
+    진입부에서 `not cur_vars or self._is_bottom_env(cur_vars)` → `{'status':'unreachable'}` emit + clause 검사 skip.
+    `_is_bottom_env`(Engine.py:1148, "변수 하나라도 BOTTOM이면 infeasible")는 **엔진 자신의 분기 pruning 기준과
+    동일** → 제어흐름 판단과 일관(다른 기준 쓰면 "엔진은 죽었다는데 verdict는 살았다" 모순).
+    변경 5곳: `Engine.py` `_process_node_intents` 진입부(standalone·inline 두 verify 경로 공통 choke point) /
+    `engine_api.py` `VerdictStatus`+`"Unreachable"`, `_VSTATUS`+`"unreachable"→"Unreachable"` /
+    `result.ts` `Verdict`+`'Unreachable'` / `styles.css` `.verdict-item.Unreachable`·`.marker.Unreachable`(회색).
+    **검증(스크래치패드 probe_unreachable/probe_relational/probe_derived)**:
+    · 죽은 분기(`a>100 ∧ a<50`) → `Unreachable` ✓
+    · **직접 관계 비교**(`a>b ∧ a<b`, a·b 입력)도 엔진이 bottom 으로 잡음 → `Unreachable` ✓
+      (⚠ 이전 세션 내 주장 "관계형은 다 놓친다"는 **오류**였음 — 엔진의 반복 정제가 라이브 변수 간 직접
+      모순은 잡는다. 실측으로 정정.)
+    · 정상 warning + falseRegions 회귀 없음 ✓ · **파생변수 도달불가**(`x=a+b` 후 x·a 제약)는 bottom 이 아니라
+      `Violated` 로 나옴 = **오탐 없음** 확인 ✓ (동시에 이게 유일한 miss 임을 실증) · 프론트 tsc clean.
+    **한계(문서화)**: 구간 도메인이 bottom 으로 판정한 도달불가만 잡음. **파생 변수 상관 소실**(`x=a+b` 후
+    x 제약이 a 제약과 모순 — x 가 대입 시점에 굳어 a>100 정제가 역전파 안 됨)은 bottom 아님 → 놓침(기존 한계,
+    A2 가 악화 안 함). 입력을 점에 가깝게 좁히면 이 miss 도 소멸(→ (B) 분할과 연결). **Post intent 미포함**
+    (`_process_exit_node_intents` 별도 경로 — 후속). "완전 도달불가"만, join 오염(도달은 하나 상태 오염)은
+    Warning=정밀도 문제=(B) 몫으로 구분.
   - **(B) 분할 탐색기 설계문서**(pick_variable·pick_cut·병합·예산) / **(C)=본 기록**. 코어 수정이므로 A2·B 는 승인 후.
 
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
 ~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) ·
 ~~세션 스코프/유령 값~~ ✅(#36 a·b) · ~~#37 라인 주석 게이트~~ ✅ · ~~#36(c) delete 스코프 재검증~~ ✅ ·
 ~~프론트 diagnostics 표시~~ ✅(#38) · ~~ANTLR 버전 정합~~ ✅(#39) →
-① **기능 #1 = intent 위치 debug 입력 자동 생성**(decision #40, 랩미팅 주력 주제) →
-   (A) `VerdictStatus`+Unreachable & `VerdictItem`+`falseRegions` [승인 후] →
-   (B) 분할 탐색기 설계문서 [승인 후] → 구현 →
+① **기능 #1 = intent 위치 debug 입력 자동 생성**(decision #40, 주력 주제) →
+   ~~(A1) falseRegions 배관~~ ✅ · ~~(A2) Unreachable 판정(during)~~ ✅ →
+   (A2-post) Post intent 도달불가 [남음] · (B) 분할 탐색기 설계문서→구현 [승인 후] →
 ② 브라우저 재확인(증분 편집 부활 + 6·7·10·8·9·#35 육안) → ③ L2(decision #31, #40 과 통합될 수 있음) →
 ④ try/catch pre-state(#33 잔여) → ⑤ **IntentKeeper 전용 실험 스크립트**(RQ1 대체, 주석 .sol 대신
 `EngineSession` 에 구조화 intent/debug 값 투입 — 개발 얼추 끝난 뒤로 미룸, 사용자 결정).
