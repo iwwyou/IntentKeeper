@@ -132,6 +132,11 @@ class VerdictItem:
     risk: float  # 0..10
     region: tuple[int, int]
     message: str
+    # 위반 영역(엔진 `false_regions`). **출력공간**(비교되는 값의 구간)이지 입력 파라미터 구간이
+    # 아니다 — 입력공간 역전파/분할은 decision #40 (B). warning 이고 단일 절(during)일 때만 채워진다
+    # (복합 절은 _combine_logic_results 가 드롭). 경계는 2^256 까지 가능 → JS number 정밀도 회피 위해
+    # 문자열(IntervalValue 와 동일 규약, 72행). 없으면 None.
+    falseRegions: Optional[dict] = None
 
 
 @dataclass
@@ -391,16 +396,38 @@ def _extract_verdict(ca) -> list[VerdictItem]:
                 continue
             r = e.get("result", {}) or {}
             status = _VSTATUS.get(r.get("status"), "Warning")  # error/pending/unknown → Warning
+            det = r.get("details") if isinstance(r.get("details"), dict) else None
             risk = r.get("risk_score")
-            if risk is None and isinstance(r.get("details"), dict):
-                risk = r["details"].get("risk_score")
+            if risk is None and det is not None:
+                risk = det.get("risk_score")
             kind = "post" if "post" in etype else "during"
             out.append(VerdictItem(
                 line=line_no, node="", type=kind, status=status,
                 risk=float(risk or 0.0), region=(line_no, line_no),
                 message=r.get("message", ""),
+                falseRegions=_false_regions_out(det),
             ))
     return out
+
+
+def _false_regions_out(details: Optional[dict]) -> Optional[dict]:
+    """엔진 details.false_regions(내부 snake, [lo,hi] 정수) → 프론트 규약(camel, 경계 문자열).
+    셋 다 None 이면 통째로 None(=위반 영역 정보 없음). 경계 문자열화 이유는 VerdictItem 참조."""
+    raw = details.get("false_regions") if details else None
+    if not isinstance(raw, dict):
+        return None
+
+    def _pair(p):
+        if not p:
+            return None
+        return [str(p[0]), str(p[1])]
+
+    lower = _pair(raw.get("lower_violation"))
+    upper = _pair(raw.get("upper_violation"))
+    overlap = _pair(raw.get("overlap_zone"))
+    if lower is None and upper is None and overlap is None:
+        return None
+    return {"lowerViolation": lower, "upperViolation": upper, "overlapZone": overlap}
 
 
 def _cfg_to_dict(cfg: CFG) -> dict:

@@ -41,6 +41,15 @@ export interface CFG {
 
 export type Verdict = 'Satisfied' | 'Warning' | 'Violated'
 
+// 위반 영역. **출력공간**(비교되는 값의 구간)이지 입력 파라미터 구간이 아니다 —
+// 입력공간 역전파/분할은 decision #40 (B) 몫. warning·단일 절(during)일 때만 존재.
+// 경계는 2^256 까지 가능 → 문자열(엔진 IntervalValue 와 동일 규약).
+export interface FalseRegions {
+  lowerViolation: [string, string] | null // intent 하한 아래로 벗어난 구간
+  upperViolation: [string, string] | null // intent 상한 위로 벗어난 구간
+  overlapZone: [string, string] | null // 겹치는 불확정 구간
+}
+
 export interface VerdictItem {
   line: number
   node: string
@@ -49,6 +58,7 @@ export interface VerdictItem {
   risk: number // 0..10
   region: [number, number]
   message: string
+  falseRegions?: FalseRegions | null // 없으면 undefined/null
 }
 
 export interface TopVar {

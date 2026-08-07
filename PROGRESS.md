@@ -692,12 +692,117 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
   `versions disagree` 경고가 쏟아지던 상태(우리 변경과 무관한 기존 간극). 런타임을 **4.13.2 로 올리고**
   `requirements.txt` 반영 → 경고 소멸, 동작 동일.
 
+- **(40) 기능 #1 "intent 위치 debug 입력 자동 생성" 목적 재정의 + 설계 방향 (2026-08-05 랩미팅 준비 세션)**:
+
+  **① 목적 재정의 — 이 기능이 무엇을 얻으려는가.**
+  잘못된 초기 프레임(내가 세웠다 폐기): ~~"SATISFIED=증명, VIOLATED=의심 → 허위 VIOLATED 제거"~~.
+  **이 엔진에선 틀리다.** 추상상태 `A ⊇ 실제도달 `C``일 때 `A` 전체가 만족이면 증명, `A` 전체가
+  위반이어도 (도달 가능하면) 증명 — **SATISFIED·VIOLATED 둘 다 건전**하다. 미결은 오직 `A` 가
+  intent 를 **일부만** 만족할 때이며 그게 **warning**이다. 근거: `GuardianVerificationEngine.py:1590`
+  `_status_from_cmp`(satisfied/violated/warning 3분기), `Interpreter/Engine.py:1989` 주석
+  ("warning = 증명 불가, interval 도메인에서 흔함 → 누락 시 satisfied 로 오판").
+  → **debug 입력이 없으면 파라미터가 ⊤ 라 대부분 warning 으로 떨어진다. 따라서 이 기능의 목적은**
+  **"버그 유무 판정"이 아니라 "엔진 결과가 warning 인 것을, 판정이 확정되는 입력 영역들로 분할"** 이다.
+  (용어: "warning 상태의 intent" 아님 — **엔진 결과가 warning 인 경우**. 사용자 정정.)
+
+  **② 산출물 4종.**
+  | 산출 | 의미 |
+  |---|---|
+  | 확정 **Violated** 영역 | 버그 witness (원래 "1. 버그 유무") |
+  | 확정 **Satisfied** 영역 | 안전 영역 = 사실상 **빠진 `require`** 제안 |
+  | **Unreachable** (도달 불가) | intent 위치가 죽은 코드 = **검증 대상 아님**. Satisfied 를 공허하게 뱉는 것보다 정직. 사용자 추가 요청 |
+  | 남은 **Warning** | 정밀도 한계(관계 손실/미모델링) — 정직하게 "모름" 보고 |
+  "이 경로로 이 값 거쳐 여기서 깨진다"(원래 2번)의 **메커니즘(path-exclusive 입력)은 1번의 신뢰성
+  전제로 필수**, 단 **설명 UI 는 차후**(코드에 뻔한 분기조건 되풀이는 노이즈라는 사용자 지적 반영).
+
+  **③ intent 는 항상 전제.** intent 없는 순수 입력생성 모드는 **안 만든다**(그 순간 Mythril/Echidna
+  와 같은 링 = 차별점 상실. 사용자 확정). intent 가 경로를 **없애는** 게 아니라 **intent 변수 기준으로
+  구별 안 되는 경로를 병합** → 경로 폭발을 억제하는 역할.
+
+  **④ 도달 불가 — 엔진에 기계 이미 있음, 통로만 없음.** BOTTOM 전파·unreachable skip·⊥ 렌더가
+  이미 구현: `Interpreter/Engine.py:581`(in_vars 빈 dict → skip), `Evaluation.py:2890`(BOTTOM 비교 →
+  bottom), `engine_api.py:271`(⊥ 렌더). **없는 것 = 판정 통로**: `engine_api.py:66`
+  `VerdictStatus = Literal["Satisfied","Warning","Violated"]` 에 4번째 상태 자리 없음 → **Unreachable 추가 필요**.
+
+  **⑤ false_regions — 위반영역 계산기 이미 있음, 그러나 (a)출력공간이고 (b)API에서 버려짐.**
+  `GuardianVerificationEngine.py:1643` `_false_regions_for_op(L,R,op)` 가 `>,<,>=,<=,==,!=,in,not in`
+  전부에 대해 `{lower_violation, upper_violation, overlap_zone}` 을 이미 반환한다.
+  - **(a) 출력공간 ≠ 입력공간**: `false_regions` 는 *비교되는 값*(예 `fee*100`)의 구간이지, 사용자가 넣는
+    *진입 파라미터*(예 `a`)의 구간이 아니다. **엔진은 "어디서 깨지는지"는 알지만 "그러려면 무엇을
+    넣어야 하는지"는 모른다** — 그 변환이 이 기능의 알고리즘 핵심.
+  - **(b) 통로 없음**: `VerdictItem`(`engine_api.py:127`)의 `region` 은 *라인* 범위 `(line,line)` 이지 값
+    범위가 아니다(`frontend/src/types/result.ts:44` 동일). 구조화된 `false_regions` 는 API 경계에서
+    버려지고, `status=="warning"` 일 때 `message` 문자열 꼬리표
+    (`GuardianVerificationEngine.py:280` `msg_tail`)로만 프론트에 샌다(파싱 불가 형태).
+    → **`VerdictItem` 에 `falseRegions` 구조 필드 추가 필요.**
+
+  **⑥ 위반영역이 박스 하나가 아닌 경우(왜 "몇 개 보여줄까"가 본질 문제인가).**
+  - (a) **단일 변수·단일 비교에서도 발생**: `==`,`in` 은 `lower`·`upper` 동시 채움
+    (`_false_regions_for_op` op=='=='). `x∈[0,100]`, intent `x==50` → 위반 `[0,49]∪[51,100]`.
+  - (b) **변수 간 관계 = 대각 경계**(가장 흔함): `bal < a+101` 같은 반평면은 축평행 박스로 정확 표현
+    불가 → **서로 포함 안 하는 극대 박스 여러 개**. 관계형 intent(`balance>=bal-a` 등)는 예외가 아니라 기본.
+  - (c) **경로 분리**: 분기별 위반식이 다르면 조각이 입력공간 여러 구석에.
+  - (d) **정수 산술**: `/`(계단), `%`(짝수만), 오버플로(구간 두 동강).
+  → "박스 하나"가 오히려 특수. 그래서 **제시 개수 = intent 변수 기준 병합**으로 관리.
+
+  **⑦ 생성 알고리즘 = 역전파 대신 "판정 기반 분할"(verdict-guided partitioning).**
+  심볼릭 역전파(⑤)를 안 풀어도 된다. **입력 박스 B 를 넣고 엔진 전방 평가 → 판정을 물어보는** 재귀 분할:
+  ```
+  partition(B, depth):
+    v = engine.evaluate(B)                       # evaluate 1회
+    if v ∈ {Satisfied, Violated, Unreachable}: emit(B,v); return   # 확정 → 종료
+    if depth>D or B singleton:                  emit(B,Warning); return  # 정밀도 한계, 정직 보고
+    x = pick_variable(B)   # intent 등장 변수로 제한, false_regions 경계 지나는 변수 우선
+    p = pick_cut(B, x)     # 경계값 우선(경로조건·intent 상수, false_regions 경계) — 중점이분 아님
+    partition(B|x<p, d+1); partition(B|x>=p, d+1)
+  후처리: 같은 판정 인접 박스 재병합
+  ```
+  - **함의: Z3 가 선택사항이 된다.** `/`,`%`,외부호출,루프 — 심볼릭 인코딩 난제를 엔진이 전방으로는
+    이미 처리하므로 인코딩 없이 동작. "루프를 Z3 에 어떻게 주나" 걱정이 통째로 사라짐(추상해석
+    fixpoint 가 이미 처리 = 심볼릭 실행 대비 **구조적 이점**).
+  - **건전성 공짜**: 각 조각 판정이 엔진 확정 판정 → 건전. 남은 warning = "모름". **완전하진 않되 건전**.
+  - **한계(정직)**: 얇은 위반영역(예 `a==57` 만 위반)엔 분할이 약함 → **여기가 Z3 의 남은 자리**
+    (흔한 경우=분할, 얇은 경우=solver). 평가횟수=비용 → 조각수 상한·시간예산 필요. 대각경계는 계단
+    근사라 잘게 쪼개짐 → 병합 필수.
+  - **관련연구**: 입력공간 trace partitioning(Rival & Mauborgne, TOPLAS 2007), CEGAR 인접.
+
+  **⑧ Z3 vs LLM 재정리(월요일 교수님 설명에서 정정할 것).**
+  - ~~"LLM 이 범위 주면 Z3 검증은 상수비교라 빠르다"~~ **틀림**: 박스검증은 `∀x∈B.PC(x) ⟺ UNSAT(x∈B ∧ ¬PC(x))`
+    = 원래와 같은 theory. 게다가 검증이 싼 경우 = 분리가능한 경우 = 애초에 LLM 도 Z3 도 불필요했던 경우.
+  - 비선형(NIA)은 "느림"이 아니라 **결정 불가능**(Z3 가 `unknown`/미종료) → 폴백이 설계 필수.
+  - **검증자 = Z3 가 아니라 이미 있는 엔진**. LLM/solver 는 **생성**만, **검증·건전성은 항상 엔진**.
+    LLM 은 정확도가 아니라 **커버리지(Z3 가 원리적으로 못 푸는 영역)** 확장 역할.
+  - 케이스화는 **코드가 아니라 치환 끝낸 경로조건 형태**로: T0 변수별 분리(구문유도) / T1 선형다변수(Z3) /
+    T2 비선형(Z3+타임아웃→LLM) / T3 인코딩불가(외부호출·심볼릭키·해시 → LLM/미지원) / T4 루프(fixpoint).
+    **티어는 원자 아니라 경로 단위**(경로에 T2 원자 하나면 그 경로가 T2). 분포는 추측 말고
+    `evaluation/RQ1/target_contracts_original`, `Dataset/Numscout` 에서 **경로 단위 측정**(폴백 비율 = 성능 예산).
+
+  **작업 브레이크다운**(2026-08-05 갱신):
+  - **(A1) falseRegions 배관 ✅ 완료·e2e 검증**: 데이터가 이미 `details` 에 있어 순수 배관.
+    `engine_api.py` `VerdictItem.falseRegions`(Optional) + `_false_regions_out`(snake→camel, 경계 문자열화
+    ∵ 2^256/JS number 정밀도) / `result.ts` `FalseRegions` 타입 / `VerdictPanel.tsx` `FalseRegionsView`.
+    검증: `a=[0,100]`, intent `@During a<=50` → status=Warning,
+    `falseRegions={lowerViolation:None, upperViolation:['51','100'], overlapZone:['50','50']}` 프론트 verdict 까지 도달.
+    (스크래치패드 `smoke_false_regions.py`.) **제약: warning·단일 절만**(복합 절은 `_combine_logic_results`
+    가 드롭 = #40⑥ "박스 여러 개" 케이스, 후속). **출력공간**임을 UI 라벨에 명시("위반 영역(출력값 기준)").
+  - **(A2) Unreachable 탐지 + 판정 [미착수]**: 배관 아님 — 엔진이 깨끗한 도달불가 판정을 **계산 안 함**.
+    현 동작: intent 노드가 unreachable(빈 env)이면 verify 가 error→`_VSTATUS` 기본 `Warning` 으로 뭉갬(또는
+    누락). 근거: `VerdictStatus` 3값뿐, verify_* 에 도달불가 분기 없음(`verify_during_feasible` 는 명시적
+    `require feasible` 전용, 무관), 메인 walk(`Engine.py:1075→1109`)에 unreachable 게이트 없음(루프 루틴
+    `:582` 엔 있음). 필요작업 = `_process_node_intents` 진입부 빈-env 감지 → `Unreachable` emit + `VerdictStatus`
+    4번째 값. **정확한 알고리즘 미정**(사용자 노트: join 노드가 자기 if/분기 라인을 알면 "이 안쪽 intent는
+    도달 애매" 판정 가능 — 설계 필요). 승인 후 착수.
+  - **(B) 분할 탐색기 설계문서**(pick_variable·pick_cut·병합·예산) / **(C)=본 기록**. 코어 수정이므로 A2·B 는 승인 후.
+
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
 ~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) ·
 ~~세션 스코프/유령 값~~ ✅(#36 a·b) · ~~#37 라인 주석 게이트~~ ✅ · ~~#36(c) delete 스코프 재검증~~ ✅ ·
 ~~프론트 diagnostics 표시~~ ✅(#38) · ~~ANTLR 버전 정합~~ ✅(#39) →
-① **브라우저 재확인**(증분 편집 부활 + 6·7·10·8·9·#35 육안) → ② L2(decision #31) →
-③ try/catch pre-state(#33 잔여) → ④ **IntentKeeper 전용 실험 스크립트**(RQ1 대체, 주석 .sol 대신
+① **기능 #1 = intent 위치 debug 입력 자동 생성**(decision #40, 랩미팅 주력 주제) →
+   (A) `VerdictStatus`+Unreachable & `VerdictItem`+`falseRegions` [승인 후] →
+   (B) 분할 탐색기 설계문서 [승인 후] → 구현 →
+② 브라우저 재확인(증분 편집 부활 + 6·7·10·8·9·#35 육안) → ③ L2(decision #31, #40 과 통합될 수 있음) →
+④ try/catch pre-state(#33 잔여) → ⑤ **IntentKeeper 전용 실험 스크립트**(RQ1 대체, 주석 .sol 대신
 `EngineSession` 에 구조화 intent/debug 값 투입 — 개발 얼추 끝난 뒤로 미룸, 사용자 결정).
 (#34 b1/b2 는 인위적 코너라 후순위 격하)
 

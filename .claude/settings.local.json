@@ -73,7 +73,10 @@
       "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe evaluation/RQ1/run_all.py)",
       "Bash(npx vite *)",
       "Read(//c/Users/isjeon/.claude/projects/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/memory/**)",
-      "Bash(rm guardian-no-core-sync-during-revision.md)"
+      "Bash(rm guardian-no-core-sync-during-revision.md)",
+      "Bash(echo \"---EXIT:$?---\")",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('engine_api.py',encoding='utf-8'\\).read\\(\\)\\); print\\('engine_api.py parse OK'\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/smoke_false_regions.py\")"
     ]
   }
 }
