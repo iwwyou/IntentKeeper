@@ -1,0 +1,59 @@
+\begin{thebibliography}{7}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Chen et~al.(2025)]{numscout}
+Jiachi Chen et~al.
+\newblock {NumScout}: Unveiling numerical defects in smart contracts using
+  {LLM}-pruning symbolic execution.
+\newblock \emph{IEEE Transactions on Software Engineering}, 2025.
+\newblock \doi{10.1109/TSE.2025.3555622}.
+
+\bibitem[{Consensys Diligence}(2026)]{scribble}
+{Consensys Diligence}.
+\newblock {Scribble}.
+\newblock \url{https://diligence.security/scribble/}, 2026.
+\newblock Accessed April 2026.
+
+\bibitem[Jeon et~al.(2026)]{solqdebug}
+Inseong Jeon et~al.
+\newblock {SolQDebug}: Debug {Solidity} quickly for interactive immediacy in
+  smart contract development.
+\newblock \emph{Automated Software Engineering}, 33\penalty0 (3):\penalty0 86,
+  2026.
+\newblock \doi{10.1007/s10515-026-00618-9}.
+
+\bibitem[Soud et~al.(2024)Soud, Liebel, and Hamdaqa]{flyinointment}
+Majd Soud, Grischa Liebel, and Mohammad Hamdaqa.
+\newblock A fly in the ointment: an empirical study on the characteristics of
+  {Ethereum} smart contract code weaknesses.
+\newblock \emph{Empirical Software Engineering}, 29\penalty0 (1):\penalty0 13,
+  2024.
+\newblock \doi{10.1007/s10664-023-10398-5}.
+
+\bibitem[Sun et~al.(2024)]{gptscan}
+Yuqiang Sun et~al.
+\newblock {GPTScan}: Detecting logic vulnerabilities in smart contracts by
+  combining {GPT} with program analysis.
+\newblock In \emph{Proceedings of the IEEE/ACM 46th International Conference on
+  Software Engineering (ICSE)}, pages 1--13, 2024.
+\newblock \doi{10.1145/3597503.3639117}.
+
+\bibitem[Zhang et~al.(2023)]{exploitablebugs}
+Zhuo Zhang et~al.
+\newblock Demystifying exploitable bugs in smart contracts.
+\newblock In \emph{Proceedings of the 2023 IEEE/ACM 45th International
+  Conference on Software Engineering (ICSE)}, pages 615--627, 2023.
+\newblock \doi{10.1109/ICSE48619.2023.00061}.
+
+\bibitem[Zhou et~al.(2023)]{defiattacks}
+Liyi Zhou et~al.
+\newblock {SoK}: Decentralized finance ({DeFi}) attacks.
+\newblock In \emph{Proceedings of the 2023 IEEE Symposium on Security and
+  Privacy (SP)}, pages 2444--2461, 2023.
+\newblock \doi{10.1109/SP46215.2023.10179435}.
+
+\end{thebibliography}

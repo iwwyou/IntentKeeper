@@ -55,6 +55,22 @@ export interface VerifyResult {
   verdict: VerdictItem[]
 }
 
+// outline() = 이 소스에 있는 디버그 가능한 함수 목록.
+// 스코프(contract/func)가 정해지기 *전에* 부르는 유일한 호출이라 세션 키와 무관하다.
+export interface FunctionOutline {
+  contract: string
+  name: string
+  signature: string
+  startLine: number
+  endLine: number
+  source: string
+}
+
+export interface OutlineResult {
+  functions: FunctionOutline[]
+  contracts: string[]
+}
+
 async function post<T>(path: string, req: AnalyzeRequest): Promise<T> {
   const res = await fetch(BASE + path, {
     method: 'POST',
@@ -65,6 +81,17 @@ async function post<T>(path: string, req: AnalyzeRequest): Promise<T> {
     throw new Error(`engine ${path} ${res.status}: ${await res.text()}`)
   }
   return (await res.json()) as T
+}
+
+/** 함수 목록 — 파일 열기/편집 시. 함수 목록이 mock 고정이던 문제 해결. */
+export async function outline(source: string): Promise<OutlineResult> {
+  const res = await fetch(BASE + '/outline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source }),
+  })
+  if (!res.ok) throw new Error(`engine /outline ${res.status}: ${await res.text()}`)
+  return (await res.json()) as OutlineResult
 }
 
 /** 코드 편집 tier — CFG 구조 + debug 슬롯 + diagnostics. [코드 변경 트리거] */

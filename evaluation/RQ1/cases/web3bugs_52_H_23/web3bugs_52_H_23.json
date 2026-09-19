@@ -1,0 +1,440 @@
+[
+  {
+    "code": "pragma solidity =0.8.9;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract VaderPoolV2 {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "struct PriceCumulative {\n}",
+    "startLine": 4,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "uint256 nativeLast;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "uint256 foreignLast;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "struct PairInfo {\n}",
+    "startLine": 9,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalSupply;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint112 reserveNative;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "uint112 reserveForeign;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint32 blockTimestampLast;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "PriceCumulative priceCumulative;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "event Sync(IERC20 foreignAsset, uint256 reserve0, uint256 reserve1);",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "IERC20 public immutable nativeAsset;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "mapping(IERC20 => bool) public supported;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "mapping(IERC20 => PairInfo) public pairInfo;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "ISynthFactory public synthFactory;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "function _supportedToken(IERC20 token) private view {\n}",
+    "startLine": 26,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "require(supported[token], \"BasePoolV2::_supportedToken: Unsupported Token\");",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "modifier supportedToken(IERC20 token) {\n}",
+    "startLine": 29,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "_supportedToken(token);",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "_;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "function getReserves(IERC20 foreignAsset) public view returns ( uint112 reserveNative, uint112 reserveForeign, uint32 blockTimestampLast ) {\n}",
+    "startLine": 34,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "PairInfo storage pair = pairInfo[foreignAsset];",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "(reserveNative, reserveForeign, blockTimestampLast) = ( pair.reserveNative, pair.reserveForeign, pair.blockTimestampLast );",
+    "startLine": 44,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "function _update( IERC20 foreignAsset, uint256 balanceNative, uint256 balanceForeign, uint112 reserveNative, uint112 reserveForeign ) internal {\n}",
+    "startLine": 51,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "require( balanceNative <= type(uint112).max && balanceForeign <= type(uint112).max, \"BasePoolV2::_update: Balance Overflow\" );",
+    "startLine": 58,
+    "endLine": 62,
+    "event": "add"
+  },
+  {
+    "code": "uint32 blockTimestamp = uint32(block.timestamp % 2**32);",
+    "startLine": 63,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "PairInfo storage pair = pairInfo[foreignAsset];",
+    "startLine": 64,
+    "endLine": 64,
+    "event": "add"
+  },
+  {
+    "code": "unchecked {\n}",
+    "startLine": 65,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "uint32 timeElapsed = blockTimestamp - pair.blockTimestampLast;",
+    "startLine": 66,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "if (timeElapsed > 0 && reserveNative != 0 && reserveForeign != 0) {\n}",
+    "startLine": 67,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "pair.priceCumulative.nativeLast += uint256( UQ112x112.encode(reserveForeign).uqdiv(reserveNative) ) * timeElapsed;",
+    "startLine": 68,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "pair.priceCumulative.foreignLast += uint256( UQ112x112.encode(reserveNative).uqdiv(reserveForeign) ) * timeElapsed;",
+    "startLine": 73,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "pair.reserveNative = uint112(balanceNative);",
+    "startLine": 80,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "pair.reserveForeign = uint112(balanceForeign);",
+    "startLine": 81,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "pair.blockTimestampLast = blockTimestamp;",
+    "startLine": 82,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "emit Sync(foreignAsset, balanceNative, balanceForeign);",
+    "startLine": 83,
+    "endLine": 83,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "function mintSynth( IERC20 foreignAsset, uint256 nativeDeposit, address _from, address to ) external supportedToken(foreignAsset) returns (uint256 amountSynth) {\n}",
+    "startLine": 86,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "nativeAsset.safeTransferFrom(_from, address(this), nativeDeposit);",
+    "startLine": 96,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 97,
+    "endLine": 97,
+    "event": "add"
+  },
+  {
+    "code": "ISynth synth = synthFactory.synths(foreignAsset);",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 99,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "if (synth == ISynth(address(0))) {\n}",
+    "startLine": 100,
+    "endLine": 101,
+    "event": "add"
+  },
+  {
+    "code": "synth = synthFactory.createSynth(IERC20Extended(address(foreignAsset)));",
+    "startLine": 101,
+    "endLine": 101,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 103,
+    "endLine": 103,
+    "event": "add"
+  },
+  {
+    "code": "(uint112 reserveNative, uint112 reserveForeign, ) = getReserves( foreignAsset );",
+    "startLine": 104,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 107,
+    "endLine": 107,
+    "event": "add"
+  },
+  {
+    "code": "amountSynth = VaderMath.calculateSwap( nativeDeposit, reserveNative, reserveForeign );",
+    "startLine": 108,
+    "endLine": 112,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 113,
+    "endLine": 113,
+    "event": "add"
+  },
+  {
+    "code": "_update( foreignAsset, reserveNative + nativeDeposit, reserveForeign, reserveNative, reserveForeign );",
+    "startLine": 114,
+    "endLine": 120,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 121,
+    "endLine": 121,
+    "event": "add"
+  },
+  {
+    "code": "synth.mint(to, amountSynth);",
+    "startLine": 122,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "// @During _update.arg[2] == reserveForeign - amountSynth",
+    "startLine": 114,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 96,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar foreignAsset = symbolicAddress 1",
+    "startLine": 97,
+    "endLine": 97,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar nativeDeposit = [100000, 100000]",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _from = symbolicAddress 2",
+    "startLine": 99,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar to = symbolicAddress 3",
+    "startLine": 100,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar supported[foreignAsset] = true",
+    "startLine": 101,
+    "endLine": 101,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar pairInfo[foreignAsset].reserveNative = [100000, 100000]",
+    "startLine": 102,
+    "endLine": 102,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar pairInfo[foreignAsset].reserveForeign = [1, 1]",
+    "startLine": 103,
+    "endLine": 103,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar nativeAsset = symbolicAddress 4",
+    "startLine": 104,
+    "endLine": 104,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 105,
+    "endLine": 105,
+    "event": "add"
+  }
+]

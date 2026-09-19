@@ -762,22 +762,28 @@ class DynamicCFGBuilder:
         # 2) statement 추가
         new_block.add_revert_statement(revert_id, string_literal, call_args, line_no)
 
-        # ★ seed 용으로 ‘재배선 전’ succ 보관
+        # ★ seed 용으로 '재배선 전' succ 보관 — insert_new_statement_block 이 이미
+        # cur_block -> new_block -> old_succs 로 재배선해둔 상태라, 진짜 "재배선 전"
+        # succ 는 cur_block 이 아니라 new_block 의 후속으로 남아있다.
         g = fcfg.graph
-        old_succs = list(g.successors(cur_block))
+        old_succs = list(g.successors(new_block))
 
         # ② edge --> ERROR_EXIT
+        # revert 문 자체(new_block)에서 ERROR 로 가야 함 — cur_block 에서 직접 ERROR 로
+        # 보내면 new_block 이 그래프에서 고아가 돼(아무도 안 가리킴), new_block 을
+        # predecessor 로 기다리는 join 노드가 영원히 unvisited 로 남아 _run_worklist 가
+        # 무한 재큐잉에 빠진다(livelock 근본 원인, Guardian 2026-09-02 확인).
         error_exit_n = fcfg.get_error_exit_node()
         for s in old_succs:
-            g.remove_edge(cur_block, s)
-        g.add_edge(cur_block, error_exit_n)
+            g.remove_edge(new_block, s)
+        g.add_edge(new_block, error_exit_n)
 
         # ③ 데이터-플로우
-        fcfg.update_block(cur_block)
+        fcfg.update_block(new_block)
 
-        # ④ line_info
+        # ④ line_info — 이 줄을 실제로 대표하는 노드는 new_block(revert 문 자체)임
         bc = line_info.setdefault(line_no, {"open": 0, "close": 0, "cfg_nodes": []})
-        bc["cfg_nodes"].append(cur_block)
+        bc["cfg_nodes"].append(new_block)
 
         return old_succs  # ★ seed
 

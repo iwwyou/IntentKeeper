@@ -216,20 +216,20 @@ contract UToken is Controller, ReentrancyGuardUpgradeable {
         require(amount <= getRemainingLoanSize(), "UToken: amount more than loan global size max");
 
         uint256 fee = calculatingFee(amount);
-        // @During borrowIndex(Before < After)
+        // @During borrowIndex(Before) < borrowIndex(After)
         require(borrowBalanceView(msg.sender) + amount + fee <= maxBorrow, "UToken: amount large than borrow size max");
 
-        // @During borrowIndex(Before < After)
+        // @During borrowIndex(Before) < borrowIndex(After)
         require(!checkIsOverdue(msg.sender), "UToken: Member has loans overdue");
 
-        // @During borrowIndex(Before < After)
+        // @During borrowIndex(Before) < borrowIndex(After)
         require(amount <= assetManagerContract.getLoanableAmount(underlying), "UToken: Not enough to lend out");
         require(
             uint256(_getCreditLimit(msg.sender)) >= amount + fee,
             "UToken: The loan amount plus fee is greater than credit limit"
         );
 
-        // @During borrowIndex(Before < After)
+        // @During borrowIndex(Before) < borrowIndex(After)
         require(accrueInterest(), "UToken: accrue interest failed");
 
         uint256 borrowedAmount = borrowBalanceStoredInternal(msg.sender);

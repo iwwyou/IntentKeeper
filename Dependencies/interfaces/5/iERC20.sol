@@ -14,6 +14,6 @@ interface iERC20 {
     function transferTo(address, uint) external returns (bool);
     function burn(uint) external;
     function burnFrom(address, uint) external;
-    event Transfer(address indexed from, address indexed to, uint value);
+    event Transfer(address indexed _from, address indexed to, uint value);
     event Approval(address indexed owner, address indexed spender, uint value);
 }

@@ -40,7 +40,8 @@ abstract contract Controller is Initializable, UUPSUpgradeable, AccessControlUpg
         pauseGuardian = admin_;
     }
 
-    function _authorizeUpgrade(address) internal view override onlyAdmin {}
+function _authorizeUpgrade(address) internal view override onlyAdmin {
+    }
 
     function isAdmin(address account) public view returns (bool) {
         return hasRole(ROLE_ADMIN, account);

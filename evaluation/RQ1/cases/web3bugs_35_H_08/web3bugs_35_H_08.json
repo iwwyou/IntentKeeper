@@ -1,0 +1,865 @@
+[
+  {
+    "code": "pragma solidity >=0.8.0;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract ConcentratedLiquidityPool {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using Ticks for mapping(int24 => Ticks.Tick);",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "event Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed recipient);",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "uint128 internal immutable MAX_TICK_LIQUIDITY;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "IBentoBoxMinimal internal immutable bento;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "address internal immutable token0;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "address internal immutable token1;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint128 public liquidity;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public feeGrowthGlobal0;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public feeGrowthGlobal1;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "uint128 internal reserve0;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "uint128 internal reserve1;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "uint160 internal price;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "int24 internal nearestTick;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "uint256 internal unlocked;",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "modifier lock() {\n}",
+    "startLine": 27,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "require(unlocked == 1, \"LOCKED\");",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "unlocked = 2;",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "_;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "unlocked = 1;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "mapping(int24 => Ticks.Tick) public ticks;",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "struct Position {\n}",
+    "startLine": 35,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "uint128 liquidity;",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feeGrowthInside0Last;",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feeGrowthInside1Last;",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => mapping(int24 => mapping(int24 => Position))) public positions;",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "function rangeFeeGrowth(int24 lowerTick, int24 upperTick) public view returns (uint256 feeGrowthInside0, uint256 feeGrowthInside1) {\n}",
+    "startLine": 43,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "int24 currentTick = nearestTick;",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "Ticks.Tick storage lower = ticks[lowerTick];",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "Ticks.Tick storage upper = ticks[upperTick];",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _feeGrowthGlobal0 = feeGrowthGlobal0;",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _feeGrowthGlobal1 = feeGrowthGlobal1;",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feeGrowthBelow0;",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feeGrowthBelow1;",
+    "startLine": 52,
+    "endLine": 52,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feeGrowthAbove0;",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "uint256 feeGrowthAbove1;",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "if (lowerTick <= currentTick) {\n}",
+    "startLine": 56,
+    "endLine": 57,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthBelow0 = lower.feeGrowthOutside0;",
+    "startLine": 57,
+    "endLine": 57,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthBelow1 = lower.feeGrowthOutside1;",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 59,
+    "endLine": 60,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "feeGrowthBelow0 = _feeGrowthGlobal0 - lower.feeGrowthOutside0;",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthBelow1 = _feeGrowthGlobal1 - lower.feeGrowthOutside1;",
+    "startLine": 61,
+    "endLine": 61,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 63,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "if (currentTick < upperTick) {\n}",
+    "startLine": 64,
+    "endLine": 65,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthAbove0 = upper.feeGrowthOutside0;",
+    "startLine": 65,
+    "endLine": 65,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthAbove1 = upper.feeGrowthOutside1;",
+    "startLine": 66,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 67,
+    "endLine": 68,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "feeGrowthAbove0 = _feeGrowthGlobal0 - upper.feeGrowthOutside0;",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthAbove1 = _feeGrowthGlobal1 - upper.feeGrowthOutside1;",
+    "startLine": 69,
+    "endLine": 69,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 71,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthInside0 = _feeGrowthGlobal0 - feeGrowthBelow0 - feeGrowthAbove0;",
+    "startLine": 72,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "feeGrowthInside1 = _feeGrowthGlobal1 - feeGrowthBelow1 - feeGrowthAbove1;",
+    "startLine": 73,
+    "endLine": 73,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 75,
+    "endLine": 75,
+    "event": "add"
+  },
+  {
+    "code": "function _getAmountsForLiquidity( uint256 priceLower, uint256 priceUpper, uint256 currentPrice, uint256 liquidityAmount ) internal pure returns (uint128 token0amount, uint128 token1amount) {\n}",
+    "startLine": 76,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "if (priceUpper <= currentPrice) {\n}",
+    "startLine": 82,
+    "endLine": 83,
+    "event": "add"
+  },
+  {
+    "code": "token1amount = uint128(DyDxMath.getDy(liquidityAmount, priceLower, priceUpper, true));",
+    "startLine": 83,
+    "endLine": 83,
+    "event": "add"
+  },
+  {
+    "code": "else if (currentPrice <= priceLower) {\n}",
+    "startLine": 84,
+    "endLine": 85,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "token0amount = uint128(DyDxMath.getDx(liquidityAmount, priceLower, priceUpper, true));",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 86,
+    "endLine": 87,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "token0amount = uint128(DyDxMath.getDx(liquidityAmount, currentPrice, priceUpper, true));",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
+    "code": "token1amount = uint128(DyDxMath.getDy(liquidityAmount, priceLower, currentPrice, true));",
+    "startLine": 88,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 91,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "function _updatePosition( address owner, int24 lower, int24 upper, int128 amount ) internal returns (uint256 amount0fees, uint256 amount1fees) {\n}",
+    "startLine": 92,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "Position storage position = positions[owner][lower][upper];",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 99,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "(uint256 growth0current, uint256 growth1current) = rangeFeeGrowth(lower, upper);",
+    "startLine": 100,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "amount0fees = FullMath.mulDiv( growth0current - position.feeGrowthInside0Last, position.liquidity, 0x100000000000000000000000000000000 );",
+    "startLine": 101,
+    "endLine": 105,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 106,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "amount1fees = FullMath.mulDiv( growth1current - position.feeGrowthInside1Last, position.liquidity, 0x100000000000000000000000000000000 );",
+    "startLine": 107,
+    "endLine": 111,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 112,
+    "endLine": 112,
+    "event": "add"
+  },
+  {
+    "code": "if (amount < 0) position.liquidity -= uint128(-amount);",
+    "startLine": 113,
+    "endLine": 113,
+    "event": "add"
+  },
+  {
+    "code": "if (amount > 0) position.liquidity += uint128(amount);",
+    "startLine": 114,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 115,
+    "endLine": 115,
+    "event": "add"
+  },
+  {
+    "code": "require(position.liquidity < MAX_TICK_LIQUIDITY, \"MAX_TICK_LIQUIDITY\");",
+    "startLine": 116,
+    "endLine": 116,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 117,
+    "endLine": 117,
+    "event": "add"
+  },
+  {
+    "code": "position.feeGrowthInside0Last = growth0current;",
+    "startLine": 118,
+    "endLine": 118,
+    "event": "add"
+  },
+  {
+    "code": "position.feeGrowthInside1Last = growth1current;",
+    "startLine": 119,
+    "endLine": 119,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 121,
+    "endLine": 121,
+    "event": "add"
+  },
+  {
+    "code": "function _transferBothTokens( address to, uint256 shares0, uint256 shares1, bool unwrapBento ) internal {\n}",
+    "startLine": 122,
+    "endLine": 128,
+    "event": "add"
+  },
+  {
+    "code": "if (unwrapBento) {\n}",
+    "startLine": 128,
+    "endLine": 129,
+    "event": "add"
+  },
+  {
+    "code": "bento.withdraw(token0, address(this), to, 0, shares0);",
+    "startLine": 129,
+    "endLine": 129,
+    "event": "add"
+  },
+  {
+    "code": "bento.withdraw(token1, address(this), to, 0, shares1);",
+    "startLine": 130,
+    "endLine": 130,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 131,
+    "endLine": 132,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "bento.transfer(token0, address(this), to, shares0);",
+    "startLine": 132,
+    "endLine": 132,
+    "event": "add"
+  },
+  {
+    "code": "bento.transfer(token1, address(this), to, shares1);",
+    "startLine": 133,
+    "endLine": 133,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 136,
+    "endLine": 136,
+    "event": "add"
+  },
+  {
+    "code": "function burn(bytes calldata data) public lock returns (IPool.TokenAmount[] memory withdrawnAmounts) {\n}",
+    "startLine": 137,
+    "endLine": 138,
+    "event": "add"
+  },
+  {
+    "code": "(int24 lower, int24 upper, uint128 amount, address recipient, bool unwrapBento) = abi.decode( data, (int24, int24, uint128, address, bool) );",
+    "startLine": 138,
+    "endLine": 141,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 142,
+    "endLine": 142,
+    "event": "add"
+  },
+  {
+    "code": "uint160 priceLower = TickMath.getSqrtRatioAtTick(lower);",
+    "startLine": 143,
+    "endLine": 143,
+    "event": "add"
+  },
+  {
+    "code": "uint160 priceUpper = TickMath.getSqrtRatioAtTick(upper);",
+    "startLine": 144,
+    "endLine": 144,
+    "event": "add"
+  },
+  {
+    "code": "uint160 currentPrice = price;",
+    "startLine": 145,
+    "endLine": 145,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 146,
+    "endLine": 146,
+    "event": "add"
+  },
+  {
+    "code": "unchecked {\n}",
+    "startLine": 147,
+    "endLine": 148,
+    "event": "add"
+  },
+  {
+    "code": "if (priceLower < currentPrice && currentPrice < priceUpper) liquidity -= amount;",
+    "startLine": 148,
+    "endLine": 148,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 150,
+    "endLine": 150,
+    "event": "add"
+  },
+  {
+    "code": "(uint256 amount0, uint256 amount1) = _getAmountsForLiquidity( uint256(priceLower), uint256(priceUpper), uint256(currentPrice), uint256(amount) );",
+    "startLine": 151,
+    "endLine": 156,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 157,
+    "endLine": 157,
+    "event": "add"
+  },
+  {
+    "code": "(uint256 amount0fees, uint256 amount1fees) = _updatePosition(msg.sender, lower, upper, -int128(amount));",
+    "startLine": 158,
+    "endLine": 158,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 159,
+    "endLine": 159,
+    "event": "add"
+  },
+  {
+    "code": "unchecked {\n}",
+    "startLine": 160,
+    "endLine": 161,
+    "event": "add"
+  },
+  {
+    "code": "amount0 += amount0fees;",
+    "startLine": 161,
+    "endLine": 161,
+    "event": "add"
+  },
+  {
+    "code": "amount1 += amount1fees;",
+    "startLine": 162,
+    "endLine": 162,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 164,
+    "endLine": 164,
+    "event": "add"
+  },
+  {
+    "code": "withdrawnAmounts = new IPool.TokenAmount[](2);",
+    "startLine": 165,
+    "endLine": 165,
+    "event": "add"
+  },
+  {
+    "code": "withdrawnAmounts[0] = IPool.TokenAmount({token: token0, amount: amount0});",
+    "startLine": 166,
+    "endLine": 166,
+    "event": "add"
+  },
+  {
+    "code": "withdrawnAmounts[1] = IPool.TokenAmount({token: token1, amount: amount1});",
+    "startLine": 167,
+    "endLine": 167,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 168,
+    "endLine": 168,
+    "event": "add"
+  },
+  {
+    "code": "unchecked {\n}",
+    "startLine": 169,
+    "endLine": 170,
+    "event": "add"
+  },
+  {
+    "code": "reserve0 -= uint128(amount0fees);",
+    "startLine": 170,
+    "endLine": 170,
+    "event": "add"
+  },
+  {
+    "code": "reserve1 -= uint128(amount1fees);",
+    "startLine": 171,
+    "endLine": 171,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 173,
+    "endLine": 173,
+    "event": "add"
+  },
+  {
+    "code": "_transferBothTokens(recipient, amount0, amount1, unwrapBento);",
+    "startLine": 174,
+    "endLine": 174,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 175,
+    "endLine": 175,
+    "event": "add"
+  },
+  {
+    "code": "nearestTick = Ticks.remove(ticks, lower, upper, amount, nearestTick);",
+    "startLine": 176,
+    "endLine": 176,
+    "event": "add"
+  },
+  {
+    "code": "emit Burn(msg.sender, amount0, amount1, recipient);",
+    "startLine": 177,
+    "endLine": 177,
+    "event": "add"
+  },
+  {
+    "code": "// @Post liquidity == liquidity(Entry) - amount",
+    "startLine": 150,
+    "endLine": 150,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 138,
+    "endLine": 138,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar unlocked = [1, 1]",
+    "startLine": 139,
+    "endLine": 139,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar price = [79228162514264337593543950336, 79228162514264337593543950336]",
+    "startLine": 140,
+    "endLine": 140,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar liquidity = [6000000, 6000000]",
+    "startLine": 141,
+    "endLine": 141,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar MAX_TICK_LIQUIDITY = [1000000000, 1000000000]",
+    "startLine": 142,
+    "endLine": 142,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar bento = symbolicAddress 1",
+    "startLine": 143,
+    "endLine": 143,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar token0 = symbolicAddress 2",
+    "startLine": 144,
+    "endLine": 144,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar token1 = symbolicAddress 3",
+    "startLine": 145,
+    "endLine": 145,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 151,
+    "endLine": 151,
+    "event": "add"
+  }
+]

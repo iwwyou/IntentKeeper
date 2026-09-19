@@ -422,6 +422,26 @@ class Engine:
                         return None
             return base
 
+        def _pred_src(p):
+            """predecessor p의 out-flow로 쓸 env를 계산.
+            p가 loop_nodes 밖에 있고 아직 한 번도 (outer worklist에서) 방문돼
+            `.variables`가 채워진 적 없으면 None을 반환해서 호출자가 이
+            predecessor를 join에서 완전히 제외하게 한다 — 그러지 않고 빈
+            `{}`를 "이 predecessor를 지나면 모든 변수가 사라진다"는 뜻으로
+            잘못 취급하면, 그 predecessor가 condition_node일 때
+            (`require(sumNative...)`처럼) 빈 env로 조건을 refine하려다가
+            크래시하거나(변수를 못 찾음) 값이 조용히 비어버림 — 루프 안팎의
+            require/revert가 하나의 공유 ERROR sink로 수렴하는 구조에서
+            루프 밖 predecessor(함수 뒷부분, 아직 outer worklist가 도달
+            안 함)가 이 경로를 타면서 발생(web3bugs_52_H_04/52_H_34에서 발견).
+            """
+            if p in loop_nodes:
+                return out_vars.get(p) or {}
+            p_vars = getattr(p, "variables", None)
+            if not p_vars:
+                return None
+            return p_vars
+
         loop_nodes: set[CFGNode] = self.traverse_loop_nodes(head)
         from collections import defaultdict
         visit_cnt: defaultdict[CFGNode, int] = defaultdict(int)
@@ -569,7 +589,9 @@ class Engine:
 
             new_in = None
             for p in G.predecessors(node):
-                src = out_vars.get(p) or getattr(p, "variables", {}) or {}
+                src = _pred_src(p)
+                if src is None:
+                    continue  # 아직 계산 안 된 loop 밖 predecessor — join 에서 제외
                 flow = _edge_flow_from_node_out(p, node, src)
                 if flow is None:
                     continue
@@ -607,7 +629,9 @@ class Engine:
 
         exit_env = None
         for p in G.predecessors(exit_node):
-            src = out_vars.get(p) or getattr(p, "variables", {}) or {}
+            src = _pred_src(p)
+            if src is None:
+                continue  # 아직 계산 안 된 loop 밖 predecessor — join 에서 제외
             flow = _edge_flow_from_node_out(p, exit_node, src)
             if flow is None:
                 continue
@@ -906,7 +930,17 @@ class Engine:
                     if can_true:
                         t.variables = true_variables; work.append(t)
                     else:
+                        # ★ 가드가 통과 불가 = 이후 경로 전체가 도달 불가.
+                        #   위 if/else-if 분기와 동일한 3단 패턴으로 맞춘다:
+                        #     ① cur_vars 로 seed  ② BOTTOM 으로  ③ worklist 전파.
+                        #   ①이 없으면 t.variables 가 아직 {} 라 _set_bottom_env 가
+                        #   no-op(빈 dict 를 순회) 이고, ③이 없으면 BOTTOM 이 downstream
+                        #   으로 전혀 퍼지지 않아 이후 노드·EXIT 가 전부 빈 {} 로 남는다.
+                        #   빈 {} 는 _is_bottom_env 가 False 를 주므로 도달불가를 놓치고,
+                        #   @Post 는 "internal error: ... may not be declared" 로 둔갑했다.
+                        t.variables = VariableEnv.copy_variables(cur_vars)
                         self._set_bottom_env(t.variables)
+                        work.append(t)
 
                     self._process_node_intents(node, cur_vars, getattr(node, 'src_line', None))
                     continue
@@ -979,9 +1013,18 @@ class Engine:
         if len(return_values) == 0:
             if fcfg.return_vars:
                 _log_implicit_return(fcfg.return_vars)
+                # ★ composite(Array/Struct/Mapping) named return 은 `.value` 가 아니라
+                # 객체 자체를 리턴해야 함 — 실제 데이터는 `.elements`/`.members`/`.mapping`
+                # 에 있고 `.value` 는 기본값 None 그대로다. 예전엔 무조건 `.value` 라서
+                # explicit return 없이 named return var 만 채우고 끝나는 함수가 항상
+                # None 을 리턴했다.
+                def _rv_value(rv):
+                    if isinstance(rv, (StructVariable, ArrayVariable, MappingVariable)):
+                        return rv
+                    return rv.value
                 if len(fcfg.return_vars) == 1:
-                    return fcfg.return_vars[0].value
-                return [rv.value for rv in fcfg.return_vars]
+                    return _rv_value(fcfg.return_vars[0])
+                return [_rv_value(rv) for rv in fcfg.return_vars]
             else:
                 exit_retvals = list(fcfg.get_return_exit_node().return_vals.values())
                 if exit_retvals:
@@ -1491,6 +1534,10 @@ class Engine:
 
         # 기존 DuringAnnotation 처리 (하위 호환성)
         guardian = self.an.guardian_verifier
+        # varRef(Before) 의 sigma_before 조회(cfg_node.before_envs[line_no])를 위해
+        # ambient 설정 — evaluate_guardian_expression 이 표현식 트리 어디서든 참조 가능하게.
+        guardian._before_cfg_node = node
+        guardian._before_line_no = annot.line_no
         atype = annot.annotation_type
 
         if atype == "beforeAfter":
@@ -1563,6 +1610,11 @@ class Engine:
         if line_no is None:
             # fallback: 노드의 첫 번째 statement에서 라인 번호 추출
             line_no = getattr(node.statements[0], "src_line", 0) if node.statements else 0
+
+        # varRef(Before) 의 sigma_before 조회(cfg_node.before_envs[line_no])를 위해
+        # ambient 설정 — evaluate_guardian_expression 이 표현식 트리 어디서든 참조 가능하게.
+        guardian._before_cfg_node = node
+        guardian._before_line_no = line_no
 
         if kind == "beforeAfter":
             return guardian.verify_during_before_after(
@@ -1718,6 +1770,36 @@ class Engine:
 
         guardian = self.an.guardian_verifier
 
+        # ═══ A2-post: @Post 도달불가 판정 (decision #40 ④ 의 @Post 판) ═══
+        # @During(_process_node_intents) 와 같은 기준을, @Post 가 실제로 읽는 env 에 적용.
+        #  · predecessor 개수가 아니라 env 를 본다 — debug 입력이 가드와 모순이어도
+        #    그래프는 안 끊긴다(preds 그대로). 끊기는 건 env 다.
+        #  · _preds 를 먼저 보는 이유 두 가지: (a) 정상 경로로 exit 에 닿는 길이 아예
+        #    없으면 그 자체로 도달불가, (b) _exit_env 는 preds 가 없으면 raise 하므로
+        #    (fail-loud 전환) 여기서 먼저 걸러야 한다.
+        #  · _exit_env 는 _verify_post_clause_dynamic 이 쓰는 바로 그 env →
+        #    "엔진은 죽었다는데 verdict 는 살았다" 가 생기지 않는다.
+        _unreachable = False
+        if not guardian._preds(fcfg, normal_only=True):
+            _unreachable = True
+        else:
+            _exit_env = guardian._exit_env(fcfg, normal_only=True)
+            _unreachable = (not _exit_env) or self._is_bottom_env(_exit_env)
+
+        if _unreachable:
+            for intent in exit_node.intents:
+                if intent.get("type") != "post":
+                    continue
+                report_line = intent.get("line_no", 0)
+                print(f"[POST INTENT UNREACHABLE] Line {report_line}: 경로 조건상 함수 정상 종료 불가")
+                self.an.analysis_per_line.setdefault(report_line, []).append({
+                    'type': 'post_intent',
+                    'clauses': intent.get("clauses", []),
+                    'result': {'status': 'unreachable',
+                               'message': 'intent 위치 도달 불가 (정상 경로로 함수가 종료되지 않음)'}
+                })
+            return
+
         for intent in exit_node.intents:
             if intent.get("type") != "post":
                 continue
@@ -1770,66 +1852,6 @@ class Engine:
                     'result': {'status': 'error', 'message': str(e)}
                 })
 
-    def _verify_post_clause_dynamic(self, clause: dict, fcfg, guardian):
-        """개별 post clause 동적 검증"""
-        kind = clause["kind"]
-        line_no = fcfg.start_line if hasattr(fcfg, 'start_line') else 0
-
-        if kind == "entryExit":
-            return guardian.verify_post_entry_exit(
-                var_ref=clause["var"],
-                comp_op=clause["op"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        elif kind == "changed":
-            return guardian.verify_post_changed(
-                var_ref=clause["var"],
-                expect_changed=clause["expect_changed"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        elif kind == "retExpr":
-            return guardian.verify_post_return_expression(
-                comp_op=clause["op"],
-                value_expr=clause["rhs"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        elif kind == "retIndex":
-            return guardian.verify_post_return_index(
-                index=clause["index"],
-                comp_op=clause["op"],
-                value_expr=clause["rhs"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        elif kind == "retVar":
-            return guardian.verify_post_return_variable(
-                var_ref=clause["lhs"],
-                comp_op=clause["op"],
-                value_expr=clause["rhs"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        elif kind == "direct":
-            return guardian.verify_post_direct_comparison(
-                lhs_expr=clause["lhs"],
-                comp_op=clause["op"],
-                rhs_expr=clause["rhs"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        elif kind == "implication":
-            return guardian.verify_post_implication(
-                antecedent=clause["antecedent"],
-                consequent=clause["consequent"],
-                line_no=line_no,
-                fn_cfg=fcfg
-            )
-        else:
-            return {"status": "error", "message": f"Unknown post clause kind: {kind}"}
-
     def _verify_post_annotation(self, annot, fcfg):
         """
         Post annotation 검증 (CompoundPostAnnotation 지원)
@@ -1847,6 +1869,9 @@ class Engine:
 
         # 기존 PostAnnotation 처리 (하위 호환성)
         guardian = self.an.guardian_verifier
+        # varRef(Entry)/varRef(Assign) 의 sigma_entry/sigma_assign 조회를 위해 ambient 설정
+        # (GuardianVerificationEngine._evaluate_snapshot_var_ref 참고).
+        guardian._current_fn_cfg = fcfg
         atype = annot.annotation_type
 
         if atype == "entryExit":
@@ -1916,6 +1941,10 @@ class Engine:
     def _verify_post_clause_dynamic(self, clause: dict, line_no: int, fcfg, guardian):
         """개별 post clause 동적 검증"""
         kind = clause["kind"]
+
+        # varRef(Entry)/varRef(Assign) 의 sigma_entry/sigma_assign 조회를 위해 ambient 설정
+        # (GuardianVerificationEngine._evaluate_snapshot_var_ref 참고).
+        guardian._current_fn_cfg = fcfg
 
         if kind == "entryExit":
             return guardian.verify_post_entry_exit(

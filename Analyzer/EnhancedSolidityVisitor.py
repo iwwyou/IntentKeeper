@@ -3,7 +3,9 @@ from Parser.SolidityVisitor import SolidityVisitor
 # 맨 위 import 부분
 from antlr4.tree.Tree import TerminalNodeImpl
 
-from Domain.Variable import Variables, GlobalVariable, ArrayVariable, StructVariable, EnumVariable, MappingVariable
+from fractions import Fraction
+from Domain.Variable import (Variables, GlobalVariable, ArrayVariable, StructVariable,
+                            EnumVariable, MappingVariable, StructDefinition, EnumDefinition)
 from Domain.Type import SolType
 from Domain.Interval import IntegerInterval, UnsignedIntegerInterval, BoolInterval
 from Domain.IR import Expression
@@ -37,6 +39,19 @@ READONLY_MEMBERS = {
 }
 
 READONLY_GLOBAL_BASES = {"block", "msg", "tx"}
+
+
+def _is_contract_cfg(cfg) -> bool:
+    """이 CFG 가 (라이브러리가 아닌) contract/interface CFG 인가.
+
+    `make_library_cfg` 는 호환성을 위해 LibraryCFG 를 `contract_cfgs` 에도 등록한다.
+    따라서 "contract_cfgs 에 있다"만으로는 contract 타입이라고 단정할 수 없다.
+    이름으로 라이브러리를 배제하면 동명이인에서 틀리므로 **객체 종류**로 판정한다.
+    """
+    if cfg is None:
+        return False
+    from Utils.CFG import LibraryCFG
+    return not isinstance(cfg, LibraryCFG)
 
 
 class EnhancedSolidityVisitor(SolidityVisitor):
@@ -280,17 +295,21 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
         # ── ② 변수 object  생성 (array / struct / mapping / enum / elementary) ──
         if type_info.typeCategory == "array":
+            all_structs, all_enums = self.contract_analyzer.get_full_struct_enum_defs()
             var_obj = ArrayVariable(var_name, type_info.arrayBaseType,
                                     type_info.arrayLength, scope="state",
-                                    is_dynamic=type_info.isDynamicArray)
+                                    is_dynamic=type_info.isDynamicArray,
+                                    struct_defs=all_structs, enum_defs=all_enums)
         elif type_info.typeCategory == "struct":
             var_obj = StructVariable(var_name, type_info.structTypeName, scope="state",
                                      )
         elif type_info.typeCategory == "mapping":
+            all_structs, all_enums = self.contract_analyzer.get_full_struct_enum_defs()
             var_obj = MappingVariable(var_name,
                                       type_info.mappingKeyType,
                                       type_info.mappingValueType,
-                                      scope="state")
+                                      scope="state",
+                                      struct_defs=all_structs, enum_defs=all_enums)
         elif type_info.typeCategory == "enum":
             var_obj = EnumVariable(var_name, type_info.enumTypeName, scope="state")
         else:  # elementary / address / bool …
@@ -682,9 +701,14 @@ class EnhancedSolidityVisitor(SolidityVisitor):
             type_obj.interfaceName = type_name
             type_obj.elementaryTypeName = "address"
             type_obj.intTypeLength = 160
-        elif type_name in self.contract_analyzer.contract_cfgs and \
-                type_name not in self.contract_analyzer.library_cfgs:
+        elif _is_contract_cfg(self.contract_analyzer.contract_cfgs.get(type_name)):
             # Contract 타입 (부모 컨트랙트 등): interface와 동일하게 address 취급
+            # ★ 예전 조건은 `type_name in contract_cfgs and type_name not in library_cfgs`
+            #   였다. `make_library_cfg` 가 라이브러리를 contract_cfgs 에도 넣기 때문에
+            #   둔 가드인데, **이름 기반이라 동명이인에서 오작동**한다:
+            #   `contracts/Roles.sol`(contract) 과 `contracts/112/Roles.sol`(library) 이
+            #   공존하면 library 쪽이 library_cfgs 에 있다는 이유로 contract 분기가 막힌다.
+            #   객체의 실제 종류로 판정하면 정확하고 rename 이 불필요하다.
             type_obj.typeCategory = "interface"
             type_obj.interfaceName = type_name
             type_obj.elementaryTypeName = "address"
@@ -695,6 +719,20 @@ class EnhancedSolidityVisitor(SolidityVisitor):
             if file_struct is not None:
                 type_obj.typeCategory = "struct"
                 type_obj.structTypeName = type_name
+            # ★ file-level enum 확인 (Solidity 0.8+ 는 파일 최상위 enum 을 허용한다)
+            #   `sa.file_level_enums` 는 {이름: [멤버,...]} 이고, 이 분기가 없어서
+            #   `enum AssetClass {...}` + `returns (AssetClass)` 가 해석되지 않았다.
+            #   ⚠ typeCategory 만 세우면 안 된다 — 하류가
+            #     `ccf.enumDefs.get(enumTypeName)` 을 하고 없으면 "undefined enum" 으로
+            #     터진다(ContractAnalyzer:1277/1324/1427/1520). 그래서 정의도 등록한다.
+            elif type_name in (getattr(self.contract_analyzer.sa, 'file_level_enums', None) or {}):
+                type_obj.typeCategory = "enum"
+                type_obj.enumTypeName = type_name
+                if contract_cfg is not None and type_name not in contract_cfg.enumDefs:
+                    _ed = EnumDefinition(type_name)
+                    for _m in self.contract_analyzer.sa.file_level_enums[type_name]:
+                        _ed.add_member(_m)
+                    contract_cfg.enumDefs[type_name] = _ed
             else:
                 # type alias 확인 (user-defined value type)
                 underlying = self.contract_analyzer.sa.resolve_type(type_name)
@@ -708,10 +746,17 @@ class EnhancedSolidityVisitor(SolidityVisitor):
                     elif underlying.startswith("uint"):
                         type_obj.intTypeLength = int(underlying[4:]) if len(underlying) > 4 else 256
                 elif '.' in type_name:
-                    # Qualified name: Library.Struct (e.g., FixedPointMath.FixedDecimal)
+                    # Qualified name: Library.Struct or Library.Enum (e.g., FixedPointMath.FixedDecimal,
+                    # Perpetuals.Side) - despite its name, resolve_library_struct looks up both structDefs
+                    # and enumDefs, so the result's actual kind must be checked here rather than assumed.
                     lib_name, member_name = type_name.split('.', 1)
                     resolved = self.contract_analyzer.resolve_library_struct(lib_name, member_name)
-                    if resolved is not None:
+                    if isinstance(resolved, EnumDefinition):
+                        type_obj.typeCategory = "enum"
+                        type_obj.enumTypeName = type_name
+                        if contract_cfg and type_name not in contract_cfg.enumDefs:
+                            contract_cfg.enumDefs[type_name] = resolved
+                    elif isinstance(resolved, StructDefinition):
                         type_obj.typeCategory = "struct"
                         type_obj.structTypeName = type_name
                         # struct 정의를 현재 CFG에 등록 (qualified name으로, 이후 멤버 접근용)
@@ -753,13 +798,16 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
     # Visit a parse tree produced by SolidityParser#mappingKeyType.
     def visitMappingKeyType(self, ctx:SolidityParser.MappingKeyTypeContext):
-        # 키 타입은 elementaryTypeName만 가능
+        # 키 타입: elementaryTypeName 외에, contract/interface(-> address)와 enum(-> 정수)도
+        # 유효한 mapping key 타입임 (Solidity 문법도 identifierPath 를 허용, Solidity.g4:203-205)
         if ctx.elementaryTypeName() is not None:
             key_type_obj = SolType()
             self.visitBasicType(ctx.elementaryTypeName(), key_type_obj)
             return key_type_obj
+        elif ctx.identifierPath() is not None:
+            key_type_obj = SolType()
+            return self.visitUserDefinedType(ctx.identifierPath(), key_type_obj)
         else:
-            # Solidity에서 키 타입은 elementary 타입만 허용하므로, 기타 타입은 오류 처리
             raise ValueError("Invalid key type in mapping: {}".format(ctx.getText()))
 
     # Visit a parse tree produced by SolidityParser#functionTypeName.
@@ -836,7 +884,9 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
     def visitGlobalVarAddressBalance(self, ctx: SolidityParser.GlobalVarAddressBalanceContext):
         # @GlobalVar address(X).balance = [value, value]
-        addr_identifier = ctx.identifier().getText()
+        # 문법상 identifier 가 이 룰에 두 번 나옴('address(X)'의 X, '.balance'의 balance) —
+        # ctx.identifier() 는 리스트를 반환하므로 인덱스로 첫 번째(X)를 지정해야 함.
+        addr_identifier = ctx.identifier(0).getText()
 
         if addr_identifier != "this":
             raise ValueError(
@@ -1007,22 +1057,14 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     def _build_during_clause_dict(self, clause_ctx) -> dict:
         """
         duringClause를 dict로 변환 (새 문법 기반)
+
+        Before/After, Assign/Current 는 더 이상 별도 clause 가 아니라 commonClause 안의
+        arithFactor 항(varRef(Before)/varRef(After)/varRef(Assign))으로 표현된다
+        (Solidity.g4) → DuringCommon 으로 위임된다.
         """
         P = SolidityParser
 
-        if isinstance(clause_ctx, P.DuringBeforeAfterContext):
-            return {
-                "kind": "beforeAfter",
-                "var": self.visit(clause_ctx.intentValue()),
-                "op": self._relop_from_ctx(clause_ctx)
-            }
-        elif isinstance(clause_ctx, P.DuringAssignCurrentContext):
-            return {
-                "kind": "assignCurrent",
-                "var": self.visit(clause_ctx.intentValue()),
-                "op": self._relop_from_ctx(clause_ctx)
-            }
-        elif isinstance(clause_ctx, P.DuringFunctionArgContext):
+        if isinstance(clause_ctx, P.DuringFunctionArgContext):
             # @During transfer.arg[0] > 0
             return {
                 "kind": "functionArg",
@@ -1076,16 +1118,13 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     def _build_post_clause_dict(self, clause_ctx) -> dict:
         """
         postClause를 dict로 변환 (새 문법 기반)
+
+        Entry/Exit 는 더 이상 별도 clause 가 아니라 commonClause 안의 arithFactor 항
+        (varRef(Entry)/varRef(Exit))으로 표현된다 (Solidity.g4).
         """
         P = SolidityParser
 
-        if isinstance(clause_ctx, P.PostEntryExitContext):
-            return {
-                "kind": "entryExit",
-                "var": self.visit(clause_ctx.intentValue()),
-                "op": self._relop_from_ctx(clause_ctx)
-            }
-        elif isinstance(clause_ctx, P.PostCommonContext):
+        if isinstance(clause_ctx, P.PostCommonContext):
             # commonClause로 위임
             return self._build_common_clause_dict(clause_ctx.commonClause())
         else:
@@ -1288,15 +1327,64 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         return self.visit(ctx.arithFactor())
 
     # Visit a parse tree produced by SolidityParser#NumLiteral.
+    @staticmethod
+    def _split_tuple_slots(ctx):
+        """
+        `'(' slot? (',' slot?)* ')'` 형태의 튜플류 rule context(tupleExpression,
+        variableDeclarationTuple 등)를 콤마 경계로 순회해서, 슬롯 하나당 항목
+        하나씩(빈 슬롯은 None) 있는 리스트를 만든다.
+
+        ANTLR4 Python 런타임의 리스트 accessor(예: `ctx.expression()`,
+        `ctx.variableDeclaration()`)는 옵셔널-in-loop 슬롯 중 매칭 안 된 것은
+        None으로 채우지 않고 그냥 리스트에서 빠뜨린다(직접 테스트로 확인,
+        `(, x)`에서 `ctx.expression()`이 길이 1 리스트를 반환함) — 그래서
+        위치 정보(몇 번째 슬롯이 비었는지)가 사라진다. `elements[i]`/
+        `enumerate(var_declarations)`처럼 위치 기반으로 튜플 원소를 소비하는
+        다운스트림 코드에겐 이게 치명적이라(web3bugs_79_H_02의
+        `(, , lpSupply) = router.addLiquidity(...)`, web3bugs_29_H_08의
+        `(, bytes memory _output) = bento.staticcall(...)`에서 각각 발견),
+        `ctx.children`을 직접 순회해서 콤마 경계로 슬롯을 재구성한다.
+        """
+        slots = []
+        current = None
+        for child in ctx.children:
+            if isinstance(child, TerminalNodeImpl):
+                text = child.getText()
+                if text == '(':
+                    continue
+                if text == ',':
+                    slots.append(current)
+                    current = None
+                    continue
+                if text == ')':
+                    slots.append(current)
+                    continue
+                # 이 두 문법에선 다른 터미널이 나올 일 없음
+                continue
+            else:
+                current = child
+        return slots
+
     def visitNumLiteral(self, ctx: SolidityParser.NumLiteralContext):
         # signedNumberLiteral
         literal_val = ctx.signedNumberLiteral().getText()
+        # 값의 부호로 int/uint 판정 (GuardianVerificationEngine._evaluate_inline_interval의
+        # `cls = IntegerInterval if lo < 0 else UnsignedIntegerInterval`와 동일 관례).
+        # 예전엔 무조건 'int'로 고정해서, `(uint - uint) << 128`처럼 unsigned 피연산자와
+        # 양의 정수 리터럴을 섞어 쓰는 shift가 Evaluation.py의 shift dispatch에서
+        # "Shift operands must both be int/uint intervals" 예외로 죽었음
+        # (web3bugs_35_H_12, `@Post ... (block.timestamp - lastObservation(Entry)) << 128 ...`).
+        # 부호만 필요하므로 `int(x, 0)`으로 전체를 파싱하지 않음 — 과학적 표기
+        # 리터럴(`1e18` 등, signedNumberLiteral 문법상 허용됨)은 `int(x, 0)`이
+        # ValueError를 던져서 크래시함(web3bugs_79_H_02, `@During tokenAllocated
+        # == wavaxReserve * 1e18 / floorPrice`에서 발견) — signedNumberLiteral은
+        # `'-'? numberLiteral`이라 부호는 항상 맨 앞 '-' 문자 하나로 판정 가능.
+        is_negative = literal_val.lstrip().startswith('-')
         return Expression(
             literal=literal_val,
-            expr_type='int',
+            expr_type='int' if is_negative else 'uint',
             context='NumLiteralContext'
         )
-
     # Visit a parse tree produced by SolidityParser#InlineInterval.
     def visitInlineInterval(self, ctx: SolidityParser.InlineIntervalContext):
         """
@@ -1316,6 +1404,25 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     def visitNumVarRef(self, ctx: SolidityParser.NumVarRefContext):
         # varRef
         return self.visitVarRef(ctx.varRef())
+
+    # ── varRef(Entry) / varRef(Exit) / varRef(Before) / varRef(After) / varRef(Assign) ──
+    # 안쪽 varRef 를 그대로 쓰되, 어떤 스냅샷 환경(sigma_entry/sigma_exit/sigma_before/
+    # sigma_pt/sigma_assign)에서 평가해야 하는지를 context 태그로 감싼다. 실제 해석은
+    # GuardianVerificationEngine._evaluate_snapshot_var_ref 가 담당.
+    def visitVarRefAtEntry(self, ctx: SolidityParser.VarRefAtEntryContext):
+        return Expression(elements=[self.visitVarRef(ctx.varRef())], context='VarRefAtEntry')
+
+    def visitVarRefAtExit(self, ctx: SolidityParser.VarRefAtExitContext):
+        return Expression(elements=[self.visitVarRef(ctx.varRef())], context='VarRefAtExit')
+
+    def visitVarRefAtBefore(self, ctx: SolidityParser.VarRefAtBeforeContext):
+        return Expression(elements=[self.visitVarRef(ctx.varRef())], context='VarRefAtBefore')
+
+    def visitVarRefAtAfter(self, ctx: SolidityParser.VarRefAtAfterContext):
+        return Expression(elements=[self.visitVarRef(ctx.varRef())], context='VarRefAtAfter')
+
+    def visitVarRefAtAssign(self, ctx: SolidityParser.VarRefAtAssignContext):
+        return Expression(elements=[self.visitVarRef(ctx.varRef())], context='VarRefAtAssign')
 
     # Visit a parse tree produced by SolidityParser#PercentOf.
     def visitPercentOf(self, ctx: SolidityParser.PercentOfContext):
@@ -1441,7 +1548,10 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
             # 튜플 내 변수 정보 수집: [(type_obj, var_name), ...]
             var_declarations = []
-            for var_decl in tuple_ctx.variableDeclaration():
+            # ★ ANTLR 리스트 accessor 는 빈 슬롯을 None 으로 채우지 않고 빠뜨려 위치 정보가
+            # 깨짐 — _split_tuple_slots 로 콤마 경계 기준 재구성(아래 None 분기가 예전엔
+            # 이 이유로 죽은 코드였음).
+            for var_decl in self._split_tuple_slots(tuple_ctx):
                 if var_decl:
                     type_ctx = var_decl.typeName()
                     var_name = var_decl.identifier().getText()
@@ -2330,10 +2440,21 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         result_expr = Expression(literal=literal_value,
                                  context='LiteralExpContext')
 
-        # 리터럴 값이 숫자인 경우 int 또는 uint로 설정
-        if literal_value.isdigit() or (literal_value.startswith('0x') or literal_value.startswith('0X')):
-            # 숫자 리터럴 처리: 10진수, 16진수 구분
-            result_expr.expr_type = 'uint' if literal_value.isdigit() else 'int'
+        # 리터럴 값이 숫자인 경우
+        if literal_value.isdigit() or literal_value.startswith(('0x', '0X')):
+            # ★ Solidity 숫자 리터럴은 10진·16진 모두 **부호 없는 값**이다.
+            #   음수는 단항 '-' 로 표현되지 리터럴 자체가 음수가 되지 않는다.
+            #   예전엔 16진만 'int'(signed)로 찍어서:
+            #     absTick & 0x1   -> UnsignedIntegerInterval & IntegerInterval
+            #   가 Bitwise/Shift dispatch 의 타입 일치 검사에서 거부됐고,
+            #   `uint256 ratio = 0xfffcb933...` 처럼 16진 리터럴을 대입받은 변수까지
+            #   signed 로 오염돼 이후 `ratio >> 128` 도 줄줄이 실패했다
+            #   (TickMath/PRBMath/FixedPoint/BitMath 등 156건).
+            #   ※ 주소 리터럴을 여기서 구분하지 않는 이유: Solidity 주소는
+            #     address(0x..) **타입 변환**으로 들어오고(별도 경로), 맨몸 40-hex 는
+            #     이 리포에선 전부 비트마스크였다(SafeTransferLib 의 0xff..ff 4건).
+            #     길이로 판정하면 그걸 주소로 오분류한다.
+            result_expr.expr_type = 'uint'
             result_expr.type_length = 256  # 기본적으로 256비트로 가정
 
         # Boolean 리터럴인 경우
@@ -2405,17 +2526,28 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         denom_tok = ctx.getToken(SolidityParser.SubDenomination, 0)  # 토큰 객체
         denom_txt = denom_tok.getText()  # 'weeks', 'ether', …
 
-        # ── ③ 숫자 → int 변환 -------------------------------------------------
+        # ── ③ 숫자 → 값 변환 ---------------------------------------------------
+        #     Solidity는 subdenomination 리터럴을 임의정밀도 유리수로 평가한다
+        #     (예: 365.25 days == 31557600, 정수로 정확히 떨어지면 유효함).
         try:
-            base_val = int(num_txt, 0)  # 0x… 형태 지원
+            base_val = int(num_txt, 0)  # 정수/hex ('0x…') 형태
         except ValueError:
-            raise ValueError(f"invalid numeric literal “{num_txt}”")
+            try:
+                base_val = Fraction(num_txt)  # 소수 리터럴 ('365.25' 등)
+            except ValueError:
+                raise ValueError(f"invalid numeric literal “{num_txt}”")
 
         # ── ④ 단위 매핑 -------------------------------------------------------
         if denom_txt not in TIME_VALUE:
             raise ValueError(f"unknown sub-denomination “{denom_txt}”")
-        final_val = base_val * TIME_VALUE[denom_txt]
-
+        product = base_val * TIME_VALUE[denom_txt]
+        if isinstance(product, Fraction):
+            if product.denominator != 1:
+                raise ValueError(
+                    f"fractional literal “{num_txt} {denom_txt}” does not evaluate to an integer"
+                )
+            product = product.numerator
+        final_val = product
         # ── ⑤ uint256 상수 Expression 반환 -----------------------------------
         return Expression(
             literal=str(final_val),  # 예: '604800'
@@ -2734,7 +2866,14 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
     # Visit a parse tree produced by SolidityParser#TypeNameExp.
     def visitTypeNameExp(self, ctx:SolidityParser.TypeNameExpContext):
-        return self.visitChildren(ctx)
+        # elementaryTypeName이 값이 아니라 "타입 이름 그 자체"로 쓰인 경우
+        # (예: abi.decode(data, (uint256, address))의 타입-리스트 원소).
+        # 이전에는 visitChildren()이 터미널 노드까지 내려가 None을 반환했음.
+        type_name_txt = ctx.elementaryTypeName().getText()
+        return Expression(
+            identifier=type_name_txt,
+            context="TypeNameExprContext"
+        )
 
     # Visit a parse tree produced by SolidityParser#InlineArrayExp.
     def visitInlineArrayExp(self, ctx:SolidityParser.InlineArrayExpContext):

@@ -159,7 +159,7 @@
     {
       "type": "During",
       "line": 428,
-      "expr": "tokensForLiquidity(Before < After)",
+      "expr": "tokensForLiquidity(Before) < tokensForLiquidity(After)",
       "expected": "violated",
       "comment": "fees*3/12=0 -> Before==After -> violated (precision loss)"
     }

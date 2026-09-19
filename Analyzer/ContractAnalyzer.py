@@ -151,12 +151,30 @@ class ContractAnalyzer:
             if parent_context in ["contract", "library", "interface",
                                   "abstract contract"]:  # 시작 규칙 : interactiveSourceUnit
                 if parent_context == "interface":
-                    # interface body: function 시그니처만 파서→visitor 경유로 처리
+                    # interface body 는 function 시그니처 / event 선언만 유효하다
+                    # (state variable·constant 는 Solidity 가 금지).
+                    # ★ 예전엔 function 이 아니면 전부 `return` 으로 "스킵" 했는데,
+                    #   그 스킵은 **호출자에게 전달되지 않는다** — 위에서 이미
+                    #   current_context_type/current_target_contract 를 None 으로
+                    #   초기화한 뒤 그냥 돌아올 뿐이다. 드라이버
+                    #   (`Dependencies/main.py`, `main.simulate_inputs`, `EngineSession`)
+                    #   는 그걸 알 수 없어 ctx=None 으로 파싱·visit 을 계속했고,
+                    #   `visitEventDefinition` → `process_event_definition` 의
+                    #   `self.contract_cfgs[None]` 에서 `KeyError: None` 으로 터졌다
+                    #   (인터페이스 15개 × event 선언 = 59건, 메시지가 `None` 인 이유도
+                    #    `str(KeyError(None))` 이 'None' 이기 때문).
+                    #   contract/library 쪽엔 이미 'event' 분기가 있으므로
+                    #   인터페이스만 빠져 있던 것 — 같은 처리로 맞춘다.
+                    #   ※ else 의 `return` 은 남긴다: 여러 줄 함수 시그니처의
+                    #     연속 줄(`) external;`, `returns (uint256);`)이 여기로 오며,
+                    #     이들은 stateVariableDeclaration 으로 오분류되면 안 된다.
                     if stripped_code.startswith('function '):
                         self.current_context_type = "functionDefinition"
-                        self.current_target_contract = self.find_contract_context(start_line)
+                    elif stripped_code.startswith('event '):
+                        self.current_context_type = "event"
                     else:
-                        return  # event 등 non-function interface body는 스킵
+                        return
+                    self.current_target_contract = self.find_contract_context(start_line)
                 else:
                     if stripped_code.startswith('using '):
                         self.current_context_type = "usingDirective"
@@ -783,12 +801,14 @@ class ContractAnalyzer:
                 struct_name = variable_obj.typeInfo.structTypeName
                 if struct_name in contract_cfg.structDefs:
                     struct_def = contract_cfg.structDefs[struct_name]
-                    variable_obj.initialize_struct(struct_def, struct_defs=contract_cfg.structDefs)
+                    variable_obj.initialize_struct(struct_def, struct_defs=contract_cfg.structDefs,
+                                                   enum_defs=contract_cfg.enumDefs)
                 elif self.sa.get_file_level_struct(struct_name) is not None:
                     # file-level struct fallback
                     all_defs = dict(contract_cfg.structDefs)
                     all_defs.update(self.sa.file_level_structs)
-                    variable_obj.initialize_struct(self.sa.file_level_structs[struct_name], struct_defs=all_defs)
+                    variable_obj.initialize_struct(self.sa.file_level_structs[struct_name], struct_defs=all_defs,
+                                                   enum_defs=contract_cfg.enumDefs)
                 else :
                     raise ValueError(f"This struct def {struct_name} is undefined")
             elif isinstance(variable_obj, MappingVariable) :
@@ -898,7 +918,32 @@ class ContractAnalyzer:
         elif variable_obj.typeInfo.typeCategory == "elementary":
             # value types (int, uint, bool, address 등)과 string 지원
             et = variable_obj.typeInfo.elementaryTypeName
-            if et in ["string", "bytes"] or et.startswith(("int", "uint", "bool")) or et == "address":
+            # ★ bytes1..bytes32 (고정 크기 바이트) 가 허용 목록에서 빠져 있었다.
+            #   `"bytes"` 는 **동적** bytes 만 매치하므로
+            #   `bytes32 internal constant GOVERNANCE = "governance";` 같은 유효한 선언이
+            #   전부 거부됐다 (Roles 9 · AddressProviderKeys 9 · Controller 2 ·
+            #   ERC1155/165Upgradeable 3 · LockeERC20 1 = 24건).
+            #   bytesN 은 Solidity 의 value type 이고 `Domain/BytesSet.py` 와
+            #   `evaluate_literal_context` 의 bytesN 분기가 이미 있었다 — 게이트만 막고 있었다.
+            #   선언이 거부되면 `register_var` 까지 못 가므로, 이 상수를 읽는 코드가
+            #   이후 "may not be declared" 로 연쇄 실패한다.
+            _is_fixed_bytes = et.startswith("bytes") and len(et) > 5 and et[5:].isdigit()
+            if (et in ["string", "bytes"] or _is_fixed_bytes
+                    or et.startswith(("int", "uint", "bool")) or et == "address"):
+                # ★ 리터럴에 **선언 타입**을 실어 보낸다 (F14 와 같은 원리).
+                #   Solidity 리터럴은 타입이 없고 문맥이 타입을 정하는데,
+                #   `visitLiteralExp` 는 자기가 본 형태로만 찍는다:
+                #       bytes32 X = "governance"  → expr_type='string'
+                #       bytes4  X = 0x01ffc9a7    → expr_type='uint'
+                #   그대로 두면 `evaluate_literal_context` 가 bytesN 분기를 못 타고
+                #   원문 str 을 그대로 돌려준다(추상값이 아닌 것이 상수에 박힌다).
+                #   ⚠ **bytesN 에만** 덮어쓴다 — `uint256` 으로 덮으면
+                #     evaluate_literal_context 가 'uint256' 을 모른다
+                #     (`Unsupported literal expr_type 'uint256'`). 실측 확인.
+                #   ※ 리터럴이 아닌 초기화식(keccak256(...) 등)은 건드리지 않는다.
+                #     그쪽은 이미 BytesSet.top(32) 로 올바르게 평가된다.
+                if _is_fixed_bytes and getattr(init_expr, "context", None) == "LiteralExpContext":
+                    init_expr.expr_type = et
                 value = self.evaluator.evaluate_expression(init_expr, state_vars, None, None)
                 if value is None:
                     raise ValueError(f"Unable to evaluate constant expression for '{variable_obj.identifier}'")
@@ -955,6 +1000,48 @@ class ContractAnalyzer:
 
     # ContractAnalyzer.py  ----------------------------------------------
 
+    def _find_in_ancestors(self, ccf, name: str):
+        """상속 체인을 BFS 로 훑어 함수/modifier CFG 를 찾는다.
+
+        ★ 예전엔 `parent_contracts` 를 **1단계만** 돌았다. 실제 체인은 더 깊다:
+          `contract Controller is IController, Authorization, Preparable`
+            → `contract Authorization is AuthorizationBase`
+              → `modifier onlyGovernance` 는 **AuthorizationBase** 에 정의돼 있다.
+          1단계만 보면 못 찾고 `Modifier 'onlyGovernance' is not defined.` 로 터지는데,
+          modifier 해석 실패는 **함수 정의 자체를 중단**시키므로 그 함수 본문 전체가
+          "No active FunctionCFG" 로 연쇄 실패한다(Controller.sol 20건, 등록 함수 0개).
+
+        조상 CFG 는 두 곳에서 얻는다:
+          - `ccf.parent_cfgs`  : pkl 에 **객체째** 직렬화돼 있다(`con_Authorization.pkl` 이
+                                 `AuthorizationBase` 를 품고 있음) — 이것만으로도 도달 가능.
+          - `self.contract_cfgs`: 같은 세션에서 분석/로드된 것.
+
+        ⚠ 탐색 순서는 **선언 순서**다. Solidity 의 C3 선형화는 뒤쪽 부모가 더 파생이라
+          (`is A, B` → B 우선) 엄밀히는 역순이어야 하지만, 이 코퍼스엔 조상 간 이름 충돌이
+          없어 영향이 없다. 다이아몬드 상속을 제대로 다루려면 별도 작업이 필요하다.
+        """
+        seen: set[str] = set()
+        queue = [ccf]
+        while queue:
+            cur = queue.pop(0)
+            pcfgs = getattr(cur, 'parent_cfgs', {}) or {}
+            names = list(getattr(cur, 'parent_contracts', []) or [])
+            for pn in pcfgs:
+                if pn not in names:
+                    names.append(pn)
+            for pname in names:
+                if not pname or pname in seen:
+                    continue
+                seen.add(pname)
+                pcfg = pcfgs.get(pname) or self.contract_cfgs.get(pname)
+                if pcfg is None:
+                    continue
+                found = pcfg.get_function_cfg(name)
+                if found is not None:
+                    return found
+                queue.append(pcfg)
+        return None
+
     def process_modifier_invocation(self,
                                     fn_cfg: FunctionCFG,
                                     modifier_name: str) -> None:
@@ -975,13 +1062,8 @@ class ContractAnalyzer:
         # 현재 컨트랙트에서 찾기
         mod_cfg = contract_cfg.get_function_cfg(modifier_name)
         if mod_cfg is None:
-            # 부모 컨트랙트에서 찾기
-            for parent_name in getattr(contract_cfg, 'parent_contracts', []):
-                parent_cfg = self.contract_cfgs.get(parent_name)
-                if parent_cfg:
-                    mod_cfg = parent_cfg.get_function_cfg(modifier_name)
-                    if mod_cfg is not None:
-                        break
+            # 조상 컨트랙트에서 찾기 (**전이적** — 아래 _find_in_ancestors 참조)
+            mod_cfg = self._find_in_ancestors(contract_cfg, modifier_name)
 
         if mod_cfg is None:
             raise ValueError(f"Modifier '{modifier_name}' is not defined.")
@@ -1052,6 +1134,30 @@ class ContractAnalyzer:
         if exit_node not in self.sa.line_info[self.current_end_line]["cfg_nodes"]:
             self.sa.line_info[self.current_end_line]["cfg_nodes"].append(exit_node)
 
+    def get_full_struct_enum_defs(self, contract_name: str | None = None):
+        """
+        contract_name(기본값: current_target_contract) 기준으로 contract 자신 +
+        file-level + parent 상속 체인의 struct/enum 정의를 모두 합쳐서 반환한다.
+        (struct_defs, enum_defs) 튜플.
+
+        여러 곳(Update.py/Evaluation.py/DebugInitializer.py)에서 struct_defs가
+        비어있는 MappingVariable/ArrayVariable을 보수하려고 `ccf.structDefs`만
+        대입했었는데, 그러면 file-level struct(예: 컨트랙트 밖에 선언된 struct)가
+        빠진 채로 이미 완전했던 값을 오히려 덮어써버리는 문제가 있었다 - 이 헬퍼로
+        통일해서 그 문제를 근본적으로 막는다.
+        """
+        contract_name = contract_name or self.current_target_contract
+        ccf = self.contract_cfgs.get(contract_name) if contract_name else None
+        all_structs = dict(ccf.structDefs) if ccf else {}
+        all_enums = dict(ccf.enumDefs) if ccf else {}
+        if self.sa.file_level_structs:
+            all_structs.update(self.sa.file_level_structs)
+        if ccf:
+            for pcfg in getattr(ccf, 'parent_cfgs', {}).values():
+                all_structs.update(getattr(pcfg, 'structDefs', {}))
+                all_enums.update(getattr(pcfg, 'enumDefs', {}))
+        return all_structs, all_enums
+
     def _create_variable_object(
             self,
             type_obj: SolType,
@@ -1065,12 +1171,15 @@ class ContractAnalyzer:
 
         # 2-A  배열
         if type_obj.typeCategory == "array":
+            all_structs, all_enums = self.get_full_struct_enum_defs()
             v = ArrayVariable(
                 identifier=var_name,
                 base_type=type_obj.arrayBaseType,
                 array_length=type_obj.arrayLength,
                 is_dynamic=type_obj.isDynamicArray,
                 scope="local",
+                struct_defs=all_structs,
+                enum_defs=all_enums,
             )
 
         # 2-B  구조체
@@ -1080,22 +1189,44 @@ class ContractAnalyzer:
                 struct_type=type_obj.structTypeName,
                 scope="local",
             )
+            # ★ 정의를 붙여 멤버를 채운다.
+            #   예전엔 빈 StructVariable 을 그대로 뒀다. 그래서
+            #     `Ticks.Tick storage previous = ticks[current.previousTick];`
+            #   처럼 초기화식이 **아직 없는 매핑 엔트리**를 가리키면
+            #   (기존 엔트리를 받아오는 경우와 달리) 멤버가 비어
+            #   `Member 'nextTick' not in struct 'previous'` 로 터졌다
+            #   (Ticks.sol 4건 + AddressProviderMeta 2건).
+            #   바로 아래 2-D(매핑)·2-A(배열) 는 `get_full_struct_enum_defs()` 로
+            #   정의를 넘겨 `_make_value` 가 초기화하는데, struct/enum 분기만 빠져 있었다.
+            _structs, _enums = self.get_full_struct_enum_defs()
+            _sname = type_obj.structTypeName
+            if _sname not in _structs and _sname and '.' in _sname:
+                # qualified(`Ticks.Tick`) 로 못 찾으면 bare(`Tick`) 로 한 번 더.
+                #   등록 시점에 따라 한쪽 이름만 있을 수 있다(실측: 둘 다 있는 경우도 있음).
+                _sname = _sname.split('.')[-1]
+            if _sname in _structs:
+                v.initialize_struct(_structs[_sname],
+                                    struct_defs=_structs, enum_defs=_enums)
 
         # 2-C  enum
         elif type_obj.typeCategory == "enum":
             v = EnumVariable(identifier=var_name, enum_type=type_obj.enumTypeName, scope="local")
+            # ★ 2-B 와 같은 이유로 멤버 테이블을 채운다 (`_make_value` 의 enum 분기와 동일).
+            _structs, _enums = self.get_full_struct_enum_defs()
+            _ename = type_obj.enumTypeName
+            if _ename not in _enums and _ename and '.' in _ename:
+                _ename = _ename.split('.')[-1]
+            if _ename in _enums:
+                _defn = _enums[_ename]
+                v.members = {m: i for i, m in enumerate(_defn.members)}
+                if _defn.members:
+                    v.valueIndex = 0
+                    v.value = _defn.members[0]
 
         # 2-D  매핑
         elif type_obj.typeCategory == "mapping":
-            ccf_local = self.contract_cfgs.get(self.current_target_contract)
-            all_structs = dict(ccf_local.structDefs) if ccf_local else {}
-            all_enums = dict(ccf_local.enumDefs) if ccf_local else {}
-            if self.sa.file_level_structs:
-                all_structs.update(self.sa.file_level_structs)
-            if ccf_local:
-                for pcfg in getattr(ccf_local, 'parent_cfgs', {}).values():
-                    all_structs.update(getattr(pcfg, 'structDefs', {}))
-                    all_enums.update(getattr(pcfg, 'enumDefs', {}))
+            # 정의 수집은 `get_full_struct_enum_defs()` 와 동일한 로직이었다 — 중복 제거.
+            all_structs, all_enums = self.get_full_struct_enum_defs()
             v = MappingVariable(
                 identifier=var_name,
                 key_type=type_obj.mappingKeyType,
@@ -1153,11 +1284,13 @@ class ContractAnalyzer:
             elif isinstance(v, StructVariable):
                 struct_name = v.typeInfo.structTypeName
                 if struct_name in ccf.structDefs:
-                    v.initialize_struct(ccf.structDefs[struct_name], struct_defs=ccf.structDefs)
+                    v.initialize_struct(ccf.structDefs[struct_name], struct_defs=ccf.structDefs,
+                                        enum_defs=ccf.enumDefs)
                 elif self.sa.get_file_level_struct(struct_name) is not None:
                     all_defs = dict(ccf.structDefs)
                     all_defs.update(self.sa.file_level_structs)
-                    v.initialize_struct(self.sa.file_level_structs[struct_name], struct_defs=all_defs)
+                    v.initialize_struct(self.sa.file_level_structs[struct_name], struct_defs=all_defs,
+                                        enum_defs=ccf.enumDefs)
                 else:
                     raise ValueError(f"Undefined struct {struct_name}")
 
@@ -1284,7 +1417,14 @@ class ContractAnalyzer:
 
         # 각 변수 객체 생성 및 초기화
         var_objects = []
-        for idx, (type_obj, var_name) in enumerate(var_declarations):
+        # ★ var_declarations 는 튜플 슬롯 전체(빈 슬롯 포함)를 위치 그대로 담고 있음 —
+        # idx 는 반드시 enumerate 로 원본 위치를 유지해야 resolved[idx] 가 맞는 반환값을
+        # 가리킨다. 빈 슬롯(None)은 변수를 만들지 않고 건너뜀
+        # (예: `(, , lpSupply) = router.addLiquidity(...)` 의 앞 2슬롯).
+        for idx, decl in enumerate(var_declarations):
+            if decl is None:
+                continue
+            type_obj, var_name = decl
             v = self._create_variable_object(type_obj, var_name, ccf)
 
             # ───────────────────────────────────────────────────────────────
@@ -1394,7 +1534,8 @@ class ContractAnalyzer:
         elif isinstance(v, StructVariable):
             if v.typeInfo.structTypeName not in ccf.structDefs:
                 raise ValueError(f"Undefined struct {v.typeInfo.structTypeName}")
-            v.initialize_struct(ccf.structDefs[v.typeInfo.structTypeName], struct_defs=ccf.structDefs)
+            v.initialize_struct(ccf.structDefs[v.typeInfo.structTypeName], struct_defs=ccf.structDefs,
+                               enum_defs=ccf.enumDefs)
 
         # enum 기본 (첫 멤버)
         elif isinstance(v, EnumVariable):

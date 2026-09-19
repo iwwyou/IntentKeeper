@@ -1,0 +1,820 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  references.bib -- bibliography for the doctoral dissertation
+%  "An Intent-Aware Quick Debugging Assistant for Solidity"
+%
+%  Seeded (2026-09-18) by converting the hand-written \bibitem lists of the two
+%  predecessor manuscripts into BibTeX:
+%    * SolQDebug    : SolDebug/Proof_Read/main_proof.tex                (54 items)
+%    * IntentChecker: SolidityGuardian/paper/first_revision/main.tex    (46 items)
+%  Seven keys appeared in both lists; the "MERGE NOTES" below record how the
+%  overlaps were resolved.  Entries are alphabetical by key.
+%
+%  MERGE NOTES -- read before citing
+%  ---------------------------------
+%  (1) KEY COLLISION.  The key `mythril` denoted *two different works*:
+%        IntentChecker  -> the ConsenSys Mythril tool     (kept as `mythril`)
+%        SolQDebug      -> Yao et al., IEEE Big Data 2022 (NOT carried over)
+%      The Yao et al. entry was dropped on purpose; re-add it under a distinct
+%      key if that reference is ever needed.  Text copied from the SolQDebug
+%      manuscript that cites \citep{mythril} therefore means a work that is not
+%      in this file -- check every occurrence.
+%  (2) ALIASES FOLDED.  The same work carried two keys across the manuscripts.
+%      The canonical key is kept; the alias is NOT defined:
+%        pulse            -> smartpulse   (Stephens et al., S&P 2021)
+%        accountingerrors -> sctype       (Zhang, ICSE 2024)
+%        gpt              -> chatgpt      (OpenAI ChatGPT)
+%  (3) CONFLICTING DOI (resolved).  Zhang, "Towards finding accounting errors
+%      in smart contracts" (ICSE 2024) was given DOI ...3639128 in IntentChecker
+%      and ...3639222 in SolQDebug.  Confirmed by the author (2026-09-19):
+%      10.1145/3597503.3639128 is correct.  The SolQDebug manuscript is wrong.
+%  (4) INVALID KEY.  SolQDebug used `smart contract evolution` (with spaces),
+%      which BibTeX rejects.  Renamed to `contractevolution`.
+%  (5) ABBREVIATED AUTHORS.  Both manuscripts wrote "X, Y., et al."; that is
+%      reproduced here as "and others".  Expand to full author lists before
+%      submission if the department requires it.
+%  (6) The old paper/references.bib is NOT used by this document any more.  It
+%      still holds LLM / program-repair entries (codellama, starcoder,
+%      deepseek-coder, alpharepair, chatrepair, lora) from an earlier research
+%      direction; pull them over only if that material returns.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+@misc{antlr,
+  author       = {{ANTLR}},
+  title        = {{ANTLR}},
+  howpublished = {\url{https://www.antlr.org/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{chatgpt,
+  author       = {{OpenAI}},
+  title        = {{ChatGPT}},
+  howpublished = {\url{https://chatgpt.com/}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@misc{claude,
+  author       = {{Anthropic}},
+  title        = {{Claude}},
+  howpublished = {\url{https://www.anthropic.com/}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@misc{cognition,
+  author       = {{Cognition.run}},
+  title        = {{Cognition.run}},
+  howpublished = {\url{https://www.cognition.run/}},
+  year         = {2026},
+  note         = {Accessed January 2026}
+}
+
+@misc{coinmarketcap,
+  author       = {{CoinMarketCap}},
+  title        = {{CoinMarketCap}},
+  howpublished = {\url{https://coinmarketcap.com/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@inproceedings{confuzz,
+  author    = {Jiang, Bo and Liu, Ye and Chan, W. K.},
+  title     = {{ContractFuzzer}: Fuzzing smart contracts for vulnerability detection},
+  booktitle = {Proceedings of the 33rd ACM/IEEE International Conference on Automated Software Engineering (ASE)},
+  pages     = {259--269},
+  year      = {2018},
+  doi       = {10.1145/3238147.3238177}
+}
+
+@article{consolidating,
+  author  = {Wei, Guannan and others},
+  title   = {Consolidating smart contracts with behavioral contracts},
+  journal = {Proceedings of the ACM on Programming Languages},
+  volume  = {8},
+  number  = {PLDI},
+  pages   = {965--989},
+  year    = {2024},
+  doi     = {10.1145/3656416}
+}
+
+@article{contractevolution,
+  author  = {Chen, Xiangping and others},
+  title   = {Characterizing smart contract evolution},
+  journal = {ACM Transactions on Software Engineering and Methodology},
+  year    = {2025},
+  doi     = {10.1145/3719004}
+}
+
+@inproceedings{cousot,
+  author    = {Cousot, Patrick and Cousot, Radhia},
+  title     = {Abstract interpretation: a unified lattice model for static analysis of programs by construction or approximation of fixpoints},
+  booktitle = {Proceedings of the 4th ACM SIGACT-SIGPLAN Symposium on Principles of Programming Languages (POPL)},
+  year      = {1977},
+  doi       = {10.1145/512950.512973}
+}
+
+@inproceedings{daig,
+  author    = {Stein, Benno and Chang, Bor-Yuh Evan and Sridharan, Manu},
+  title     = {Demanded abstract interpretation},
+  booktitle = {Proceedings of the 42nd ACM SIGPLAN International Conference on Programming Language Design and Implementation (PLDI)},
+  year      = {2021},
+  doi       = {10.1145/3453483.3454044}
+}
+
+@article{dao,
+  author  = {Mehar, Muhammad Izhar and others},
+  title   = {Understanding a revolutionary and flawed grand experiment in blockchain: the {DAO} attack},
+  journal = {Journal of Cases on Information Technology},
+  year    = {2019},
+  doi     = {10.4018/JCIT.2019010102}
+}
+
+@article{dappscan,
+  author  = {Zheng, Zibin and others},
+  title   = {{DAppSCAN}: Building large-scale datasets for smart contract weaknesses in {dApp} projects},
+  journal = {IEEE Transactions on Software Engineering},
+  volume  = {50},
+  number  = {6},
+  pages   = {1360--1373},
+  year    = {2024},
+  doi     = {10.1109/TSE.2024.3383422}
+}
+
+@misc{dappscananalysis,
+  author       = {{IntentChecker}},
+  title        = {{DAppSCAN} contract analysis dataset},
+  howpublished = {\url{https://github.com/iwwyou/IntentChecker/blob/main/evaluation/DappSCAN_contract_analysis/contract_analysis_table.xlsx}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@inproceedings{DBM,
+  author    = {Halder, Raju},
+  title     = {State-based invariant property generation of {Solidity} smart contracts using abstract interpretation},
+  booktitle = {2024 IEEE International Conference on Blockchain},
+  year      = {2024},
+  doi       = {10.1109/Blockchain62396.2024.00038}
+}
+
+@inproceedings{defiattacks,
+  author    = {Zhou, Liyi and others},
+  title     = {{SoK}: Decentralized finance ({DeFi}) attacks},
+  booktitle = {Proceedings of the 2023 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {2444--2461},
+  year      = {2023},
+  doi       = {10.1109/SP46215.2023.10179435}
+}
+
+@article{defiguard,
+  author  = {Wang, Dabao and others},
+  title   = {{DeFiGuard}: A price manipulation detection service in {DeFi} using graph neural networks},
+  journal = {IEEE Transactions on Services Computing},
+  year    = {2024},
+  doi     = {10.1109/TSC.2024.3489439}
+}
+
+@article{defiranger,
+  author  = {Wu, Siwei and others},
+  title   = {{DeFiRanger}: Detecting {DeFi} price manipulation attacks},
+  journal = {IEEE Transactions on Dependable and Secure Computing},
+  volume  = {21},
+  number  = {4},
+  pages   = {4147--4161},
+  year    = {2023},
+  doi     = {10.1109/TDSC.2023.3346888}
+}
+
+@inproceedings{defisecurity,
+  author    = {Chaliasos, Stefanos and others},
+  title     = {Smart contract and {DeFi} security tools: Do they meet the needs of practitioners?},
+  booktitle = {Proceedings of the 46th IEEE/ACM International Conference on Software Engineering (ICSE)},
+  pages     = {1--13},
+  year      = {2024},
+  doi       = {10.1145/3597503.3623302}
+}
+
+@article{defitail,
+  author  = {Li, Xiaoli and others},
+  title   = {Penetrating the hostile: Detecting {DeFi} protocol exploits through cross-contract analysis},
+  journal = {IEEE Transactions on Information Forensics and Security},
+  volume  = {20},
+  pages   = {11759--11774},
+  year    = {2025},
+  doi     = {10.1109/TIFS.2025.3626979}
+}
+
+@inproceedings{defitainter,
+  author    = {Kong, Queping and others},
+  title     = {{DeFiTainter}: Detecting price manipulation vulnerabilities in {DeFi} protocols},
+  booktitle = {Proceedings of the 32nd ACM SIGSOFT International Symposium on Software Testing and Analysis (ISSTA)},
+  pages     = {1144--1156},
+  year      = {2023},
+  doi       = {10.1145/3597926.3598124}
+}
+
+@article{ds,
+  author  = {Stein, Benno and Chang, Bor-Yuh Evan and Sridharan, Manu},
+  title   = {Interactive abstract interpretation with demanded summarization},
+  journal = {ACM Transactions on Programming Languages and Systems},
+  year    = {2024},
+  doi     = {10.1145/3648484}
+}
+
+@inproceedings{echidna,
+  author    = {Grieco, Gustavo and others},
+  title     = {{Echidna}: Effective, usable, and fast fuzzing for smart contracts},
+  booktitle = {Proceedings of the 29th ACM SIGSOFT International Symposium on Software Testing and Analysis (ISSTA)},
+  pages     = {557--560},
+  year      = {2020},
+  doi       = {10.1145/3395363.3404366}
+}
+
+@article{ethersolve,
+  author  = {Pasqua, Michele and others},
+  title   = {Enhancing {Ethereum} smart-contracts static analysis by computing a precise control-flow graph of {Ethereum} bytecode},
+  journal = {Journal of Systems and Software},
+  volume  = {200},
+  pages   = {111653},
+  year    = {2023},
+  doi     = {10.1016/j.jss.2023.111653}
+}
+
+@inproceedings{exploitablebugs,
+  author    = {Zhang, Zhuo and others},
+  title     = {Demystifying exploitable bugs in smart contracts},
+  booktitle = {Proceedings of the 2023 IEEE/ACM 45th International Conference on Software Engineering (ICSE)},
+  pages     = {615--627},
+  year      = {2023},
+  doi       = {10.1109/ICSE48619.2023.00061}
+}
+
+@inproceedings{fap,
+  author    = {Chimdyalwar, Bharti},
+  title     = {Fast and precise interval analysis on industry code},
+  booktitle = {2024 IEEE 35th International Symposium on Software Reliability Engineering Workshops (ISSREW)},
+  year      = {2024},
+  doi       = {10.1109/ISSREW63542.2024.00049}
+}
+
+@incollection{flow,
+  author    = {Halder, Raju and others},
+  title     = {Analyzing information flow in {Solidity} smart contracts},
+  booktitle = {Distributed Computing to Blockchain},
+  pages     = {105--123},
+  publisher = {Academic Press},
+  year      = {2023}
+}
+
+@article{flyinointment,
+  author  = {Soud, Majd and Liebel, Grischa and Hamdaqa, Mohammad},
+  title   = {A fly in the ointment: an empirical study on the characteristics of {Ethereum} smart contract code weaknesses},
+  journal = {Empirical Software Engineering},
+  volume  = {29},
+  number  = {1},
+  pages   = {13},
+  year    = {2024},
+  doi     = {10.1007/s10664-023-10398-5}
+}
+
+@misc{forge,
+  author       = {{Foundry Forge}},
+  title        = {{Foundry Forge}},
+  howpublished = {\url{https://book.getfoundry.sh/reference/forge/forge/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{gemini,
+  author       = {{Google}},
+  title        = {{Gemini}},
+  howpublished = {\url{https://gemini.google.com/}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@article{gorski2025,
+  author  = {G\'{o}rski, Tomasz},
+  title   = {Software architecture description in original software publications},
+  journal = {Software Impacts},
+  pages   = {100802},
+  year    = {2025}
+}
+
+@inproceedings{gptscan,
+  author    = {Sun, Yuqiang and others},
+  title     = {{GPTScan}: Detecting logic vulnerabilities in smart contracts by combining {GPT} with program analysis},
+  booktitle = {Proceedings of the IEEE/ACM 46th International Conference on Software Engineering (ICSE)},
+  pages     = {1--13},
+  year      = {2024},
+  doi       = {10.1145/3597503.3639117}
+}
+
+@misc{gptscan_web3bugs,
+  author       = {{GPTScan}},
+  title        = {{Web3Bugs} per-contest evaluation results},
+  howpublished = {\url{https://github.com/MetaTrustLabs/GPTScan-Web3Bugs}},
+  year         = {2023},
+  note         = {Accessed April 2026}
+}
+
+@misc{hardhat,
+  author       = {{Hardhat}},
+  title        = {{Hardhat}},
+  howpublished = {\url{https://hardhat.org/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@inproceedings{highguard,
+  author    = {Eshghie, Mojtaba and others},
+  title     = {{HighGuard}: Cross-chain business logic monitoring of smart contracts},
+  booktitle = {Proceedings of the 39th IEEE/ACM International Conference on Automated Software Engineering (ASE)},
+  pages     = {2378--2381},
+  year      = {2024},
+  doi       = {10.1145/3691620.3695356}
+}
+
+@inproceedings{hyperion,
+  author    = {Yang, Shuo and others},
+  title     = {{Hyperion}: Unveiling {DApp} inconsistencies using {LLM} and dataflow-guided symbolic execution},
+  booktitle = {Proceedings of the 2025 IEEE/ACM 47th International Conference on Software Engineering (ICSE)},
+  pages     = {2125--2137},
+  year      = {2025},
+  doi       = {10.1109/ICSE55347.2025.00015}
+}
+
+@article{iac,
+  author  = {Erhard, Julian and others},
+  title   = {Interactive abstract interpretation: reanalyzing multithreaded {C} programs for cheap},
+  journal = {International Journal on Software Tools for Technology Transfer},
+  year    = {2024},
+  doi     = {10.1007/s10009-024-00768-9}
+}
+
+@article{iaj,
+  author  = {Riouak, Idriss and others},
+  title   = {{IntraJ}: an on-demand framework for intraprocedural {Java} code analysis},
+  journal = {International Journal on Software Tools for Technology Transfer},
+  year    = {2024},
+  doi     = {10.1007/s10009-024-00771-0}
+}
+
+@inproceedings{idealist,
+  author    = {Nguyen, Tai D. and others},
+  title     = {An idealist's approach for smart contract correctness},
+  booktitle = {International Conference on Formal Engineering Methods (ICFEM)},
+  pages     = {11--28},
+  year      = {2023},
+  doi       = {10.1007/978-981-99-7584-6_2}
+}
+
+@misc{intentchecker,
+  author       = {{IntentChecker}},
+  title        = {{IntentChecker}},
+  howpublished = {\url{https://github.com/iwwyou/IntentChecker.git}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@article{interview,
+  author  = {Zou, Weiqin and others},
+  title   = {Smart contract development: challenges and opportunities},
+  journal = {IEEE Transactions on Software Engineering},
+  year    = {2019},
+  doi     = {10.1109/TSE.2019.2942301}
+}
+
+@inproceedings{ityfuzz,
+  author    = {Shou, Chaofan and Tan, Shangyin and Sen, Koushik},
+  title     = {{ItyFuzz}: Snapshot-based fuzzer for smart contract},
+  booktitle = {Proceedings of the 32nd ACM SIGSOFT International Symposium on Software Testing and Analysis (ISSTA)},
+  pages     = {322--333},
+  year      = {2023},
+  doi       = {10.1145/3597926.3598059}
+}
+
+@inproceedings{klee,
+  author    = {Cadar, Cristian and others},
+  title     = {{KLEE}: Unassisted and automatic generation of high-coverage tests for complex systems programs},
+  booktitle = {Proceedings of the 8th USENIX Conference on Operating Systems Design and Implementation (OSDI)},
+  pages     = {209--224},
+  year      = {2008},
+  doi       = {10.5555/1855741.1855756}
+}
+
+@misc{libfuzzer,
+  author       = {{LLVM}},
+  title        = {{libFuzzer}},
+  howpublished = {\url{https://llvm.org/docs/LibFuzzer.html}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@misc{llama,
+  author       = {{Llama}},
+  title        = {{Llama}},
+  howpublished = {\url{https://www.llama.com/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@inproceedings{making,
+  author    = {Ren, Meng and others},
+  title     = {Making smart contract development more secure and easier},
+  booktitle = {Proceedings of the 29th ACM Joint Meeting on European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE)},
+  pages     = {1360--1370},
+  year      = {2021},
+  doi       = {10.1145/3468264.3473929}
+}
+
+@article{merlec,
+  author  = {Merlec, Mpyana Mwamba and others},
+  title   = {A smart contract-based dynamic consent management system for personal data usage under {GDPR}},
+  journal = {Sensors},
+  volume  = {21},
+  number  = {23},
+  pages   = {7994},
+  year    = {2021},
+  doi     = {10.3390/s21237994}
+}
+
+@inproceedings{midnight,
+  author    = {Ramezany, Sina and Setthawong, Rachsuda and Setthawong, Pisal},
+  title     = {{Midnight}: An efficient event-driven {EVM} transaction security monitoring approach for flash loan detection},
+  booktitle = {Proceedings of the 2023 20th International Joint Conference on Computer Science and Software Engineering (JCSSE)},
+  pages     = {237--241},
+  year      = {2023},
+  doi       = {10.1109/JCSSE58229.2023.10201970}
+}
+
+@misc{mythril,
+  author       = {{Consensys Diligence}},
+  title        = {{Mythril}},
+  howpublished = {\url{https://github.com/ConsenSysDiligence/mythril}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@misc{mythx,
+  author       = {{Consensys Diligence}},
+  title        = {{MythX}},
+  howpublished = {\url{https://mythx.io/}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@article{numscout,
+  author  = {Chen, Jiachi and others},
+  title   = {{NumScout}: Unveiling numerical defects in smart contracts using {LLM}-pruning symbolic execution},
+  journal = {IEEE Transactions on Software Engineering},
+  year    = {2025},
+  doi     = {10.1109/TSE.2025.3555622}
+}
+
+@misc{numscout_dataset,
+  author       = {{NumScout}},
+  title        = {95 samples experiment dataset},
+  howpublished = {\url{https://github.com/NumScout/NumScout/tree/main/Experiment/95_Samples_Run}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@misc{numscout_semantic,
+  author       = {{NumScout}},
+  title        = {Feature detector source code (\texttt{semantic\_analysis.py})},
+  howpublished = {\url{https://github.com/NumScout/NumScout/blob/main/feature_detector/semantic_analysis.py}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@inproceedings{nyx,
+  author    = {Zhang, Wuqi and others},
+  title     = {{Nyx}: Detecting exploitable front-running vulnerabilities in smart contracts},
+  booktitle = {Proceedings of the 2024 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {2198--2216},
+  year      = {2024},
+  doi       = {10.1109/SP54263.2024.00146}
+}
+
+@inproceedings{oyente,
+  author    = {Luu, Loi and others},
+  title     = {Making smart contracts smarter},
+  booktitle = {Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications Security (CCS)},
+  pages     = {254--269},
+  year      = {2016},
+  doi       = {10.1145/2976749.2978309}
+}
+
+@misc{pearson_r,
+  title        = {Pearson correlation coefficient},
+  howpublished = {\url{https://en.wikipedia.org/wiki/Pearson_correlation_coefficient}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@inproceedings{peculiar,
+  author    = {Wu, Hongjun and others},
+  title     = {{Peculiar}: Smart contract vulnerability detection based on crucial data-flow graph and pre-training techniques},
+  booktitle = {2021 IEEE 32nd International Symposium on Software Reliability Engineering (ISSRE)},
+  pages     = {378--389},
+  year      = {2021},
+  doi       = {10.1109/ISSRE52982.2021.00047}
+}
+
+@inproceedings{pomabuster,
+  author    = {Xi, Rongwei and Wang, Zhuo and Pattabiraman, Karthik},
+  title     = {{POMABuster}: Detecting price oracle manipulation attacks in decentralized finance},
+  booktitle = {Proceedings of the 2024 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {3923--3942},
+  year      = {2024},
+  doi       = {10.1109/SP54263.2024.00257}
+}
+
+@inproceedings{pscvfinder,
+  author    = {Yu, Lei and others},
+  title     = {{PSCVFinder}: A prompt-tuning based framework for smart contract vulnerability detection},
+  booktitle = {2023 IEEE 34th International Symposium on Software Reliability Engineering (ISSRE)},
+  pages     = {556--567},
+  year      = {2023},
+  doi       = {10.1109/ISSRE59848.2023.00030}
+}
+
+@misc{psp,
+  author       = {{ConsenSys Diligence}},
+  title        = {{Python Solidity Parser}},
+  howpublished = {\url{https://github.com/ConsenSysDiligence/python-solidity-parser}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{pycharm,
+  author       = {{JetBrains}},
+  title        = {{PyCharm}},
+  howpublished = {\url{https://www.jetbrains.com/pycharm/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{remix,
+  author       = {{Remix IDE}},
+  title        = {{Remix IDE}},
+  howpublished = {\url{https://remix.ethereum.org/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{remix_bench,
+  author       = {{SolQDebug}},
+  title        = {{Remix} latency benchmark},
+  howpublished = {\url{https://github.com/iwwyou/SolDebug/tree/main/Evaluation/RQ1_Latency/remix}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@inproceedings{sctype,
+  author    = {Zhang, Brian},
+  title     = {Towards finding accounting errors in smart contracts},
+  booktitle = {Proceedings of the IEEE/ACM 46th International Conference on Software Engineering (ICSE)},
+  pages     = {1--13},
+  year      = {2024},
+  doi       = {10.1145/3597503.3639128}
+}
+
+@misc{scribble,
+  author       = {{Consensys Diligence}},
+  title        = {{Scribble}},
+  howpublished = {\url{https://diligence.security/scribble/}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@inproceedings{seahorn,
+  author    = {Gurfinkel, Arie and others},
+  title     = {The {SeaHorn} verification framework},
+  booktitle = {International Conference on Computer Aided Verification (CAV)},
+  pages     = {343--361},
+  year      = {2015},
+  doi       = {10.1007/978-3-319-21690-4_20}
+}
+
+@inproceedings{secplf,
+  author    = {Arora, Sanidhay and others},
+  title     = {{SecPLF}: Secure protocols for loanable funds against oracle manipulation attacks},
+  booktitle = {Proceedings of the 19th ACM Asia Conference on Computer and Communications Security (ASIACCS)},
+  pages     = {1394--1405},
+  year      = {2024},
+  doi       = {10.1145/3634737.3637681}
+}
+
+@inproceedings{securify,
+  author    = {Tsankov, Petar and others},
+  title     = {{Securify}: Practical security analysis of smart contracts},
+  booktitle = {Proceedings of the 2018 ACM SIGSAC Conference on Computer and Communications Security (CCS)},
+  pages     = {67--82},
+  year      = {2018},
+  doi       = {10.1145/3243734.3243780}
+}
+
+@misc{selenium,
+  author       = {{Selenium with Python}},
+  title        = {{Selenium with Python}},
+  howpublished = {\url{https://selenium-python.readthedocs.io/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@inproceedings{sfuzz,
+  author    = {Nguyen, Tai D. and others},
+  title     = {{sFuzz}: An efficient adaptive fuzzer for {Solidity} smart contracts},
+  booktitle = {Proceedings of the 42nd ACM/IEEE International Conference on Software Engineering (ICSE)},
+  pages     = {778--788},
+  year      = {2020},
+  doi       = {10.1145/3377811.3380334}
+}
+
+@inproceedings{slither,
+  author    = {Feist, Josselin and Grieco, Gustavo and Groce, Alex},
+  title     = {{Slither}: A static analysis framework for smart contracts},
+  booktitle = {2019 IEEE/ACM 2nd International Workshop on Emerging Trends in Software Engineering for Blockchain (WETSEB)},
+  pages     = {8--15},
+  year      = {2019},
+  doi       = {10.1109/WETSEB.2019.00008}
+}
+
+@inproceedings{smartace,
+  author    = {Wesley, Scott and others},
+  title     = {Verifying {Solidity} smart contracts via communication abstraction in {SmartACE}},
+  booktitle = {International Conference on Verification, Model Checking, and Abstract Interpretation (VMCAI)},
+  pages     = {425--449},
+  year      = {2022},
+  doi       = {10.1007/978-3-030-94583-1_21}
+}
+
+@inproceedings{smartinv,
+  author    = {Wang, Sally Junsong and Pei, Kexin and Yang, Junfeng},
+  title     = {{SmartInv}: Multimodal learning for smart contract invariant inference},
+  booktitle = {Proceedings of the 2024 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {2217--2235},
+  year      = {2024},
+  doi       = {10.1109/SP54263.2024.00126}
+}
+
+@inproceedings{smartpulse,
+  author    = {Stephens, Jon and others},
+  title     = {{SmartPulse}: Automated checking of temporal properties in smart contracts},
+  booktitle = {Proceedings of the 2021 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {555--571},
+  year      = {2021},
+  doi       = {10.1109/SP40001.2021.00085}
+}
+
+@misc{solcx,
+  author       = {{solcx}},
+  title        = {{Solidity} compiler in {Python} (solcx)},
+  howpublished = {\url{https://solcx.readthedocs.io/en/latest/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{soldepro,
+  author       = {{Solidity Debugger Pro}},
+  title        = {{Solidity Debugger Pro}},
+  howpublished = {\url{https://www.soliditydbg.org/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{solgram,
+  author       = {{Solidity}},
+  title        = {{Solidity} language grammar},
+  howpublished = {\url{https://docs.soliditylang.org/en/v0.8.30/grammar.html}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{solhint,
+  author       = {{Protofire}},
+  title        = {{Solhint}},
+  howpublished = {\url{https://github.com/protofire/solhint}},
+  year         = {2026},
+  note         = {Accessed April 2026}
+}
+
+@article{solidet,
+  author  = {Hu, Tianyuan and others},
+  title   = {Detect defects of {Solidity} smart contract based on the knowledge graph},
+  journal = {IEEE Transactions on Reliability},
+  volume  = {73},
+  number  = {1},
+  pages   = {186--202},
+  year    = {2023},
+  doi     = {10.1109/TR.2023.3233999}
+}
+
+@misc{solidity,
+  author       = {{Solidity}},
+  title        = {{Solidity} documentation},
+  howpublished = {\url{https://docs.soliditylang.org/en/v0.8.30/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@article{solqdebug,
+  author  = {Jeon, Inseong and others},
+  title   = {{SolQDebug}: Debug {Solidity} quickly for interactive immediacy in smart contract development},
+  journal = {Automated Software Engineering},
+  volume  = {33},
+  number  = {3},
+  pages   = {86},
+  year    = {2026},
+  doi     = {10.1007/s10515-026-00618-9}
+}
+
+@misc{solqimpl,
+  author       = {{SolQDebug}},
+  title        = {{SolQDebug} complete implementation},
+  howpublished = {\url{https://github.com/iwwyou/SolDebug/tree/main}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@misc{solqrule,
+  author       = {{SolQDebug}},
+  title        = {{Solidity} language grammar rule of {SolQDebug}},
+  howpublished = {\url{https://github.com/iwwyou/SolDebug/blob/main/Parser/Solidity.g4}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@inproceedings{solvent,
+  author    = {Bartoletti, Massimo and others},
+  title     = {{Solvent}: Liquidity verification of smart contracts},
+  booktitle = {International Conference on Integrated Formal Methods (iFM)},
+  pages     = {256--266},
+  year      = {2024},
+  doi       = {10.1007/978-3-031-76554-4_14}
+}
+
+@article{tmlvd,
+  author  = {Zhou, Qihao and others},
+  title   = {Vulnerability analysis of smart contract for blockchain-based {IoT} applications: a machine learning approach},
+  journal = {IEEE Internet of Things Journal},
+  volume  = {9},
+  number  = {24},
+  pages   = {24695--24707},
+  year    = {2022},
+  doi     = {10.1109/JIOT.2022.3196269}
+}
+
+@inproceedings{transracer,
+  author    = {Ma, Chenyang and Song, Wei and Huang, Jeff},
+  title     = {{TransRacer}: Function dependence-guided transaction race detection for smart contracts},
+  booktitle = {Proceedings of the 31st ACM Joint European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE)},
+  pages     = {947--959},
+  year      = {2023},
+  doi       = {10.1145/3611643.3616281}
+}
+
+@inproceedings{verismart,
+  author    = {So, Sunbeom and others},
+  title     = {{VeriSmart}: A highly precise safety verifier for {Ethereum} smart contracts},
+  booktitle = {2020 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {1678--1694},
+  year      = {2020},
+  doi       = {10.1109/SP40000.2020.00032}
+}
+
+@misc{visual,
+  author       = {{Microsoft}},
+  title        = {{Microsoft Visual Studio}},
+  howpublished = {\url{https://visualstudio.microsoft.com/}},
+  year         = {2025},
+  note         = {Accessed November 2025}
+}
+
+@incollection{wilcoxon1945,
+  author    = {Wilcoxon, Frank},
+  title     = {Individual comparisons by ranking methods},
+  booktitle = {Breakthroughs in Statistics: Methodology and Distribution},
+  pages     = {196--202},
+  publisher = {Springer},
+  address   = {New York},
+  year      = {1992},
+  doi       = {10.1007/978-1-4612-4380-9_16}
+}
+
+@book{yi,
+  author    = {Rival, Xavier and Yi, Kwangkeun},
+  title     = {Introduction to Static Analysis: An Abstract Interpretation Perspective},
+  publisher = {MIT Press},
+  year      = {2020}
+}
+
+@inproceedings{zeus,
+  author    = {Kalra, Sukrit and Goel, Seep and Dhawan, Mohan and Sharma, Subodh},
+  title     = {{ZEUS}: Analyzing safety of smart contracts},
+  booktitle = {Proceedings of the 2018 Network and Distributed System Security Symposium (NDSS)},
+  year      = {2018},
+  doi       = {10.14722/ndss.2018.23082}
+}

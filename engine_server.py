@@ -46,6 +46,15 @@ class Req(BaseModel):
     intents: list = []    # [{scopeKind, text, line?}]
 
 
+class OutlineReq(BaseModel):
+    source: str = ""
+
+
+# 아웃라인 캐시: 같은 소스로 반복 호출(타이핑마다)될 때 전체 재파싱을 피한다.
+# 키 = 소스 해시. 단일 사용자 dev 도구 전제라 크기 상한만 둔다.
+_outline_cache: dict[int, list] = {}
+
+
 def _key(r: Req) -> str:
     return f"{r.contract}.{r.func}"
 
@@ -75,6 +84,30 @@ def _session(r: Req) -> EngineSession:
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "sessions": list(_sessions.keys())}
+
+
+@app.post("/outline")
+def outline(r: OutlineReq) -> dict:
+    """소스에 있는 디버그 가능한 (contract, function) 목록.
+
+    프론트가 함수 목록을 mock 에 하드코딩하던 문제를 없앤다 — 파일을 열거나 편집할 때
+    이걸 불러 목록을 갱신하고, 그 다음에야 /analyze 의 스코프(contract/func)가 정해진다.
+    (그래서 세션 키 "contract.func" 를 쓰는 _session() 경로와 분리돼 있어야 한다.)
+
+    분석 세션은 여기서 만들고 버린다 — 스코프별 세션을 오염시키지 않기 위함.
+    대신 소스 해시로 캐시해 타이핑마다 전체 재파싱하지 않는다.
+    """
+    h = hash(r.source)
+    hit = _outline_cache.get(h)
+    if hit is None:
+        sess = EngineSession()
+        sess.analyze(slice_solidity(r.source))
+        hit = [asdict(f) for f in sess.outline()]
+        if len(_outline_cache) > 32:        # dev 도구: 단순 상한
+            _outline_cache.clear()
+        _outline_cache[h] = hit
+    return {"functions": hit,
+            "contracts": sorted({f["contract"] for f in hit})}
 
 
 @app.post("/analyze")

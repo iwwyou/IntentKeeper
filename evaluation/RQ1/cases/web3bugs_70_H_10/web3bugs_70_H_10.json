@@ -474,31 +474,37 @@
     "event": "add"
   },
   {
+    "code": "// @StateVar vaderPairs[0] = symbolicAddress 1",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
     "code": "// @StateVar totalLiquidityWeight[0] = [1, 1]",
     "startLine": 88,
     "endLine": 88,
     "event": "add"
   },
   {
-    "code": "// @StateVar twapData[1].lastMeasurement = [1000, 1000]",
+    "code": "// @StateVar twapData[address(vaderPairs[0])].lastMeasurement = [1000, 1000]",
     "startLine": 89,
     "endLine": 89,
     "event": "add"
   },
   {
-    "code": "// @StateVar twapData[1].updatePeriod = [60, 60]",
+    "code": "// @StateVar twapData[address(vaderPairs[0])].updatePeriod = [60, 60]",
     "startLine": 90,
     "endLine": 90,
     "event": "add"
   },
   {
-    "code": "// @StateVar twapData[1].pastLiquidityEvaluation = [1, 1]",
+    "code": "// @StateVar twapData[address(vaderPairs[0])].pastLiquidityEvaluation = [1, 1]",
     "startLine": 91,
     "endLine": 91,
     "event": "add"
   },
   {
-    "code": "// @StateVar twapData[1].nativeTokenPriceCumulative = [0, 0]",
+    "code": "// @StateVar twapData[address(vaderPairs[0])].nativeTokenPriceCumulative = [0, 0]",
     "startLine": 92,
     "endLine": 92,
     "event": "add"

@@ -76,7 +76,8 @@ contract ERC1155Upgradeable is Initializable, ContextUpgradeable, ERC165Upgradea
     )
         internal
         virtual
-    { }
+{
+    }
 
     function _mint(address account, uint256 id, uint256 amount, bytes memory data) internal virtual {
         require(account != address(0), "ERC1155: mint to the zero address");

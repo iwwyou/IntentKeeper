@@ -1,0 +1,1082 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  IntentKeeper / IQDebug -- Doctoral Dissertation
+%  Korea University, Graduate School, Department of Computer Science
+%
+%  Base   : "English LaTeX Template.tex" (KU Graduate School, 2022.12.19 beta)
+%           -> doctoral pages only; master's pages removed.
+%  Merged : package set actually used in solqdebug.tex / intentchecker.tex
+%           (paper/temp/), so that figures, listings, algorithms and math
+%           carry over without re-tooling.
+%
+%  Build  : pdflatex main -> bibtex main -> pdflatex main -> pdflatex main
+%           (or: latexmk -pdf main)
+%           The index (imakeidx) runs automatically; it needs the file name to
+%           contain NO SPACES, which is why this file is "main.tex".
+%
+%  FIXES applied relative to the KU template (each is a real defect):
+%   (F1) \pagenumbering{gobble} lived only in the master's cover block, so a
+%        doctoral student deleting that block gets numbered cover/title/
+%        signature pages.  Moved into the doctoral cover below.
+%   (F2) \doublespacing after the English abstract was never closed and leaked
+%        into the WHOLE document, silently overriding \linespread{1.25}
+%        (measured \baselineskip 22.00pt instead of 17pt).  Spacing is now
+%        owned by setspace only, and the abstracts are scoped.
+%   (F3) \newgeometry{paper=b5paper,...} -> geometry warns "b5paper not
+%        available in \newgeometry; skipped".  paper= removed.
+%   (F4) The appendix figure referenced "....jpg" while the file on disk is
+%        "....JPG"; that fails on Linux/Overleaf.  \DeclareGraphicsExtensions
+%        + a lowercase-safe example are used instead.
+%   (F5) \addcontentsline for the List of Tables/Figures was placed AFTER the
+%        list, which points the ToC at the last page of the list.  Moved
+%        before, matching how \tableofcontents is handled.
+%   (F6) hyperref + \pagenumbering{gobble} emits duplicate empty page
+%        destinations; page anchors are disabled over the unnumbered pages.
+%   (F7) a manual \addcontentsline needs \phantomsection, otherwise the ToC
+%        hyperlink jumps to the previously created anchor.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\PassOptionsToPackage{hyphens}{url}
+
+\documentclass[11pt,oneside]{report}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 1. KU layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{geometry}
+\usepackage{kotex}          % Korean (required: the Korean abstract is mandatory)
+\usepackage{mathptmx}       % Times for Latin text + math
+\usepackage[T1]{fontenc}
+\usepackage{titlesec}
+\usepackage{indentfirst}    % indent the first paragraph of every (sub)section
+\usepackage{ragged2e}       % \justifying
+\usepackage{setspace}       % sole owner of line spacing -- see (F2)
+\usepackage{imakeidx}
+
+% B5 (176 x 250 mm).  Cover / title / signature: all margins >= 30 mm.
+\geometry{paper=b5paper, left=30mm, right=30mm, top=30mm, bottom=30mm}
+
+\titleformat{\chapter}{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter.}{20pt}{\huge}
+
+\setstretch{1.25}           % KU template intent; was being clobbered by (F2)
+\renewcommand\arraystretch{1.3}
+
+% B5 gives only a 116 mm text block (176 mm paper - 2 x 30 mm; \textwidth =
+% 330.05 pt, measured), and Times hyphenates English technical
+% prose poorly at that measure, so justification alone leaves occasional
+% overfull lines.  Let TeX stretch the interword glue further as a last resort
+% instead of overrunning the margin.  (Typography only -- never rewrite a
+% sentence to silence an overfull box.)
+\setlength{\emergencystretch}{3em}
+
+\makeindex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 2. Math %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Carried over from solqdebug.tex / intentchecker.tex
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{amsopn}
+\usepackage{amstext}
+\usepackage{mathrsfs}
+\usepackage{stmaryrd}       % \llbracket \rrbracket -- semantic brackets
+\usepackage{mathpartir}     % inference rules (abstract semantics)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 3. Floats, tables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{graphicx}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg,.JPG}   % (F4)
+\graphicspath{{figures/}{./}}
+\usepackage{subcaption}
+\usepackage{caption}
+\captionsetup{justification=raggedright, singlelinecheck=false}
+\captionsetup[figure]{justification=centering, singlelinecheck=false}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,arrows.meta,calc,fit,backgrounds}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{float}          % [H]
+\usepackage{placeins}       % \FloatBarrier
+\usepackage{rotating}       % sidewaystable -- B5 text width is only 116 mm
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{textcomp}
+\usepackage{comment}
+\usepackage{verbatim}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 4. Algorithms %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% NOTE: solqdebug/intentchecker used algorithm + algorithmicx + algpseudocode,
+%       NOT algorithm2e.  Keeping the same stack so the existing algorithm
+%       bodies paste in unchanged.  (algorithm2e's syntax is incompatible.)
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\floatname{algorithm}{Algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 5. Code listings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{listings}
+
+\lstdefinelanguage{Solidity}{
+  alsoletter={@},
+  keywords={contract, library, interface, function, modifier, public, private,
+            external, internal, view, pure, payable, returns, return, if, else,
+            for, while, do, require, assert, mapping, address, uint256, uint,
+            int256, int, bool, bytes32, bytes, string, memory, storage, calldata,
+            event, emit, struct, enum, constructor, msg, block, this, new, delete,
+            break, continue, throw, revert, unchecked, immutable, constant,
+            override, virtual, using, is, pragma, solidity, import, indexed,
+            try, catch, assembly},
+  keywordstyle=\color{blue}\bfseries,
+  % IntentKeeper annotations -- intent (@During/@Post) and debug-value slots
+  keywords=[2]{@During, @Post, @StateVar, @LocalVar, @GlobalVar, @IReturn,
+               @Debugging, feasible, Entry, Exit, Before, After, Assign},
+  keywordstyle=[2]\color[RGB]{0,128,0}\bfseries,
+  ndkeywords={true, false, null, this, new},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstset{
+  language=Solidity,
+  basicstyle=\footnotesize\ttfamily,
+  backgroundcolor=\color[RGB]{248,248,248},
+  numbers=left,
+  numbersep=6pt,
+  numberstyle=\tiny\color{gray},
+  breaklines=true,
+  breakatwhitespace=false,
+  postbreak=\lstcontinuemark,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  xleftmargin=1.2em,
+  frame=none,
+  % B5 text width is 116 mm (330.05 pt); keep listings inside it.
+  columns=fullflexible,
+  keepspaces=true
+}
+\newcommand{\lstcontinuemark}{\mbox{\textcolor{gray}{\(\hookrightarrow\)}}\space}
+\renewcommand{\lstlistingname}{Listing}
+\renewcommand{\lstlistlistingname}{List of Listings}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%% 6. Theorem environments %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Chapter-numbered and counter-shared -- a dissertation with 5+ chapters should
+% not restart at "Theorem 1" in every chapter (the KU template's default).
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{problem}[theorem]{Problem}
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 7. Bibliography %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BibTeX, not a hand-written thebibliography -- a PhD bibliography is too large
+% to maintain by hand.  \bibliography{...} is at the end of the document.
+\usepackage[numbers,sort&compress]{natbib}
+\setlength{\bibsep}{0.3em}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 8. Links %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% hyperref must be loaded (almost) last; cleveref strictly after hyperref.
+\usepackage[pdfencoding=auto,psdextra,
+            colorlinks=true, linkcolor=black, citecolor=black,
+            urlcolor=blue, bookmarksnumbered=true]{hyperref}
+\usepackage[nobiblatex]{xurl}
+\usepackage[nameinlink,capitalise]{cleveref}
+
+\Urlmuskip=0mu plus 1mu
+\def\UrlBreaks{\do\/\do-\do\_\do\.\do\?\do\&}
+
+\hypersetup{
+  pdftitle  = {An Intent-Aware Quick Debugging Assistant for Solidity},
+  pdfauthor = {Inseong Jeon},
+  pdfsubject= {Doctoral Dissertation, Korea University},
+  pdfkeywords={smart contract, Solidity, abstract interpretation, intent, debugging}
+}
+
+\crefname{listing}{Listing}{Listings}
+\Crefname{listing}{Listing}{Listings}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%% 9. Custom math macros %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Carried over verbatim from solqdebug.tex / intentchecker.tex
+\newcommand{\Abort}{\mathsf{Abort}}
+\newcommand{\Norm}{\mathsf{Norm}}
+\newcommand{\Ret}{\mathsf{Ret}}
+\newcommand{\Env}{\mathit{Env}}
+
+% Additions for this dissertation (delete what you do not use)
+\newcommand{\sem}[1]{\llbracket #1 \rrbracket}      % denotation
+\newcommand{\absem}[1]{\llbracket #1 \rrbracket^{\sharp}}
+\newcommand{\join}{\sqcup}
+\newcommand{\meet}{\sqcap}
+\newcommand{\widen}{\mathbin{\nabla}}
+\newcommand{\narrow}{\mathbin{\triangle}}
+\newcommand{\Intv}{\mathit{Intv}}
+\newcommand{\Store}{\mathit{Store}}
+\newcommand{\During}{\texttt{@During}}
+\newcommand{\Post}{\texttt{@Post}}
+\newcommand{\tool}{\textsc{IQDebug}}
+\newcommand{\solq}{\textsc{SolQDebug}}
+\newcommand{\ichk}{\textsc{IntentChecker}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% COVER PAGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Cover / title / signature pages carry NO page number.  (F1)
+\pagenumbering{gobble}
+% (F6) With gobbled numbers hyperref emits duplicate empty page destinations
+% ("destination with the same identifier (name{page.})").  Page anchors off
+% here, back on at the abstract.
+\hypersetup{pageanchor=false}
+
+\begin{center}
+{\fontsize{16pt}{16pt}\selectfont Doctoral Dissertation \par}
+\vspace{3cm}
+{\fontsize{21pt}{25pt}\selectfont            % 21 pt required; \huge is 20.74 pt
+% Break after "Quick".  Measured at 21 pt against the 330.05 pt measure:
+% "An Intent-Aware Quick" = 197.3 pt, "Debugging Assistant for Solidity"
+% = 276.7 pt.  The whole title on one line is 479.2 pt (impossible), and
+% breaking after "An Intent-Aware" leaves 333.2 pt, which overruns by 3.2 pt.
+An Intent-Aware Quick \par Debugging Assistant for Solidity \par}
+% Title decided 2026-09-17 (may still change; confirm with the advisor).
+% Keep the four occurrences in sync: cover, title page, abstract heading, pdftitle.
+\par\vspace{4.5cm}
+{\fontsize{16pt}{16pt}\selectfont Inseong Jeon \par}
+\vspace{0.5cm}
+{\fontsize{16pt}{16pt}\selectfont Department of Computer Science \par}
+\vspace{1.5cm}
+{\fontsize{18pt}{18pt}\selectfont Graduate School \par}
+\vspace{0.5cm}
+{\fontsize{18pt}{18pt}\selectfont Korea University \par}
+\vspace{1cm}
+{\fontsize{14pt}{14pt}\selectfont February 2027}   % TODO: month/year of conferment
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TITLE PAGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\begin{center}
+{\fontsize{21pt}{25pt}\selectfont
+An Intent-Aware Quick \par Debugging Assistant for Solidity \par}   % break: see cover
+\par\vspace{3.3cm}
+{\fontsize{16pt}{16pt}\selectfont by \par Inseong Jeon \par}
+\vspace{1.0cm}
+\rule{.6\textwidth}{0.4pt}          % student's signature goes above this line
+\par\vspace{0.2cm}
+{\fontsize{16pt}{18pt}\selectfont under the supervision of Professor Hoh Peter In \par
+\vspace{0.7cm}
+A dissertation submitted in partial fulfillment of \par
+the requirements for the degree of \par
+Doctor of Philosophy \par}
+\vspace{10pt}
+{\fontsize{16pt}{16pt}\selectfont Department of Computer Science \par}
+\vspace{1.5cm}
+{\fontsize{18pt}{18pt}\selectfont Graduate School \par\vspace{0.2cm}
+Korea University \par}
+\vspace{1cm}
+{\fontsize{14pt}{14pt}\selectfont October 2026}   % TODO: examination-copy deadline
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% SIGNATURE PAGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\begin{center}
+\vspace{1cm}
+{\fontsize{16pt}{18pt}\selectfont
+The dissertation of Inseong Jeon has been approved by the dissertation committee
+in partial fulfillment of the requirements for the degree of \par
+Doctor of Philosophy \par}
+\vspace{1cm}
+{\fontsize{14pt}{14pt}\selectfont December 2026 \par}   % TODO: examination date
+\vspace{2cm}
+\rule{.6\textwidth}{0.4pt}\par
+{\fontsize{16pt}{16pt}\selectfont Committee Chair: \hspace{2em} \par}
+\vspace{1cm}
+\rule{.6\textwidth}{0.4pt}\par
+{\fontsize{16pt}{16pt}\selectfont Committee Member: \hspace{2em} \par}
+\vspace{1cm}
+\rule{.6\textwidth}{0.4pt}\par
+{\fontsize{16pt}{16pt}\selectfont Committee Member: \hspace{2em} \par}
+\vspace{1cm}
+\rule{.6\textwidth}{0.4pt}\par
+{\fontsize{16pt}{16pt}\selectfont Committee Member: \hspace{2em} \par}
+\vspace{1cm}
+\rule{.6\textwidth}{0.4pt}\par
+{\fontsize{16pt}{16pt}\selectfont Committee Member: \hspace{2em} \par}
+\vspace{1cm}
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% ENGLISH ABSTRACT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}   % (F6)
+% From here on: top/bottom >= 30 mm, left/right 20 mm.  No paper= in
+% \newgeometry -- geometry ignores it and warns.  (F3)
+\newgeometry{left=20mm, right=20mm, top=30mm, bottom=30mm}
+
+\phantomsection
+\addcontentsline{toc}{chapter}{Abstract}
+\begin{center}
+{\LARGE An Intent-Aware Quick Debugging Assistant for Solidity\par}
+\vspace{20pt}
+{\normalsize
+Inseong Jeon\par
+Department of Computer Science\par
+under the supervision of Professor Hoh Peter In\par}
+\vspace{20pt}
+{\large \textbf{Abstract}}
+\end{center}
+
+\normalsize
+\justifying
+\begin{spacing}{2}          % double-spaced ABSTRACT ONLY -- scoped, see (F2)
+TODO: English abstract.
+\end{spacing}
+
+\vspace{20pt}
+\noindent\textbf{Keywords}: smart contract; Solidity; developer intent;
+abstract interpretation; interval domain; incremental analysis; debugging
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% KOREAN ABSTRACT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Mandatory even for an English-language dissertation.
+\newpage
+\begin{center}
+{\LARGE 국문 제목\par}      % TODO
+\vspace{20pt}
+{\normalsize
+전 인 성\par
+컴 퓨 터 학 과\par
+지 도 교 수: 인 호\par}
+\vspace{20pt}
+\phantomsection
+\addcontentsline{toc}{chapter}{국문초록}
+{\large \textbf{국문 초록}}
+\end{center}
+
+\normalsize
+\justifying
+\begin{spacing}{2}
+TODO: 국문 초록.
+\end{spacing}
+
+\vspace{20pt}
+\noindent\textbf{중심어} : 스마트 컨트랙트; 솔리디티; 개발자 의도;
+추상해석; 구간 도메인; 증분 분석; 디버깅
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DEDICATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Optional -- delete the whole block if unused.
+\newpage
+~
+\vspace{5.5cm}\par
+\begin{center}
+TODO: dedication (optional; no heading, centered).
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PREFACE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% REQUIRED here: this dissertation builds on jointly authored, previously
+% submitted work (SolQDebug, IntentChecker), so the contribution split and the
+% publication status must be declared.
+\newpage
+\chapter*{Preface}
+\addcontentsline{toc}{chapter}{Preface}
+\normalsize
+
+TODO: preface. It must state, at minimum:
+\begin{enumerate}[leftmargin=*]
+\item which results were obtained in collaboration, the nature and proportion of
+      others' contributions, and which portions are claimed as original;
+\item funding sources and other contributors;
+\item which contents have been \underline{published or submitted for publication},
+      and the contributions of every author of those multi-authored works
+      (\solq{}, \ichk{});
+\item optionally: background, motivation, target readership.
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% ACKNOWLEDGMENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Optional; may be folded into the preface instead.
+\newpage
+\chapter*{Acknowledgment}
+\addcontentsline{toc}{chapter}{Acknowledgment}
+
+TODO: acknowledgment.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% TABLE OF CONTENTS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\renewcommand*\contentsname{Table of Contents}
+\phantomsection
+\addcontentsline{toc}{chapter}{Table of Contents}
+\tableofcontents
+
+% (F5): the ToC entry must be added BEFORE the list, or it points at the page
+% where the list ends.
+\newpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+
+\newpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+
+% Optional; keep only if listings are numbered and referenced.
+\newpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Listings}
+\lstlistoflistings
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% NOMENCLATURE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Optional.  Pre-filled with the symbols this dissertation actually uses;
+% prune once the notation is frozen.
+\chapter*{Nomenclature}
+\addcontentsline{toc}{chapter}{Nomenclature}
+% @{} at both ends drops the outer \tabcolsep (12 pt total); without it the
+% .22 + .70 columns plus four column separations overrun the 116 mm measure.
+\begin{tabular}{@{}p{.22\textwidth}p{.70\textwidth}@{}}
+$\Intv$        & interval abstract domain\\
+$\Store$       & abstract store (variable $\mapsto$ abstract value)\\
+$\Env$         & environment\\
+$\join$        & join (least upper bound)\\
+$\meet$        & meet (greatest lower bound)\\
+$\widen$       & widening operator\\
+$\narrow$      & narrowing operator\\
+$\absem{\cdot}$& abstract semantics (transfer function)\\
+$\top,\ \bot$  & top and bottom of the abstract domain\\[20pt]
+\multicolumn{2}{l}{Abbreviation}\\
+CFG            & Control-Flow Graph\\
+SESE           & Single-Entry Single-Exit (region)\\
+AI             & Abstract Interpretation\\
+IR             & Intermediate Representation\\
+\end{tabular}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MAIN BODY %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Arabic numbering restarts at 1.  \clearpage first so the last preliminary page
+% is shipped out while still numbered in roman.
+\clearpage
+\pagenumbering{arabic}
+
+% =============================================================================
+%  Outline fixed 2026-09-17.  Section headings only -- content is inserted later.
+%  The "plan:" comments record what each leaf section is meant to cover; they are
+%  notes for drafting, not text, and can be stripped once the section is written.
+%  Labels are stable anchors for \ref / \Cref -- do not rename them casually.
+% =============================================================================
+
+\chapter{Introduction}\label{chap:intro}
+
+\section{Motivation}\label{sec:intro:motivation}
+
+\section{Proposed Techniques}\label{sec:intro:techniques}
+
+\section{Contributions}\label{sec:intro:contributions}
+
+\section{Outline}\label{sec:intro:outline}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Background and Problem Definition}\label{chap:background}
+
+\section{Solidity Execution Model and Debugging Workflow}\label{sec:bg:execmodel}
+
+Solidity smart contracts execute in the Ethereum Virtual Machine (EVM), a state-based execution environment in which program execution is driven by transactions.
+Unlike conventional applications that can often be executed directly from source code within an integrated development environment (IDE), Solidity contracts typically undergo several stages before their runtime behavior can be inspected.
+A conventional Solidity debugging workflow therefore involves compilation, deployment, state initialization and transaction execution, and post-execution debugging.
+
+\smallskip
+\noindent\textbf{Step 1: Compile.}
+A Solidity source file is first compiled into EVM bytecode and its associated application binary interface (ABI).
+Figure~\ref{fig:bg-compile} illustrates this step using Remix IDE.
+The resulting bytecode constitutes the executable representation of the contract, while the ABI provides the interface through which users and other contracts invoke its externally accessible functions.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\columnwidth,height=0.35\textheight,keepaspectratio]{Fig1.pdf}
+    \caption{Compilation in a conventional Solidity debugging workflow.}
+    \label{fig:bg-compile}
+\end{figure}
+\FloatBarrier
+
+\smallskip
+\noindent\textbf{Step 2: Deploy.}
+Before a contract can be executed, the compiled bytecode is deployed to a blockchain or a local blockchain environment.
+As illustrated in Figure~\ref{fig:bg-deploy}, deployment creates a contract instance and invokes its constructor to initialize the contract state.
+The deployed contract subsequently maintains persistent state across transactions.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\columnwidth,height=0.3\textheight,keepaspectratio]{Fig2.pdf}
+    \caption{Contract deployment in a conventional Solidity debugging workflow.}
+    \label{fig:bg-deploy}
+\end{figure}
+\FloatBarrier
+
+\smallskip
+\noindent\textbf{Step 3: Initialize State and Execute.}
+To inspect a target function, a developer must prepare an execution state in which the function can be invoked.
+This preparation may require calling other functions in advance to initialize contract state or satisfy conditions enforced by constructs such as \texttt{require}.
+Once the required state has been established, the developer supplies concrete function arguments and executes the target function as a transaction.
+Figure~\ref{fig:bg-execute} shows an example of this process in Remix.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.9\columnwidth,keepaspectratio]{Fig3.pdf}
+    \caption{State initialization and target-function execution in a conventional Solidity debugging workflow.}
+    \label{fig:bg-execute}
+\end{figure}
+\FloatBarrier
+
+\smallskip
+\noindent\textbf{Step 4: Debug.}
+After the target transaction has been executed, conventional Solidity debugging tools can expose its execution trace.
+For example, Remix allows developers to inspect the executed transaction and step through the corresponding EVM instructions, as illustrated in Figure~\ref{fig:bg-debug}.
+The debugger provides information such as the current opcode, stack and memory contents, storage values, and the relationship between bytecode instructions and source-code locations.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=1.0\columnwidth,keepaspectratio]{Fig4.pdf}
+    \caption{Transaction-based bytecode debugging in a conventional Solidity debugging workflow.}
+    \label{fig:bg-debug}
+\end{figure}
+\FloatBarrier
+
+This workflow differs fundamentally from the edit--execute--debug cycle commonly available for traditional software.
+In conventional Solidity debugging, the behavior to be inspected is materialized through a concrete execution: the contract is compiled and deployed, the required state is established, concrete inputs are supplied, and the resulting transaction trace is subsequently examined.
+Accordingly, the observable debugging context is closely coupled to executable artifacts, initialized contract state, and a particular transaction execution.
+These characteristics become particularly relevant when debugging support is considered during source-code development, where program behavior may need to be inspected before or while a complete concrete execution context is being prepared. 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Numeric Logic Errors in Solidity}\label{sec:bg:nle}
+Recent studies have reported a variety of numeric-related weaknesses in smart contracts~\citep{numscout,gptscan,flyinointment,exploitablebugs,defiattacks}.
+Unlike failures that trigger compilation errors, runtime exceptions, or transaction reverts, some numerical defects allow a transaction to complete successfully while producing values that are inconsistent with the intended behavior of the contract.
+Following prior work, we refer to such defects as \textit{numeric logic errors}.
+
+\begin{definition}[Numeric Logic Error]
+A numeric logic error is a bug that allows a transaction to complete successfully without compile-time or runtime exceptions, but violates the developer's intended relationships among numerical values during function execution.
+\end{definition}
+
+This definition emphasizes an important characteristic of numeric logic errors.
+Whether a numerical computation is erroneous cannot always be determined solely from the fact that execution succeeds or from the syntactic form of the computation.
+Instead, correctness depends on whether the resulting numerical relationships conform to the behavior intended by the developer.
+For example, two arithmetic expressions may both be syntactically valid and execute without reverting, while only one preserves the intended relationship among balances, exchange amounts, rewards, or accounting variables.
+Thus, the intended numerical relationship constitutes part of the criterion by which such program behavior is judged.
+
+Numeric logic errors can be distinguished according to the execution scope in which they manifest.
+\textit{Single-transaction errors} arise within one atomic transaction.
+The relevant computations may span multiple internal or external function calls, but the behavior leading to the erroneous numerical result is contained within a single transaction.
+In contrast, \textit{multiple-transaction errors} emerge only through a sequence of transactions and therefore depend on state changes accumulated across multiple function invocations.
+Examples include Risky First Deposit and Price Oracle Manipulation~\citep{gptscan,exploitablebugs}, whose effects become observable only after contract state has evolved over multiple transactions.
+
+This dissertation primarily focuses on single-transaction numeric logic errors, including cases in which a transaction crosses contract boundaries through external calls.
+This scope is consistent with the development-time analysis considered throughout the dissertation: the behavior of interest is bounded by one transaction and can therefore be analyzed with respect to the source-level execution being examined.
+Numeric properties that inherently span arbitrary transaction sequences require reasoning about inter-transaction dependencies and contract-level invariants and are left outside the primary scope of this work.
+
+Within the single-transaction scope, representative numeric logic errors can be organized according to the abstraction level at which the erroneous behavior arises.
+Table~\ref{tab:nle-patterns} summarizes representative patterns reported in prior studies.
+
+\begin{table}[t]
+\centering
+\caption{Representative single-transaction numeric logic error patterns from prior work, classified by abstraction level.}
+\label{tab:nle-patterns}
+\footnotesize
+% Relative widths, not cm: the B5 measure is 116 mm (330.05 pt), so the
+% 4.2 cm + 8.5 cm this table originally used overran the right margin by 15 mm
+% -- silently, because \centering inside a float suppresses the Overfull report.
+\begin{tabular}{@{}p{0.29\textwidth}p{0.67\textwidth}@{}}
+\toprule
+Pattern & Description \\
+\midrule
+
+\multicolumn{2}{@{}p{\dimexpr0.96\textwidth+2\tabcolsep\relax}@{}}{\textit{\textbf{Value-level errors: incorrect numerical values arise directly from computations.}}} \\
+\midrule
+
+Div In Path~\citep{numscout}
+& Division results used in conditions may alter control-flow decisions because of integer truncation. \\
+
+Exchange Problem~\citep{numscout}
+& Rounding behavior in exchange calculations may produce an unintended output, such as zero output for a valid input or an imbalanced exchange. \\
+
+Precision Loss Trend~\citep{numscout}
+& Repeated or improperly ordered integer arithmetic may systematically introduce truncation that favors one side of a computation. \\
+
+Minor Amount Retention~\citep{numscout}
+& Integer division in distribution logic may leave numerical remainders unallocated. \\
+
+\midrule
+\multicolumn{2}{@{}p{\dimexpr0.96\textwidth+2\tabcolsep\relax}@{}}{\textit{\textbf{Algorithm-level errors: incorrect numerical behavior arises from the structural arrangement of operations.}}} \\
+\midrule
+
+Operator Order Issue~\citep{numscout}
+& Different arithmetic evaluation orders can produce different integer results because intermediate truncation is not preserved across algebraically equivalent expressions. \\
+
+Erroneous Accounting / Wrong Interest Rate Order~\citep{gptscan,exploitablebugs}
+& Balance calculations use stale or prematurely updated interest-rate information, resulting in an incorrect numerical outcome. \\
+
+Erroneous Accounting / Wrong Checkpoint Order~\citep{gptscan,exploitablebugs}
+& State updates and checkpoints are performed in an incorrect order, causing subsequent reward or accounting calculations to use unintended values. \\
+
+Inconsistent State Updates~\citep{exploitablebugs}
+& A required state update is omitted, leaving subsequent computations to operate on stale numerical state. \\
+
+Greedy Contract~\citep{flyinointment}
+& The contract accepts funds but lacks the corresponding operation needed to release them, resulting in an unintended numerical state. \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Value-level errors} arise when the computation directly produces an unintended numerical value.
+Typical examples include the use of an incorrect operator or identifier, precision loss caused by integer arithmetic, or an arithmetic expression whose result differs from the value intended by the developer.
+The erroneous behavior is therefore observable primarily through the values produced by the computation.
+
+\textbf{Algorithm-level errors}, in contrast, arise from the structural arrangement of operations.
+Examples include executing otherwise valid operations in an incorrect order, omitting a required state update, or failing to perform a necessary procedure call.
+Although their underlying cause is structural, their effect may still become observable as an unintended relationship among numerical values.
+
+The following sections build on these characteristics of numeric logic errors to formulate the limitations of existing debugging and analysis approaches and to motivate source-level debugging with developer-authored intent for development-time analysis.
+
+\section{Problem Definition}
+\label{sec:bg:problem}
+
+The preceding background highlights two related limitations in Solidity development.
+First, conventional debugging depends on concrete transactions and bytecode execution, which limits direct inspection of program behavior during source-code development.
+Second, although numeric logic errors are defined with respect to developer-intended numerical relationships, existing analysis workflows generally provide limited support for developers to directly supply such intent as an analysis criterion.
+The following subsections describe these two problems in detail.
+
+\subsection{Transaction-Dependent and Bytecode-Dependent Debugging}
+\label{subsec:bg:txdependent}
+Conventional Solidity debugging is tightly coupled to concrete execution.
+As described in Section~\ref{sec:bg:execmodel}, a developer typically compiles the source code, deploys the resulting bytecode, prepares the required contract state, executes a transaction with concrete inputs, and then inspects the resulting execution trace.
+This workflow introduces two closely related difficulties for development-time debugging.
+
+\smallskip
+\noindent\textbf{Repeated preparation of concrete execution contexts.}
+A target function frequently depends on contract state that has been established before its invocation.
+Consequently, debugging a particular behavior may require developers to execute additional transactions in advance to initialize balances, counters, reserves, permissions, or other state variables.
+
+
+\begin{figure}[!ht]
+\centering
+\begin{lstlisting}[language=Solidity]
+contract Example {
+mapping(address => uint256) balances;
+
+```
+function deposit() external payable {
+    balances[msg.sender] += msg.value;
+}
+
+function withdraw(uint256 amount) external {
+    require(balances[msg.sender] >= amount);
+    balances[msg.sender] -= amount;
+    payable(msg.sender).transfer(amount);
+}
+```
+
+}
+\end{lstlisting}
+\caption{Example requiring state preparation before debugging the target function.}
+\label{fig:state-preparation-example}
+\end{figure}
+
+Figure~\ref{fig:state-preparation-example} shows a simple example.
+The \texttt{withdraw} function contains a \texttt{require} condition that prevents execution from proceeding when the caller's balance is insufficient.
+Therefore, the balance-update statement can be reached only after an appropriate balance has been established.
+A developer who wants to debug this statement must first execute \texttt{deposit} to prepare the required contract state before invoking \texttt{withdraw}.
+If the target source code or debugging scenario changes, this preparation may need to be repeated.
+The same issue arises when developers want to inspect the behavior of a function under different input conditions.
+Each concrete execution represents only one particular combination of function arguments and contract state.
+Exploring alternative behaviors therefore requires additional executions with different inputs or state configurations.
+This repeated preparation increases the cost of iterative debugging by requiring developers to repeatedly reconstruct concrete execution contexts.
+
+\smallskip
+\noindent\textbf{Dependence on post-execution bytecode traces.}
+Detailed debugging information is generally obtained only after a transaction has been executed.
+The debugger then presents the execution through EVM-level information such as opcodes, stack values, memory, storage, and source mappings.
+Although this information accurately represents the executed transaction, it is derived from compiled bytecode rather than directly from the source-level program state in which the developer is reasoning.
+
+This creates a mismatch between the level at which developers write and understand Solidity programs and the level at which conventional debugging exposes execution details.
+A single Solidity statement may correspond to multiple EVM instructions, and the information relevant to a source-level variable or expression may be distributed across several low-level operations.
+As a result, identifying how numerical values evolve through a source-level computation may require additional interpretation of the underlying execution trace.
+
+These characteristics make conventional debugging inherently dependent on the availability of a complete concrete execution.
+During development, however, developers may need to inspect how values can evolve before constructing every concrete transaction required to reproduce a specific behavior.
+The first problem addressed in this dissertation is therefore how to provide source-level debugging information without requiring repeated transaction execution and bytecode-level tracing for each debugging scenario.
+
+\subsection{Predefined Detection Criteria and Limited Support for Developer Intent}
+\label{subsec:bg:predefined}
+
+Static analysis, symbolic execution, fuzzing, type-based analysis, and learning-assisted approaches have been widely used to detect vulnerabilities and logic errors in smart contracts.
+Many of these approaches identify suspicious behavior using criteria predefined by the analysis, such as vulnerability patterns, type constraints, arithmetic rules, inferred invariants, or previously characterized bug scenarios.
+
+Such criteria are effective when the target defect corresponds to a property already represented by the analysis.
+For example, a tool designed to detect a particular arithmetic pattern can report program locations that match that pattern, while a type-based analysis can identify operations that violate its predefined type rules.
+However, numeric logic errors are defined relative to the numerical relationships intended by the developer.
+Two computations may therefore both satisfy generic analysis rules while differing in whether they conform to the intended behavior of a particular contract.
+In such cases, the relevant correctness criterion is contract-specific and may be known primarily to the developer.
+Existing analysis workflows, however, generally provide limited support for developers to directly supply such numerical intent as an analysis criterion.
+Extending the set of predefined rules or patterns can increase coverage, but it does not provide a direct mechanism for expressing contract-specific numerical intent.
+
+The stage at which analysis is performed introduces an additional limitation.
+Many existing approaches are primarily applied to complete implementations, deployed artifacts, or test executions.
+In these workflows, the analysis is performed after executable program behavior has been constructed and is evaluated against criteria already defined by the tool or analysis method.
+This differs from a development-time workflow in which developer-authored numerical intent can be provided together with the evolving source code and used directly as an analysis criterion.
+
+\section{Overview of the Proposed Approach}
+\label{sec:bg:approach}
+
+To address the two limitations identified in Section~\ref{sec:bg:problem}, this dissertation combines two complementary approaches. 
+
+\subsection{Transaction-Independent Source-Level Debugging}
+\label{subsec:bg:rangebased}
+
+To reduce the dependence on concrete transactions and bytecode-level traces, this dissertation adopts transaction-independent source-level debugging based on interval analysis.
+
+Instead of executing a function with a single concrete input and contract state, the approach represents relevant numerical values as intervals and analyzes how these abstract values evolve through the source-level program.
+For example, rather than repeatedly executing a function with several individual input values, a developer can specify a range of values of interest.
+The analysis represents this range using the interval abstract domain, propagates it through the program, and derives abstract program states at relevant source-code locations.
+These abstract states summarize possible numerical values without requiring a separate concrete transaction for every value represented by the interval.
+
+This approach also changes the level at which debugging information is presented.
+Rather than requiring developers to primarily inspect EVM instructions after transaction execution, program behavior can be examined in relation to source-level statements and variables.
+The resulting abstract states can therefore serve as a debugging context in which developers inspect how values evolve across statements, branches, function calls, and loops.
+
+The resulting debugging process does not reproduce a single concrete execution trace.
+Instead, it summarizes a set of possible executions represented by the supplied ranges through interval-based abstract analysis.
+This enables program behavior to be inspected without repeatedly preparing every corresponding concrete execution context, while retaining source-level information needed for interactive debugging.
+
+
+\subsection{Development-Time Intent Validation}
+\label{subsec:bg:devtime}
+Transaction-independent source-level debugging provides information about how program values may evolve, but the resulting abstract states alone do not determine whether the analyzed behavior is correct.
+As discussed in Section~\ref{sec:bg:nle}, numeric logic errors are defined relative to numerical relationships intended by the developer.
+This dissertation therefore complements source-level debugging with a mechanism that allows developers to explicitly provide such relationships as analysis criteria.
+
+The approach associates developer-authored numerical intent with relevant source-level program states.
+Instead of relying exclusively on vulnerability patterns or other detection criteria predefined by an analysis tool, the specified intent describes relationships that the developer expects program values to satisfy.
+The analysis can then evaluate the abstract program states derived through interval-based analysis against these developer-provided criteria.
+Providing intent during development also allows the analysis criterion to evolve together with the source code.
+Developers can specify numerical relationships relevant to the behavior currently being implemented or inspected and validate them within the same source-level analysis context used for debugging.
+
+In this way, source-level debugging provides the program states to be inspected, while developer-authored intent provides an explicit criterion for determining whether the analyzed numerical behavior conforms to the intended behavior.
+
+\chapter{The Design of IQDebug}\label{chap:design}
+
+\section{Overview}\label{sec:design:overview}
+
+\section{Source-Level Program Analysis}\label{sec:design:analysis}
+
+\subsection{Source-Level Program Representation}\label{subsec:design:representation}
+
+\subsection{Debugging Inputs}\label{subsec:design:inputs}
+
+\subsection{Abstract Interpretation of Program States}\label{subsec:design:ai}
+
+\section{Intent-Aware Validation}\label{sec:design:intent}
+
+\subsection{Developer-Authored Intent Model}\label{subsec:design:intentmodel}
+
+\subsection{Intent Validation over Abstract States}\label{subsec:design:validation}
+
+\section{Interactive Debugging over Abstract Program States}\label{sec:design:debugging}
+
+\subsection{Integration of Intent Validation into the Debugging Workflow}\label{subsec:design:integration}
+
+\subsection{Debugging Navigation Model}\label{subsec:design:navmodel}
+
+\subsection{Step-Based Navigation}\label{subsec:design:step}
+
+\subsection{Branch and Loop Navigation}\label{subsec:design:branchloop}
+
+\subsection{Breakpoint and Continue}\label{subsec:design:breakpoint}
+
+\section{Implementation}\label{sec:design:implementation}
+
+\subsection{System Implementation}\label{subsec:impl:system}
+
+\subsection{Analysis Engine}\label{subsec:impl:engine}
+
+\subsection{Debugging Interface}\label{subsec:impl:interface}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Evaluation}\label{chap:eval}
+% Evaluation 전체 논리 = 세 RQ
+%   RQ1 Capability  : 무엇을 표현하고 검증할 수 있는가?
+%   RQ2 Cost        : 그것을 명세하고 분석하며 interactive 하게 쓰는 데 얼마가 드는가?
+%   RQ3 Comparison  : 기존 detection approach 와 분석 모델/범위/비용이 어떻게 다른가?
+% Threats to Validity 에서 "defect-unaware developer 가 더 잘 디버깅한다"는 주장이
+% 아님을 명확히 선 긋는다.
+
+\section{Experimental Setup}\label{sec:eval:setup}
+% plan: implementation and execution environment; benchmark/dataset;
+%       통합된 IQDebug 환경에서 기존 IntentChecker 실험을 재실행한다는 점;
+%       기존 비교 도구와 configuration; (필요 시) evaluation procedure.
+
+% -----------------------------------------------------------------------------
+\section{RQ1: Intent Validation Capability}\label{sec:eval:rq1}
+% plan: 기존 IntentChecker RQ1 구조를 최대한 유지 —
+%       expressibility / validatability; Value-level vs Algorithm-level;
+%       Usable vs Unusable; Satisfied / Warning / Violated
+%       (+ 현재 구현에서 필요하면 Unreachable 포함);
+%       현재 grammar/engine 기준으로 결과 재산정.
+% 핵심 질문: Can developer-authored numeric intent be expressed and validated
+%            over the analyzed Solidity behaviors?
+
+% -----------------------------------------------------------------------------
+\section{Specification and Analysis Cost}\label{sec:eval:cost}
+% NOTE(제목 미확정): 4.2 는 "RQ1:", 4.4 는 "RQ3:" 접두가 있는데 여기만 없다.
+%   기존 IntentChecker RQ2 제목("What Are the Costs of Specifying and Validating
+%   Numeric Intent?")을 그대로 유지하는 선택지도 열려 있음 — 확정되면 헤딩만 교체.
+
+\subsection{Specification Cost}\label{subsec:eval:speccost}
+% plan: intent specification effort; debug input requirement;
+%       annotation/input size; 필요한 값/범위 수.
+
+\subsection{Validation and Interactive Analysis Cost}\label{subsec:eval:analysiscost}
+% plan: initial source analysis latency; abstract interpretation latency;
+%       intent validation latency;
+%       debug input 변경 후 evaluate latency / intent 변경 후 verify latency /
+%       code edit 후 incremental analyze latency;
+%       cached CFG/state reuse 효과;
+%       navigation 이 analysis engine 재호출 없이 수행되는 구조
+%       (+ 필요 시 local navigation computation cost);
+%       benchmark 별 latency; (필요 시) function size / CFG size 와 latency 관계.
+% * 재는 대상 = "사람이 step 을 몇 초 만에 눌렀는가" 가 아니라
+%   interactive debugging action 을 지원하기 위해 *시스템이 부담하는* computational cost.
+
+% -----------------------------------------------------------------------------
+\section{RQ3: Comparison with Existing Detection Tools}\label{sec:eval:rq3}
+% plan: 기존 IntentChecker 비교 구조 유지 —
+%       detection/analysis model; predefined criteria vs developer-authored intent;
+%       supported bug/intent scope; coverage; runtime/latency;
+%       baseline = ScType / GPTScan / NumScout 등.
+% * step/breakpoint 를 detector 와 억지로 비교하지 않는다. 비교 대상이 debugger 가
+%   아니라 detector 이므로 IntentChecker 에서 비교했던 공통 분석 능력만 비교한다.
+
+% -----------------------------------------------------------------------------
+\section{Threats to Validity}\label{sec:eval:threats}
+% plan: Retrospective evaluation (개발자가 bug 를 모르는 prospective setting 아님);
+%       Developer effectiveness not evaluated (bug discovery time / success rate 미측정);
+%       Reconstructed intent validity (재구성한 intent = 원 개발자 intent 보장 못 함);
+%       Manual classification bias (Value/Algorithm, Usable/Unusable 판단에 연구자 개입);
+%       Benchmark representativeness;
+%       Baseline configuration/version 의존성;
+%       (필요 시) performance environment dependence.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Discussion}\label{chap:discussion}
+
+\section{Design Trade-offs of Source-Level Debugging}\label{sec:disc:tradeoffs}
+% plan: SolQDebug discussion 재구성 — 왜 abstract interpretation 인가;
+%       왜 interval domain 인가; responsiveness vs precision;
+%       flow-sensitive / path-insensitive 선택;
+%       concrete debugger 와 다른 navigation semantics; loop fixpoint; merge behavior.
+%       Chapter 3 에서 충분히 설명했다면 짧게.
+
+% -----------------------------------------------------------------------------
+\section{Practical Guidelines for Debug Inputs and Intent Specification}\label{sec:disc:guidelines}
+% plan: SolQDebug 의 annotation/loop guideline + IntentChecker 의 intent guideline 결합 —
+%       적절한 debug input range 설정; too narrow / too broad 문제;
+%       branch/domain constraints 활용;
+%       loop 결과는 iteration-specific value 가 아니라 fixpoint 로 해석;
+%       @During / @Post 선택; observable value relation 사용;
+%       필요한 값과 observation point 의 availability 고려.
+
+% -----------------------------------------------------------------------------
+\section{Current Limitations}\label{sec:disc:limitations}
+% plan: 시스템 자체의 현재 한계만 —
+%       developer 가 intent 를 직접 작성해야 함 (annotation burden = 첫 번째 항목);
+%       developer 가 적절한 debug input range 를 제공해야 함;
+%       single-transaction scope; value-level intent 중심;
+%       unsupported / opaque constructs; path-insensitive abstraction;
+%       loop iteration-level debugging 미지원; full multi-transaction analysis 미지원;
+%       intent auto-generation / repair 미지원;
+%       Plan B 미구현 시 debug input 자동생성 없음.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Related Work}\label{chap:related}
+
+\section{Solidity Debugging and Development Environments}\label{sec:rel:debugging}
+% plan: Remix / Hardhat / Forge / Solidity Debugger Pro;
+%       source-level vs transaction/bytecode-level; development-time debugging 차이.
+% 절 마지막: 기존 debugger 와 달리 source-level range-based debugging 을 지원.
+
+% -----------------------------------------------------------------------------
+\section{Intent- and Specification-Based Smart Contract Analysis}\label{sec:rel:intent}
+% plan: predefined / inferred detection criteria; numeric logic error analysis;
+%       developer-supplied specification;
+%       Scribble / SmartACE / Idealist / SmartPulse / Solvent 등;
+%       @During/@Post 와 interval-state validation 의 차이;
+%       development-time predefined tools 도 여기 흡수.
+% 절 마지막: predefined/inferred criteria 와 달리 developer-authored intent 를 사용.
+
+% -----------------------------------------------------------------------------
+\section{Abstract Interpretation and Interactive Static Analysis}\label{sec:rel:ai}
+% plan: Solidity-specific AI; interactive/incremental AI in traditional languages;
+%       interval/range analysis; IQDebug 와의 차이.
+% 절 마지막: interactive abstract interpretation 위에서 debugging 과 intent validation 을 통합.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Conclusion}\label{chap:conclusion}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% BIBLIOGRAPHY %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\renewcommand\bibname{Bibliography}
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{plainnat}
+\bibliography{references}
+% Thesis-local bibliography: paper/Phd_thesis/references.bib (2026-09-18).
+% Seeded from the \bibitem lists of the SolQDebug and IntentChecker manuscripts;
+% the MERGE NOTES at the head of that file record the key collisions and the
+% aliases that were folded -- read them before adding citations.
+% The older paper/references.bib is no longer used by this document.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% APPENDICES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% With \appendix, report numbers chapters A, B, ... and sections A.1, A.2, ...
+% Chapters below get their own ToC entries automatically -- do NOT also
+% \addcontentsline a bare "Appendix" line (the KU template does; it produces a
+% stray entry pointing at nothing).
+\newpage
+\appendix
+
+\chapter{Typesetting Reference}\label{app:typesetting}
+% ---------------------------------------------------------------------------
+% DELETE THIS APPENDIX before submission.  It exists so that a single
+% compilation exercises every package wired up above; if this chapter builds,
+% listings / algorithms / theorems / inference rules / TikZ / floats all work.
+% ---------------------------------------------------------------------------
+
+\section{Solidity listing with intent annotations}
+
+\begin{lstlisting}[caption={\During{} and \Post{} annotations on a transfer},
+                   label={lst:example}]
+function withdraw(uint256 amount) public {
+    // @During balances[msg.sender](Before) >= amount
+    require(balances[msg.sender] >= amount);
+    balances[msg.sender] -= amount;
+    // @Post balances[msg.sender](Exit) == balances[msg.sender](Entry) - amount
+}
+\end{lstlisting}
+
+\Cref{lst:example} shows snapshot-qualified references
+(\texttt{(Entry)}, \texttt{(Exit)}, \texttt{(Before)}, \texttt{(After)},
+\texttt{(Assign)}).
+
+\section{Algorithm}
+
+\begin{algorithm}[H]
+\caption{Fixpoint iteration over a function CFG}\label{alg:fixpoint}
+\begin{algorithmic}[1]
+\Require function CFG $G=(N,E)$, initial store $\sigma_0$
+\Ensure $\Store^\sharp : N \rightarrow \Intv$
+  \State $W \gets \{\,n_{\mathit{entry}}\,\}$
+  \While{$W \neq \emptyset$}
+    \State pop $n$ from $W$
+    \State $\mathit{in} \gets \bigsqcup_{p \in \mathit{pred}(n)} \mathit{out}[p]$
+    \State $\mathit{out}' \gets \absem{n}(\mathit{in})$
+    \If{$\mathit{out}' \not\sqsubseteq \mathit{out}[n]$}
+      \State $\mathit{out}[n] \gets \mathit{out}[n] \widen \mathit{out}'$
+      \State $W \gets W \cup \mathit{succ}(n)$
+    \EndIf
+  \EndWhile
+  \State \Return $\mathit{out}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Theorems and inference rules}
+
+\begin{definition}[Abstract store]\label{def:store}
+An abstract store $\sigma^\sharp \in \Store$ maps each variable to an element of
+$\Intv$.
+\end{definition}
+
+\begin{theorem}[Soundness]\label{thm:sound}
+For every concrete store $\sigma \in \gamma(\sigma^\sharp)$,
+$\sem{c}\sigma \in \gamma(\absem{c}\sigma^\sharp)$.
+\end{theorem}
+
+\begin{proof}
+TODO.
+\end{proof}
+
+\Cref{thm:sound} depends on \cref{def:store}.
+
+\begin{mathpar}
+\inferrule*[left=Assign]
+  {\absem{e}\sigma^\sharp = v^\sharp}
+  {\absem{x := e}\sigma^\sharp = \sigma^\sharp[x \mapsto v^\sharp]}
+\and
+\inferrule*[left=Join]
+  {\absem{s_1}\sigma^\sharp = \sigma_1^\sharp \\
+   \absem{s_2}\sigma^\sharp = \sigma_2^\sharp}
+  {\absem{\text{if } b \text{ then } s_1 \text{ else } s_2}\sigma^\sharp
+   = \sigma_1^\sharp \join \sigma_2^\sharp}
+\end{mathpar}
+
+\section{Figures and tables}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=.2\textwidth]{kumark}   % extension resolved by graphicx
+\caption{Korea University global symbol}\label{fig:kumark}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=12mm, >=Stealth,
+                    every node/.style={draw, rounded corners, font=\small}]
+  \node (entry) {entry};
+  \node (body)  [below=of entry] {$x := x + 1$};
+  \node (exit)  [below=of body]  {exit};
+  \draw[->] (entry) -- (body);
+  \draw[->] (body)  -- (exit);
+\end{tikzpicture}
+\caption{A minimal control-flow graph}\label{fig:cfg}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Text width on B5 is 136\,mm --- wide tables need \texttt{sidewaystable}}
+\label{tab:width}
+\begin{tabularx}{\textwidth}{lrL}
+\toprule
+\textbf{Metric} & \textbf{Value} & \textbf{Note}\\
+\midrule
+Paper width   & 176\,mm & B5\\
+Text width    & 136\,mm & after the 20\,mm side margins\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\Cref{fig:kumark,fig:cfg} and \cref{tab:width} are cross-referenced with
+\texttt{cleveref}. Citations go through \texttt{natbib}: \citep{solqdebug} and
+\citet{scribble}. Indexed terms\index{abstract interpretation} appear in the
+index\index{index}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% INDEX %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Optional.  Delete \makeindex above and this block together if unused.
+\newpage
+\phantomsection
+\addcontentsline{toc}{chapter}{Index}
+\printindex
+
+\end{document}

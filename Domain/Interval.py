@@ -52,7 +52,9 @@ class Interval:
                 and self.max_value == other.max_value)
 
     def copy(self):
-        return type(self)(self.min_value, self.max_value)
+        new_obj = type(self)(self.min_value, self.max_value)
+        new_obj.type_length = self.type_length
+        return new_obj
 
     def __repr__(self):
         if self.is_bottom():
@@ -63,6 +65,47 @@ class Interval:
 # ----------------------------------------------------------------------------
 # IntegerInterval (signed)
 # ----------------------------------------------------------------------------
+
+def _fit_signed(lo: int, hi: int, w: int):
+    """signed 산술 결과를 intN 표현 범위로 정규화. 벗어나면 TOP.
+
+    ★ 왜 필요한가: 예전엔 `IntegerInterval(lo, hi, w)` 가 `w` 를 받기만 하고
+      **경계를 전혀 강제하지 않았다.** 그래서 int256*int256 결과가 512비트 구간이
+      되고, fixpoint 루프의 `x = x*x` 에서 비트수가 매 반복 2배로 자랐다
+      (실측: 8회에 65,281비트 → 이후 곱셈이 끝나지 않음).
+      연산 자체는 O(1) 4코너인데 **피연산자가 도메인을 탈출**해 멈춘 것이다.
+
+    ★ 왜 포화(clamp)가 아니라 TOP 인가: `unchecked` 블록에서 Solidity 는 **wrap** 한다.
+      큰 값이 작은 값이 될 수 있으므로 경계로 잘라 붙이면 그 작은 값을 놓쳐 **불건전**하다.
+      (checked 문맥에선 revert 라 '범위 교집합' 이 더 정밀하지만, 두 문맥을 구분하려면
+       unchecked_block 플래그를 봐야 한다 — 별건.)
+    """
+    b_lo, b_hi = -(1 << (w - 1)), (1 << (w - 1)) - 1
+    if lo < b_lo or hi > b_hi:
+        return b_lo, b_hi
+    return lo, hi
+
+
+def _fit_unsigned(lo: int, hi: int, w: int):
+    """unsigned 산술 결과를 uintN 표현 범위로 정규화. 벗어나면 TOP. (_fit_signed 주석 참조)"""
+    b_hi = (1 << w) - 1
+    if lo < 0 or hi > b_hi:
+        return 0, b_hi
+    return lo, hi
+
+
+def _pow_fits(base: int, exp: int, w: int) -> bool:
+    """pow(base, exp) 를 **실제로 계산해도 안전한가**를 비트수로 미리 판정.
+
+    `pow(2, 2**255)` 같은 걸 계산하려 들면 그대로 멈춘다. 결과 비트수 ≈ exp·bitlen(base)
+    이므로 곱만 해보고 판단한다(거듭제곱을 수행하지 않는다).
+    """
+    if exp < 0:
+        return False
+    if base in (0, 1, -1):
+        return True
+    return exp * abs(base).bit_length() <= w + 1
+
 
 class IntegerInterval(Interval):
     def __init__(self, min_value=None, max_value=None, type_length=256):
@@ -232,19 +275,18 @@ class IntegerInterval(Interval):
 
     # ---------- 산술 연산 ----------
     def add(self, other):
-        return Interval._bottom_propagate(    # ① 클래스 이름으로
-            self, other,
-            lambda x, y: IntegerInterval(
-                x.min_value + y.min_value,
-                x.max_value + y.max_value,
-                self.type_length)
-        )
+        def _impl(x, y):
+            lo, hi = _fit_signed(x.min_value + y.min_value,
+                                 x.max_value + y.max_value, self.type_length)
+            return IntegerInterval(lo, hi, self.type_length)
+        return Interval._bottom_propagate(self, other, _impl)
 
     def subtract(self, other):
-        return Interval._bottom_propagate(self, other,
-                                 lambda x, y: IntegerInterval(x.min_value - y.max_value,
-                                                              x.max_value - y.min_value,
-                                                              self.type_length))
+        def _impl(x, y):
+            lo, hi = _fit_signed(x.min_value - y.max_value,
+                                 x.max_value - y.min_value, self.type_length)
+            return IntegerInterval(lo, hi, self.type_length)
+        return Interval._bottom_propagate(self, other, _impl)
 
     def multiply(self, other):
         def _mul(x, y):
@@ -254,7 +296,8 @@ class IntegerInterval(Interval):
                 x.max_value * y.min_value,
                 x.max_value * y.max_value,
             ]
-            return IntegerInterval(min(candidates), max(candidates), self.type_length)
+            lo, hi = _fit_signed(min(candidates), max(candidates), self.type_length)
+            return IntegerInterval(lo, hi, self.type_length)
         return Interval._bottom_propagate(self, other, _mul)
 
     def divide(self, other: "IntegerInterval") -> "IntegerInterval":
@@ -317,19 +360,15 @@ class IntegerInterval(Interval):
             if y.min_value < 0:
                 return x.make_bottom()
 
+            w = self.type_length
             base_cand = [x.min_value, x.max_value]
             exp_cand  = [y.min_value, y.max_value]
-            vals = []
-            for a in base_cand:
-                for b in exp_cand:
-                    try:
-                        vals.append(pow(a, b))
-                    except OverflowError:
-                        # 양·음수에 따라 ±∞ 취급
-                        vals.extend([-(1 << 255), (1 << 255)-1])
-            new_min = _clamp(min(vals), self.type_length)
-            new_max = _clamp(max(vals), self.type_length)
-            return IntegerInterval(new_min, new_max, self.type_length)
+            # ★ pow 를 실제로 계산하기 전에 비트수로 판정한다 — pow(2, 2**255) 는 멈춘다.
+            if not all(_pow_fits(a, b, w) for a in base_cand for b in exp_cand):
+                return IntegerInterval.top(w)
+            vals = [pow(a, b) for a in base_cand for b in exp_cand]
+            lo, hi = _fit_signed(min(vals), max(vals), w)
+            return IntegerInterval(lo, hi, w)
 
         return Interval._bottom_propagate(self, other, _impl)
 
@@ -348,30 +387,49 @@ class IntegerInterval(Interval):
         return Interval._bottom_propagate(self, other, _impl)
 
     # ---------- 쉬프트/비트 연산 ----------
-    def shift(self, shift_iv: "IntegerInterval", op: str) -> "IntegerInterval":
-        """
-        op ∈ {'<<', '>>', '>>>'}   (>>> : 양수 논리시프트로 동일 처리)
-        """
-        def _lshift(x: "IntegerInterval", s: "IntegerInterval") -> "IntegerInterval":
-            lo = x.min_value << s.min_value
-            hi = x.max_value << s.max_value
-            return IntegerInterval(lo, hi, x.type_length)
+    def shift(self, shift_iv, op: str) -> "IntegerInterval":
+        """<<, >>, >>> 의 추상 의미론.
 
-        def _rshift(x: "IntegerInterval", s: "IntegerInterval") -> "IntegerInterval":
-            lo = x.min_value >> s.max_value
-            hi = x.max_value >> s.min_value
-            return IntegerInterval(lo, hi, x.type_length)
+        `x << s ≡ x·2^s` / `x >> s ≡ floor(x/2^s)`.
+        부호에 따라 단조성이 뒤집히므로 **4코너 min/max** 로 구한다 —
+        예전의 "lo 는 s.min, hi 는 s.max" 같은 고정 코너는 음수에서 틀린다
+        (w=4/5 전수 검증: signed 49~53%, unsigned 41~44% 조합이 불건전했다.
+         예: `[-8,-8] << [0,3]` 참값 (-64,-8) → 구현 (-8,-64) 로 **역전**).
 
-        # 음수 시프트 양 ⇒ bottom
-        if not shift_iv.is_bottom() and shift_iv.min_value < 0:
+        오버플로는 **포화가 아니라 TOP**. Solidity 시프트는 revert 없이 wrap 하므로
+        clamp 는 불건전하다 — uint256 에서 `(2^255) << 1` 은 2^256 이 아니라 **0** 이다.
+
+        거대 정수를 만들지 않는다(임의정밀도 폭주 방지):
+          '<<' 는 s.max ≥ w 면 계산 없이 TOP, '>>' 는 s 를 w 로 캡한다
+          (그 이상 시프트는 결과가 동일 — 0 또는 -1).
+
+        shift_iv 는 min/max 만 읽으므로 **타입이 달라도 된다**
+        (Solidity 에서 시프트 양은 unsigned, 좌변은 signed 여도 유효하다).
+        """
+        if self.is_bottom() or shift_iv.is_bottom():
+            return self.make_bottom()
+        if shift_iv.min_value < 0:          # 음수 시프트 양 = 미정의
             return self.make_bottom()
 
+        w = self.type_length
+        xlo, xhi = self.min_value, self.max_value
+        slo, shi = shift_iv.min_value, shift_iv.max_value
+
         if op == '<<':
-            return Interval._bottom_propagate(self, shift_iv, _lshift)
-        elif op in ('>>', '>>>'):
-            return Interval._bottom_propagate(self, shift_iv, _rshift)
-        else:
-            raise ValueError(f"Unsupported shift op {op}")
+            if shi >= w:
+                return type(self).top(w)
+            c = (xlo << slo, xlo << shi, xhi << slo, xhi << shi)
+            lo, hi = min(c), max(c)
+            if lo < -(1 << (w - 1)) or hi > (1 << (w - 1)) - 1:
+                return type(self).top(w)
+            return type(self)(lo, hi, w)
+
+        if op in ('>>', '>>>'):
+            slo_e, shi_e = min(slo, w), min(shi, w)
+            c = (xlo >> slo_e, xlo >> shi_e, xhi >> slo_e, xhi >> shi_e)
+            return type(self)(min(c), max(c), w)
+
+        raise ValueError(f"Unsupported shift op {op}")
 
     def bitwise(self, op: str, other: "IntegerInterval") -> "IntegerInterval":
         """
@@ -648,10 +706,11 @@ class UnsignedIntegerInterval(Interval):
 
     def add(self, other: "UnsignedIntegerInterval") -> "UnsignedIntegerInterval":
         def _impl(a, b):
-            type_max = (1 << a.type_length) - 1
-            smin = min(a.min_value + b.min_value, type_max)
-            smax = min(a.max_value + b.max_value, type_max)
-            return UnsignedIntegerInterval(smin, smax, a.type_length)
+            # 포화(clamp) 대신 TOP — unchecked 에선 wrap 하므로 경계로 잘라 붙이면
+            # 실제로 나올 수 있는 '작은 값' 을 놓친다(_fit_unsigned 주석 참조).
+            lo, hi = _fit_unsigned(a.min_value + b.min_value,
+                                   a.max_value + b.max_value, a.type_length)
+            return UnsignedIntegerInterval(lo, hi, a.type_length)
 
         return Interval._bottom_propagate(self, other, _impl)
 
@@ -663,12 +722,11 @@ class UnsignedIntegerInterval(Interval):
                 a.max_value * b.min_value,
                 a.max_value * b.max_value,
             ]
-            type_max = (1 << a.type_length) - 1
-            return UnsignedIntegerInterval(
-                min(vals),
-                min(max(vals), type_max),
-                a.type_length,
-            )
+            # 예전엔 max 만 type_max 로 포화시키고 **min 은 그대로 뒀다** →
+            # a.min*b.min 이 범위를 넘으면 [거대값, type_max] 라는 역전 구간이 나오고,
+            # 그 값이 다음 연산의 피연산자가 되어 비트수가 계속 자랐다.
+            lo, hi = _fit_unsigned(min(vals), max(vals), a.type_length)
+            return UnsignedIntegerInterval(lo, hi, a.type_length)
 
         return Interval._bottom_propagate(self, other, _impl)
 
@@ -693,20 +751,14 @@ class UnsignedIntegerInterval(Interval):
             if b.min_value < 0:          # 음수 지수는 허용 안 함
                 return a.make_bottom()
 
-            type_max = (1 << a.type_length) - 1
-            vals = []
-            for base in (a.min_value, a.max_value):
-                for exp in (b.min_value, b.max_value):
-                    try:
-                        vals.append(pow(base, exp))
-                    except OverflowError:
-                        vals.append(type_max)
-
-            return UnsignedIntegerInterval(
-                min(vals),
-                min(max(vals), type_max),
-                a.type_length,
-            )
+            w = a.type_length
+            bases, exps = (a.min_value, a.max_value), (b.min_value, b.max_value)
+            # ★ pow 를 계산하기 전에 비트수로 판정 — pow(2, 2**255) 는 멈춘다.
+            if not all(_pow_fits(base, exp, w) for base in bases for exp in exps):
+                return UnsignedIntegerInterval.top(w)
+            vals = [pow(base, exp) for base in bases for exp in exps]
+            lo, hi = _fit_unsigned(min(vals), max(vals), w)
+            return UnsignedIntegerInterval(lo, hi, w)
 
         return Interval._bottom_propagate(self, other, _impl)
 
@@ -730,16 +782,49 @@ class UnsignedIntegerInterval(Interval):
     # ------------------------------------------------------------------
     # Shift / Bitwise
     # ------------------------------------------------------------------
-    def shift(self, shift_iv: "UnsignedIntegerInterval", op: str) -> "UnsignedIntegerInterval":
-        def _impl(a, s):
-            if s.min_value < 0:
-                return a.make_bottom()
+    def shift(self, shift_iv, op: str) -> "UnsignedIntegerInterval":
+        """<<, >>, >>> 의 추상 의미론.
 
-            if op == '<<':
-                return a.left_shift(s)
-            return a.right_shift(s)      # '>>' 또는 '>>>'
+        `x << s ≡ x·2^s` / `x >> s ≡ floor(x/2^s)`.
+        부호에 따라 단조성이 뒤집히므로 **4코너 min/max** 로 구한다 —
+        예전의 "lo 는 s.min, hi 는 s.max" 같은 고정 코너는 음수에서 틀린다
+        (w=4/5 전수 검증: signed 49~53%, unsigned 41~44% 조합이 불건전했다.
+         예: `[-8,-8] << [0,3]` 참값 (-64,-8) → 구현 (-8,-64) 로 **역전**).
 
-        return Interval._bottom_propagate(self, shift_iv, _impl)
+        오버플로는 **포화가 아니라 TOP**. Solidity 시프트는 revert 없이 wrap 하므로
+        clamp 는 불건전하다 — uint256 에서 `(2^255) << 1` 은 2^256 이 아니라 **0** 이다.
+
+        거대 정수를 만들지 않는다(임의정밀도 폭주 방지):
+          '<<' 는 s.max ≥ w 면 계산 없이 TOP, '>>' 는 s 를 w 로 캡한다
+          (그 이상 시프트는 결과가 동일 — 0 또는 -1).
+
+        shift_iv 는 min/max 만 읽으므로 **타입이 달라도 된다**
+        (Solidity 에서 시프트 양은 unsigned, 좌변은 signed 여도 유효하다).
+        """
+        if self.is_bottom() or shift_iv.is_bottom():
+            return self.make_bottom()
+        if shift_iv.min_value < 0:          # 음수 시프트 양 = 미정의
+            return self.make_bottom()
+
+        w = self.type_length
+        xlo, xhi = self.min_value, self.max_value
+        slo, shi = shift_iv.min_value, shift_iv.max_value
+
+        if op == '<<':
+            if shi >= w:
+                return type(self).top(w)
+            c = (xlo << slo, xlo << shi, xhi << slo, xhi << shi)
+            lo, hi = min(c), max(c)
+            if lo < 0 or hi > (1 << w) - 1:
+                return type(self).top(w)
+            return type(self)(lo, hi, w)
+
+        if op in ('>>', '>>>'):
+            slo_e, shi_e = min(slo, w), min(shi, w)
+            c = (xlo >> slo_e, xlo >> shi_e, xhi >> slo_e, xhi >> shi_e)
+            return type(self)(min(c), max(c), w)
+
+        raise ValueError(f"Unsupported shift op {op}")
 
     def left_shift(self, s: "UnsignedIntegerInterval") -> "UnsignedIntegerInterval":
         type_max = (1 << self.type_length) - 1

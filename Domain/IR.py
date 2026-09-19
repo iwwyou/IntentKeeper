@@ -78,6 +78,12 @@ class Expression:
     def __str__(self) -> str:
         """사람이 읽는 소스 근사 렌더 (verdict 메시지 등에서 `<Expression object at 0x..>` repr 노이즈 방지).
         순수 display — 의미론·해시·동등성 불변(기본 identity 유지)."""
+        # varRef(Entry)/(Exit)/(Before)/(After)/(Assign) — elements[0] 에 안쪽 varRef 가
+        # 있고 나머지 필드는 전부 None 이라, 이 분기가 없으면 verdict 메시지에서 통째로
+        # 빈 문자열이 되어 `b ==  + 2` 처럼 읽을 수 없게 렌더링된다.
+        if self.context in ("VarRefAtEntry", "VarRefAtExit", "VarRefAtBefore",
+                            "VarRefAtAfter", "VarRefAtAssign") and self.elements:
+            return f"{self.elements[0]}({self.context[len('VarRefAt'):]})"
         if self.literal is not None:
             return str(self.literal)
         if self.identifier is not None:

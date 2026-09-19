@@ -120,7 +120,9 @@ class VariableEnv:
                 base_type=copy.deepcopy(v.typeInfo.arrayBaseType),
                 array_length=v.typeInfo.arrayLength,
                 is_dynamic=v.typeInfo.isDynamicArray,
-                scope=v.scope
+                scope=v.scope,
+                struct_defs=v.struct_defs,
+                enum_defs=v.enum_defs
             )
             new_arr.elements = [
                 VariableEnv.copy_single_variable(e) for e in v.elements
@@ -417,7 +419,7 @@ class VariableEnv:
                 struct_defs=struct_defs,
                 enum_defs=enum_defs,
             )
-            arr.initialize_not_abstracted_type()
+            arr.initialize_default_by_base_type()
             return arr
 
         if sol_t.typeCategory == "mapping":
@@ -435,7 +437,8 @@ class VariableEnv:
                 struct_type=sol_t.structTypeName,
             )
             if sol_t.structTypeName in struct_defs:
-                sv.initialize_struct(struct_defs[sol_t.structTypeName])
+                sv.initialize_struct(struct_defs[sol_t.structTypeName],
+                                     struct_defs=struct_defs, enum_defs=enum_defs)
             return sv
 
         if sol_t.typeCategory == "enum":

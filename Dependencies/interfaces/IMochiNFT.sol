@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-interface IMochiNFT is IERC721Enumerable {
+interface IMochiNFT {
     struct MochiInfo {
         address asset;
     }
@@ -8,4 +8,6 @@ interface IMochiNFT is IERC721Enumerable {
     function asset(uint256 _id) external view returns (address);
 
     function mint(address _asset, address _owner) external returns (uint256);
+
+    function ownerOf(uint256 _id) external view returns (address);
 }

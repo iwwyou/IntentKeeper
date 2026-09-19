@@ -344,16 +344,6 @@ class SolidityVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by SolidityParser#DuringBeforeAfter.
-    def visitDuringBeforeAfter(self, ctx:SolidityParser.DuringBeforeAfterContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#DuringAssignCurrent.
-    def visitDuringAssignCurrent(self, ctx:SolidityParser.DuringAssignCurrentContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by SolidityParser#DuringFeasible.
     def visitDuringFeasible(self, ctx:SolidityParser.DuringFeasibleContext):
         return self.visitChildren(ctx)
@@ -371,11 +361,6 @@ class SolidityVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SolidityParser#postIntent.
     def visitPostIntent(self, ctx:SolidityParser.PostIntentContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by SolidityParser#PostEntryExit.
-    def visitPostEntryExit(self, ctx:SolidityParser.PostEntryExitContext):
         return self.visitChildren(ctx)
 
 
@@ -521,6 +506,31 @@ class SolidityVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SolidityParser#InlineInterval.
     def visitInlineInterval(self, ctx:SolidityParser.InlineIntervalContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#VarRefAtEntry.
+    def visitVarRefAtEntry(self, ctx:SolidityParser.VarRefAtEntryContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#VarRefAtExit.
+    def visitVarRefAtExit(self, ctx:SolidityParser.VarRefAtExitContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#VarRefAtBefore.
+    def visitVarRefAtBefore(self, ctx:SolidityParser.VarRefAtBeforeContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#VarRefAtAfter.
+    def visitVarRefAtAfter(self, ctx:SolidityParser.VarRefAtAfterContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by SolidityParser#VarRefAtAssign.
+    def visitVarRefAtAssign(self, ctx:SolidityParser.VarRefAtAssignContext):
         return self.visitChildren(ctx)
 
 

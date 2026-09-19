@@ -13,8 +13,7 @@ interface ILiquidityBasedTWAP {
     }
 
     enum Paths {
-        VADER,
-        USDV
+        VADER, USDV
     }
 
     function previousPrices(uint256 i) external returns (uint256);

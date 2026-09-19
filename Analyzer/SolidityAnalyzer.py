@@ -26,6 +26,10 @@ class SolidityAnalyzer:
 
         # ── File-level definitions ─────────────────────────────
         self.file_level_structs = {}    # {"StructName": {field_name: SolType, ...}}
+        self.file_level_enums = {}      # {"EnumName": ["Member0", "Member1", ...]} — contract/
+                                        # interface 밖 파일 최상위 enum. pkl 에 구워져 있지
+                                        # 않아(오프라인 빌드가 enum 을 추적 안 함) type_aliases
+                                        # 와 같은 regex 사전-스캔으로 채운다.
         self.type_aliases = {}          # {"TypeName": "underlyingElementaryType"}
         self._current_file_struct = None  # 현재 열린 file-level struct 이름
 
@@ -217,13 +221,30 @@ class SolidityAnalyzer:
         info['close'] = close_braces
 
     def _is_during_inline(self, code: str, start_line: int) -> bool:
-        """During annotation이 기존 코드 라인에 있어 밀기가 불필요한 inline인지 확인.
-        During만 해당 — 다른 annotation(@GlobalVar, @StateVar, @Post 등)은 항상 standalone."""
+        """@During 이 기존 코드 라인을 참조만 하므로 밀기가 불필요한 inline 인지 확인.
+
+        @GlobalVar/@StateVar 등 디버그 값 annotation 은 여전히 항상 standalone —
+        실제 값을 배치 재생 시점에 주입하는 것이라 자기 줄을 차지해야 한다. @During 은
+        반대로 이미 존재하는 코드 줄을 참조만 하므로, 그 줄에 실제 코드가 있으면 밀 필요가
+        없다 — 오히려 밀면 이미 만들어진 CFG/exit-node 상태가 깨진다.
+
+        여러 줄에 걸친 statement 는 실제 텍스트가 span 의 끝에 쓰이고 시작 줄의
+        full_code_lines 는 빈 placeholder 로 남는다 — 반면 CFG 노드는 그 statement 의
+        선언 시점 startLine 기준으로 등록된다. full_code_lines 만 보면 이런 경우 시작 줄이
+        "비어있다"고 오판해 밀기 경로로 빠지므로, line_info 의 CFG 노드 존재도 함께 본다.
+        (@Post 는 특정 줄이 아니라 함수 exit 노드에 붙으므로 여기 대상이 아니다 —
+        IntentKeeper 의 주 경로인 engine_api._attach_intents 는 애초에 update_code 를
+        호출하지 않아 밀림 자체가 없다. 이 함수는 레거시 CLI(main.py) 경로 전용.)"""
         stripped = code.strip()
         if not stripped.startswith("// @During"):
             return False
-        return (start_line in self.full_code_lines and
-                self.full_code_lines[start_line].strip() != "")
+        target_line = self.full_code_lines.get(start_line, "").strip()
+        # 순수 구조적 문자({, })만 있는 줄은 실제 target statement 가 아님 — 밀려난 함수
+        # skeleton 의 닫는 `}` placeholder 를 "이미 텍스트 있음"으로 오판하지 않게 제외.
+        is_structural_only = target_line != "" and all(c in "{}" for c in target_line)
+        has_text = target_line != "" and not is_structural_only
+        has_cfg_node = bool(self.line_info.get(start_line, {}).get("cfg_nodes"))
+        return has_text or has_cfg_node
 
     def get_full_code(self):
         return self.full_code
@@ -269,7 +290,13 @@ class SolidityAnalyzer:
             ca = self.contract_analyzer
             ca.current_context_type = "assembly"
             ca.current_target_contract = ca.find_contract_context(start_line)
-            ca.current_target_function = ca.find_function_context(start_line)
+            # ★ find_function_context 는 (이름, 파라미터타입리스트) **튜플**을 돌려준다.
+            #   여기만 언패킹을 빠뜨려 current_target_function 에 튜플이 통째로 들어갔고,
+            #   ContractCFG.get_function_cfg 의 `self.functions.get(function_name)` 에서
+            #   `TypeError: unhashable type: 'list'` 로 터졌다. assembly 를 가진 모든
+            #   소스가 첫 Yul 문장부터 실패해 함수 본문이 빈 채 pkl 로 저장됐다
+            #   (전수 확인: 나머지 5개 호출부는 전부 정상 언패킹).
+            ca.current_target_function, ca.current_target_function_param_types =                 ca.find_function_context(start_line)
             return
 
         # file-level 판별: enclosing contract가 없으면 file level

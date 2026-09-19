@@ -920,7 +920,7 @@
     "event": "add"
   },
   {
-    "code": "// @Post tokensNotYetStreamed[101].lastUpdate == 1000",
+    "code": "// @Post tokensNotYetStreamed[msg.sender].lastUpdate == 1000",
     "startLine": 182,
     "endLine": 182,
     "event": "add"
@@ -938,87 +938,93 @@
     "event": "add"
   },
   {
-    "code": "// @StateVar endStream = [2000, 2000]",
+    "code": "// @GlobalVar msg.sender = symbolicAddress 101",
     "startLine": 147,
     "endLine": 147,
     "event": "add"
   },
   {
-    "code": "// @StateVar startTime = [500, 500]",
+    "code": "// @StateVar endStream = [2000, 2000]",
     "startLine": 148,
     "endLine": 148,
     "event": "add"
   },
   {
-    "code": "// @StateVar streamDuration = [1500, 1500]",
+    "code": "// @StateVar startTime = [500, 500]",
     "startLine": 149,
     "endLine": 149,
     "event": "add"
   },
   {
-    "code": "// @StateVar depositDecimalsOne = [1000000000000000000, 1000000000000000000]",
+    "code": "// @StateVar streamDuration = [1500, 1500]",
     "startLine": 150,
     "endLine": 150,
     "event": "add"
   },
   {
-    "code": "// @StateVar lastUpdate = [1000, 1000]",
+    "code": "// @StateVar depositDecimalsOne = [1000000000000000000, 1000000000000000000]",
     "startLine": 151,
     "endLine": 151,
     "event": "add"
   },
   {
-    "code": "// @StateVar cumulativeRewardPerToken = [100, 100]",
+    "code": "// @StateVar lastUpdate = [1000, 1000]",
     "startLine": 152,
     "endLine": 152,
     "event": "add"
   },
   {
-    "code": "// @StateVar totalVirtualBalance = [0, 0]",
+    "code": "// @StateVar cumulativeRewardPerToken = [100, 100]",
     "startLine": 153,
     "endLine": 153,
     "event": "add"
   },
   {
-    "code": "// @StateVar unstreamed = [0, 0]",
+    "code": "// @StateVar totalVirtualBalance = [0, 0]",
     "startLine": 154,
     "endLine": 154,
     "event": "add"
   },
   {
-    "code": "// @StateVar tokensNotYetStreamed[101].tokens = [0, 0]",
+    "code": "// @StateVar unstreamed = [0, 0]",
     "startLine": 155,
     "endLine": 155,
     "event": "add"
   },
   {
-    "code": "// @StateVar tokensNotYetStreamed[101].lastUpdate = [800, 800]",
+    "code": "// @StateVar tokensNotYetStreamed[msg.sender].tokens = [0, 0]",
     "startLine": 156,
     "endLine": 156,
     "event": "add"
   },
   {
-    "code": "// @StateVar tokensNotYetStreamed[101].rewards = [0, 0]",
+    "code": "// @StateVar tokensNotYetStreamed[msg.sender].lastUpdate = [800, 800]",
     "startLine": 157,
     "endLine": 157,
     "event": "add"
   },
   {
-    "code": "// @StateVar tokensNotYetStreamed[101].lastCumulativeRewardPerToken = [100, 100]",
+    "code": "// @StateVar tokensNotYetStreamed[msg.sender].rewards = [0, 0]",
     "startLine": 158,
     "endLine": 158,
     "event": "add"
   },
   {
-    "code": "// @StateVar tokensNotYetStreamed[101].virtualBalance = [0, 0]",
+    "code": "// @StateVar tokensNotYetStreamed[msg.sender].lastCumulativeRewardPerToken = [100, 100]",
     "startLine": 159,
     "endLine": 159,
     "event": "add"
   },
   {
-    "code": "// @Debugging END",
+    "code": "// @StateVar tokensNotYetStreamed[msg.sender].virtualBalance = [0, 0]",
     "startLine": 160,
     "endLine": 160,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 161,
+    "endLine": 161,
     "event": "add"
   }
 ]

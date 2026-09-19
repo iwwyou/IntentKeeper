@@ -8,15 +8,14 @@
 
 ## 0. 한 줄 요약
 
-**잠정 제목 (2026-06-22 선정, 교수님 확정 전):**
-> **Towards Safer Solidity Development: An Intent-Aware Quick Debugging Assistant**
+**제목 (2026-09-17 선정, 변경 가능):**
+> **An Intent-Aware Quick Debugging Assistant for Solidity**
 >
-> 선정 근거: ①`Towards Safer` = interval/intent 기반의 *상대적·점진적* 보장과 정합 — 절대 안전(program verification) 주장
-> 회피로 과대주장 리스크 0. (보장은 선언된 debugging annotation·입력 가정 *안에서만* sound; 그 바깥/모델링 갭은
-> 미보장.) ②`Intent-Aware` = 의도-구현 정합 검사라는 핵심 차별점 전면. ③`Quick Debugging Assistant` = SolQDebug
-> 계보 edit-time 디버거 성격 명시(verifier 아님을 솔직히 신호). 대안 검토: `Efficient`(무관/가스 허위 위험)·
-> `Secure`/`Reliable`(절대형이라 상대적 보장과 충돌) 회피, `Intent-Conformant`(정밀하나 "intent" 중복)·형용사 제거(밋밋)
-> 차선. 평가의 "탐지율 개선"이 `Towards Safer`를 직접 뒷받침 → 제목이 바뀌어도 근거는 재활용 가능.
+> 형용사 없는 형태로 확정. 이전 잠정 제목 `Towards Safer Solidity Development: An Intent-Aware Quick
+> Debugging Assistant`(2026-06-22)와 그 선정 근거는 폐기. 논문 방향의 정본은 **`PROGRESS2.md`**
+> (Plan A = intent-aware abstract debugging assistant 필수 / Plan B = intent-guided debug input
+> generation 선택; LLM·intent 자동생성·repair·multi-tx 제외).
+> `paper/Phd_thesis/main.tex` 의 4곳(표지·속표지·초록 헤딩·`pdftitle`)에 반영 완료.
 
 **IQDebug** = SolQDebug(게재) + IntentChecker(심사중) 엔진을 확장한 **intent-aware quick debugger** (박사학위 3번째 컴포넌트).
 - 엔진 = interval abstract interpretation, multi-contract single-tx, intent(@During/@Post) 검증. (IntentKeeper에 동기화 완료, 20/20 VIOLATED 검증.)
@@ -31,6 +30,11 @@
   한정**이었음 — 실제 .sol(첫 줄 `// SPDX-…`)은 SyntaxValid 게이트가 거부해 증분 편집이 전혀 적용되지
   않았고, 프론트가 diagnostics 를 삼켜 **조용히 실패**했다. 문법에서 어노테이션의 `'//'` 를 제거하고
   `LINE_COMMENT` 를 복원해 해결(#37), 진단 표시도 추가(#38). **이제 실제 .sol 에서 동작한다.**
+- **주력 주제 = decision #40**(2026-08-05) "intent 위치 debug 입력 자동 생성" — 목적은 버그 판정이 아니라
+  **warning 을 판정이 확정되는 입력 영역들로 분할**(verdict-guided partitioning). (A1) falseRegions·
+  (A2) Unreachable ✅ / (B) 분할 탐색기 미착수.
+- **문법 최신 상태 = decision #41**(2026-09-16): snapshot-qualified reference 가 `arithFactor` 1급 항
+  (`balance(Exit) == balance(Entry) - amount`). @Post/@During 스코프는 파서 멤버 `inDuring` 으로 게이트.
 - 툴명 = IQDebug, repo/project = IntentKeeper 유지.
 
 ---
@@ -808,6 +812,598 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
     Warning=정밀도 문제=(B) 몫으로 구분.
   - **(B) 분할 탐색기 설계문서**(pick_variable·pick_cut·병합·예산) / **(C)=본 기록**. 코어 수정이므로 A2·B 는 승인 후.
 
+- **(41) SolidityGuardian 엔진 변경 1회성 이식 (2026-09-16)**: Guardian 쪽에서만(논문 리비전 때문에) 고쳐진
+  변경을 **IntentKeeper 컨셉에 맞는 것만 선별해** 가져옴. #37 의 "동기화 중단" 방침은 유지 — 상시 동기화 재개가
+  아니라 **단발 포트**이며, IntentKeeper 고유 divergence(#8 삽입없는적용·#29 리스트batch·#34 접근경로스캐너·
+  B1 증분편집)는 전부 보존했다.
+
+  **① snapshot-qualified reference = intent 문법 확장 (필수 이식, ★ 논문 영향 큼)**
+  - **이전**: `Before/After`·`Assign/Current`·`Entry/Exit` 가 **전용 clause 형태**로만 존재
+    (`DuringBeforeAfter`/`DuringAssignCurrent`/`PostEntryExit`) → **산술식 안에 못 들어감**.
+  - **이후**: `arithFactor` 의 **1급 항**으로 승격 →
+    `@Post balance(Exit) == balance(Entry) - amount` 처럼 산술 표현식 *내부*에서 스냅샷 참조 가능.
+  - **스코프 게이트 = ANTLR semantic predicate + 파서 멤버 `inDuring`**:
+    `{not self.inDuring}? varRef '(' ENTRY|EXIT ')'` / `{self.inDuring}? varRef '(' BEFORE|AFTER|ASSIGN ')'`.
+    `duringIntent` 가 `inDuring=True`, `postIntent` 가 `False` 로 세팅.
+    **rule parameter 는 불가** — `arithExpr` 가 left-recursive 라 ANTLR `error(169)`. 파서 멤버가 유일한 길.
+    `ParserHelpers.generate_parse_tree` 가 호출마다 파서를 새로 만들어 요청 간 상태 누수 없음(테스트 group 6 확인).
+  - 제거: `DuringBeforeAfter`/`DuringAssignCurrent`/`PostEntryExit` 3개 컨텍스트 + 대응 visitor 분기.
+  - **보존**: #37 의 `'//'` 없는 형태 + `LINE_COMMENT`. Guardian 문법을 통째로 덮은 게 아니라 IntentKeeper 형태
+    *위에* 스냅샷 변경만 얹었다.
+  - 부수: `DebugEnumLiteral` 을 `identifier ('.' identifier)*`(중첩 한정명)로, `tupleExpression` 추가.
+  - `antlr4 4.13.2` 로 재생성(#39 정합 유지). visitor 5종 신설
+    (`visitVarRefAtEntry/Exit/Before/After/Assign` → `Expression(context='VarRefAt*')`).
+  - 평가측: `GuardianVerificationEngine._SNAPSHOT_CONTEXTS` 디스패치 +
+    `_evaluate_snapshot_var_ref`/`_materialize_snapshot_refs`/`_clone_expr_with`.
+    ambient 배선 4곳(`Engine.py`: `_before_cfg_node`/`_before_line_no`/`_current_fn_cfg`).
+  - **★ RQ2 재산정 필요**: `evaluation/RQ2/l4_l5_case_review.md` 의 G6(다변수 불변식 PostEntryExit 표현 불가)·
+    L4c/L4d(산술 PostEntryExit 부재)가 이 확장으로 **일부 해소**된다. 34 케이스 분류를 다시 매겨야 함.
+
+  **② ⊤ → Warning 의미 변경 (2곳)**: 비교 대상이 ⊤ 일 때 이전엔 violated 로 떨어뜨렸으나
+  `{"violated": False, "warning": True, "prob_true": 0.5}` + risk 계산으로 변경.
+  **decision #40 ① 의 재정의("건전한 건 S/V 둘 다, 미결은 오직 warning")와 정확히 일치** — ⊤ 는 "모름"이지
+  "위반"이 아니다. #40 (B) 분할의 전제이기도 하다(분할 대상 = warning).
+
+  **③ ★ @Post 가 explicit return 있는 함수에서 로컬을 아예 못 읽던 버그**:
+  `_get_post_exit_node`/`_preds`/`_exit_env` 블록 교체. 핵심 =
+  `exit_n = node if node is not None else self._get_post_exit_node(fn_cfg)`.
+  증상 — 스냅샷과 무관한 단순 절(`@Post b == 13`)조차
+  `internal error: This 'b' is may be elementary variable but may not be declared` 로 실패.
+  Phase 2 에서 6/6 실패로 드러났고 **스냅샷 기능과 무관한 선재 버그**로 확인. IntentKeeper 에 오래 잠복해 있었다.
+
+  **④ 코어 wholesale 동기화 9파일** (IntentKeeper 고유 로직 부재를 확인한 뒤 통째 교체):
+  `Domain/Interval.py`·`Domain/Variable.py`·`Utils/Helper.py`·`Utils/CFG.py`·`Analyzer/StaticCFGFactory.py`·
+  `Interpreter/Semantics/{Refine,Update,DebugInitializer,Evaluation}.py`.
+
+  **⑤ 선별 이식(부분 병합)**: `ContractAnalyzer`(`get_full_struct_enum_defs()`, enum_defs 전파 5곳, 배열 분기
+  struct/enum defs, 튜플 None 슬롯 스킵 — IK 고유 `current_edit_event=="modify"` 분기 보존) ·
+  `SolidityAnalyzer`(`file_level_enums`, `_is_during_inline` 재작성) · `DynamicCFGBuilder`(revert 배선 수정 —
+  IK 고유 `delete_cfg_range`/`modify_condition_expr` 보존) · `main.py`(파일레벨 enum regex 스캔 +
+  `Dependencies/interfaces` 를 type_scan_dirs 에 추가, 중복 `sa.update_code` 제거) ·
+  `engine_api.py`(`_scan_file_level_defs_into` 신설 → **서버 경로도 CLI 와 동일하게** 파일레벨 enum/type alias 인식) ·
+  `Domain/IR.py`(IK 전용 파일, `Expression.__str__` 에 스냅샷 렌더 추가 → verdict 메시지가 `balance(Exit)` 로 표시).
+
+  **⑥ 의도적 미이식**: `DebugUnitAnalyzer`(Guardian 이 **구버전** — IK 의 리스트-batch = decision #29 가 최신) ·
+  `main.py` 의 dict 기반 `batch_mgr.add_line/modify_line/delete_line`(같은 이유) ·
+  `_derive_debug_slots` 접근-경로 스캐너(decision #34, IK 전용 = 기존 방침).
+
+  **⑦ 방법론 항목 "@During 만 inline 가능 / @Post 는 항상 standalone"** — IntentKeeper 주경로에선 **구조적으로
+  무의미**. decision #8(삽입 없는 적용: `_attach_intents` 가 `update_code` 를 아예 호출 안 함)이라 줄 밀림이
+  발생할 여지 자체가 없다. 대신 *의미적 등가물*(라인→노드 부착 정확성)을 `temp/test_intent_attach.py` 로 검증하고,
+  레거시 CLI 경로용으로 `_is_during_inline` 개선만 이식했다.
+
+  **⑧ 죽은 코드 삭제**: `Engine.py` 의 인자 3개짜리 `_verify_post_clause_dynamic` 중복 정의(구 1815-1874, 60줄).
+  호출부 2곳 모두 4-인자 정의를 쓰고 있었다.
+
+  **검증**: 신규 `temp/test_snapshot_grammar.py`(25, 파서 레벨) · `test_snapshot_refs.py`(12, 손계산 가능한
+  컨트랙트 e2e) · `test_engine_fixes.py`(33, 12그룹) · `test_intent_attach.py`(15) = **85 checks 전부 통과**.
+  기존 증분편집 9종 60 checks **baseline 과 전부 동일**(회귀 0).
+
+  **RQ1 과의 관계**: 이 이식은 `evaluation/RQ1`(이미 #37 로 0/20)과 무관 — RQ1 재작성 방침(아래 ⑤ 항목) 그대로.
+
+- **(42) ★ require/assert 가 BOTTOM 을 전파하지 않던 버그 + @Post 도달불가 판정 (2026-09-18)**:
+
+  **증상**: debug 입력이 함수 가드와 모순이면(`a=[200,300]` vs `require(a<=100)`) @Post 가
+  `Warning` + `internal error: This 'balance' is may be elementary variable but may not be declared`
+  (risk 0.0)로 나왔다. 같은 상황에서 @During 은 `Unreachable` 을 냈다 — **두 경로 비일관**.
+
+  **근본 원인 (`Interpreter/Engine.py` `_run_worklist` require/assert 분기)**: `can_true` 가 False 일 때
+  ```python
+  else:
+      self._set_bottom_env(t.variables)   # t.variables 는 아직 {} → 빈 dict 순회 = no-op
+      # work.append(t) 없음 → BOTTOM 이 downstream 으로 전혀 안 퍼짐
+  ```
+  **바로 위 if/else-if 분기는 같은 상황을 올바르게 처리**하고 있었다(`copy(cur_vars)` → `_set_bottom_env`
+  → `work.append`). 즉 메커니즘은 이미 있는데 require/assert 분기만 두 줄을 빠뜨린 것.
+  연쇄: 이후 노드가 전부 `{}` → `_force_join_before_exit`(:1232) 가 `{}` 들을 join → `EXIT.variables={}`
+  → `_is_bottom_env({})` 가 **False** → 도달불가 인식 실패 → `_exit_env` 가 `{}` → 변수 조회 실패.
+
+  **실측 근거**(스크래치패드 probe_exit_nodes): 정상/모순 모두 `EXIT.preds=1` 로 **그래프는 안 끊긴다**.
+  차이는 predecessor 의 `variables` 개수뿐(17 → 0). → **predecessor 검사로는 못 잡고 env 를 봐야 한다.**
+  그리고 BOTTOM 이 아니라 *빈 dict* 였다 → `_is_bottom_env` 단독으론 못 잡는다
+  (@During 의 `not cur_vars or _is_bottom_env(...)` OR 절이 우연히 막고 있었던 이유).
+
+  **수정 3곳**:
+  1. `Engine.py` require/assert 분기 → if/else-if 와 동일한 3단 패턴(seed → BOTTOM → append).
+  2. `Engine.py` `_process_exit_node_intents` 진입부 → `_preds` 비었거나 `_exit_env` 가 비었거나
+     BOTTOM 이면 `status='unreachable'` emit 후 clause 검사 skip. **try 블록보다 앞**에 둔다
+     (그 안의 `except` 가 raise 를 삼켜 다시 internal-error 로 둔갑시키므로).
+  3. `GuardianVerificationEngine._exit_env` 의 `related_variables` 폴백 → **`RuntimeError` (fail-loud)**.
+     그 폴백은 `_get_post_exit_node` 가 없던 시절 "explicit return 함수의 EXIT 는 preds=0" 을 덮던
+     응급처치(**Initial commit 962345c 유래** — 이 프로젝트에서 만든 게 아님)이고, 근본 원인은
+     `_get_post_exit_node` 가 RETURN 을 고르면서 이미 해결됐다. 남겨두면 *도달 불가한* exit 를
+     "선언 초기값 env" 로 덮어써 **vacuous verdict** 를 만든다. 9가지 함수 형태(빈 본문/revert만/단일대입/
+     explicit return/named return ± explicit return/void)로 폴백 발동을 시도했으나 **0회** — 사실상 사문화.
+
+  **부수 효과(의도된 개선)**: 직렬화가 `state={}` → `state={a:'⊥', …}` 로 바뀐다. 프론트
+  `useNavigation.engineDead` 는 `⊥` 포함 여부로 dead 를 판정하는데 빈 state 에선 `.some()` 이 false 라
+  **dead 노드를 못 잡고 있었다**(decision #35 가 `error_exit` 만 id 로 특수처리한 이유). 이제 자동 해결.
+
+  **검증**: 신규 `temp/test_bottom_propagation.py` **13/13**
+  (A. BOTTOM 이 EXIT 까지 전파 / B. @Post Unreachable + @During 과 일관 /
+   C. ★ 부분 사망 시 `⊥ ⊔ live = live` 오염 없음 — if-분기 dead, 분기 *내부* require dead,
+   양쪽 live join, early-return 분기 dead / D. 정상 verdict 회귀).
+  기존 13종 **152/152** 전부 통과(회귀 0).
+
+  **잔여**: `_make_bottom` 이 symbolic bytes(`msg.data`/`msg.sig`)엔 BOTTOM 표현이 없어 `None` 으로
+  직렬화된다(표시만; 도달불가 env 안이라 무해). 프론트 `⊥` 표시 확인은 브라우저 육안 대기.
+
+- **(43) back_edge 라벨링 — 프론트의 기존 필터가 무효였던 문제 ✅ (2026-09-18)**:
+
+  **증상(잠복)**: `engine_api._serialize_cfg` 에 `# TODO(back_edge)` 만 있고 **어떤 엣지도
+  `back_edge` 로 라벨링된 적이 없었다**. 그런데 프론트 `useNavigation` 은 이미 두 곳에서
+  `e.kind !== 'back_edge'` 로 거르고 있었다 — `pred()`(= stepBackward) 와 applyTick 의
+  `succOf()`(= run-to-breakpoint). **즉 필터가 6개월간 무효**였고, decision #4 의
+  "back-edge 는 fixpoint 내부로 흡수되어 사용자 navigation 에 노출 안 됨" 이 안 지켜지고 있었다.
+  (루프 안에서 backward 를 누르면 back edge 를 타고 루프 꼬리로 올라갈 수 있었다.)
+
+  **판정 방식 = dominator**: `(u,v)` 가 back edge ⟺ **v 가 u 를 지배(dominate)**.
+  자연 루프의 retreating edge 정의 그대로다. `nx.immediate_dominators(G, entry)` 로 idom 을 얻고
+  u 의 dominator 체인에 v 가 있는지 확인한다(`engine_api._back_edges`).
+  **엔진 flag(`fixpoint_evaluation_node`/`is_loop_body`)에 기대지 않는 것이 핵심** —
+  while/for/do-while/중첩을 구분 없이 잡고, 플래그가 빠진 구조가 생겨도 안 깨진다.
+
+  **우선순위**: back_edge 가 true/false 보다 우선한다(프론트가 이 라벨로 navigation 에서 제외하므로).
+  실측 확인 — do-while 의 back edge 는 원래 `condition=None` 이라 **true/false 정보 손실 없음**.
+
+  **검증**: 신규 `temp/test_back_edge.py` **13/13** —
+  A. 루프 없는 CFG 는 back edge 0개(오탐 방지) + true/false 라벨 생존 /
+  B. while·for·nested·do-while 각각 정확히 1/1/2/1개 /
+  C. 루프 헤더로 되돌아감, **`for_init → for_join` 은 back edge 아님**(정상 진입) /
+  D. 중첩은 서로 다른 헤더 2개 / E. 모든 엣지가 유효 kind.
+  기존 14종 포함 **178/178** 통과(회귀 0).
+
+  **★ 남은 것 = 이번 범위 밖(⑤ 루프 fold)**: 프론트 `succ()`(= `stepForward`/`continueRun`)는
+  back_edge 를 **안 거른다**. 그래서 forward 는 여전히 back edge 를 타고 루프를 돈다
+  (= decision #4 가 금지한 "iteration 별 stepping" 착각). 여기서 단순히 걸러버리면 루프 꼬리에서
+  커서가 멈춰버리므로, **"루프 진입 시 fixpoint 로 접어 표시"(§6.4)와 함께 설계해야 한다.**
+  라벨은 이제 있으니 ⑤ 착수 시 바로 쓸 수 있다.
+
+- **(44) 함수 목록 API (`outline`) — 프론트 함수 목록이 mock 고정이던 문제 ✅ (2026-09-18)**:
+
+  **증상**: `store.ts:111` 이 `mock/workspace.json` 의 `functions` 를 한 번 세팅하고 **어디서도
+  갱신하지 않았다.** 엔진에도 "이 소스의 함수 목록" 을 내는 API 가 없었다(`Structure` 는 단일
+  스코프의 CFG 만). → 사용자가 자기 `.sol` 을 열어도 함수 목록은 mock 의 `withdraw`/`deposit`.
+  **임의 컨트랙트로 데모·평가·케이스스터디가 전부 막혀 있었다.**
+
+  **추가**: `engine_api.FunctionOutline`(contract/name/signature/startLine/endLine/source) +
+  `EngineSession.outline()`. `analyze` 는 스코프와 무관하게 record 를 전부 적용하므로
+  (스코프는 `structure()` 에서만 쓰인다) **세션 하나로 모든 컨트랙트·함수를 열거**할 수 있다.
+  제외: interface 컨트랙트(`ca.interface_names`, 본문 없음) · 본문 노드 0개인 함수.
+  오버로딩은 프론트 세션 키가 `"contract.func"` 라 이름당 첫 시그니처만 낸다.
+
+  **★ span 계산의 함정 두 개(둘 다 실측으로 드러남)**:
+  1. **`line_info` 의 open/close 카운트를 쓰면 안 된다** — slice 가 `} else {` 의 닫는 괄호를
+     `closeBefore` 로 옮겨서 **어느 라인에도 close 로 기록되지 않는다**(실측: `else {` 가
+     `open=1, close=0`). balance 가 1씩 부풀어 withdraw 의 끝이 22 대신 27 로 나왔다(다음 함수를 삼킴).
+  2. **`full_code_lines` 도 그냥 세면 안 된다** — 엔진이 저장하는 건 *정규화된* 텍스트라
+     `} else {` 가 `else {` 로 들어있다. → `_prev_records` 의 `closeBefore` 로 라인별 close 를
+     복원해서 센다. (`engine_api.EngineSession._function_span`)
+
+  **서버**: `POST /outline {source} → {functions, contracts}`. 스코프가 정해지기 *전에* 부르는
+  유일한 호출이라 세션 키(`"contract.func"`)와 분리돼야 한다 → **throwaway 세션**으로 만들고
+  버린다(스코프별 세션 오염 방지). 대신 **소스 해시로 캐시**(타이핑마다 전체 재파싱 방지).
+  실측: 1차 316ms → 2차 20ms.
+
+  **프론트**: `analyzeClient.outline()` + `store.refreshOutline()`.
+  `openFile`/`setActiveFile`/`updateActiveContent` 가 `runAnalysis` 대신 `refreshOutline` 을 타고,
+  그 안에서 목록 갱신 후 structure 분석을 이어간다. 보고 있던 contract/func 이 아직 있으면 유지,
+  없으면 첫 번째로. **함수 0개거나 서버 오류면 기존 목록을 지우지 않는다**(타이핑 도중 목록이
+  사라지는 게 더 나쁨). `npx tsc --noEmit` 통과.
+
+  **검증**: 신규 `temp/test_outline.py` **10/10** — mock 소스에서 `Vault.withdraw(13-22)`·
+  `deposit(24-26)`(기존 하드코딩 startLine 13/24 와 일치), interface 제외,
+  **if-블록/이중중첩으로 끝나는 함수**(다음 함수 안 삼킴), **`} else {}`·do-while**(closeBefore),
+  다중 컨트랙트, interface-only → 빈 목록.
+  HTTP e2e: `/outline` 정확 + 캐시 동작 + `/analyze` 무영향(세션 오염 없음) + 루프 소스에서
+  `back_edge` 가 프론트 계약까지 도달 확인. 기존 15종 포함 **188/188**(회귀 0).
+
+  **잔여**: 앱 최초 마운트 시점에는 아직 mock 시드 목록을 쓴다(초기 파일이 mock 소스라 일치).
+  파일 열기/전환/편집 중 하나라도 일어나면 갱신된다. 필요하면 App 마운트 훅 추가.
+
+- **(45) 의존성 pkl 전량 재생성 + 엔진 버그 25건 수정 + 평가 자산 보강 (2026-09-18 ~ 09-19)**:
+
+  **배경**: 평가 자산을 Guardian 에서 동기화(소스 69개 신규, RQ1 케이스 27개)한 뒤 pkl 을 **전량
+  재생성**했다. 예전 pkl 은 `analyze_file` 이 visitor 예외를 출력만 하고 넘어간 탓에 **함수 CFG 에
+  statement 가 하나도 없는 채로** 저장돼 있었고, 그런 함수를 호출하면 크래시도 경고도 없이
+  **선언된 리턴변수의 기본값을 반환**한다(조용한 오분석).
+
+  **결과 (135개 소스 재생성)**: `[ERR]` **552 → 246(−55%)** · `[ANTLR]` 212 → 192 ·
+  본문 있는 함수 380 → 384 · 본문 빈 함수 39 → 30 · pkl 134개(regen1 과 차집합 0).
+  복구: `UnsafeMath.divRoundingUp`(stmts 0→1) · `DyDxMath.getDx/getDy`(0→2) ·
+  `getLiquidityForAmounts`(0→5) · `FullMath.mulDiv`(→25). ← **케이스 35_H_08/35_H_10/35_H_12 가 의존**
+
+  **수정 6건 + 배선 1건** (상세·Guardian 포팅 명세 = **`(to_solidityguardian)_engine_fixes.md`**):
+  | | 내용 | 효과 |
+  |---|---|---|
+  | F3 | `SolidityAnalyzer` assembly 분기가 `find_function_context` **튜플 언패킹 누락** → `unhashable type: 'list'`. 6개 호출부 중 이 하나만 빠짐 | 131건 |
+  | F4 | `visitLiteralExp` 가 **16진 리터럴만 signed**(`'uint' if isdigit() else 'int'`) → `absTick & 0x1` 타입 불일치, `uint256 ratio = 0xfff...` 가 signed 로 오염 | 156건 |
+  | F5 | `EnhancedYulVisitor._build_literal` 이 **`expr_type` 미설정 + `literal` 을 int 로** 전달. 후자는 `int(txt,0)` 에서 `TypeError` 라 `except ValueError` 로 안 잡힘 → 둘 다 고쳐야 함 | 51건 |
+  | F6 | `Evaluation` 에 **`& | ^` 디스패치 누락**. `Domain/Interval.py` 엔 `bitwise()` 가 이미 있었음(도메인 O, 배선 X). 단항 `~` 는 이미 배선됨 | 105건 |
+  | F7 | `Dependencies/main.py` 분석 순서 하드코딩(`_late`/`_con_order`) → **위상정렬**(상속·라이브러리호출·using 추출, 순환 시 예외) | 9건 |
+  | F8 | pkl 이름/모드를 `new_libs[0]`(**순서 의존**)로 정함 → **주 선언 기준**(선언 1개면 그것/여러 개면 파일명 일치/아니면 예외). F7 적용 시 `SafeTransferLib`→`con_ERC20.pkl(0 functions)` 회귀로 드러남 | 회귀 |
+  | F9 | 소스: `from` 은 예약어 → `_from` (5파일 7곳). **문자열 리터럴 안의 `from` 4곳은 보존** | ANTLR 20건 |
+
+  **★ 진단 순서가 중요했다**: F6 만 넣으면 105건이 "Unsupported operator" → "타입 불일치" 로 바뀔 뿐이고,
+  F5 의 `expr_type` 만 고치면 51건이 `TypeError` 로 바뀔 뿐이다. 각 층을 벗겨야 다음 층이 드러났다.
+
+  **신규 도구**: `Dependencies/check_pkl.py` — pkl 을 로드해 **본문이 빈 채 저장된 함수**를 보고.
+  재생성 로그의 `[ERR]` 가 못 잡는 결과물 쪽 손상을 확인한다.
+  ⚠ 판정 기준이 거칠다(OZ 훅·modifier 를 손상으로 오분류) — 소스 대조로 개선 필요.
+
+  **잔여 246건**: `None`(메시지 없음) 59 · `may not be declared` 52 · `cannot be declared as constant` 24 ·
+  `No active function CFG` 류 38 · `not defined as struct/enum/alias` 17 · Shift 10 · 기타 46.
+  파일별: TickMath 41 · Controller 31 · PRBMathSD59x18 30 · CommonLibrary 14.
+
+  **(이어서) F10 — Yul 비교가 `BoolInterval` 을 냄**: Yul 엔 bool 이 없고 `lt/gt/slt/sgt/eq/iszero` 는
+  **0/1 word** 다. `_BINARY_OPS` 가 `'gt'→'>'` 로만 매핑해 `shl(7, gt(r,C))` 이 Shift dispatch 에서
+  거부 → `let f` 선언 실패 → 뒤 두 줄이 "'f' may not be declared" 로 연쇄(3줄 × 8회 = 40건).
+  수정 = 비교 결과를 `cond ? 1 : 0` 삼항으로 감싸 uint word 화(`_as_word`). 삼항 평가기가
+  `[1,1]`/`[0,0]` 이면 정확히 접으므로 **정밀도 손실 없음**. Yul 경로 한정(Solidity 에선 bool 이
+  산술에 못 쓰이므로 승격하면 진짜 타입 오류를 덮는다).
+  → `[ERR]` 246 → **224**. TickMath 41 → 19.
+  **`TickMath.getSqrtRatioAtTick`(stmts 0→23)·`getTickAtSqrtRatio`(stmts 0→69) 본문 복구** —
+  Guardian 주석이 지목했던 바로 그 함수들. 증가한 파일 0개.
+
+  **영향 범위 확인**: 잔여 224건 중 **188건이 평가 케이스가 참조하는 파일**에 있다(76%).
+  TickMath 19→3케이스(35_H_08/10/12) · Ticks 7→4케이스 · Controller 31→1 · PRBMathSD59x18 30→1 ·
+  CommonLibrary 14→1. 인프라 다듬기가 아니라 평가에 직접 영향.
+
+  **(이어서) F11 — 시프트 추상 의미론이 불건전했다 ★코어 · 전수 검증 (2026-09-18)**:
+  TickMath L131 `int256 log_2 = (int256(msb) - 128) << 64;` 가 "양쪽 타입 일치" 요구로 거부됐다.
+  시프트는 산술이 아니다 — 좌변=피시프트값/우변=시프트양으로 **역할이 다르고**, 시프트 양은
+  부호 없는 타입이며 좌변은 signed 여도 된다. 타입 검사를 걷어내려다 기존 공식 자체를 점검했더니
+  **불건전**이었다: `[xlo<<slo, xhi<<shi]` 는 음수 좌변에서 구간이 역전된다
+  (`[-8,-8] << [0,3]` → `(-8,-64)`). w=4/5 **전수 검증** 결과 구 공식은
+  **signed 49~53% · unsigned 41~44%** 의 조합에서 참값을 포함하지 못했다.
+  수정 = 4코너 min/max + 오버플로 가능 시 **TOP**(포화 아님 — Solidity 시프트는 wrap 한다),
+  `'<<'` 는 `s.max ≥ w` 면 즉시 TOP, `'>>'` 는 `s` 를 `w` 로 캡. 새 공식은 전수 검증 **불건전 0건**.
+
+  **(이어서) F12 — 산술 결과가 타입 범위를 벗어나 비트수가 폭주 ★코어**:
+  `PRBMathSD59x18.sol` 재생성이 **끝나지 않았다**. 처음엔 시프트를 의심했으나 F11 로 해결되지
+  않았고, `faulthandler` 스택 덤프로 `Interval._mul ← multiply ← fixpoint` 를 잡았다.
+  사용자 지적("mul 은 다 곱해보고 min/max 정하면 끝 아니냐")이 정확했다 — **연산자는 옳고**,
+  문제는 `IntegerInterval(lo,hi,w)` 가 `w` 를 받기만 하고 **경계를 강제하지 않는** 것이었다.
+  결과가 도메인을 탈출한 채 다음 연산의 피연산자가 되어 fixpoint 의 `x = x*x` 에서
+  비트수가 매 반복 2배(실측 255 → 511 → 1021 → … → **65,281비트**).
+  수정 = `_fit_signed`/`_fit_unsigned`(벗어나면 TOP) 를 signed add/subtract/multiply/exponentiate,
+  unsigned add/multiply/exponentiate 에 적용 + `_pow_fits`(거듭제곱을 **계산하지 않고** 비트수로 판정).
+  ⚠ **unsigned `subtract` 는 그대로 둔다** — "항상 음수면 bottom"(underflow revert → 도달불가) 이
+  checked 의미론으로 load-bearing 이다.
+  → 정지 해소, `[ERR]` 246 → **212**. PRBMathSD59x18 30→23, TickMath 19→14.
+
+  **(이어서) F13 — Yul 비트 연산 타입 불일치 = 2의 보수 word 재해석 ★코어 (2026-09-19)**:
+  `log_2 := or(log_2, shl(63, f))` (TickMath 14건 + PRBMathSD59x18 1건).
+  **Yul 엔 타입이 없다** — 모든 값이 raw 256-bit word 이므로 위 코드는 합법인데,
+  Solidity 선언(`int256 log_2`)의 타입이 Yul 블록까지 따라 들어와 F6 의 타입 검사에 걸렸다.
+  그 검사는 **Solidity 경로에선 유지돼야 하므로**(`int & uint` 는 진짜 타입 오류) 검사를 없애는 게
+  아니라 **경로를 구분**하는 것이 옳다 → `EnhancedYulVisitor` 가 컨텍스트에 `Yul` 접두를 달고
+  (`YulBinaryOperationContext` 등 7곳), `Evaluation._is_yul_ctx` 로 감지해 `_reinterpret_as` 적용.
+  부호 비트가 구간 안에서 안 변하면 값 범위가 동일해 **손실 없음**, 변하면 TOP(건전).
+  → `[ERR]` 212 → **198**, TickMath **14 → 0**.
+  ⚠ 자초한 사고: 이 헬퍼를 `class Evaluation` **본문 안에** 컬럼 0 `def` 로 넣어 클래스 본문을
+  끊어먹었다 → `[ERR]` 212→**1303**(970건이 `'Evaluation' object has no attribute ...`).
+  모듈 레벨 헬퍼는 반드시 `class` 선언 **앞**. 검증은 `ast` 로 메서드 수(55) 확인.
+
+  **(이어서) F14 — Solidity 숫자 리터럴의 문맥 타이핑 ★코어**:
+  F13 후 남은 마지막 1건 — `PRBMathSD59x18.sol:27` `result = (x>>1) + (y>>1) + (x & y & 1);`
+  (`int256 x, y`). **Yul 이 아니라 Solidity 경로**다. 원인은 **F4 의 필연적 귀결**:
+  Solidity 숫자 리터럴은 **타입 없는 유리수**이고 타입은 문맥(상대 피연산자)이 정하는데,
+  F4 가 모든 숫자 리터럴을 uint256 으로 못박았다(그 자체는 옳다 — 음수 리터럴은 없다).
+  빠진 것은 **사용 시점의 문맥 타입 부여**. 수정 = 비트 분기에서 타입이 엇갈릴 때 한쪽이
+  숫자 리터럴이면 상대 타입으로 재해석(`_literal_retype`). 단일 상수라 범위에 들어가면
+  **정확히 같은 값**이고, 벗어나면 폴백 없이 예외(실제 Solidity 도 컴파일 에러).
+  산술(`+ - * / % **`)은 타입 검사 자체가 없어 실패 사례가 없으므로 **건드리지 않았다**.
+  → `[ERR]` 198 → **197**, 비트/시프트 타입 불일치 **전부 0건**.
+  `PRBMathSD59x18.avg` 본문 복구(본문 있는 함수 384→**385**, 빈 함수 30→**29**).
+
+  **누적 (regen16 시점, 아래 F15/F16 뒤에 갱신)**: `[ERR]` **552 → 197(−64%)** · `[ANTLR]` 212 → 192 ·
+  pkl 134(regen1 과 차집합 0) · 본문 있는 함수 380 → **385** · 빈 함수 39 → **29** ·
+  각 단계에서 **증가한 파일 0개**.
+  잔여 197: `None` 59(인터페이스, 원인 불명) · `cannot be declared as constant` 24 ·
+  `No active function CFG` 류 39 · `not defined as struct/enum/alias` 17 ·
+  `may not be declared` 16 · 기타 42. 파일별: Controller 31 · PRBMathSD59x18 22 · CommonLibrary 14.
+  **비트/시프트 계열은 소진됐고, 남은 197건은 전부 선언·CFG 해석 계열이다.**
+
+  **(이어서) F15 — 인터페이스 body 의 event 가 null 컨텍스트로 새어나감 (2026-09-19)**:
+  `[ERR] L4 ctx=None: None` **59건**(인터페이스 15개)의 정체. 메시지가 `None` 인 이유는
+  `str(KeyError(None))` 이 문자 그대로 `'None'` 이기 때문이었다.
+  원인: `analyze_context` 의 인터페이스 분기가 `function ` 이 아니면 `return` 으로 "스킵" 하는데
+  **그 스킵이 호출자에게 전달되지 않는다** — 앞에서 이미 `current_target_contract` 를 None 으로
+  초기화한 뒤 그냥 돌아올 뿐이고, 드라이버는 `ctx is None` 을 확인하지 않아 그대로 파싱·visit 을
+  계속한다. `event` 는 문법적으로 멀쩡하니 파싱에 성공 → `process_event_definition` 의
+  `contract_cfgs[None]` → `KeyError: None`.
+  수정 = contract/library 분기엔 이미 있는 `event` 처리를 인터페이스에도 맞춤.
+  `else: return` 은 유지(전수 조사 결과 이 코퍼스 도달 0건 — 슬라이서가 여러 줄 함수 시그니처를
+  한 레코드로 합치므로 연속 줄이 오지 않는다).
+  → `[ERR]` 197 → **138**, `None` **59 → 0**, 증가한 파일 0개.
+  ⚠ **정직하게**: 분석 결과는 안 바뀐다. `ccf.events` 는 아무도 읽지 않고(`process_emit_statement`
+  는 `pass`), 본문 있는 함수 385 / 빈 함수 29 로 전후 동일. **가짜 경보 제거**이지 정확도 향상이 아니다.
+  다만 "스킵 의도가 호출자에게 전달되지 않는" 구조 자체가 CLAUDE.md 가 경고하는 조용한 오분석
+  패턴이라 고쳐두는 게 맞다.
+
+  **(이어서) F16 — `bytesN` constant 전부 거부 + 문자열 리터럴 정확 인코딩 ★코어**:
+  `Type 'bytes32' cannot be declared as constant: 'GOVERNANCE'` **24건**.
+  원인 3층:
+  (1) 허용 목록의 `"bytes"` 가 **동적** bytes 만 매치해 `bytes1..bytes32` 가 전부 거부.
+      `BytesSet` 도메인과 `evaluate_literal_context` 의 bytesN 분기는 **이미 있었다** — 게이트만 막음.
+      선언이 거부되면 `register_var` 까지 못 가 이 상수를 읽는 코드가 연쇄 실패한다.
+  (2) F14 와 같은 원리 — 리터럴엔 타입이 없는데 선언 타입이 전달되지 않음. 실측 분포:
+      문자열 19(`expr_type='string'`) · 16진 3(`'uint'`) · `keccak256(...)` 2(`FunctionCallContext`).
+      ⚠ **bytesN 에만** 덮어쓸 것 — `uint256` 으로 덮으면 `evaluate_literal_context` 가
+      `'uint256'` 을 모른다(실측). keccak 은 이미 `BytesSet.top(32)` 로 옳게 평가된다.
+  (3) bytesN 분기에 문자열 리터럴 인코딩이 없어 ⊤ 로 떨어짐.
+
+  **★ 건전성 검증이 이 수정의 핵심**: 상수의 구체 값 집합은 **싱글턴**이라 값이 정확하면
+  `BytesSet({v})` 가 가장 좁은 건전한 추상화지만, **틀리면 불건전**(잘못된 definite 판정)이다.
+  그래서 인코딩을 추측하지 않고 **실증**했다 —
+  `Dataset/Web3Bugs/S3_2/contest_145_H_02/registry_ReverseRegistrar.sol:12` 의 실제 ENS 상수
+  `bytes32 constant lookup = 0x30313233…6600…00` 과 `byte(and(addr,0xf), lookup)` 사용이
+  "UTF-8 바이트를 **상위 바이트부터** 배치, 하위를 0 패딩"(left-aligned)을 증명한다
+  (Yul `byte(n,x)` 는 MSB 기준). 엔진 계산값이 이 상수와 **비트 단위 일치**함을 확인.
+  대상 19개 문자열 전수 검사: 이스케이프 0 · non-ASCII 0 · 길이 초과 0.
+  미모델링 형태(이스케이프 / `hex""` / `unicode""` / 길이 초과)는 **raise** — ⊤ 로 덮으면
+  정밀도만 잃는 게 아니라 잘못된 경로를 믿게 된다.
+
+  **왜 ⊤ 가 아니라 싱글턴이어야 하나**: `BytesSet.equals` 는 `is_top` 이면 **무조건**
+  `BoolInterval(0,1)`(Unknown → Warning). 이 상수들은
+  `require(hasRole(ROLE_ADMIN, msg.sender))` · `onlyRoles2(Roles.GOVERNANCE, ...)` ·
+  `currentUInts256[_KEEPER_REQUIRED_STAKED_BKD]`(**mapping key**) 로 쓰이므로
+  ⊤ 이면 verdict 가 전부 Warning 이 되고 mapping 슬롯도 특정 못 한다. **verdict 품질** 문제다.
+  → `[ERR]` 138 → **112**, `cannot be declared as constant` **24 → 0**, 증가한 파일 0개,
+  빈 함수 29 → 28, `temp/` 회귀 7/10/7 통과.
+  ⚠ 범위: `constant` 한정. 일반 state var(`bytes32 x = "plain"`)은 여전히 원문 str —
+  별건의 잠재 문제로 남김(현재 오류 없이 동작 중이라 건드리면 값이 조용히 바뀐다).
+
+  **(이어서) F17 — 상속 체인 1단계 탐색 + intent 문법의 `ceil`/`floor` 예약 (2026-09-19)**:
+  `No active function CFG` 계열 **40건**의 정체. 원인이 **두 갈래**였다.
+  ⚠ 먼저 확인한 것: **레코드 슬라이싱은 전부 의도대로였다** — 여러 줄 함수/modifier 시그니처,
+  여러 줄 `require(...)` 가 모두 한 레코드로 정확히 병합된다. 변환 단계 문제가 아니다.
+
+  **(A) 상속 체인 전이적 탐색 — Controller 20건**
+  체인 `Controller is ... Authorization ...` → `Authorization is AuthorizationBase` →
+  `modifier onlyGovernance` 는 **AuthorizationBase** 에 있다. 두 군데가 얕았다:
+  ① `process_modifier_invocation` 이 `parent_contracts` 를 **1단계만** 순회하고
+     `ContractCFG.get_function_cfg` 도 부모 체인을 안 탄다.
+  ② `Dependencies/main._load_parent_pkls` 는 docstring 에 **"(재귀)"** 라 써 있지만 실제로는
+     직계 부모만 로드했다(실측: Controller 분석 시 AuthorizationBase 누락).
+  modifier 해석 실패는 **함수 정의 자체를 중단**시켜 본문 전체가 연쇄 실패한다
+  (`Controller` 등록 함수 **0개**).
+  수정 = `ContractAnalyzer._find_in_ancestors` (BFS; 조상 CFG 를 `parent_cfgs` + `contract_cfgs`
+  양쪽에서 얻음) + `_load_parent_pkls` 워크리스트 재귀화.
+  `con_Authorization.pkl` 이 `parent_cfgs['AuthorizationBase']` 를 **객체로 품고 있어서**
+  조회만 고쳐도 도달한다 — 재귀화는 `contract_cfgs` 를 직접 보는 경로를 위한 독립 보완.
+  ⚠ 탐색 순서는 **선언 순서**다. Solidity C3 는 `is A, B` 에서 B 가 더 파생이라 역순이어야
+  한다 — 현 코퍼스엔 조상 간 이름 충돌이 없어 무해하지만 다이아몬드 상속에선 위험. **별건**.
+  **부수 확정**: `onlyGovernance` CFG 는 정상이다(nodes=7 + `cond_expr`). `require` 가 조건
+  노드로 모델링되므로 `statements=0` 이 맞다 → **`check_pkl.py` 판정 기준 오류가 확정**됐다.
+
+  **(B) intent 문법이 `ceil`/`floor` 를 예약어로 만듦 — PRBMath 19건**
+  `[ANTLR] no viable alternative at input 'functionceil'`.
+  `Parser/Solidity.g4:323-324` 의 `'ceil'`/`'floor'` **인라인 리터럴**이 ANTLR 암묵 토큰이 되고,
+  그 토큰은 `Identifier` 보다 **우선**한다 → **모든 Solidity 소스에서 식별자로 못 쓴다**.
+  IntentChecker 술어 문법이 일반 Solidity 파싱을 깨뜨린 것이다.
+  충돌 규모(리포 전체 `.sol` **3,984개** 스캔): `floor` 24 · `ceil` 9 · `array` 1 ·
+  나머지 17개 예약어(`PercentOf` `changed` `Before` `After` `Entry` `Exit` …) **0건**.
+  **해법 = 소스 rename (사용자 결정)**: `ceil`→`_ceil`, `floor`→`_floor`.
+  **정의 4줄, 2파일**뿐(`PRBMathSD59x18.sol:31,107` · `PRBMathUD60x18.sol:20,58`),
+  호출자 0곳, RQ1 케이스 JSON 영향 0건. `evaluation/RQ1/.../dependencies/` 사본은 **보존**
+  (`Dependencies/main.py` 는 `Dependencies/` 만 스캔하고, 루트 `load_dependencies()` 는 그
+  디렉토리를 `interface\s+(\w+)` 정규식 이름 수집에만 쓴다 — 파싱하지 않음).
+  ⚠ **문법은 고치지 않는다(사용자 결정)** — intent 문법은 IntentChecker 논문에 실린 것이다.
+  따라서 **도구 한계로 남는다**: 사용자가 에디터에 `function floor(...)` 를 치면 파싱이 깨진다.
+  `from`(F9) 과 성격이 다르다 — `from` 은 Solidity 자체 예약어라 원본이 잘못이었지만
+  `ceil`/`floor` 는 **유효한 Solidity** 이고 우리 문법이 잘못이다. rename 은 증상 대응이다.
+
+  → `[ERR]` 112 → **76**, `No active function CFG` 계열 **40 → 1**, `[ANTLR]` 192 → **188**,
+  증가한 파일 0개, 본문 있는 함수 385 → **391**.
+  Controller 28→11 · PRBMathSD59x18 22→4 · PRBMathUD60x18 5→4.
+  함수 등록 복구: `con_112_Controller` **0→8개**(본문 6) ·
+  `lib_PRBMathSD59x18` 22개(본문 21) · `lib_PRBMathUD60x18` 21개(본문 20).
+  `temp/` 회귀 7/10/7 통과.
+  ⚠ 빈 함수 28→30(+2)는 회귀가 아니라 **함수가 6개 더 생겨서**다(새 Controller modifier 들이
+  위 잘못된 판정에 걸림). Controller 의 `may not be declared` 가 늘어난 것도, 전엔 본문이
+  **아예 분석되지 않아** 안 보이던 진짜 선언 문제가 드러난 것이다(파일 총계는 28→11).
+
+  **(이어서) F18 — Phase 1 위상정렬 누락 + file-level enum 미수집 (2026-09-19)**:
+  `Type 'X' is not defined as struct, enum, or type alias` **17건**을 분해하니 **네 갈래**였다 —
+  (A) 의존성 자산 누락 9 · (B) Phase 1 위상정렬 누락 2 · (C) file-level enum 5 · (D) `Roles` 동명이인 1.
+  이 중 엔진 결함인 (B)(C) 를 고쳤다.
+
+  **(B) F7 이 interfaces 를 빠뜨렸다**: Phase 2(libraries)/Phase 3(contracts) 는 `_topo_order`
+  를 쓰는데 **Phase 1 만 `sorted(rglob)` 알파벳순**이었다. `IPooledCreditLine is
+  ...Declarations is ...Enums` 인데 알파벳순은 정확히 **반대**라, 부모 분석 시점에 조상 pkl 이
+  없어 `parent_cfgs` 가 **빈 채로** 저장됐다(실측: 인터페이스 pkl 전부 `parent_cfgs=[]`).
+  `EnhancedSolidityVisitor._find_in_chain` 은 `parent_cfgs` 를 재귀로 도는 **올바른 코드가 이미
+  있었는데** 돌 것이 비어서 무용지물이었다. 수정 = Phase 1 도 `_topo_order`
+  (IFC_DIR 73개 전수 확인: 주 선언이 모두 interface 라 모드 불일치 위험 없음).
+  → 부모가 있는 interface pkl **14개 중 0개 → 12개**의 `parent_cfgs` 가 채워졌다
+  (나머지 2개는 부모 `.sol` 자체가 없는 (A) 케이스).
+
+  **(C) file-level enum 은 수집·주입·해석 3단이 모두 없었다**: `enum AssetClass {...}` ·
+  `enum Status {...}` 는 파일 최상위 enum(Solidity 0.8+ 허용)이다.
+  `SolidityAnalyzer.file_level_enums` **필드도 소비처도 이미 있는데**
+  (`Evaluation.py:1090`, `Refine.py:190`) ① `Dependencies/main.py` Phase 0 에 수집이 없고
+  (루트 `main.py`·`engine_api.py` 는 regex 로 수집 — **pkl 경로만 누락**)
+  ② `analyze_file` 주입도 없고 ③ `EnhancedSolidityVisitor` 타입 해석 체인에 분기도 없었다
+  (`file_level_structs` 분기는 있음; `Evaluation.py:1090` 은 *식별자 평가* 전용이라
+  *타입 선언* 에는 안 쓰인다).
+  수정 = `scan_file_level_enums` 신규 + 주입 + 해석 분기.
+  ⚠ typeCategory 만 세우면 하류의 `ccf.enumDefs.get(...)` 에서 `undefined enum` 으로 터지므로
+  해석 분기에서 `EnumDefinition` 을 만들어 `contract_cfg.enumDefs` 에 등록한다
+  (검증: regen20 에서 `undefined enum` **0건** — 에러를 옮기기만 한 게 아니다).
+
+  → `[ERR]` 76 → **69**, `not defined as struct/enum/alias` **17 → 10**
+  (해소 7 = B 2 + C 5, 남은 10 = A 9 + D 1 — 예상과 정확히 일치).
+  증가한 파일 0개, pkl 134, `[ANTLR]` 188 동일, 본문 있는 함수 391 동일.
+  `temp/` 회귀 7/10/7 통과.
+
+  **(이어서) F19~F21 + 평가 자산 보강 (2026-09-19)**:
+
+  **자산 보강** — 누락 인터페이스 **9종**을 `Web3Bugs/contracts/` 에서
+  `Dependencies/interfaces/` 로 복사(`IVMochi` `IUSDM` `IFeePool` `ILiquidator`(42 mochi-core) ·
+  `IInflationManager`(112 backd) · `IVaultRegistry` `IVaultFactory`(58 mellow-vaults) ·
+  `IERC721` `IERC165`(OZ)). `IERC721` 의 `from` 4곳은 `_from`(F9 규칙).
+  → `not defined as struct/enum/alias` **17 → 1**, pkl 134 → 143.
+  ⚠ **블록 주석이 슬라이서를 깨뜨린다(신규 발견)**: OZ NatSpec `/** */` 이 뒤따르는 선언과
+  **한 레코드로 합쳐져** `analyze_context` 의 `startswith(...)` 분류가 전부 빗나간다
+  (IERC721 = `[ERR]` 12 + `[ANTLR]` 25). 문법엔 `COMMENT -> channel(HIDDEN)` 이 있으니
+  **파서가 아니라 슬라이서/분류기 문제**다. 기존 144개 중 블록 주석이 있던 건 복사한 3개뿐이라
+  여태 안 드러났다. 그 3개에서 제거해 우회했으나 **사용자가 에디터에 NatSpec 을 치면 재발**한다.
+
+  **전처리 툴킷 확보** — `SolidityGuardian/temp/` 에서 `IntentKeeper/tools/` 로 9개
+  (`preprocess_contraction.py` 8단계, `rename_reserved_identifiers.py`, `generate_case_jsons.py`,
+  `PROCESS_GUIDE{,_v2}.md`, `code_modification_issues.md` 등). 사용자가 기억하던 그 전처리다 —
+  `expand_single_line_blocks`(`if (c) stmt;` → 블록), `find_block_comment_ranges`,
+  `rename_reserved_params`(`from`→`_from`, `float`→`FloatStruct`), `collapse_enum_members` 등.
+  드라이런 결과 **기존 코퍼스는 이미 전처리를 거친 상태**(예약어 0 · bare scope 0)였고,
+  잔여 2단계(enum 합치기 4파일 · single-line if 확장 1파일)를 적용했으나 오류 변화 없음.
+  `PROCESS_GUIDE_v2.md` 에 **"Dependencies/main.py pkl 생성 시 분석 순서"** 이슈가 이미
+  문서화돼 있었다 — F7/F18/F19 가 정확히 그 항목이다.
+
+  **F19 — 타입 참조 pkl 로드 + 위상정렬 반영 (도구)**:
+  `contract RoleAware { Roles public immutable roles; }` 처럼 **상속하지 않고 타입으로만 쓰는**
+  컨트랙트가 해석 안 됨. 원인 두 겹 — ① `_refs_in` 이 타입 참조를 안 봐서 순서가 뒤집히고
+  (`RoleAware` 13 < `contracts/Roles.sol` 14) ② 분석된 contract CFG 가 다음 파일에 주입되지 않음
+  (인터페이스엔 `ca.interface_names` 가 있지만 **contract 엔 그런 레지스트리가 없다**).
+  수정 = `_type_refs_in`/`_load_pkl_for`(후보 **정확히 1개일 때만**)/`_load_type_ref_pkls` +
+  `_topo_order` 안에서만 `_refs_in | _type_refs_in`. 순환 위험은 3개 Phase 전수 검증(없음).
+  → **단독 효과 0건.** 진짜 원인은 F20 이었고, regen 이 안 변한 것이 F20 을 찾게 된 단서였다.
+
+  **F20 — `make_contract_cfg` 가 동명 LibraryCFG 를 재사용 ★**:
+  ```python
+  if contract_name in an.contract_cfgs:
+      return an.contract_cfgs[contract_name]   # 종류를 안 따짐
+  ```
+  `analyze_file` 의 호환성 주입(`contract_cfgs.update(_global_library_cfgs)`)이 **다른 프로젝트의
+  동명 라이브러리**를 먼저 넣어두면 contract CFG 를 만들 때 그 LibraryCFG 를 그대로 돌려주고,
+  contract 함수들이 그 안에 쌓여 pkl 로 저장된다. 실측: `contracts/112/Roles.sol`(library, 순번 0)
+  때문에 `con_Roles.pkl` 이 **LibraryCFG 인데 내용은 contract 함수 4개**.
+  `ContractCFG`/`LibraryCFG` 는 상속 관계 없는 형제라 모든 `isinstance` 검사를 통과 못 한다 —
+  타입 해석이 계속 실패한 진짜 이유. 수정 = 재사용을 `isinstance(_existing, ContractCFG)` 로 한정.
+  → `[ERR]` 54 → **49**, `RoleAware.sol` **5 → 0**, `con_Roles.pkl` ContractCFG 로 정상화,
+  본문 있는 함수 392 → **396**, 빈 함수 29 → **25**.
+  ⚠ **소스 rename 은 불필요했다** — 이름 충돌이 아니라 객체 종류 검사 누락이었다.
+  평가 자산을 건드리지 않고 해결.
+
+  **F21 — 배열 원소 생성에서 중첩배열/mapping/enum 누락 ★코어**:
+  `CommonLibrary.splitAmounts` **14건**이 `require(weights[i].length == n)` 한 줄에서 연쇄.
+  배열 원소를 만드는 **두 분기가 base 타입을 손으로 나열**하는데 `uint/int/bool/address/struct`
+  만 있고 **중첩배열·mapping·enum 이 빠져** 마지막 `else` 로 떨어져 **문자열**을 돌려줬다.
+  세 번째 지점은 별개 — **리터럴 인덱스가 `get_or_create_element` 를 우회**해
+  길이 미상 파라미터의 `w[0]` 이 auto-push 없이 IndexError.
+  **올바른 구현은 이미 있었다**: `_create_new_array_element`(중첩 Array/Mapping/Enum 생성) ·
+  `_create_element_virtual` · `get_or_create_element`. `DebugInitializer` 는 이미
+  `isDynamicArray` 분기 패턴을 쓰고 `Evaluation.py:510` 도 헬퍼를 쓴다 — **세 지점만 누락**이었다.
+  수정 = 세 곳을 헬퍼로 위임. 원소 값은 `_create_default_value` 의 **⊤** 라 건전하고,
+  문자열을 돌려주던 기존 동작보다 **엄격하게 정확**하다(문자열은 추상값이 아니다).
+  정적 배열 범위 검사와 정상 경로는 그대로.
+  → `[ERR]` 49 → **35**, `CommonLibrary.sol` **14 → 0**.
+
+  **누적 (regen26, 2026-09-19)**: `[ERR]` **552 → 35(−94%)** · `[ANTLR]` 212 → 187 ·
+  pkl 134 → **143** · 본문 있는 함수 380 → **396** · 빈 함수 39 → **25** ·
+  각 단계에서 **증가한 파일 0개** · `temp/` 회귀 7/10/7 통과.
+  잔여 35: `Unsupported expression context` 6 · `Member not in struct` 6 ·
+  `No CFG node found after line N` 6 · `Unable to find contract CFG for None` 4 ·
+  `object has no attribute` 3 · `Cannot resolve mapping key` 3 · 기타 7.
+  파일별: Ticks 7 · Float 4 · PRBMathSD59x18 4 · PRBMathUD60x18 4 · Controller 4 ·
+  ERC1155Upgradeable 3.
+
+  **(이어서) F22·F23 — 지역 struct 정의 부착 + index-access 멤버접근 키의 매핑 조회 (2026-09-19)**:
+  `Member 'X' not in struct 'X'` 6건(Ticks 4 + AddressProviderMeta 2).
+  `Ticks.Tick storage previous = ticks[current.previousTick];` 다음 줄에서 터졌다.
+
+  **F22 (기여 0, 그러나 실재하는 결함)**: `_create_variable_object` 의 2-A(배열)·2-D(매핑)는
+  `get_full_struct_enum_defs()` 로 정의를 넘기는데 **2-B(struct)·2-C(enum) 만 아무것도 안 했다**.
+  정의를 붙이도록 고치고 2-D 의 인라인 중복도 헬퍼로 교체.
+  ⚠ regen 은 35→35 로 **변화 없음** — 목표였던 Ticks 는 `process_variable_declaration:1341` 의
+  `v = VariableEnv.deep_clone_variable(resolved, var_name)` 가 **방금 만든 v 를 버리고
+  초기화식이 준 객체를 쓰기** 때문이었다. 초기화식 **없는** 지역 struct 선언에는 여전히 필요하므로 남긴다.
+  "효과 0" 이라는 사실이 F23 을 찾게 한 단서였다(F19 때와 같다).
+
+  **F23 ★코어**: `evaluate_index_access_context` 는 인덱스 접근을 **인덱스 식 평가에 위임**하고
+  `callerObject=매핑` 을 넘겨 인덱스 식 핸들러가 매핑 조회까지 마치도록 설계돼 있다.
+  리터럴 키·식별자 키는 그 처리를 하는데 **멤버 접근 키만 빠져 있었다** — 매핑을 버리고
+  멤버 값만 돌려줬다. 실행 추적으로 확인: `ticks[current.previousTick]` 평가 중
+  `get_or_create`/`_create_value_virtual` 이 **한 번도 호출되지 않는다**.
+  그 int24 값이 `resolved` 가 되어 `isinstance(resolved, StructVariable)` 분기를 못 타
+  빈 struct 가 남았다. 수정 = 이미 20곳 이상에서 쓰이는 `_mapping_lookup_if_needed` 를
+  struct 멤버 접근 반환부 3곳에 붙임. 이 헬퍼는 callerObject 가 매핑이 아니면 **그대로 통과**해
+  기존 경로에 영향이 없고, 매핑이면 `get_or_create` → `_make_value` 로 **정의가 붙은 struct** 를 만든다.
+  → `[ERR]` 35 → **31**, `Member not in struct` **6 → 2**, Ticks 7→3.
+  ⚠ AddressProviderMeta 2건은 **그대로 남았다**(첫 보고의 `2→0` 은 상위 N개 집계에 가린 오기 — 정정),
+  증가한 파일 0개, 회귀 7/10/7 통과.
+
+  ★ **F16·F21·F22·F23 가 모두 같은 패턴이다** — 올바른 구현이 이미 도메인/헬퍼에 있는데
+  특정 경로에서만 쓰지 않는다. 남은 오류를 볼 때 **"이 경로가 기존 헬퍼를 쓰고 있나"** 를
+  먼저 확인하는 것이 빠르다.
+
+  **누적 (regen28)**: `[ERR]` **552 → 31(−94%)** · `[ANTLR]` 212 → 187 · pkl 143 ·
+  본문 있는 함수 380 → 396 · 빈 함수 39 → 25 · 각 단계에서 증가한 파일 0개.
+  잔여 31 파일별: Float 4 · PRBMathSD59x18 4 · PRBMathUD60x18 4 · Controller 4 · Ticks 3 ·
+  ERC1155Upgradeable 3 · IMochiProfile 2 · IMochiVault 2 · 기타 5.
+
+
+  **(이어서) F24 — 존재하지 않는 컨텍스트 문자열 `IndexAccessExpContext` ★조용한 오분석**:
+  `Cannot resolve mapping key` 3건(Ticks). 같은 모양인데 어떤 줄은 되고 어떤 줄은 안 됐다.
+  문법 라벨이 `# IndexAccess`(Solidity.g4:596) 라 생성 클래스는 **`IndexAccessContext` 하나뿐**이고
+  `IndexAccessExpContext` 는 어디에도 없다(비슷한 라벨 주의: `# IntentIndexAccess` L385 intent 절,
+  `# IReturnIndexAccess` L296 @IReturn — visitor 도 셋을 구분한다).
+  따라서 `Update.py:327` 의 키 추출 블록이 **한 번도 실행된 적이 없고**, 매핑 쓰기는 오직
+  `엔트리가 하나면 그걸 사용` 폴백으로만 동작했다. L66 은 우연히 맞았고 L85 는 엔트리가 늘어 실패.
+  ⚠ **오류 3건보다 위험한 것**: 폴백이 성공할 때도 키를 검증하지 않아
+  `ticks[A]` 에 쓰는 코드가 `ticks[B]` 를 **조용히** 수정할 수 있었다.
+  `Refine.py` 2곳도 같은 오타이고 그건 "심볼릭 인덱스면 refine 건너뛰기" **건전성 가드**였다.
+  수정 = 3곳 문자열 교정.
+  → `[ERR]` 31 → **28**, `Cannot resolve mapping key` **3 → 0**, `Ticks.sol` **3 → 0**(오류 0),
+  증가한 파일 0개, 회귀 7/10/7 통과.
+  ⚠ 폴백 ②는 아직 남아 있다 — 도달 빈도를 재고 제거를 검토할 것.
+
+  **누적 (regen29)**: `[ERR]` **552 → 28(−95%)** · `[ANTLR]` 212 → 187 · pkl 143 ·
+  본문 있는 함수 396 · 빈 함수 25 · 각 단계에서 증가한 파일 0개.
+  잔여 28 파일별: Float 4 · PRBMathSD59x18 4 · PRBMathUD60x18 4 · Controller 4 ·
+  ERC1155Upgradeable 3 · IMochiProfile 2 · IMochiVault 2 · AddressProviderMeta 2 · 기타 3.
+
+
+  **(이어서) F25 — 전처리에 '빈 블록 `{ }` 확장' 단계가 없었다 (도구, 부분 해소)**:
+  OZ storage gap 이 **함수 바로 뒤**에 올 때 `ctx=simpleStatement` 로 오분류되는 3건.
+  원인은 `find_function_context` 가 위로 거슬러 올라가며 "남은 첫 `{`" 를 찾을 때
+  **한 줄에 `{`/`}` 가 같이 있으면 `open>0` 에서 곧바로 멈추고 같은 줄의 `close` 를 무시**하는 것.
+  → 이미 닫힌 함수를 "열려 있다" 고 착각한다(실측: 7개 대상 중 틀리는 3건이 오류 3건과 일치).
+  전처리에 빈 블록 확장 분기를 추가하고 소스 8곳에 적용.
+  ★ `} else {` / `} else if (...) {` 류는 **절대 제외** — `}` 가 먼저 와서 이전 블록을 닫는
+  것이고 슬라이서 `closeBefore` 가 전담한다. 드라이런으로 대상 10건 / 제외 101건 전수 확인.
+  → `[ERR]` 28 → **26**, `[ANTLR]` 187 → **183**, 증가 0, 회귀 7/10/7 통과.
+  ⚠ **부분 해소**(3건 중 2건). 남은 1건은 여러 줄 시그니처 + `{` 단독 줄이라 형태가 다르다.
+  ⚠ **엔진 결함은 그대로** — 에디터에 `function f() {}` 를 치면 여전히 깨진다.
+  근본 수정은 괄호 상쇄를 **순증감(net)** 으로 바꾸는 것인데 라인 좌표계 핵심부라 별도 판단 필요.
+  ⚠ 범위 초과 1건: `expand_single_line_blocks()` 통째 호출로 RQ1 자산 12개가 `if` 확장까지
+  변형됨 → `git checkout` 원복. 전처리는 **필요한 단계만 직접 호출**할 것.
+
+  **누적 (regen30)**: `[ERR]` **552 → 26(−95%)** · `[ANTLR]` 212 → 183 · pkl 143 ·
+  본문 있는 함수 396 · 빈 함수 25 · 각 단계에서 증가한 파일 0개.
+  잔여 26 파일별: Float 4 · PRBMathSD59x18 4 · PRBMathUD60x18 4 · Controller 3 ·
+  ERC1155Upgradeable 3 · IMochiProfile 2 · IMochiVault 2 · 기타 4.
+
+  **백로그(별건)**: ① custom error 미구현(파서 재생성 필요, `Dependencies/` 영향 0) ·
+  ② **블록 주석이 슬라이서를 깨뜨림(신규)** · ③ intent 문법 `ceil`/`floor` 예약(문법 불변 결정) ·
+  ④ C3 선형화 미준수 · ⑤ `check_pkl.py` 판정 기준 오류 · ⑥ Yul 커버리지(PRBMath* 가
+  `[ANTLR]` 187 중 157 차지) · ⑦ `scan_*` 3종 비재귀 · ⑧ 배열 읽기 경로에 `.elements[idx]`
+  직접 접근이 `Evaluation` 4곳 / `Update` 3곳 남음.
+
+  **⚠ 작업 규칙 위반 기록(2026-09-19)**: F15·F16 1차를 **승인 없이 적용**했다.
+  "판단은 너가 해줘"(순서 판단 위임)를 승인 생략으로 잘못 읽은 것이다. 사용자 지적 후
+  F16 1차는 되돌리고 재설계 → 승인 → 재적용했다. 이후 모든 수정은 **보고 → 승인 → 적용**.
+  되돌리는 과정에서도 사고가 있었다 — `s.index("            et = ...")`(12칸)가
+  `process_state_variable` 안 16칸 줄의 **부분문자열**에 먼저 매치돼 84줄이 삭제됐다
+  (`process_constant_variable` 소실). `git diff HEAD` 로 손상 훅을 특정해 HEAD 구간을 재삽입 복구.
+  **앵커는 줄 시작 포함 + 유일성 검증**으로 잡을 것.
+
+  **문서 방침(사용자 지시)**: 이후 엔진 수정은 **`(to_solidityguardian)_engine_fixes.md`** 에 포팅 명세로
+  기록한다. Guardian 은 **읽기 전용**(심사 중 제출본) — 옮길지/언제 옮길지는 사용자가 결정한다.
+  F3·F4·F5·F6·F7·F8·F9 는 Guardian 에도 **동일하게 존재함을 읽어서 확인**했다(2026-09-18).
+  F10~F14 는 Guardian 미확인 또는 선행 항목(F4·F6) 포팅이 전제다 — 문서의 `Guardian 상태` 참조.
+
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
 ~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) ·
 ~~세션 스코프/유령 값~~ ✅(#36 a·b) · ~~#37 라인 주석 게이트~~ ✅ · ~~#36(c) delete 스코프 재검증~~ ✅ ·
@@ -823,6 +1419,8 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
 **Guardian 동기화 방침 변경(2026-07-18)**: 더 이상 동기화하지 않기로 함(사용자) → 코어
 (`Analyzer/ Domain/ Interpreter/ Libraries/ Parser/ Utils/ Dependencies/` + `main.py`)를 **IntentKeeper 에서
 직접 고쳐도 무방**. #37 이 이 방침 덕에 우회안(A) 대신 근본 수정(C)으로 갈 수 있었다.
+**단, 2026-09-16 에 1회성 역방향 포트가 있었다(decision #41)** — Guardian 논문 리비전에서만 고쳐진 snapshot
+문법·엔진 버그를 선별해 가져온 것이며, 상시 동기화 재개가 아니다. 이후로도 기본은 IntentKeeper 직접 수정.
 
 **세션 노트**: 서버 세션은 메모리에 `contract.func` 키로 영속 → **테스트 컨트랙트가 프론트 세션 오염** 가능
 (재시작으로 클리어). 콘솔 한글 mojibake 는 cp949 출력 문제일 뿐 JSON 은 UTF-8 정상.
@@ -834,7 +1432,9 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
 - 엔진 실행: **반드시 `.venv\Scripts\python.exe`** (글로벌 Python310 networkx 2.5.1 깨짐).
   ⚠ **과거 검증 커맨드였던 `evaluation\RQ1\run_all.py` → 20/20 VIOLATED 는 더 이상 유효하지 않다**
   (decision #37 로 0/20 SATISFIED 회귀, 의도된 것). IntentKeeper 전용 스크립트로 대체 예정 — 그전까지
-  e2e 회귀 스위트 없음.
+  **버그-탐지 e2e 회귀 스위트는 여전히 없다.** 현재 있는 것은 `temp/` 의 단위·구조 회귀 13종
+  (증분편집 9종 60 checks + #41 신규 4종 85 checks) 뿐 — 이들은 "CFG·states·문법이 안 깨졌나"를 보지,
+  "실제 버그를 탐지하나"를 보지 않는다.
 - ANTLR: 생성 CLI `antlr4` 4.13.2 / 런타임 `antlr4-python3-runtime==4.13.2` (2026-07-18 정합).
   파서 재생성 = `Parser/` 에서 `antlr4 -Dlanguage=Python3 -visitor Solidity.g4`.
 - `load_dependencies`는 3개 디렉토리 interface 스캔 필요(`evaluation/RQ1/target_contracts_contraction`, `.../target_contracts_original/dependencies`, `Dataset/Numscout/contraction`).

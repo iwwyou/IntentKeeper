@@ -1,14 +1,7 @@
 pragma solidity ^0.8.0;
 
 enum AssetClass {
-    Invalid,
-    Stable,
-    Alpha,
-    Gamma,
-    Delta,
-    Zeta,
-    Sigma,
-    Revoked
+    Invalid, Stable, Alpha, Gamma, Delta, Zeta, Sigma, Revoked
 }
 
 interface IMochiProfile {

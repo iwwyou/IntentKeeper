@@ -1,0 +1,15 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Compilation in a conventional Solidity debugging workflow.}}{3}{figure.caption.14}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Contract deployment in a conventional Solidity debugging workflow.}}{3}{figure.caption.15}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces State initialization and target-function execution in a conventional Solidity debugging workflow.}}{4}{figure.caption.16}%
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Transaction-based bytecode debugging in a conventional Solidity debugging workflow.}}{5}{figure.caption.17}%
+\contentsline {figure}{\numberline {2.5}{\ignorespaces Example requiring state preparation before debugging the target function.}}{9}{figure.caption.19}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {A.1}{\ignorespaces Korea University global symbol}}{22}{figure.caption.22}%
+\contentsline {figure}{\numberline {A.2}{\ignorespaces A minimal control-flow graph}}{22}{figure.caption.23}%

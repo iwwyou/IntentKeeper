@@ -114,6 +114,11 @@ class DebugInitializer:
         # 1) caller_object가 ArrayVariable인 경우 - arr[variable_index]
         # ======================================================================
         if isinstance(caller_object, ArrayVariable):
+            if not caller_object.struct_defs or not caller_object.enum_defs:
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                caller_object.struct_defs = {**all_structs, **caller_object.struct_defs}
+                caller_object.enum_defs = {**all_enums, **caller_object.enum_defs}
+
             if ident not in variables:
                 # 디버깅에서는 변수가 없어도 리터럴로 처리 시도
                 if ident.isdigit():
@@ -178,9 +183,9 @@ class DebugInitializer:
 
             # ── ③ 매핑 엔트리 가져오거나 생성 ─────────────
             if not caller_object.struct_defs or not caller_object.enum_defs:
-                ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                caller_object.struct_defs = ccf.structDefs
-                caller_object.enum_defs = ccf.enumDefs
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                caller_object.struct_defs = {**all_structs, **caller_object.struct_defs}
+                caller_object.enum_defs = {**all_enums, **caller_object.enum_defs}
 
             entry = caller_object.get_or_create(key_str)
             if isinstance(entry, (StructVariable, ArrayVariable, MappingVariable)):
@@ -264,9 +269,9 @@ class DebugInitializer:
             full_name = f"{expr.base.identifier}.{member_name}"  # "msg.sender"
 
             if not callerObject.struct_defs or not callerObject.enum_defs:
-                ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                callerObject.struct_defs = ccf.structDefs
-                callerObject.enum_defs = ccf.enumDefs
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+                callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
             # global var의 실제 값으로 key 결정
             key = full_name  # fallback
@@ -305,9 +310,9 @@ class DebugInitializer:
                 full_name = f"{base_obj}.{member_name}"
 
                 if not callerObject.struct_defs or not callerObject.enum_defs:
-                    ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                    callerObject.struct_defs = ccf.structDefs
-                    callerObject.enum_defs = ccf.enumDefs
+                    all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                    callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+                    callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
                 key = full_name
                 if full_name in variables:
@@ -364,6 +369,10 @@ class DebugInitializer:
                 idx = int(lit)
                 if idx < 0:
                     return None
+                if not callerObject.struct_defs or not callerObject.enum_defs:
+                    all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                    callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+                    callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
                 # 동적 배열이면 확장 가능, 정적 배열이면 범위 체크
                 try:
                     if callerObject.typeInfo.isDynamicArray:
@@ -381,11 +390,18 @@ class DebugInitializer:
             # MappingVariable인 경우
             elif isinstance(callerObject, MappingVariable):
                 if not callerObject.struct_defs or not callerObject.enum_defs:
-                    ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                    callerObject.struct_defs = ccf.structDefs
-                    callerObject.enum_defs = ccf.enumDefs
+                    all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                    callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+                    callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
-                key = lit
+                # ★ 리터럴 키도 identifier-context 분기(위 159번째 줄)와 동일하게
+                # _resolve_mapping_key로 변환 — 매핑의 key type이 address면
+                # `AddressSet({N})` 형태로 맞춰줘야 실제 evaluator가 나중에
+                # 계산하는 키와 일치함. 예전엔 원본 텍스트를 그대로 키로 써서
+                # `twapData[1]`처럼 address-keyed 매핑을 bare 정수로 seed하면
+                # 실제 조회 키(`AddressSet({1})`)와 안 맞아 조용히 다른 엔트리를
+                # 만들었음(web3bugs_70_H_04/45_H_01 등에서 발견).
+                key = self._resolve_mapping_key(lit, callerObject, variables)
                 # 디버깅에서는 키가 없어도 생성
                 entry = callerObject.get_or_create(key)
                 return entry
@@ -414,9 +430,9 @@ class DebugInitializer:
             full_name = f"{expr.base.identifier}.{member}"  # "msg.sender"
 
             if not callerObject.struct_defs or not callerObject.enum_defs:
-                ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                callerObject.struct_defs = ccf.structDefs
-                callerObject.enum_defs = ccf.enumDefs
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+                callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
             # global var의 실제 값으로 key 결정
             key = full_name
@@ -625,6 +641,25 @@ class DebugInitializer:
                 target_var.elements.append(elem)
             return
 
+        # EnumVariable: _parse_debug_value가 만든 "Member" / "Enum.Member" /
+        # "Library.Enum.Member" 형태의 문자열을 실제 멤버 인덱스로 해석해야 한다.
+        # EnumVariable도 Variables의 서브클래스라 아래의 일반 isinstance(target_var, VarClass)
+        # 분기에 걸리긴 하지만, 그 분기는 valueIndex를 계산하지 않고 문자열을 그대로
+        # .value에 박아버려서 (엄밀히는 동작하지도 실패하지도 않는 반쪽짜리 상태) enum
+        # 비교/평가 코드가 기대하는 형태가 안 된다 - 그래서 이 분기를 먼저 확인한다.
+        if isinstance(target_var, EnumVariable) and isinstance(new_value, str):
+            member_name = new_value.rsplit(".", 1)[-1]
+            if member_name not in target_var.members:
+                raise ValueError(
+                    f"Debug annotation value '{new_value}' for enum '{target_var.typeInfo.enumTypeName}': "
+                    f"member '{member_name}' not found (known members: {list(target_var.members.keys())}). "
+                    f"target_var.members is populated from the enum's own EnumDefinition - if it's empty, "
+                    f"the enum type likely wasn't resolved (e.g. an unresolved cross-library qualified type)."
+                )
+            target_var.valueIndex = target_var.members[member_name]
+            target_var.value = member_name
+            return
+
         if isinstance(target_var, VarClass):
             # 리스트 형태 값 처리 [1000,1000] -> UnsignedIntegerInterval(1000, 1000)
             if isinstance(new_value, list) and len(new_value) == 2:
@@ -670,9 +705,9 @@ class DebugInitializer:
             key_str = str(key_val)
 
         if not callerObject.struct_defs or not callerObject.enum_defs:
-            ccf = self.an.contract_cfgs[self.an.current_target_contract]
-            callerObject.struct_defs = ccf.structDefs
-            callerObject.enum_defs = ccf.enumDefs
+            all_structs, all_enums = self.an.get_full_struct_enum_defs()
+            callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+            callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
         return callerObject.get_or_create(key_str)
 
@@ -810,11 +845,19 @@ class DebugInitializer:
 
         # struct type인 경우
         elif base_type.typeCategory == "struct":
-            return StructVariable(
+            sv = StructVariable(
                 identifier=elem_id,
                 struct_type=base_type.structTypeName,
                 scope=arr.scope
             )
+            if not arr.struct_defs or not arr.enum_defs:
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                arr.struct_defs = {**all_structs, **arr.struct_defs}
+                arr.enum_defs = {**all_enums, **arr.enum_defs}
+            if base_type.structTypeName in arr.struct_defs:
+                sv.initialize_struct(arr.struct_defs[base_type.structTypeName],
+                                     struct_defs=arr.struct_defs, enum_defs=arr.enum_defs)
+            return sv
 
         # nested array인 경우
         elif base_type.typeCategory == "array":

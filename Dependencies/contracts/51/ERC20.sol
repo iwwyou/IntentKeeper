@@ -37,7 +37,8 @@ contract ERC20 is IERC20, Context {
         return _allowances[owner][spender];
     }
 
-    function _beforeTokenTransfer(address _from, address to, uint256 amount) internal virtual { }
+function _beforeTokenTransfer(address _from, address to, uint256 amount) internal virtual {
+    }
 
     function _transfer(address sender, address recipient, uint256 amount) internal virtual {
         require(sender != address(0), "ERC20: transfer _from the zero address");

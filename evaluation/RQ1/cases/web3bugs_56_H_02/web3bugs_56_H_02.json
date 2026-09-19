@@ -223,7 +223,7 @@
     "event": "add"
   },
   {
-    "code": "// @Post _self.totalCredit(Entry <= Exit)",
+    "code": "// @Post _self.totalCredit(Entry) <= _self.totalCredit(Exit)",
     "startLine": 46,
     "endLine": 46,
     "event": "add"

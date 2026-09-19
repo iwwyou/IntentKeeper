@@ -1591,7 +1591,7 @@
     "event": "add"
   },
   {
-    "code": "// @During tokensForLiquidity(Before < After)",
+    "code": "// @During tokensForLiquidity(Before) < tokensForLiquidity(After)",
     "startLine": 428,
     "endLine": 428,
     "event": "add"

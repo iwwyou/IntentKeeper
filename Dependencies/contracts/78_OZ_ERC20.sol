@@ -36,9 +36,11 @@ contract ERC20 {
         return _allowances[owner][spender];
     }
 
-    function _beforeTokenTransfer(address sender_, address to, uint256 amount) internal virtual {}
+function _beforeTokenTransfer(address sender_, address to, uint256 amount) internal virtual {
+    }
 
-    function _afterTokenTransfer(address sender_, address to, uint256 amount) internal virtual {}
+function _afterTokenTransfer(address sender_, address to, uint256 amount) internal virtual {
+    }
 
     function _approve(address owner, address spender, uint256 amount) internal virtual {
         require(owner != address(0), "ERC20: approve from the zero address");

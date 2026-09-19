@@ -81,7 +81,8 @@
       "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/probe_relational.py\")",
       "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/probe_derived.py\")",
       "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe scratchpad_probe_unreachable.py)",
-      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe __TRACKED_VAR__/smoke_false_regions.py)"
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe __TRACKED_VAR__/smoke_false_regions.py)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe \"C:/Users/isjeon/AppData/Local/Temp/claude/C--Users-isjeon-PycharmProjects-pythonProject-IntentKeeper/18f473f0-cc81-43f3-b6dc-ed8eef5561c8/scratchpad/demo_unreachable.py\")"
     ]
   }
 }

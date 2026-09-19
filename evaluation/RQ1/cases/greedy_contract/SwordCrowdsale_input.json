@@ -390,13 +390,13 @@
     "event": "add"
   },
   {
-    "code": "// @Post weiRaised(Entry > Exit)",
+    "code": "// @Post weiRaised(Entry) > weiRaised(Exit)",
     "startLine": 81,
     "endLine": 81,
     "event": "add"
   },
   {
-    "code": "// @Post weiRaised(Entry > Exit)",
+    "code": "// @Post weiRaised(Entry) > weiRaised(Exit)",
     "startLine": 81,
     "endLine": 81,
     "event": "add"

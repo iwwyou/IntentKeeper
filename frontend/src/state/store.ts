@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AnalysisResult, RangeValue, DepItem, IntentItem } from '../types/result'
-import { analyzeStructure, evaluate, verify } from '../engine/analyzeClient'
+import { analyzeStructure, evaluate, verify, outline as fetchOutline } from '../engine/analyzeClient'
 import workspace from '../mock/workspace.json'
 
 export interface FunctionMeta {
@@ -59,6 +59,8 @@ interface AppState {
   openFile: (path: string, content: string) => void
   deleteFile: (path: string) => void
   updateActiveContent: (content: string) => void
+  /** 활성 파일의 함수 목록을 엔진에서 다시 받아 온다(mock 고정 제거). 이어서 structure 분석. */
+  refreshOutline: () => Promise<void>
 
   // 디버그
   openDebug: (contract: string, func: string) => void
@@ -129,7 +131,45 @@ export const useStore = create<AppState>()(
 
       setView: (v) => set({ view: v }),
 
-      setActiveFile: (path) => set({ activeFile: path }),
+      setActiveFile: (path) => {
+        set({ activeFile: path })
+        void get().refreshOutline()
+      },
+
+      // ★ 함수 목록은 엔진이 소스에서 도출한다(예전엔 mock/workspace.json 고정이라
+      //   사용자가 자기 .sol 을 열어도 mock 함수가 떴다).
+      //   스코프(contract/func)가 정해지기 전에 부르는 유일한 호출이라 세션 키와 무관.
+      refreshOutline: async () => {
+        const src = get().files.find((f) => f.path === get().activeFile)?.content ?? ''
+        try {
+          const res = await fetchOutline(src)
+          if (res.functions.length > 0) {
+            const fns: FunctionMeta[] = res.functions.map((f) => ({
+              name: f.name,
+              contract: f.contract,
+              startLine: f.startLine,
+              source: f.source,
+            }))
+            // 보고 있던 컨트랙트/함수가 아직 있으면 유지, 없으면 첫 번째로.
+            const contract = res.contracts.includes(get().activeContract)
+              ? get().activeContract
+              : res.contracts[0] ?? get().activeContract
+            const cur = get().activeFunction
+            const kept = fns.some((f) => f.contract === contract && f.name === cur)
+            const first = fns.find((f) => f.contract === contract) ?? fns[0]
+            set({
+              functions: fns,
+              activeContract: contract,
+              activeFunction: kept ? cur : first.name,
+            })
+          }
+          // 함수가 0개면(예: interface 만, 또는 편집 중 일시적으로 깨진 소스)
+          // 기존 목록을 지우지 않는다 — 타이핑 도중 목록이 사라지면 더 나쁘다.
+        } catch {
+          // 서버 미기동 등 — 기존 목록 유지하고 분석은 계속 시도(에러는 runAnalysis 가 표시).
+        }
+        await get().runAnalysis(undefined, 'structure')
+      },
 
       newFile: (path) => {
         if (!path || get().files.some((f) => f.path === path)) return
@@ -142,7 +182,7 @@ export const useStore = create<AppState>()(
           ? get().files.map((f) => (f.path === path ? { ...f, content } : f))
           : [...get().files, { path, content }]
         set({ files, activeFile: path })
-        void get().runAnalysis(undefined, 'structure')
+        void get().refreshOutline()   // 새 파일 → 함수 목록부터 갱신(그 안에서 structure 분석)
       },
 
       deleteFile: (path) => {
@@ -155,8 +195,9 @@ export const useStore = create<AppState>()(
       updateActiveContent: (content) => {
         const af = get().activeFile
         set({ files: get().files.map((f) => (f.path === af ? { ...f, content } : f)) })
-        // edit-time: 편집 → 코드 변경 = structure tier (디바운스는 호출측)
-        void get().runAnalysis(undefined, 'structure')
+        // edit-time: 편집 → 함수 목록 갱신(추가/삭제/이름변경 반영) + structure tier
+        // (디바운스는 호출측. /outline 은 서버가 소스 해시로 캐시해 반복 파싱을 피한다.)
+        void get().refreshOutline()
       },
 
       openDebug: (contract, func) => {

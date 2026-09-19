@@ -8,7 +8,7 @@ if TYPE_CHECKING:                                         # 타입 검사 전용
 from Utils.CFG import ContractCFG, FunctionCFG
 from Utils.Helper import VariableEnv
 from Domain.Interval import UnsignedIntegerInterval, IntegerInterval, BoolInterval
-from Domain.Variable import GlobalVariable, Variables, ArrayVariable, StructVariable, EnumVariable
+from Domain.Variable import GlobalVariable, Variables, ArrayVariable, StructVariable, EnumVariable, MappingVariable
 from Domain.AddressSet import AddressSet
 from Domain.Type import SolType
 
@@ -106,8 +106,22 @@ class StaticCFGFactory:
 
     @staticmethod
     def make_contract_cfg(an:ContractAnalyzer, contract_name: str) -> ContractCFG:
-        if contract_name in an.contract_cfgs:
-            return an.contract_cfgs[contract_name]
+        # ★ 재사용은 **ContractCFG 일 때만**.
+        #   `make_library_cfg` 가 LibraryCFG 를 `contract_cfgs` 에도 등록하고
+        #   (호환성), `Dependencies/main.analyze_file` 이 이전에 분석한 라이브러리를
+        #   `ca.contract_cfgs.update(_global_library_cfgs)` 로 주입한다.
+        #   그래서 **다른 프로젝트의 동명 라이브러리**가 먼저 들어와 있으면
+        #   contract 의 CFG 를 만들 때 그 LibraryCFG 를 그대로 돌려줬고,
+        #   contract 의 함수들이 LibraryCFG 안에 쌓여 pkl 로 저장됐다.
+        #   실측: `contracts/112/Roles.sol`(library) 가 먼저 분석되어
+        #   `contracts/Roles.sol`(contract) 의 `con_Roles.pkl` 이
+        #   **LibraryCFG 인데 내용은 contract 함수**인 상태가 됐고,
+        #   그 결과 `RoleAware.sol` 의 `Roles public immutable roles;` 가
+        #   타입 해석에서 계속 거부됐다(5건 연쇄).
+        #   ContractCFG 와 LibraryCFG 는 상속 관계가 없는 형제 클래스다.
+        _existing = an.contract_cfgs.get(contract_name)
+        if isinstance(_existing, ContractCFG):
+            return _existing
 
         cfg = ContractCFG(contract_name)
 
@@ -335,24 +349,7 @@ class StaticCFGFactory:
                 scope=scope,
             )
 
-            base_t = sol_type.arrayBaseType
-            if isinstance(base_t, SolType):  # 1-D 배열
-                et = base_t.elementaryTypeName
-                if et and et.startswith("int"):
-                    bits = base_t.intTypeLength or 256
-                    init_val = IntegerInterval(0, 0, bits) if is_return_param else IntegerInterval.top(bits)
-                    arr.initialize_elements(init_val)
-                elif et and et.startswith("uint"):
-                    bits = base_t.intTypeLength or 256
-                    init_val = UnsignedIntegerInterval(0, 0, bits) if is_return_param else UnsignedIntegerInterval.top(bits)
-                    arr.initialize_elements(init_val)
-                elif et == "bool":
-                    init_val = BoolInterval(0, 0) if is_return_param else BoolInterval.top()
-                    arr.initialize_elements(init_val)
-                else:  # address / bytes / string / struct 등
-                    arr.initialize_not_abstracted_type()
-            else:  # 다차원
-                arr.initialize_not_abstracted_type()
+            arr.initialize_default_by_base_type(is_return_param=is_return_param)
 
             an.register_var(arr)
             return arr
@@ -375,7 +372,7 @@ class StaticCFGFactory:
             if struct_def is None:
                 raise ValueError(f"Undefined struct '{sname}' used as parameter/return.")
             sv = StructVariable(identifier=ident, struct_type=sname, scope=scope)
-            sv.initialize_struct(struct_def, struct_defs=ccf.structDefs)
+            sv.initialize_struct(struct_def, struct_defs=ccf.structDefs, enum_defs=ccf.enumDefs)
 
             an.register_var(sv)
             return sv
@@ -395,6 +392,27 @@ class StaticCFGFactory:
             v.value = AddressSet.top()
             an.register_var(v)
             return v
+
+        # ──────────────────────────── ⑥ mapping ──────────────────────────
+        # storage 파라미터는 caller의 실제 mapping을 aliasing해야 하는 게
+        # Solidity 시맨틱스지만, 이 함수의 ① array 분기도 storage 배열
+        # 파라미터를 caller와 잇지 않고 독립적인 fresh 값으로 근사하는 것과
+        # 같은 컨벤션으로, 여기서도 진짜 aliasing 없이 fresh & empty
+        # MappingVariable을 만든다 — 키별 값은 기존 lazy 경로
+        # (MappingVariable.get_or_create/_make_value)가 실제 접근 시점에
+        # 알아서 채운다.
+        if sol_type.typeCategory == "mapping":
+            all_structs, all_enums = an.get_full_struct_enum_defs()
+            mv = MappingVariable(
+                identifier=ident,
+                key_type=sol_type.mappingKeyType,
+                value_type=sol_type.mappingValueType,
+                scope=scope,
+                struct_defs=all_structs,
+                enum_defs=all_enums,
+            )
+            an.register_var(mv)
+            return mv
 
         # ──────────────────────────── ⑤ elementary ───────────────────────
         if sol_type.typeCategory == "elementary":

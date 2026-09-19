@@ -7,6 +7,10 @@
 
 grammar Solidity;
 
+@parser::members {
+inDuring = False
+}
+
 sourceUnit
   : (
     pragmaDirective
@@ -294,24 +298,21 @@ ireturnAccess
     ;
 
 duringIntent
-    : '@During' duringClause (logicOp duringClause)*
+    : '@During' {self.inDuring = True;} duringClause (logicOp duringClause)*
     ;
 
 duringClause
-    : intentValue '(' BEFORE  relOp AFTER   ')'                             # DuringBeforeAfter
-    | intentValue '(' ASSIGN  relOp CURRENT ')'                             # DuringAssignCurrent
-    | ('require feasible' | 'assert feasible')                              # DuringFeasible
+    : ('require feasible' | 'assert feasible')                              # DuringFeasible
     | identifier '.' 'arg' '[' numberLiteral ']' relOp intentValue          # DuringFunctionArg
     | commonClause                                                          # DuringCommon
     ;
 
 postIntent
-    : '@Post' postClause (logicOp postClause)*
+    : '@Post' {self.inDuring = False;} postClause (logicOp postClause)*
     ;
 
 postClause
-    : intentValue '(' ENTRY relOp EXIT ')'                                # PostEntryExit
-    | commonClause                                                        # PostCommon
+    : commonClause                                                        # PostCommon
     ;
 
 commonClause
@@ -332,7 +333,7 @@ debugValue
     | 'symbolicBytes'   hexStringLiteral                                           # DebugSymbolicBytes
     | 'symbolicString'  hexStringLiteral                                           # DebugSymbolicString
     | ('true' | 'false' | 'any')                                                   # DebugBoolToken
-    | identifier ('.' identifier)?                                                 # DebugEnumLiteral
+    | identifier ('.' identifier)*                                                 # DebugEnumLiteral
     | 'array' '[' ( signedNumberLiteral (',' signedNumberLiteral)* )? ']'         # DebugIntArray
     | 'arrayAddress' '[' ( numberLiteral (',' numberLiteral)* )? ']'              # DebugAddressArray
     ;
@@ -365,6 +366,11 @@ arithExp
 arithFactor
     : signedNumberLiteral                                       #NumLiteral
     | '[' signedNumberLiteral ',' signedNumberLiteral ']'       #InlineInterval
+    | {not self.inDuring}? varRef '(' ENTRY ')'                 #VarRefAtEntry
+    | {not self.inDuring}? varRef '(' EXIT ')'                  #VarRefAtExit
+    | {self.inDuring}?  varRef '(' BEFORE ')'                   #VarRefAtBefore
+    | {self.inDuring}?  varRef '(' AFTER ')'                    #VarRefAtAfter
+    | {self.inDuring}?  varRef '(' ASSIGN ')'                   #VarRefAtAssign
     | varRef                                                    #NumVarRef
     | '(' arithExpr ')'                                         #Parenthesized
     ;
@@ -626,7 +632,7 @@ literalWithSubDenomination
   : numberLiteral SubDenomination ;
 
 tupleExpression
-  : '(' (expression (',' expression)*)? ')' ;
+  : '(' expression? (',' expression?)* ')' ;
 
 numberLiteral
   : (DecimalNumber | HexNumber) ;

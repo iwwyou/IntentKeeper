@@ -78,21 +78,32 @@ def load_dependencies():
                     contract_analyzer.contract_cfgs[con_name] = con_cfg
                 except Exception:
                     pass
-    # 2) type alias 사전 수집 (type X is Y;)
+    # 2) type alias + file-level enum 사전 수집
+    #    file-level enum(컨트랙트/인터페이스 밖 최상위 enum)은 pkl 에 구워져 있지 않다
+    #    (오프라인 빌드가 enum 을 추적 안 함) → type alias 와 같은 regex 사전-스캔으로 보완.
     _type_re = re.compile(r'type\s+(\w+)\s+is\s+(\w+)\s*;')
+    _enum_re = re.compile(r'enum\s+(\w+)\s*\{([^}]*)\}', re.DOTALL)
     type_scan_dirs = [
         base / "Dependencies" / "libraries",
         base / "Dependencies" / "contracts",
+        base / "Dependencies" / "interfaces",
         base / "Libraries",
     ]
     for d in type_scan_dirs:
         if not d.exists():
             continue
         for sol in d.rglob("*.sol"):
-            for alias, underlying in _type_re.findall(sol.read_text(encoding='utf-8', errors='ignore')):
+            text = sol.read_text(encoding='utf-8', errors='ignore')
+            for alias, underlying in _type_re.findall(text):
                 sa.type_aliases[alias] = underlying
+            for enum_name, body in _enum_re.findall(text):
+                members = [m.strip() for m in body.split(',') if m.strip()]
+                if members:
+                    sa.file_level_enums[enum_name] = members
     if sa.type_aliases:
         print(f"[Dependencies] {len(sa.type_aliases)} type aliases registered: {sa.type_aliases}")
+    if sa.file_level_enums:
+        print(f"[Dependencies] {len(sa.file_level_enums)} file-level enums registered")
 
     # 3) 입력 소스 + original dependencies에서 interface 이름 regex 사전 수집 (Phase 0과 동일)
     _ifc_re = re.compile(r'interface\s+(\w+)')
@@ -143,7 +154,10 @@ def simulate_inputs(records, silent=False):
             # Intent annotation (@During, @Post)은 코드의 일부로 영구 등록
             # → batch_mgr(snapshot/restore)를 거치지 않음
             if stripped.startswith("// @During") or stripped.startswith("// @Post"):
-                sa.update_code(s, e, code, ev)  # line_info에 반영
+                # update_code 는 루프 맨 위에서 이미 이 레코드에 대해 호출됨(close_before 포함).
+                # 여기서 다시 호출하면 같은 라인에 두 번 적용되어, 첫 호출 시점엔 아직 없던
+                # 상태(multi-line statement 의 startLine 텍스트가 빈 경우 등)를 오판해
+                # 불필요한 라인 밀기가 발생한다.
                 tree = ParserHelpers.generate_parse_tree(code, "intentUnit")
                 EnhancedSolidityVisitor(contract_analyzer).visit(tree)
                 continue

@@ -167,7 +167,8 @@ class ArrayVariable(Variables):
             sv = StructVariable(eid, btype.structTypeName, scope=self.scope)
             # ★ struct 정의가 있으면 초기화
             if btype.structTypeName in self.struct_defs:
-                sv.initialize_struct(self.struct_defs[btype.structTypeName], struct_defs=self.struct_defs)
+                sv.initialize_struct(self.struct_defs[btype.structTypeName],
+                                     struct_defs=self.struct_defs, enum_defs=self.enum_defs)
             return sv
 
         # ─ enum ─────────────────────────────────────────────────────
@@ -179,7 +180,9 @@ class ArrayVariable(Variables):
             return MappingVariable(eid,
                                    btype.mappingKeyType,
                                    btype.mappingValueType,
-                                   scope=self.scope)
+                                   scope=self.scope,
+                                   struct_defs=self.struct_defs,
+                                   enum_defs=self.enum_defs)
 
         # ─ 중첩 배열 ────────────────────────────────────────────────
         if isinstance(btype, SolType) and btype.typeCategory == "array":
@@ -187,7 +190,17 @@ class ArrayVariable(Variables):
                                  btype.arrayBaseType,
                                  btype.arrayLength,
                                  scope=self.scope,
-                                 is_dynamic=btype.isDynamicArray)
+                                 is_dynamic=btype.isDynamicArray,
+                                 struct_defs=self.struct_defs,
+                                 enum_defs=self.enum_defs)
+
+        # ─ interface ────────────────────────────────────────────────
+        if isinstance(btype, SolType) and btype.typeCategory == "interface":
+            ifc_name = getattr(btype, 'interfaceName', None)
+            v = Variables(eid, AddressSet.top(), scope=self.scope, typeInfo=btype)
+            if ifc_name:
+                v.value._cast_interface = ifc_name
+            return v
 
         # fallback
         raise ValueError(f"Unhandled array base-type for {eid!r}")
@@ -234,6 +247,30 @@ class ArrayVariable(Variables):
             build_val=builder
         )
 
+    def initialize_default_by_base_type(self, is_return_param: bool = False):
+        """base_type을 보고 numeric/bool이면 initialize_elements(TOP 또는 0),
+        아니면 initialize_not_abstracted_type()으로 위임 — make_param_variable/
+        top_from_soltype/MappingVariable._make_value 세 호출부가 공유하는
+        단일 진실 공급원(예전엔 세 곳이 서로 다르게 복붙돼 있어서 두 곳이
+        base type 체크 없이 무조건 initialize_not_abstracted_type()을 불러
+        numeric 배열 원소가 raw 문자열로 초기화되는 버그가 있었음)."""
+        bt = self.typeInfo.arrayBaseType
+        et = bt.elementaryTypeName if isinstance(bt, SolType) else None
+
+        if et and et.startswith("int"):
+            bits = bt.intTypeLength or 256
+            val = IntegerInterval(0, 0, bits) if is_return_param else IntegerInterval.top(bits)
+            self.initialize_elements(val)
+        elif et and et.startswith("uint"):
+            bits = bt.intTypeLength or 256
+            val = UnsignedIntegerInterval(0, 0, bits) if is_return_param else UnsignedIntegerInterval.top(bits)
+            self.initialize_elements(val)
+        elif et == "bool":
+            val = BoolInterval(0, 0) if is_return_param else BoolInterval.top()
+            self.initialize_elements(val)
+        else:
+            self.initialize_not_abstracted_type()
+
     # ──────────────────────── private helper ────────────────────────
     def _init_recursive(self, *, baseT, length: int, build_val):
         """
@@ -264,6 +301,22 @@ class ArrayVariable(Variables):
                     sub_arr.initialize_not_abstracted_type()
                 self.elements.append(sub_arr)
                 continue
+            # ─ struct element ---------------------------------------------------------------
+            # build_val(elementary 전용 콜백)은 struct를 몰라서 raw 문자열
+            # (`symbol_{eid}`)로 바텀아웃시킴 — `new <StructType>[](n)`처럼
+            # struct 타입 배열을 미리(정적으로) 할당할 때 걸림
+            # (web3bugs_35_H_08/35_H_12에서 발견). `_create_new_array_element`
+            # 의 struct 분기와 동일한 패턴으로 진짜 StructVariable을 만든다.
+            if isinstance(baseT, SolType) and baseT.typeCategory == "struct":
+                sv = StructVariable(eid, baseT.structTypeName, scope=self.scope)
+                # qualified 네임스페이스 struct(예: "IPool.TokenAmount")는
+                # struct_defs에 마지막 "." 뒤 bare 이름으로 등록돼 있음
+                bare_name = baseT.structTypeName.rsplit(".", 1)[-1]
+                if bare_name in self.struct_defs:
+                    sv.initialize_struct(self.struct_defs[bare_name],
+                                         struct_defs=self.struct_defs, enum_defs=self.enum_defs)
+                self.elements.append(sv)
+                continue
             # ─ leaf element -----------------------------------------------------------------
             self.elements.append(build_val(eid, baseT))
 
@@ -274,6 +327,10 @@ class ArrayVariable(Variables):
             et = bt.elementaryTypeName
         else:
             et = str(bt)
+        # struct 등 non-elementary base type이면 elementaryTypeName이 None —
+        # new <StructType>[](n) 같은 케이스에서 걸림(web3bugs_35_H_08/35_H_12).
+        if et is None:
+            return False
         return et.startswith("int") or et.startswith("uint") or et == "bool"
 
 class MappingVariable(Variables):
@@ -317,7 +374,7 @@ class MappingVariable(Variables):
                 struct_defs  = self.struct_defs,  # ★ struct 정의 전달
                 enum_defs    = self.enum_defs,    # ★ enum 정의 전달
             )
-            arr.initialize_not_abstracted_type()   # 내부까지 재귀 초기화
+            arr.initialize_default_by_base_type()   # 내부까지 재귀 초기화, base type 체크 포함
             return arr
 
         # 2) 매핑 --------------------------------------------------------
@@ -338,7 +395,8 @@ class MappingVariable(Variables):
                                 scope=self.scope)
 
             if sol_t.structTypeName in self.struct_defs:  # ⭐️ 멤버 초기화
-                sv.initialize_struct(self.struct_defs[sol_t.structTypeName])
+                sv.initialize_struct(self.struct_defs[sol_t.structTypeName],
+                                     struct_defs=self.struct_defs, enum_defs=self.enum_defs)
 
             return sv
 
@@ -458,109 +516,40 @@ class StructVariable(Variables):
             self,
             struct_def: StructDefinition,
             *,  # ⬅️  키워드-전용
-            struct_defs: dict[str, StructDefinition] | None = None
+            struct_defs: dict[str, StructDefinition] | None = None,
+            enum_defs: dict[str, "EnumDefinition"] | None = None
     ):
         """
         struct_def.members :
             [{ "member_name": str, "member_type": SolType }, ... ]
-        - sm : AddressSymbolicManager (주소 타입이면 fresh interval 발급용)
+
+        멤버 하나하나의 top-value 생성은 VariableEnv.top_from_soltype에 위임한다
+        (array/mapping/struct/interface/enum/elementary 전 타입 지원 - 이 함수가
+        독자적으로 타입 분기를 다시 구현하면, 한쪽만 갱신되고 다른 쪽은 안 되는
+        문제가 생긴다: enum 지원이 top_from_soltype에는 있었지만 여기엔 없어서
+        enum 타입 struct 멤버(e.g. `Side side;`)를 만나면
+        `sol_t.elementaryTypeName`이 None인 채로 `.startswith()`가 호출되어
+        크래시하는 버그가 실제로 있었다 - Perpetuals.Order.side 케이스).
         """
+        # 순환 import 회피를 위해 지역 import (Utils.Helper가 Domain.Variable을
+        # import하므로 모듈 최상단에서 import하면 순환 참조가 됨)
+        from Utils.Helper import VariableEnv
 
         if struct_defs is None:
             struct_defs = {struct_def.struct_name: struct_def}  # fallback
+        if enum_defs is None:
+            enum_defs = {}
 
-        def _make_var(var_id: str, sol_t: SolType) -> Variables:
-            """SolType → 적절한 Variables/ArrayVariable/MappingVariable 생성"""
-
-            # 1) 배열  ---------------------------------------------------
-            if sol_t.typeCategory == "array":
-                arr = ArrayVariable(
-                    identifier   = var_id,
-                    base_type    = sol_t.arrayBaseType,
-                    array_length = sol_t.arrayLength,
-                    is_dynamic   = sol_t.isDynamicArray,
-                    scope        = self.scope,
-                )
-                # base type이 elementary 인지 확인 후 초기화
-                bt = sol_t.arrayBaseType
-                if isinstance(bt, SolType):
-                    # 주소 / string / bytes / bool / int 등 판단
-                    if bt.elementaryTypeName in ("int",) or bt.elementaryTypeName.startswith("int"):
-                        bits = bt.intTypeLength or 256
-                        arr.initialize_elements(IntegerInterval.top(bits))
-                    elif bt.elementaryTypeName in ("uint",) or bt.elementaryTypeName.startswith("uint"):
-                        bits = bt.intTypeLength or 256
-                        arr.initialize_elements(UnsignedIntegerInterval.top(bits))
-                    elif bt.elementaryTypeName == "bool":
-                        arr.initialize_elements(BoolInterval.top())
-                    else:          # address / bytes / string 등
-                        arr.initialize_not_abstracted_type()
-                else:
-                    # 다차원 배열(배열의 base 가 또 SolType(array)) → 재귀적으로 helper가 처리
-                    arr.initialize_not_abstracted_type()
-                return arr
-
-            # 2) 매핑  ---------------------------------------------------
-            if sol_t.typeCategory == "mapping":
-                return MappingVariable(
-                    identifier  = var_id,
-                    key_type    = sol_t.mappingKeyType,
-                    value_type  = sol_t.mappingValueType,
-                    scope       = self.scope,
-                )
-
-            # 3) (중첩) 구조체  ------------------------------------------
-            if sol_t.typeCategory == "struct":
-                sv = StructVariable(identifier=var_id,
-                                    struct_type=sol_t.structTypeName,
-                                    scope=self.scope)
-
-                # 🔑 중첩 struct 정의가 있으면 **재귀 초기화**
-                nested_def = struct_defs.get(sol_t.structTypeName)
-                if nested_def is not None:
-                    sv.initialize_struct(nested_def, struct_defs=struct_defs)
-
-                return sv
-
-            # 4) interface  --------------------------------------------
-            if sol_t.typeCategory == "interface":
-                ifc_name = getattr(sol_t, 'interfaceName', None)
-                v = Variables(identifier=var_id, scope=self.scope)
-                v.typeInfo = sol_t
-                v.value = AddressSet.top()
-                if ifc_name:
-                    v.value._cast_interface = ifc_name
-                return v
-
-            # 5) elementary  --------------------------------------------
-            v = Variables(identifier=var_id, scope=self.scope)
-            v.typeInfo = sol_t
-
-            et = sol_t.elementaryTypeName
-            if et.startswith("int"):
-                bits = sol_t.intTypeLength or 256
-                v.value = IntegerInterval.top(bits)
-            elif et.startswith("uint"):
-                bits = sol_t.intTypeLength or 256
-                v.value = UnsignedIntegerInterval.top(bits)
-            elif et == "bool":
-                v.value = BoolInterval.top()
-            elif et == "address":
-                v.value = AddressSet.top()
-            elif et.startswith("bytes") and len(et) > 5:  # bytes32, bytes16 등
-                byte_size = int(et[5:])  # "bytes32" -> 32
-                v.value = BytesSet.top(byte_size)  # TOP bytes
-            else:
-                # string / bytes / 기타
-                v.value = f"symbol_{var_id}"
-            return v
-
-        # ─ 실제 멤버 생성 ------------------------------------------------
         for mem in struct_def.members:
-            m_name: str      = mem["member_name"]
-            m_type: SolType  = mem["member_type"]
+            m_name: str = mem["member_name"]
+            m_type: SolType = mem["member_type"]
+            var_id = f"{self.identifier}.{m_name}"
 
-            self.members[m_name] = _make_var(f"{self.identifier}.{m_name}", m_type)
+            member_var = VariableEnv.top_from_soltype(
+                m_type, struct_defs=struct_defs, enum_defs=enum_defs, identifier=var_id
+            )
+            member_var.scope = self.scope  # top_from_soltype은 scope를 모르므로 여기서 채움
+            self.members[m_name] = member_var
 
     # 디버깅용 표현
     def __repr__(self):

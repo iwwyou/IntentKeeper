@@ -436,13 +436,29 @@ class ContractCFG(CFG):
             if result:
                 return result
 
+        # `using Lib for Lib.Struct;` 처럼 qualified 이름으로 등록된 경우 대비:
+        # target_type이 bare 이름("uq144x112")이면 마지막 dot-segment가 일치하는
+        # qualified key("FixedPoint.uq144x112")도 같이 찾아본다 (반대 방향도 마찬가지).
+        if "." not in target_type:
+            for key, libs in self.using_libraries.items():
+                if "." in key and key.rsplit(".", 1)[-1] == target_type:
+                    result = _search_libs(libs)
+                    if result:
+                        return result
+        else:
+            bare = target_type.rsplit(".", 1)[-1]
+            if bare in self.using_libraries:
+                result = _search_libs(self.using_libraries[bare])
+                if result:
+                    return result
+
         # using * 라이브러리들에서 검색
         result = _search_libs(self.using_all_libraries)
         if result:
             return result
 
         return None
-    
+
     def iter_all_functions(self):
         """모든 FunctionCFG를 (name, fcfg) 튜플로 순회"""
         for name, sub in self.functions.items():
@@ -824,6 +840,21 @@ class LibraryCFG(CFG):
             result = _search_libs(self.using_libraries[target_type])
             if result:
                 return result
+
+        # `using Lib for Lib.Struct;` 처럼 qualified 이름으로 등록된 경우 대비 (반대 방향도 포함)
+        if "." not in target_type:
+            for key, libs in self.using_libraries.items():
+                if "." in key and key.rsplit(".", 1)[-1] == target_type:
+                    result = _search_libs(libs)
+                    if result:
+                        return result
+        else:
+            bare = target_type.rsplit(".", 1)[-1]
+            if bare in self.using_libraries:
+                result = _search_libs(self.using_libraries[bare])
+                if result:
+                    return result
+
         result = _search_libs(self.using_all_libraries)
         if result:
             return result

@@ -12,13 +12,48 @@ if TYPE_CHECKING:
     from Analyzer.ContractAnalyzer import ContractAnalyzer
 
 from Domain.IR import Expression
+from Domain.Variable import Variables, StructVariable, ArrayVariable, MappingVariable
 from Domain.Interval import IntegerInterval, UnsignedIntegerInterval, BoolInterval
 from Utils.Helper import VariableEnv
 from Utils.CFG import CFGNode
 
 class GuardianVerificationEngine:
+    # varRef(Entry)/(Exit)/(Before)/(After)/(Assign) — 각각 다른 env(sigma)를 참조하는
+    # 5개의 snapshot-qualified 컨텍스트. _materialize_snapshot_refs 가 이 컨텍스트를
+    # 가진 노드를 찾아 미리 계산된 값으로 치환한다.
+    _SNAPSHOT_CONTEXTS = frozenset({
+        "VarRefAtEntry", "VarRefAtExit", "VarRefAtBefore", "VarRefAtAfter", "VarRefAtAssign",
+    })
+
+    # Expression 이 자식 Expression 을 담을 수 있는 필드들 — Domain/IR.py 의 생성자
+    # 시그니처와 정확히 일치해야 함(구조적 트리 순회에 사용, 의미는 몰라도 됨).
+    _CHILD_SINGLE_FIELDS = (
+        "left", "right", "function", "base", "index",
+        "start_index", "end_index", "expression",
+        "condition", "true_expr", "false_expr",
+    )
+    _CHILD_LIST_FIELDS = ("arguments", "elements")
+
+    _EXPR_CTOR_FIELDS = (
+        "left", "operator", "right", "identifier", "literal", "var_type",
+        "function", "arguments", "named_arguments", "base", "access",
+        "index", "start_index", "end_index", "member", "options",
+        "typeName", "expression", "condition", "true_expr", "false_expr",
+        "is_postfix", "elements", "expr_type", "type_length", "context",
+    )
+
     def __init__(self, analyzer: "ContractAnalyzer"):
         self.analyzer = analyzer
+        # varRef(Before) 해석용 ambient (cfg_node, line_no). sigma_before 는 라인별
+        # (cfg_node.before_envs[line_no])이고 evaluate_guardian_expression 은 표현식
+        # 트리 임의 깊이에서 호출되므로, clause 단위로 Engine.py 가 미리 설정한다
+        # (_verify_during_annotation / _verify_during_clause_dynamic).
+        self._before_cfg_node = None
+        self._before_line_no = None
+        # varRef(Entry)/varRef(Assign) 해석용 ambient fn_cfg. Post 계열 verify_* 는
+        # fn_cfg 를 인자로 받으므로 거기서 설정(staleness 회피), During 계열은 기존대로
+        # analyzer.current_target_function_cfg 를 쓴다.
+        self._current_fn_cfg = None
 
     # ═══════════════════════════════════════════════════════════════════
     #  Guardian DSL Expression Evaluation
@@ -62,6 +97,12 @@ class GuardianVerificationEngine:
         elif ctx in {"AddrLiteralExprContext", "SymAddrLiteralExprContext"}:
             return self._evaluate_address_literal(expr)
 
+        # ─── varRef(Entry)/(Exit)/(Before)/(After)/(Assign) ───────
+        # Solidity.g4 arithFactor 의 5개 snapshot 대안. 안쪽 varRef 는 expr.elements[0]
+        # 에 있고, 평가할 *환경*만 일반 참조와 다르다.
+        elif ctx in self._SNAPSHOT_CONTEXTS:
+            return self._evaluate_snapshot_var_ref(expr, ctx, variables, callerObject, callerContext)
+
         # ─── VarRef contexts → evaluator에 위임 ───────────────────
         # NormalVarRef, IntentMemberAccess, IntentIndexAccess는
         # 일반 IdentifierExpContext, MemberAccessContext, IndexAccessExpContext와
@@ -72,12 +113,157 @@ class GuardianVerificationEngine:
             )
 
         # ─── 일반 Solidity expression → evaluator 위임 ───────────
+        # 단, 위임 *전에* 트리 안 어디에 중첩돼 있든 snapshot 참조를 먼저 계산해
+        # 합성 변수로 치환해야 한다 — evaluator(Evaluation.py)는 이 5개 컨텍스트를
+        # 전혀 모르고 단일 env 만 다루므로, 안 그러면 중첩된 snapshot 참조가 조용히
+        # None 을 리턴하다 크래시한다.
         else:
-            return self.analyzer.evaluator.evaluate_expression(
+            materialized_expr, aug_vars = self._materialize_snapshot_refs(
                 expr, variables, callerObject, callerContext
+            )
+            return self.analyzer.evaluator.evaluate_expression(
+                materialized_expr, aug_vars, callerObject, callerContext
             )
 
     # ─── Guardian DSL 평가 헬퍼들 ─────────────────────────────────────
+
+    def _evaluate_snapshot_var_ref(self, expr: Expression, ctx: str, variables: dict,
+                                   callerObject=None, callerContext=None):
+        """
+        varRef(Entry)/varRef(Exit)/varRef(Before)/varRef(After)/varRef(Assign) 평가.
+
+        expr.elements[0] = 안쪽 varRef Expression (visitVarRefAt* 참고, EnhancedSolidityVisitor.py)
+
+        - Exit (Post) / After (During): Post의 evaluate_guardian_expression 호출은 이미
+          exit_env로(_eval_on_exit_value), During의 direct/return 계열 호출은 이미
+          cfg_node.variables로 진입하므로, 별도 snapshot 없이 지금 넘어온 `variables`를
+          그대로 재사용하면 이미 sigma_exit / sigma_pt다.
+        - Entry: fn_cfg.related_variables (verify_post_changed과 동일한 fallback 패턴).
+        - Assign: fn_cfg.assign_env — 변수의 함수 내 최초 대입 시점 상태.
+        - Before: cfg_node.before_envs[line_no] — self._before_cfg_node/_before_line_no로
+          ambient하게 전달됨 (Engine.py의 _verify_during_annotation /
+          _verify_during_clause_dynamic에서 clause 단위로 설정).
+        """
+        inner = expr.elements[0]
+
+        if ctx in ("VarRefAtExit", "VarRefAtAfter"):
+            target_env = variables
+
+        elif ctx == "VarRefAtEntry":
+            fn_cfg = self._current_fn_cfg or self.analyzer.current_target_function_cfg
+            if fn_cfg is None:
+                raise ValueError("varRef(Entry): no current function CFG available")
+            target_env = getattr(fn_cfg, "entry_env", None) or fn_cfg.related_variables
+
+        elif ctx == "VarRefAtAssign":
+            fn_cfg = self._current_fn_cfg or self.analyzer.current_target_function_cfg
+            if fn_cfg is None or getattr(fn_cfg, "assign_env", None) is None:
+                raise ValueError(f"varRef(Assign): no first-assignment state captured for "
+                                 f"'{self._pretty_expr(inner)}'")
+            target_env = fn_cfg.assign_env
+
+        elif ctx == "VarRefAtBefore":
+            if self._before_cfg_node is None or self._before_line_no is None:
+                raise ValueError("varRef(Before): no (cfg_node, line_no) set for this @During clause")
+            target_env = self._before_cfg_node.before_envs.get(self._before_line_no)
+            if target_env is None:
+                raise ValueError(f"varRef(Before): no before-env captured for line {self._before_line_no}")
+
+        else:
+            raise ValueError(f"Unknown snapshot var-ref context: {ctx}")
+
+        return self.evaluate_guardian_expression(inner, target_env, callerObject, callerContext)
+
+    def _clone_expr_with(self, expr: Expression, **overrides) -> Expression:
+        """expr과 동일한 필드값을 갖되 overrides로 지정한 필드만 교체한 새
+        Expression을 만든다. 원본은 건드리지 않음(파스 트리는 여러 CFG fixpoint
+        반복/여러 line에 걸쳐 재사용되는 공유 객체라 in-place mutation은 위험)."""
+        kwargs = {f: getattr(expr, f) for f in self._EXPR_CTOR_FIELDS}
+        kwargs.update(overrides)
+        return Expression(**kwargs)
+
+    def _materialize_snapshot_refs(self, expr: Expression, variables: dict,
+                                   callerObject=None, callerContext=None,
+                                   aug_vars: dict | None = None) -> tuple[Expression, dict]:
+        """
+        expr 트리 안 어디에 있든 varRef(Entry/Exit/Before/After/Assign) 노드를
+        찾아서 지금 바로 계산한 값으로 치환한다 — 값은 합성 identifier로 감싸서
+        env(사본)에 넣고, 트리의 해당 위치는 그 identifier를 가리키는 평범한
+        leaf 노드로 바꿔치기한다.
+
+        일반 evaluator(Interpreter/Semantics/Evaluation.py)는 이 5개 snapshot
+        컨텍스트를 전혀 모르고 항상 env 하나만 다루기 때문에, `a == a(Before) +
+        (b - a(Before))`처럼 snapshot 참조가 binary/ternary/함수호출 등 복합
+        expression 안에 중첩되면 evaluator가 그 노드를 만나는 순간 조용히 None을
+        리턴해서 크래시로 이어짐 (2026-09-01, web3bugs_29_H_11/35_H_11에서 발견).
+        이 함수로 "여러 env가 섞인 문제"를 "치환 한 번으로 env 하나만 남는 문제"로
+        미리 풀어버리면, 남은 트리는 기존 evaluator에 통째로 한 번에 넘겨도 안전함
+        — evaluator의 binary/ternary/함수호출 dispatch를 중복 구현할 필요가 없고,
+        앞으로 새 expression 문법이 추가돼도(구조만 Expression의 알려진 자식
+        필드를 쓰는 한) 이 함수를 안 고쳐도 자동으로 커버됨.
+
+        원본 expr 트리는 절대 in-place로 안 바꿈(CFG fixpoint 반복/여러 line에서
+        같은 파스 트리가 재사용되므로) — 바뀐 경로만 얕은 복사로 새 Expression을
+        만들어서 반환. variables도 원본을 안 바꾸고 첫 호출 시 한 번만 얕은
+        복사해서(aug_vars) 그 사본에 합성 변수를 추가해나감.
+
+        Returns: (new_expr, aug_vars) — new_expr을 aug_vars와 함께 evaluator에
+        넘기면 됨.
+        """
+        if aug_vars is None:
+            aug_vars = dict(variables)
+
+        if expr is None:
+            return expr, aug_vars
+
+        ctx = expr.context
+        if ctx in self._SNAPSHOT_CONTEXTS:
+            value = self._evaluate_snapshot_var_ref(expr, ctx, variables, callerObject, callerContext)
+            synth_name = f"__snap_{ctx}_L{self._before_line_no}_{id(expr)}" if ctx == "VarRefAtBefore" \
+                else f"__snap_{ctx}_{id(expr)}"
+            if isinstance(value, (StructVariable, ArrayVariable, MappingVariable)):
+                aug_vars[synth_name] = value
+            else:
+                wrapper = Variables(identifier=synth_name)
+                wrapper.value = value
+                aug_vars[synth_name] = wrapper
+            new_leaf = Expression(identifier=synth_name, context="VarRefBase")
+            return new_leaf, aug_vars
+
+        # 순수 구조적 재귀 — Expression이 자식을 담을 수 있는 필드들만 순회.
+        # 부모 노드의 의미(삼항이든 함수호출이든 튜플이든)는 몰라도 됨.
+        changed = False
+        overrides = {}
+
+        for f in self._CHILD_SINGLE_FIELDS:
+            child = getattr(expr, f)
+            if child is not None:
+                new_child, aug_vars = self._materialize_snapshot_refs(
+                    child, variables, callerObject, callerContext, aug_vars)
+                if new_child is not child:
+                    overrides[f] = new_child
+                    changed = True
+
+        for f in self._CHILD_LIST_FIELDS:
+            lst = getattr(expr, f)
+            if lst:
+                new_lst = []
+                local_changed = False
+                for item in lst:
+                    new_item, aug_vars = self._materialize_snapshot_refs(
+                        item, variables, callerObject, callerContext, aug_vars)
+                    new_lst.append(new_item)
+                    if new_item is not item:
+                        local_changed = True
+                if local_changed:
+                    overrides[f] = new_lst
+                    changed = True
+
+        if not changed:
+            return expr, aug_vars
+
+        return self._clone_expr_with(expr, **overrides), aug_vars
+
 
     def _evaluate_return_elem_ref(self, expr: Expression, variables: dict,
                                   callerObject=None, callerContext=None):
@@ -1311,9 +1497,14 @@ class GuardianVerificationEngine:
         if not hasattr(left, "min_value") and hasattr(right, "min_value"):
             if op in {"in", "not in"}:
                 if right.min_value is None or right.max_value is None:
-                    return {"satisfied": False, "violated": True,
-                            "warning": True, "prob_true": 0.0,
-                            "risk_score": 10.0, "risk_type": 2,
+                    # 경계가 진짜 미상(⊤) — satisfied 도 violated 도 증명 불가이므로
+                    # Cmp* 의 형식 정의상 j = W(Warning)이지 Violation 이 아니다.
+                    # (_compare_intervals_prob 의 min/max-None 분기와 같은 관례.)
+                    risk_type = self._compute_risk_type("warning", {}, op)
+                    risk_score = self._compute_risk_score("warning", 0.5, {}, op)
+                    return {"satisfied": False, "violated": False,
+                            "warning": True, "prob_true": 0.5,
+                            "risk_score": risk_score, "risk_type": risk_type,
                             "message": "interval unknown"}
                 inside = right.min_value <= left <= right.max_value
                 satisfied = inside if op == "in" else not inside
@@ -1356,9 +1547,13 @@ class GuardianVerificationEngine:
                 "message": f"{left} {op} {right} = {satisfied}"
             }
         except Exception as e:
-            return {"satisfied": False, "violated": True,
-                    "warning": True, "prob_true": 0.0,
-                    "risk_score": 10.0, "risk_type": 2,
+            # 비교를 아예 평가할 수 없었음 — satisfied 도 violated 도 증명 불가이므로
+            # Cmp* 의 형식 정의상 j = W(Warning)이지 Violation 이 아니다.
+            risk_type = self._compute_risk_type("warning", {}, op)
+            risk_score = self._compute_risk_score("warning", 0.5, {}, op)
+            return {"satisfied": False, "violated": False,
+                    "warning": True, "prob_true": 0.5,
+                    "risk_score": risk_score, "risk_type": risk_type,
                     "message": f"comparison error: {e}"}
 
     def _expr_to_str(self, e):  # 간단 문자열 직렬화 helper
@@ -1443,20 +1638,59 @@ class GuardianVerificationEngine:
         Post 검증용 exit 노드 선택:
         - return이 있는 함수 → return_exit_node
         - return이 없는 함수 → exit_node
+
+        ★ 라이브 인터프리테이션에서 명시적 `return`문은 실제로
+        `Interpreter/Engine.py._interpret_return`이 `fn_cfg.get_exit_node().
+        return_vals[line]`에 씀(return_exit이 아니라 일반 exit_node) —
+        `return_exit.return_vals`는 이 프로젝트 다른 static 경로(예:
+        interface 함수 pkl 빌드) 전용이라 라이브 케이스에선 늘 비어있고,
+        사실상 매번 exit_node로 떨어짐. 그래서 named-return 함수가 명시적
+        return 없이 끝나는 경우(web3bugs_5_H_12의 `getAddedAmount` 등),
+        exit_node.return_vals도 아무도 안 채워서 `@Post returnExpression`
+        검증이 "void 함수"로 오판해 None을 리턴하던 버그가 있었음 — 여기서
+        딱 그 빈 슬롯 하나만 채움(named return 변수의 exit 시점 실제 값으로).
         """
         return_exit = fn_cfg.get_return_exit_node()
         if return_exit.return_vals:
             return return_exit
-        else:
-            return fn_cfg.get_exit_node()
 
-    def _preds(self, fn_cfg, *, normal_only: bool = True):
+        exit_node = fn_cfg.get_exit_node()
+        if fn_cfg.return_vars and not exit_node.return_vals:
+            # ★ node=exit_node를 명시해서 _exit_env→_preds가 다시
+            # _get_post_exit_node를 호출하는 무한 재귀를 피함.
+            exit_env = self._exit_env(fn_cfg, normal_only=True, node=exit_node)
+
+            def _rv_value(rv):
+                live = exit_env.get(rv.identifier, rv)
+                if isinstance(live, (StructVariable, ArrayVariable, MappingVariable)):
+                    return live
+                return getattr(live, "value", None)
+
+            if len(fn_cfg.return_vars) == 1:
+                exit_node.return_vals[-1] = _rv_value(fn_cfg.return_vars[0])
+            else:
+                exit_node.return_vals[-1] = [_rv_value(rv) for rv in fn_cfg.return_vars]
+
+        return exit_node
+
+    def _preds(self, fn_cfg, *, normal_only: bool = True, node=None):
         """
         EXIT의 predecessor 중 정상 경로만 뽑아옴.
         (빌더에서 revert/require/assert(false) 엣지에 edge['abnormal']=True 를 붙였다고 가정)
+
+        `return` statement는 일반 exit 노드가 아니라 별도의 RETURN 전용 exit
+        노드(`get_return_exit_node()`)에 엣지를 연결한다
+        (`DynamicCFGBuilder.build_return_statement`). 함수에 실제 return이
+        있는데 일반 `get_exit_node()`만 조회하면 predecessor가 0개로 나와서
+        (아무도 거기 연결한 적이 없으므로) exit 환경이 통째로 비어버린다 —
+        `_get_post_exit_node`가 이미 이 구분을 올바르게 처리하므로 그걸 재사용.
+
+        `node`: 명시하면 `_get_post_exit_node` 재호출 없이 그 노드의
+        predecessor를 바로 조회(`_get_post_exit_node` 자신이 내부에서
+        exit_node 기준 env를 계산할 때 순환 호출을 피하기 위해 씀).
         """
         G = fn_cfg.graph
-        exit_n = fn_cfg.get_exit_node()
+        exit_n = node if node is not None else self._get_post_exit_node(fn_cfg)
         out = []
         for p in G.predecessors(exit_n):
             ed = G.get_edge_data(p, exit_n, default={})
@@ -1465,20 +1699,32 @@ class GuardianVerificationEngine:
             out.append(p)
         return out
 
-    def _exit_env(self, fn_cfg, *, normal_only: bool = True) -> dict:
+    def _exit_env(self, fn_cfg, *, normal_only: bool = True, node=None) -> dict:
         """
         EXIT 직전의 '변수 환경'을 Helper의 join으로 하나로 만든다.
         ⇒ 이후 expr은 이 env로 한 번만 평가하면 됨.
         """
-        preds = self._preds(fn_cfg, normal_only=normal_only)
+        preds = self._preds(fn_cfg, normal_only=normal_only, node=node)
         if not preds:
-            return VariableEnv.copy_variables(getattr(fn_cfg, "related_variables", {}))
+            # ★ 과거엔 여기서 related_variables(= *선언된* 변수 전체)로 폴백했다.
+            #   그 폴백은 _get_post_exit_node 가 없던 시절 "explicit return 함수의
+            #   EXIT 는 predecessor 가 0개" 를 덮던 응급처치(Initial commit 유래)이고,
+            #   근본 원인은 _get_post_exit_node 가 RETURN 을 고르면서 이미 해결됐다.
+            #   지금 남겨두면 *도달 불가한* exit 를 "선언 초기값 env" 로 덮어써서
+            #   그럴싸한 vacuous verdict 를 만든다 — 조용한 오분석이라 최악이다.
+            #   호출부(_process_exit_node_intents)가 preds 를 먼저 확인해 도달불가로
+            #   처리하므로, 여기 닿으면 그건 진짜 불변식 위반이다. fail-loud.
+            raise RuntimeError(
+                f"_exit_env: no normal predecessor for exit of "
+                f"{getattr(fn_cfg, 'function_name', '?')} "
+                f"(node={getattr(node, 'name', None)}). "
+                f"호출부에서 도달불가를 먼저 걸러야 한다."
+            )
 
         env = VariableEnv.copy_variables(preds[0].variables)
         for p in preds[1:]:
             env = VariableEnv.join_variables_simple(env, p.variables)
         return env
-
     def _eval_on_exit_value(self, expr, fn_cfg, *, normal_only: bool = True):
         """
         pred별로 평가해서 값을 join 하지 말고,

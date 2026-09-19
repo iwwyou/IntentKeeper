@@ -9,11 +9,7 @@ struct Detail {
 }
 
 enum Status {
-    Invalid,
-    Idle,
-    Collaterized,
-    Active,
-    Liquidated
+    Invalid, Idle, Collaterized, Active, Liquidated
 }
 
 interface IMochiVault {

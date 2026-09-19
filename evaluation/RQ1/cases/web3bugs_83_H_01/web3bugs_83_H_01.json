@@ -1,0 +1,230 @@
+[
+  {
+    "code": "pragma solidity ^0.8.11;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "interface IERC20 {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "contract MasterChef is Ownable {\n}",
+    "startLine": 6,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "struct PoolInfo {\n}",
+    "startLine": 9,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "IERC20 depositToken;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint allocPoint;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "uint lastRewardBlock;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint accConcurPerShare;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint16 depositFeeBP;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "PoolInfo[] public poolInfo;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint256) public pid;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "uint public totalAllocPoint = 0;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "function add(address _token, uint _allocationPoints, uint16 _depositFee, uint _startBlock) public onlyOwner {\n}",
+    "startLine": 21,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "require(_token != address(0), \"zero address\");",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "uint lastRewardBlock = block.number > _startBlock ? block.number : _startBlock;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "totalAllocPoint = totalAllocPoint.add(_allocationPoints);",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "require(pid[_token] == 0, \"already registered\");",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "poolInfo.push( PoolInfo({ depositToken: IERC20(_token), allocPoint: _allocationPoints, lastRewardBlock: lastRewardBlock, accConcurPerShare: 0, depositFeeBP: _depositFee }) );",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "pid[_token] = poolInfo.length - 1;",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @Post poolInfo[1].accConcurPerShare(Exit) == poolInfo[1].accConcurPerShare(Entry) + 20000000000000",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _owner = symbolicAddress 1",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar msg.sender = symbolicAddress 1",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _token = symbolicAddress 2",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _allocationPoints = [50, 50]",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _depositFee = [0, 0]",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _startBlock = [200, 200]",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar poolInfo.length = [2, 2]",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar poolInfo[1].allocPoint = [100, 100]",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar poolInfo[1].accConcurPerShare = [0, 0]",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar totalAllocPoint = [100, 100]",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  }
+]

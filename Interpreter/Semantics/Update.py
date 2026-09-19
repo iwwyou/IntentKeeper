@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:                                         # 타입 검사 전용
@@ -20,6 +21,42 @@ class Update :
     @property
     def ev(self):
         return self.an.evaluator
+
+    @staticmethod
+    def _assign_whole_composite(dst, src) -> bool:
+        """
+        `dst`(기존 Array/Struct/MappingVariable)를 `src`와 같은 계열
+        composite로 통짜 재할당(예: `arr = new T[](n)`, `arr[i] = StructLit`,
+        `map[k] = OtherMap`)할 때, dst의 identifier/scope는 유지한 채 실제
+        내부 상태(elements/members/mapping)만 src 것으로 교체한다.
+        (leaf용 `_apply_to_leaf`로 보내면 `.value`에 composite 객체가 통째로
+        얹히고 dst의 원래 내부 상태는 그대로 남아 다음 접근이 깨짐 —
+        web3bugs_35_H_08/35_H_12에서 발견. StructVariable 등은 Variables의
+        서브클래스라서 `isinstance(x, Variables)` 체크만으론 leaf와 구분 안 됨,
+        composite 여부를 먼저 판별해야 함.)
+        반환값: 교체를 수행했으면 True, dst/src 계열이 안 맞아 못 했으면 False.
+
+        ★ src.elements/members/mapping을 그대로 참조 공유하지 않고 deep-copy함
+        (`VariableEnv.copy_single_variable` 재사용) — `b = a;`처럼 두 변수 다
+        계속 살아있는 경우 참조를 공유하면 한쪽을 고치면 다른 쪽도 같이
+        바뀌는 aliasing 버그가 생김(기존 MappingVariable 쪽 struct-entry
+        재할당 코드가 이미 member별 deep-copy를 하던 것과 같은 이유).
+        """
+        if isinstance(dst, ArrayVariable) and isinstance(src, ArrayVariable):
+            dst.typeInfo = copy.deepcopy(src.typeInfo)
+            dst.elements = [VariableEnv.copy_single_variable(e) for e in src.elements]
+            if src.struct_defs:
+                dst.struct_defs = src.struct_defs
+            if src.enum_defs:
+                dst.enum_defs = src.enum_defs
+            return True
+        if isinstance(dst, StructVariable) and isinstance(src, StructVariable):
+            dst.members = VariableEnv.copy_variables(src.members)
+            return True
+        if isinstance(dst, MappingVariable) and isinstance(src, MappingVariable):
+            dst.mapping = VariableEnv.copy_variables(src.mapping)
+            return True
+        return False
 
     def update_left_var(self, expr, rVal, operator, variables, callerObject=None, callerContext=None,
                         log:bool=False, line_no:int=None, top_expr=None):
@@ -59,7 +96,32 @@ class Update :
             return self.update_left_var_of_intent_member_access_context(expr, rVal, operator, variables,
                                                                                   callerObject, callerContext, log)
 
-        elif expr.left is not None and expr.right is not None:
+        # ★ LHS가 튜플 대입(`(a, b, c) = (...)` 혹은 `(a, b, c) = f()`)인 경우 —
+        # 예전엔 이 context를 처리하는 분기 자체가 없어서(elements를 쓰지
+        # left/right를 안 씀) 조용히 return None으로 빠지며 대입 전체가
+        # no-op이었음(web3bugs_52_H_23의 named-return 튜플 대입에서 발견 —
+        # 재해석 로그에 이 줄 자체가 아예 안 찍혔음). rVal(리스트/튜플)과
+        # expr.elements(빈 슬롯은 None, _split_tuple_slots가 채움)를 위치별로
+        # 짝지어 각각 재귀 업데이트.
+        elif expr.context == "TupleExpressionContext":
+            if isinstance(rVal, (list, tuple)):
+                for idx, target in enumerate(expr.elements):
+                    if target is None or idx >= len(rVal):
+                        continue
+                    self.update_left_var(target, rVal[idx], operator, variables,
+                                          None, None, log, line_no, top_expr)
+            return None
+
+        # ★ 위 named-context 어디에도 안 걸리는 인덱스 표현식(예: cast
+        # `uint256(EnumType.Member)`, 단항 `~x` 등) — update_left_var_of_binary_exp_context
+        # 는 이름과 달리 expr.left/right를 전혀 안 쓰고 expr 전체를 그냥
+        # evaluate_expression으로 평가해서 인덱스로 쓰므로, binary expression이
+        # 아니어도 안전하게 재사용 가능. 이전엔 `expr.left/right가 둘 다 있을 때만`
+        # 이 폴백을 태워서 cast 표현식(.expression/.typeName만 있고 .left/.right는
+        # 없음)이 인덱스로 쓰이면 조용히 None을 리턴하고 대입 자체가 사라졌음
+        # (web3bugs_70_H_04, `totalLiquidityWeight[uint256(Paths.VADER)] = ...`에서 발견).
+        elif (expr.left is not None and expr.right is not None) or \
+                (callerObject is not None and callerContext == "IndexAccessContext"):
             return self.update_left_var_of_binary_exp_context(expr, rVal, operator, variables,
                                                               callerObject, callerContext, log)
 
@@ -220,9 +282,9 @@ class Update :
             full_name = f"{expr.base.identifier}.{member}"  # "msg.sender"
 
             if not callerObject.struct_defs or not callerObject.enum_defs:
-                ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                callerObject.struct_defs = ccf.structDefs
-                callerObject.enum_defs = ccf.enumDefs
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
+                callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
             # global var의 실제 값으로 key 결정 (identifier 경로와 동일)
             key = full_name  # fallback
@@ -262,7 +324,7 @@ class Update :
             # ① base expression 이 IndexAccess 면 → index 식에서 키 추출
             key = None
             base_exp = expr.base  # levels[i]   에서   expr.base == IndexAccess
-            if getattr(base_exp, "context", "") == "IndexAccessExpContext":
+            if getattr(base_exp, "context", "") == "IndexAccessContext":
                 idx_exp = base_exp.index
                 # 식별자 인덱스  (levels[i]  →  "i")
                 if getattr(idx_exp, "context", "") == "IdentifierExpContext":
@@ -425,20 +487,36 @@ class Update :
             if idx < 0:
                 raise IndexError(f"Negative index {idx} for array '{caller_object.identifier}'")
 
-            # 동적 배열이면 부족한 요소는 심볼릭으로 padding
+            # 동적 배열이면 부족한 요소는 padding — base type에 맞는 real
+            # element(struct/nested-array/mapping/enum 포함)를 만드는
+            # `_create_new_array_element`를 통해서(struct 등을 무조건 raw
+            # 심볼 문자열로 바텀아웃시키면 그 다음 leaf-업데이트에서
+            # elementaryTypeName=None 크래시남, web3bugs_35_H_08/35_H_12에서 발견)
             while idx >= len(caller_object.elements):
                 caller_object.elements.append(
-                    Variables(
-                        f"{caller_object.identifier}[{len(caller_object.elements)}]",
-                        f"symbol_{caller_object.identifier}_{len(caller_object.elements)}",
-                        scope=caller_object.scope,
-                        typeInfo=caller_object.typeInfo.arrayBaseType,
-                    )
+                    caller_object._create_new_array_element(len(caller_object.elements))
                 )
 
             elem = caller_object.elements[idx]
 
-            # ── (a) leaf 스칼라(elementary / enum) ────────────────────────
+            # ── (a) nested composite (struct/array/map) 먼저 체크 ──────────
+            # (StructVariable/ArrayVariable/MappingVariable 모두 Variables의
+            # 서브클래스라서 순서를 안 바꾸면 아래 leaf 분기가 먼저 걸려버려
+            # composite 원소 통짜 재할당(arr[i] = StructLit)이나 체이닝
+            # (arr[i].field = x)이 전부 깨짐 — web3bugs_35_H_08/35_H_12에서 발견)
+            if isinstance(elem, (ArrayVariable, StructVariable, MappingVariable)):
+                if self._assign_whole_composite(elem, r_val):
+                    if log:
+                        self.an.recorder.record_assignment(
+                            line_no=self.an.current_start_line,
+                            expr=expr,
+                            var_obj=elem,
+                            base_obj=caller_object,
+                        )
+                    return None
+                return elem  # 타입 안 맞음 → 체이닝 계속(예: arr[i].field = x)
+
+            # ── (b) leaf 스칼라(elementary / enum) ────────────────────────
             if isinstance(elem, (Variables, EnumVariable)):
                 if r_val is None:
                     return elem
@@ -455,9 +533,6 @@ class Update :
                     )
                 return None  # 더 내려갈 대상 없음
 
-            # ── (b) nested composite (struct/array/map) ──────────────────
-            if isinstance(elem, (ArrayVariable, StructVariable, MappingVariable)):
-                return elem  # 다음 단계로 체이닝
             return None
 
         # ========================================================================
@@ -465,14 +540,28 @@ class Update :
         # ========================================================================
         if isinstance(caller_object, MappingVariable):
             if not caller_object.struct_defs or not caller_object.enum_defs:
-                ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                caller_object.struct_defs = ccf.structDefs
-                caller_object.enum_defs = ccf.enumDefs
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                caller_object.struct_defs = {**all_structs, **caller_object.struct_defs}
+                caller_object.enum_defs = {**all_enums, **caller_object.enum_defs}
 
             key = lit_str  # 매핑 키는 문자열 그대로
             entry = caller_object.mapping.setdefault(key, caller_object.get_or_create(key))
 
-            # ── (a) leaf 스칼라 ───────────────────────────────────────────
+            # ── (a) nested composite 먼저 체크 (순서 이유는 위 ArrayVariable
+            # 분기 주석 참고 — 같은 이유로 여기도 leaf 체크보다 앞서야 함) ──
+            if isinstance(entry, (ArrayVariable, StructVariable, MappingVariable)):
+                if self._assign_whole_composite(entry, r_val):
+                    if log:
+                        self.an.recorder.record_assignment(
+                            line_no=self.an.current_start_line,
+                            expr=expr,
+                            var_obj=entry,
+                            base_obj=caller_object,
+                        )
+                    return None
+                return entry  # 타입 안 맞음 → 체이닝 계속
+
+            # ── (b) leaf 스칼라 ───────────────────────────────────────────
             if isinstance(entry, (Variables, EnumVariable)):
                 if r_val is None:
                     return entry
@@ -489,9 +578,6 @@ class Update :
                     )
                 return None
 
-            # ── (b) nested composite ────────────────────────────────────
-            if isinstance(entry, (ArrayVariable, StructVariable, MappingVariable)):
-                return entry  # 이어서 내려감
             return None
 
         # ========================================================================
@@ -648,6 +734,17 @@ class Update :
 
             elem = caller_object.elements[idx]
             if isinstance(elem, (StructVariable, ArrayVariable, MappingVariable)):
+                # 통짜 재할당(arr[i] = StructLit 등)이면 내부 상태 교체,
+                # 아니면(체이닝 중) 그대로 반환해 더 내려감
+                if self._assign_whole_composite(elem, r_val):
+                    if log:
+                        self.an.recorder.record_assignment(
+                            line_no=actual_line_no,
+                            expr=top_expr if top_expr is not None else expr,
+                            var_obj=elem,
+                            base_obj=caller_object,
+                        )
+                    return None
                 return elem  # composite – 더 내려감
             _apply_to_leaf(elem, expr)  # leaf 업데이트 + 기록
             return None
@@ -660,6 +757,15 @@ class Update :
                 raise ValueError(f"Struct '{caller_object.identifier}' has no member '{ident}'")
             mem = caller_object.members[ident]
             if isinstance(mem, (StructVariable, ArrayVariable, MappingVariable)):
+                if self._assign_whole_composite(mem, r_val):
+                    if log:
+                        self.an.recorder.record_assignment(
+                            line_no=actual_line_no,
+                            expr=top_expr if top_expr is not None else expr,
+                            var_obj=mem,
+                            base_obj=caller_object,
+                        )
+                    return None
                 return mem
             _apply_to_leaf(mem, expr)  # leaf
             return None
@@ -669,9 +775,9 @@ class Update :
         # ======================================================================
         if isinstance(caller_object, MappingVariable):
             if not caller_object.struct_defs or not caller_object.enum_defs:
-                ccf = self.an.contract_cfgs[self.an.current_target_contract]
-                caller_object.struct_defs = ccf.structDefs
-                caller_object.enum_defs = ccf.enumDefs
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                caller_object.struct_defs = {**all_structs, **caller_object.struct_defs}
+                caller_object.enum_defs = {**all_enums, **caller_object.enum_defs}
 
             # ── (1) ident 가 변수로 선언돼 있을 때 ──────────────────────────
             if ident in variables:
@@ -749,12 +855,33 @@ class Update :
             enum_defs = self.an.contract_cfgs[self.an.current_target_contract].enumDefs
             if ident in enum_defs:
                 return enum_defs[ident]
+            if ident in self.an.library_cfgs:
+                # LibraryName.Member 접근의 base (e.g. Perpetuals.Side.Long) - Evaluation.py의
+                # isLibrary 처리와 동일한 marker를 반환해 이후 .Member 단계가 이어질 수 있게 함
+                return {"isLibrary": True, "libraryName": ident}
             raise ValueError(f"Identifier '{ident}' not declared.")
 
         # 일반 로컬/상태 변수 직접 갱신
         if ident not in variables:
             raise ValueError(f"Variable '{ident}' not declared.")
         tgt = variables[ident]
+
+        # ★ 통짜 재할당: arr = new T[](n) / s = SomeStruct({...}) / m = ... 처럼
+        # tgt가 composite(Array/Struct/Mapping)이고 r_val도 같은 계열 composite면
+        # 아래 `_apply_to_leaf`(스칼라용, `.value`에 통째로 얹어버림)로 보내면
+        # 안 됨 — r_val이 이미 올바르게 구성한 내부 상태(elements/members/mapping)가
+        # 통째로 버려지고 tgt는 예전 상태(예: 선언 시점의 빈 배열) 그대로 남아
+        # 이후 인덱스/멤버 접근이 깨짐(web3bugs_35_H_08/35_H_12에서 발견).
+        if self._assign_whole_composite(tgt, r_val):
+            if log:
+                self.an.recorder.record_assignment(
+                    line_no=actual_line_no,
+                    expr=top_expr if top_expr is not None else expr,
+                    var_obj=tgt,
+                    base_obj=caller_object,
+                )
+            return None
+
         if not isinstance(tgt, (Variables, EnumVariable)):
             raise ValueError(f"Assignment to non-scalar '{ident}' requires member/index access.")
         if r_val is None:

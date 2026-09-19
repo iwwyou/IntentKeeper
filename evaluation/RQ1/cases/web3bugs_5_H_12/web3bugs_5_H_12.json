@@ -230,13 +230,13 @@
     "event": "add"
   },
   {
-    "code": "// @StateVar mapToken_tokenAmount[1] = [100, 100]",
+    "code": "// @StateVar mapToken_tokenAmount[_token] = [100, 100]",
     "startLine": 28,
     "endLine": 28,
     "event": "add"
   },
   {
-    "code": "// @StateVar mapToken_tokenAmount[2] = [50, 50]",
+    "code": "// @StateVar mapToken_tokenAmount[_pool] = [50, 50]",
     "startLine": 29,
     "endLine": 29,
     "event": "add"

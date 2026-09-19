@@ -179,6 +179,22 @@ class IntentItem:
 
 
 @dataclass
+class FunctionOutline:
+    """소스에 실제로 존재하는 디버그 가능한 함수 하나.
+
+    프론트 함수 목록이 `mock/workspace.json` 에 고정돼 있어 사용자가 자기 .sol 을 열어도
+    mock 의 함수가 뜨던 문제(§A ①)를 없애기 위한 계약. `frontend/src/state/store.ts`
+    의 `FunctionMeta` 와 1:1 (name / contract / startLine / source) + endLine·signature.
+    """
+    contract: str
+    name: str
+    signature: str          # 예: "(uint256)" — 오버로딩 구분용(프론트는 아직 미사용)
+    startLine: int          # `function f(...) ... {` 선언 라인 (컨트랙트-절대)
+    endLine: int            # 닫는 `}` 라인
+    source: str             # 선언~닫는 괄호까지 원문
+
+
+@dataclass
 class Scope:
     contract: str
     function: str
@@ -277,6 +293,38 @@ def _serialize_node_state(n, recorder) -> dict[str, str]:
     return {k: ("⊥" if v == "[None,None]" else v) for k, v in flat.items()}
 
 
+def _back_edges(fcfg) -> set:
+    """dominator 기반 back edge 집합 {(u, v)}.
+
+    (u, v) 가 back edge  ⟺  v 가 u 를 지배(dominate)한다.
+    = 자연 루프(natural loop)의 retreating edge 정의 그대로. 엔진 flag
+    (`fixpoint_evaluation_node` 등)에 기대지 않으므로 while/for/do-while/중첩을
+    구분 없이 잡고, 플래그가 빠진 구조가 생겨도 깨지지 않는다.
+
+    왜 필요한가: 프론트 `useNavigation` 은 이미 `kind !== 'back_edge'` 로 거르는데
+    (`pred()` = backward, applyTick 의 `succOf()` = run-to-breakpoint) 라벨이 한 번도
+    붙은 적이 없어 **필터가 무효**였다. decision #4 의 "back-edge 는 fixpoint 내부로
+    흡수되어 navigation 에 노출 안 됨" 이 실제로는 안 지켜지고 있었다.
+    """
+    import networkx as nx
+    G = fcfg.graph
+    entry = fcfg.entry_node
+    # entry 에서 도달 못 하는 노드는 idom 에 없다 → 아래 walk 가 즉시 False 로 빠짐.
+    idom = nx.immediate_dominators(G, entry)
+    back = set()
+    for u, v in G.edges():
+        cur = u
+        while True:
+            if cur is v:               # v 가 u 의 dominator 체인에 있음 = v dom u
+                back.add((u, v))
+                break
+            nxt = idom.get(cur)
+            if nxt is None or nxt is cur:   # 루트 도달 or 미지배 노드
+                break
+            cur = nxt
+    return back
+
+
 def _serialize_cfg(fcfg, recorder, with_states: bool) -> CFG:
     """엔진 FunctionCFG(graph=networkx DiGraph, 노드=CFGNode) → 프론트 CFG.
     with_states=False 면 state={} (analyze 구조 단계). True 면 추상상태 채움(evaluate)."""
@@ -293,11 +341,16 @@ def _serialize_cfg(fcfg, recorder, with_states: bool) -> CFG:
             state=_serialize_node_state(n, recorder) if with_states else {},
             join_from=join_from,
         ))
+    back = _back_edges(fcfg)
     edges: list[CFGEdge] = []
     for u, v, data in fcfg.graph.edges(data=True):
         cond = data.get("condition", None)
-        kind: EdgeKind = "true" if cond is True else "false" if cond is False else "normal"
-        # TODO(back_edge): loop back-edge 라벨링 — fixpoint 노드 입력엣지 판별 후속.
+        # back_edge 가 true/false 보다 우선한다 — 프론트가 이 라벨로 navigation 에서
+        # 엣지를 제외하기 때문(분기 표시보다 "여긴 되돌아가는 길" 이 더 중요).
+        if (u, v) in back:
+            kind: EdgeKind = "back_edge"
+        else:
+            kind = "true" if cond is True else "false" if cond is False else "normal"
         edges.append(CFGEdge(from_=u.name, to=v.name, kind=kind))
     ret = getattr(fcfg, "return_exit", None)
     err = getattr(fcfg, "error_exit", None)
@@ -712,10 +765,39 @@ def _find_dep_pkl(name: str):
     return None
 
 
+def _scan_file_level_defs_into(sa) -> None:
+    """의존성 .sol 을 regex 스캔해 type alias + file-level enum 을 sa 에 채운다.
+
+    file-level enum(컨트랙트/인터페이스 밖 최상위 enum)은 pkl 에 구워져 있지 않다 —
+    오프라인 빌드(`EnhancedSolidityVisitor.visitEnumDefinition`)가 file-level 케이스를
+    추적하지 않기 때문. main.py 의 load_dependencies() 가 CLI 경로에서 하는 것과 같은
+    보완을 서버 경로(EngineSession)에도 적용해 두 경로의 동작을 일치시킨다.
+    """
+    import pathlib as _pl, re as _re
+    base = _pl.Path(__file__).parent
+    _type_re = _re.compile(r'type\s+(\w+)\s+is\s+(\w+)\s*;')
+    _enum_re = _re.compile(r'enum\s+(\w+)\s*\{([^}]*)\}', _re.DOTALL)
+    for d in (base / "Dependencies" / "libraries",
+              base / "Dependencies" / "contracts",
+              base / "Dependencies" / "interfaces",
+              base / "Libraries"):
+        if not d.exists():
+            continue
+        for sol in d.rglob("*.sol"):
+            text = sol.read_text(encoding="utf-8", errors="ignore")
+            for alias, underlying in _type_re.findall(text):
+                sa.type_aliases.setdefault(alias, underlying)
+            for enum_name, body in _enum_re.findall(text):
+                members = [m.strip() for m in body.split(",") if m.strip()]
+                if members:
+                    sa.file_level_enums.setdefault(enum_name, members)
+
+
 def _load_dependencies_into(sa, ca, deps: list[DepSpec]) -> None:
     """명시된 deps 를 objectfile pkl 에서 로드 → ca.contract_cfgs/library_cfgs/interface_names.
     fail-loud: pkl 없으면 FileNotFoundError(조용한 스킵 없음)."""
     import pickle
+    _scan_file_level_defs_into(sa)
     for spec in deps:
         pkl = _find_dep_pkl(spec.name)
         if pkl is None:
@@ -985,6 +1067,87 @@ class EngineSession:
                                     interface_names=getattr(self._ca, "interface_names", None))
         self._slots = {s.key: s for s in slots}
         return Structure(scope=self._scope, cfg=cfg, debug_slots=slots, diagnostics=diags)
+
+    # ── 함수 목록(아웃라인) ────────────────────────────────────────────────
+    def _function_span(self, fcfg) -> Optional[tuple[int, int]]:
+        """함수의 `function ... {` 선언 라인 ~ 닫는 `}` 라인.
+
+        시작 = entry 노드가 등록된 라인(`line_info[ln]["cfg_nodes"]`).
+        끝   = **실제 소스 텍스트의 중괄호 균형**으로 찾는다.
+
+        ★ `line_info` 의 open/close 카운트를 쓰면 안 된다: slice 가 `} else {` 의 닫는
+          괄호를 `closeBefore` 로 소비해 **어느 라인에도 close 로 기록되지 않는다**
+          (실측: `else {` 라인이 open=1, close=0). 그래서 balance 가 1씩 부풀어
+          함수 끝을 지나쳐 다음 함수까지 삼켰다. full_code_lines 원문을 세면 정확하다.
+
+        ★★ `full_code_lines` 도 그냥 세면 안 된다: 엔진이 저장하는 건 **정규화된** 텍스트라
+          `} else {` 가 `else {` 로 들어있다(닫는 괄호는 record 의 `closeBefore` 로 이동).
+          그래서 `closeBefore=True` 인 record 의 startLine 마다 close 1개를 되돌려준다.
+
+        한계: 문자열 리터럴·블록 주석 안의 중괄호는 구분하지 않는다(라인 주석은 제거).
+              아웃라인 용도라 허용 가능하며, 어긋나도 최대 span 으로 폴백한다.
+        """
+        li = self._sa.line_info or {}
+        entry = fcfg.entry_node
+        start = None
+        for ln, info in li.items():
+            if entry in (info.get("cfg_nodes") or []):
+                start = ln
+                break
+        if start is None:
+            return None
+        lines = self._sa.full_code_lines or {}
+        # slice 가 삼킨 닫는 괄호를 라인별로 복원 (`} else {`, `} while`, `} catch` 등)
+        close_before = {}
+        for r in self._prev_records:
+            if r.get("closeBefore"):
+                ln0 = r.get("startLine")
+                if ln0 is not None:
+                    close_before[ln0] = close_before.get(ln0, 0) + 1
+        max_ln = max(lines.keys()) if lines else start
+        bal = 0
+        opened = False
+        for ln in range(start, max_ln + 1):
+            text = lines.get(ln, "").split("//", 1)[0]   # 라인 주석 제거
+            bal += text.count("{") - text.count("}") - close_before.get(ln, 0)
+            if bal > 0:
+                opened = True
+            elif opened:
+                return (start, ln)
+        return (start, max_ln)
+
+    def outline(self) -> list[FunctionOutline]:
+        """이 소스에 있는 디버그 가능한 함수 전체를 열거.
+
+        `analyze` 는 스코프와 무관하게 record 를 전부 적용하므로(스코프는 `structure()`
+        에서만 쓰인다) 세션 하나로 모든 컨트랙트·함수를 열거할 수 있다.
+
+        제외: ① interface 컨트랙트의 함수(본문이 없어 디버그 대상 아님)
+              ② 본문 노드가 없는 함수(선언만 있는 경우)
+        오버로딩: 프론트 세션 키가 "contract.func" 라 이름당 하나만 낸다(첫 시그니처).
+        """
+        out: list[FunctionOutline] = []
+        iface = set(getattr(self._ca, "interface_names", None) or ())
+        lines = self._sa.full_code_lines or {}
+        for cname, ccf in (self._ca.contract_cfgs or {}).items():
+            if cname in iface:
+                continue
+            for fname, subs in (getattr(ccf, "functions", {}) or {}).items():
+                for sig, fcfg in subs.items():
+                    body = [n for n in fcfg.graph.nodes()
+                            if getattr(n, "src_line", None) is not None]
+                    if not body:
+                        continue
+                    span = self._function_span(fcfg)
+                    if span is None:
+                        continue
+                    lo, hi = span
+                    src = "\n".join(lines.get(ln, "") for ln in range(lo, hi + 1))
+                    out.append(FunctionOutline(contract=cname, name=fname, signature=sig,
+                                               startLine=lo, endLine=hi, source=src))
+                    break  # 이름당 첫 시그니처만
+        out.sort(key=lambda f: (f.contract, f.startLine))
+        return out
 
     # ── B1 증분 편집 (§5.6 5단계) ───────────────────────────────────────────
     def update(self, new_source: str,

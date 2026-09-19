@@ -9,6 +9,7 @@ from Analyzer.EnhancedSolidityVisitor import READONLY_MEMBERS, READONLY_GLOBAL_B
 from Domain.Interval import *
 from Domain.Variable import Variables
 from Domain.IR import Expression
+from Domain.AddressSet import AddressSet
 from Utils.Helper import VariableEnv
 
 
@@ -156,7 +157,7 @@ class Refine:
             'TypeConversionContext',
         })
 
-        def _has_non_lvalue_in_chain(e):
+        def _has_non_lvalue_in_chain(e, variables):
             """expression의 base chain에 refine 불가능한 context가 있는지 확인"""
             while e is not None:
                 ctx = getattr(e, 'context', '')
@@ -167,18 +168,40 @@ class Refine:
                 if op in ('+', '-', '*', '/', '%', '**', '&&', '||', '!',
                           '<<', '>>', '&', '|', '^', '~'):
                     return True
+                # `EnumType.Member`(예: `Status.Invalid`) 또는 qualified library
+                # 상수(예: `TickMath.MIN_TICK`) — base가 실제 변수가 아니라
+                # enum 타입 이름이나 라이브러리 이름 자체를 가리키는
+                # MemberAccessContext는 상수 리터럴이지 narrow 가능한 lvalue가
+                # 아님(enum 쪽은 web3bugs_42_H_01, `details[_id].status !=
+                # Status.Invalid`에서 발견; 라이브러리 쪽은 web3bugs_35_H_08/
+                # 35_H_12 재검증 중 `Ticks.sol`의 `lower == TickMath.MIN_TICK`
+                # 에서 발견 — 둘 다 base를 변수로 착각해 `update_left_var`가
+                # 죽던 같은 계열 문제, 라이브러리 쪽은 base_obj가 `{"isLibrary":
+                # True, ...}` dict라서 에러 메시지 조립조차 실패하며 크래시함).
+                # base 식별자가 `variables`에 없고 알려진 enum 타입 이름 또는
+                # 라이브러리 이름과 일치하면 상수로 판정.
+                if ctx == 'MemberAccessContext':
+                    base = getattr(e, 'base', None)
+                    if (base is not None
+                            and getattr(base, 'context', '') == 'IdentifierExpContext'
+                            and getattr(base, 'identifier', None)
+                            and base.identifier not in variables
+                            and (self.ev._find_enum_in_chain(base.identifier)
+                                 or base.identifier in getattr(self.an.sa, 'file_level_enums', {})
+                                 or base.identifier in self.an.library_cfgs)):
+                        return True
                 e = getattr(e, 'base', None)
             return False
 
         def _maybe_update(expr, variables, new_iv):
             if self._is_read_only_expr(expr, variables):
                 return  # read-only → 변수 상태 수정 X
-            if _has_non_lvalue_in_chain(expr):
+            if _has_non_lvalue_in_chain(expr, variables):
                 return  # non-l-value → narrowing 대상 아님
 
             # ★ Update.py의 전략 적용: 매핑/배열 접근에서 심볼릭 인덱스 처리
             # IndexAccessContext일 때 인덱스가 interval인지 확인
-            if getattr(expr, "context", "") == "IndexAccessExpContext":
+            if getattr(expr, "context", "") == "IndexAccessContext":
                 idx_expr = expr.index
                 if getattr(idx_expr, "context", "") == "IdentifierExpContext":
                     idx_name = idx_expr.identifier
@@ -197,7 +220,7 @@ class Refine:
             # MemberAccessContext에서 base가 IndexAccess이고 심볼릭 인덱스인 경우
             if getattr(expr, "context", "") == "MemberAccessContext":
                 base_expr = expr.base
-                if getattr(base_expr, "context", "") == "IndexAccessExpContext":
+                if getattr(base_expr, "context", "") == "IndexAccessContext":
                     idx_expr = base_expr.index
                     if getattr(idx_expr, "context", "") == "IdentifierExpContext":
                         idx_name = idx_expr.identifier
@@ -214,7 +237,7 @@ class Refine:
             try:
                 self.up.update_left_var(expr, new_iv, '=', variables, None, None, False)
             except ValueError as e:
-                # 매핑 키를 resolve할 수 없는 경우 등은 조용히 무시
+                # 매핑 키를 resolve할 수 없는 경우는 조용히 무시
                 if "Cannot resolve mapping key" in str(e):
                     return
                 raise
@@ -288,6 +311,59 @@ class Refine:
             _maybe_update(left_expr, variables, new_l)  # ★ 변경
             _maybe_update(right_expr, variables, new_r)  # ★ 변경
             return
+
+        # ───────── CASE 5 : AddressSet 비교 (==/!=) ─────────────
+        # VariableEnv.is_interval()이 AddressSet을 명시적으로 제외해서 CASE 1-4
+        # 어디에도 안 걸림 — address 타입끼리의 ==/!= 비교는 이 narrowing이
+        # 추가되기 전까지 코드베이스 전체에서 단 한 번도 분기 narrowing이
+        # 안 됐음(web3bugs_29_H_11에서 발견).
+        if isinstance(left_val, AddressSet) or isinstance(right_val, AddressSet):
+            if not isinstance(left_val, AddressSet):
+                left_val = self._coerce_literal_to_addressset(left_val)
+            if not isinstance(right_val, AddressSet):
+                right_val = self._coerce_literal_to_addressset(right_val)
+            if left_val is None or right_val is None:
+                return  # 리터럴을 address로 못 바꾸면 narrowing 포기(안전)
+
+            if actual_op == '==':
+                new_l = new_r = left_val.meet(right_val)
+                _maybe_update(left_expr, variables, new_l)
+                _maybe_update(right_expr, variables, new_r)
+            elif actual_op == '!=':
+                new_l, new_r = left_val, right_val
+                if left_val.is_singleton() and right_val.is_singleton() and \
+                        left_val.get_singleton_id() == right_val.get_singleton_id():
+                    # 동일 singleton이면 모순 → bottom
+                    new_l = new_r = AddressSet.bot()
+                else:
+                    if right_val.is_singleton() and not left_val.is_top:
+                        remaining = left_val.ids - right_val.ids
+                        new_l = AddressSet(remaining)
+                    if left_val.is_singleton() and not right_val.is_top:
+                        remaining = right_val.ids - left_val.ids
+                        new_r = AddressSet(remaining)
+                _maybe_update(left_expr, variables, new_l)
+                _maybe_update(right_expr, variables, new_r)
+            return
+
+    def _coerce_literal_to_addressset(self, lit) -> "AddressSet | None":
+        """address 비교의 반대편이 AddressSet이 아닐 때(정수 0/hex 문자열 등)
+        가능하면 AddressSet으로 변환. 변환 불가면 None(narrowing 포기 신호)."""
+        if isinstance(lit, AddressSet):
+            return lit
+        if isinstance(lit, (int, float)):
+            return AddressSet(ids={int(lit)})
+        if isinstance(lit, str):
+            txt = lit
+            if txt.lower().startswith("0x") and all(c in "0123456789abcdef" for c in txt[2:].lower()):
+                return AddressSet(ids={int(txt, 16)})
+            try:
+                return AddressSet(ids={int(txt, 0)})
+            except ValueError:
+                return None
+        if VariableEnv.is_interval(lit) and lit.min_value == lit.max_value:
+            return AddressSet(ids={lit.min_value})
+        return None
 
     def refine_intervals_for_comparison(
             self,

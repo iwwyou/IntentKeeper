@@ -611,24 +611,6 @@ class SolidityListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by SolidityParser#DuringBeforeAfter.
-    def enterDuringBeforeAfter(self, ctx:SolidityParser.DuringBeforeAfterContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#DuringBeforeAfter.
-    def exitDuringBeforeAfter(self, ctx:SolidityParser.DuringBeforeAfterContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#DuringAssignCurrent.
-    def enterDuringAssignCurrent(self, ctx:SolidityParser.DuringAssignCurrentContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#DuringAssignCurrent.
-    def exitDuringAssignCurrent(self, ctx:SolidityParser.DuringAssignCurrentContext):
-        pass
-
-
     # Enter a parse tree produced by SolidityParser#DuringFeasible.
     def enterDuringFeasible(self, ctx:SolidityParser.DuringFeasibleContext):
         pass
@@ -662,15 +644,6 @@ class SolidityListener(ParseTreeListener):
 
     # Exit a parse tree produced by SolidityParser#postIntent.
     def exitPostIntent(self, ctx:SolidityParser.PostIntentContext):
-        pass
-
-
-    # Enter a parse tree produced by SolidityParser#PostEntryExit.
-    def enterPostEntryExit(self, ctx:SolidityParser.PostEntryExitContext):
-        pass
-
-    # Exit a parse tree produced by SolidityParser#PostEntryExit.
-    def exitPostEntryExit(self, ctx:SolidityParser.PostEntryExitContext):
         pass
 
 
@@ -932,6 +905,51 @@ class SolidityListener(ParseTreeListener):
 
     # Exit a parse tree produced by SolidityParser#InlineInterval.
     def exitInlineInterval(self, ctx:SolidityParser.InlineIntervalContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#VarRefAtEntry.
+    def enterVarRefAtEntry(self, ctx:SolidityParser.VarRefAtEntryContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#VarRefAtEntry.
+    def exitVarRefAtEntry(self, ctx:SolidityParser.VarRefAtEntryContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#VarRefAtExit.
+    def enterVarRefAtExit(self, ctx:SolidityParser.VarRefAtExitContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#VarRefAtExit.
+    def exitVarRefAtExit(self, ctx:SolidityParser.VarRefAtExitContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#VarRefAtBefore.
+    def enterVarRefAtBefore(self, ctx:SolidityParser.VarRefAtBeforeContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#VarRefAtBefore.
+    def exitVarRefAtBefore(self, ctx:SolidityParser.VarRefAtBeforeContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#VarRefAtAfter.
+    def enterVarRefAtAfter(self, ctx:SolidityParser.VarRefAtAfterContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#VarRefAtAfter.
+    def exitVarRefAtAfter(self, ctx:SolidityParser.VarRefAtAfterContext):
+        pass
+
+
+    # Enter a parse tree produced by SolidityParser#VarRefAtAssign.
+    def enterVarRefAtAssign(self, ctx:SolidityParser.VarRefAtAssignContext):
+        pass
+
+    # Exit a parse tree produced by SolidityParser#VarRefAtAssign.
+    def exitVarRefAtAssign(self, ctx:SolidityParser.VarRefAtAssignContext):
         pass
 
 

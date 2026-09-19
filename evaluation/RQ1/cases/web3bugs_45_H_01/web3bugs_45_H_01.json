@@ -1173,27 +1173,9 @@
     "event": "add"
   },
   {
-    "code": "// @During borrowIndex(Before < After)",
-    "startLine": 219,
-    "endLine": 219,
-    "event": "add"
-  },
-  {
-    "code": "// @During borrowIndex(Before < After)",
-    "startLine": 222,
-    "endLine": 222,
-    "event": "add"
-  },
-  {
-    "code": "// @During borrowIndex(Before < After)",
-    "startLine": 225,
-    "endLine": 225,
-    "event": "add"
-  },
-  {
-    "code": "// @During borrowIndex(Before < After)",
-    "startLine": 232,
-    "endLine": 232,
+    "code": "// @Post borrowIndex(Entry) < borrowIndex(Exit)",
+    "startLine": 236,
+    "endLine": 236,
     "event": "add"
   },
   {
@@ -1204,98 +1186,104 @@
   },
   {
     "code": "// @LocalVar amount = [1000000000000000001, 1000000000000000001]",
-    "startLine": 197,
-    "endLine": 197,
-    "event": "add"
-  },
-  {
-    "code": "// @StateVar minBorrow = [2, 2]",
     "startLine": 198,
     "endLine": 198,
     "event": "add"
   },
   {
-    "code": "// @StateVar debtCeiling = [1000000000000000002, 1000000000000000002]",
+    "code": "// @GlobalVar msg.sender = symbolicAddress 101",
     "startLine": 199,
     "endLine": 199,
     "event": "add"
   },
   {
-    "code": "// @StateVar totalBorrows = [0, 0]",
+    "code": "// @StateVar minBorrow = [2, 2]",
     "startLine": 200,
     "endLine": 200,
     "event": "add"
   },
   {
-    "code": "// @StateVar originationFee = [1000000000000001, 1000000000000001]",
+    "code": "// @StateVar debtCeiling = [1000000000000000002, 1000000000000000002]",
     "startLine": 201,
     "endLine": 201,
     "event": "add"
   },
   {
-    "code": "// @StateVar WAD = [1000000000000000000, 1000000000000000000]",
+    "code": "// @StateVar totalBorrows = [0, 0]",
     "startLine": 202,
     "endLine": 202,
     "event": "add"
   },
   {
-    "code": "// @StateVar accountBorrows[msg.sender].principal = [1000000000000000001, 1000000000000000001]",
+    "code": "// @StateVar originationFee = [1000000000000001, 1000000000000001]",
     "startLine": 203,
     "endLine": 203,
     "event": "add"
   },
   {
-    "code": "// @StateVar accrualBlockNumber = [1, 1]",
+    "code": "// @StateVar WAD = [1000000000000000000, 1000000000000000000]",
     "startLine": 204,
     "endLine": 204,
     "event": "add"
   },
   {
-    "code": "// @StateVar borrowIndex = [1000000000000000001, 1000000000000000001]",
+    "code": "// @StateVar accountBorrows[msg.sender].principal = [1000000000000000001, 1000000000000000001]",
     "startLine": 205,
     "endLine": 205,
     "event": "add"
   },
   {
-    "code": "// @StateVar accountBorrows[msg.sender].interest = [1, 1]",
+    "code": "// @StateVar accrualBlockNumber = [1, 1]",
     "startLine": 206,
     "endLine": 206,
     "event": "add"
   },
   {
-    "code": "// @StateVar accountBorrows[msg.sender].interestIndex = [1000000000000000001, 1000000000000000001]",
+    "code": "// @StateVar borrowIndex = [1000000000000000001, 1000000000000000001]",
     "startLine": 207,
     "endLine": 207,
     "event": "add"
   },
   {
-    "code": "// @StateVar accountBorrows[msg.sender].lastRepay = [1, 1]",
+    "code": "// @StateVar accountBorrows[msg.sender].interest = [1, 1]",
     "startLine": 208,
     "endLine": 208,
     "event": "add"
   },
   {
-    "code": "// @StateVar maxBorrow = [2001005000000000005, 2001005000000000005]",
+    "code": "// @StateVar accountBorrows[msg.sender].interestIndex = [1000000000000000001, 1000000000000000001]",
     "startLine": 209,
     "endLine": 209,
     "event": "add"
   },
   {
-    "code": "// @StateVar overdueBlocks = [2, 2]",
+    "code": "// @StateVar accountBorrows[msg.sender].lastRepay = [1, 1]",
     "startLine": 210,
     "endLine": 210,
     "event": "add"
   },
   {
-    "code": "// @GlobalVar block.number = [2, 2]",
+    "code": "// @StateVar maxBorrow = [2001005000000000005, 2001005000000000005]",
     "startLine": 211,
     "endLine": 211,
     "event": "add"
   },
   {
-    "code": "// @Debugging END",
+    "code": "// @StateVar overdueBlocks = [2, 2]",
     "startLine": 212,
     "endLine": 212,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar block.number = [2, 2]",
+    "startLine": 213,
+    "endLine": 213,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 214,
+    "endLine": 214,
     "event": "add"
   }
 ]
