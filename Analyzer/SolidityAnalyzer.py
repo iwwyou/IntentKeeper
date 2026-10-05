@@ -27,11 +27,13 @@ class SolidityAnalyzer:
         # ── File-level definitions ─────────────────────────────
         self.file_level_structs = {}    # {"StructName": {field_name: SolType, ...}}
         self.file_level_enums = {}      # {"EnumName": ["Member0", "Member1", ...]} — contract/
-                                        # interface 밖 파일 최상위 enum. pkl 에 구워져 있지
-                                        # 않아(오프라인 빌드가 enum 을 추적 안 함) type_aliases
-                                        # 와 같은 regex 사전-스캔으로 채운다.
+                                        # interface 밖 파일 최상위 enum.
+                                        # ★ 배치 경로(Dependencies/main.py Phase 0)는 regex 로
+                                        #   미리 스캔해 채우고, 에디터 경로는 아래 file-level
+                                        #   처리(process_file_level_enum_*)가 채운다.
         self.type_aliases = {}          # {"TypeName": "underlyingElementaryType"}
         self._current_file_struct = None  # 현재 열린 file-level struct 이름
+        self._current_file_enum = None    # 현재 열린 file-level enum 이름
 
         # ── ContractAnalyzer 생성 (self 참조 전달) ──────────────
         from Analyzer.ContractAnalyzer import ContractAnalyzer
@@ -284,9 +286,12 @@ class SolidityAnalyzer:
             self.contract_analyzer.analyze_context(start_line, code)
             return
 
-        # assembly 내부 감지: parent가 assembly이면 context를 "assembly"로 설정
-        parent = self.contract_analyzer.find_parent_context(start_line)
-        if parent == "assembly":
+        # assembly 내부 감지: assembly 블록 안이면 context를 "assembly"로 설정
+        # ★ F40: 예전엔 `find_parent_context(...) == "assembly"` 즉 **직근 부모**만 봤다.
+        #   그래서 `if iszero(...) {` / `case 32 {` 같은 **중첩 Yul 블록** 안의 줄은
+        #   부모가 "if"/"case" 라 검사를 통과하지 못하고 **Solidity 파서로** 갔다
+        #   (`[ANTLR]` 12건 중 8건). `is_inside_assembly` 는 괄호 체인을 위로 걸어올라간다.
+        if self.contract_analyzer.is_inside_assembly(start_line):
             ca = self.contract_analyzer
             ca.current_context_type = "assembly"
             ca.current_target_contract = ca.find_contract_context(start_line)
@@ -338,6 +343,30 @@ class SolidityAnalyzer:
                 ca.current_target_struct = ca.find_struct_context(start_line)
                 return True
 
+        # enum definition header: enum X {
+        # ★ struct 와 대칭. 이 분기가 없어서 파일 최상위 enum 이 CA 로 위임됐고,
+        #   CA 는 "contract 를 못 찾았다" 며 raise → 그 예외로 analyze_context 가 중단되는
+        #   바람에 current_context_type 이 "enum" 인 채로 남아, 드라이버가 그대로 파싱·visit
+        #   하다 process_enum_definition 의 contract_cfgs.get(None) 에서 또 터졌다
+        #   (IMochiProfile / IMochiVault, 파일당 2건 × 2종 = 8건).
+        if stripped.startswith("enum ") and "{" in stripped:
+            ca.current_context_type = "fileLevelEnum"
+            ca.current_target_contract = None
+            ca.current_target_function = None
+            ca.current_target_struct = None
+            return True
+
+        # enum member (inside file-level enum)
+        # ★ struct member 와 달리 `;` 로 끝나지 않는다(`Invalid, Stable, Alpha`). 그래서
+        #   종결자 대신 "열린 file-level enum 이 있고 부모 블록이 enum 인가" 로 판정한다.
+        if self._current_file_enum is not None and not stripped.startswith("}"):
+            if ca.find_parent_context(start_line) == "enum":
+                ca.current_context_type = "fileLevelEnumMember"
+                ca.current_target_contract = None
+                ca.current_target_function = None
+                ca.current_target_struct = None
+                return True
+
         return False  # SA가 처리하지 못함 → CA에 위임
 
     # =================================================================
@@ -358,6 +387,22 @@ class SolidityAnalyzer:
     def end_file_level_struct(self):
         """file-level struct 정의 종료"""
         self._current_file_struct = None
+
+    def process_file_level_enum_definition(self, enum_name: str):
+        """file-level enum 정의 시작 (contract level 의 EnumDefinition 과 달리
+        여기서는 **멤버 이름 리스트**로 보관한다 — `file_level_enums` 의 기존 형식이
+        `{"EnumName": ["Member0", ...]}` 이고 Evaluation/Visitor 소비부가 그걸 전제한다)."""
+        self._current_file_enum = enum_name
+        self.file_level_enums[enum_name] = []
+
+    def process_file_level_enum_item(self, items: list[str]):
+        """file-level enum 멤버 추가 (선언 순서 = 값)"""
+        if self._current_file_enum and self._current_file_enum in self.file_level_enums:
+            self.file_level_enums[self._current_file_enum].extend(items)
+
+    def end_file_level_enum(self):
+        """file-level enum 정의 종료"""
+        self._current_file_enum = None
 
     def process_type_alias(self, alias_name: str, underlying_type: str):
         """user-defined value type alias 등록 (e.g., type Fixed18 is int256)"""

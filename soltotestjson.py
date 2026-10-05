@@ -12,6 +12,51 @@ _one_liner = re.compile(r";\s*$")          # … ;
 _only_clo  = re.compile(r"^\s*}\s*$")      # }
 _comment   = re.compile(r"^\s*//")          # // 주석
 
+
+def _paren_depth(text: str) -> int:
+    """문자열 리터럴을 건너뛰며 `(` `)` 깊이를 센다 (텍스트 끝 시점)."""
+    d = 0
+    i = 0
+    n = len(text)
+    q = None
+    while i < n:
+        c = text[i]
+        if q:
+            if c == "\\":
+                i += 2
+                continue
+            if c == q:
+                q = None
+        elif c == '"' or c == "'":
+            q = c
+        elif c == "(":
+            d += 1
+        elif c == ")":
+            d -= 1
+        i += 1
+    return d
+
+
+def _brace_opens_block(text: str) -> bool:
+    """`{` 로 끝나는 텍스트에서 그 `{` 가 **블록**을 여는가(True), 아니면
+    **식(expression) 중괄호**인가(False).
+
+    ★ F30 (Dependencies/main.py 와 동일 수정). `_open_blk` 는 "`{` 로 끝나면 블록 헤더"
+      로만 판정했는데, Solidity 의 named struct literal 은 `(` **안에** `{` 가 온다:
+      ```solidity
+      res = FloatStruct({
+          numerator : a.numerator * b.denominator,
+      });
+      ```
+      이걸 블록 헤더로 보면 **가짜 `}`** 를 붙여 문장을 두 동강 낸다.
+      판정: 그 `{` 시점에 **괄호가 열려 있으면** 식 중괄호다.
+
+      전수 검증(Dependencies + RQ1 + Dataset): `{` 로 끝나는 줄 46,214개 중 괄호가
+      열린 채인 것 189개 — 186개가 전부 struct 리터럴, 나머지 3개는 **소스 자체의
+      문법 오류**(닫는 괄호 누락). 오탐 0.
+    """
+    return _paren_depth(text) <= 0
+
 def slice_solidity(source: str) -> List[Dict[str, str | int]]:
     """
     (1) 세미콜론 한 줄
@@ -68,7 +113,8 @@ def slice_solidity(source: str) -> List[Dict[str, str | int]]:
             continue
 
         # 3) '{' 로 끝나는 헤더 줄  ──────────────────────────────
-        if _open_blk.search(txt):
+        #    ★ F30: 식 중괄호(named struct literal)는 제외 — _brace_opens_block 주석 참고
+        if _open_blk.search(txt) and _brace_opens_block(txt):
             block_code = f"{txt}\n}}"                    # header + 가짜 닫는 괄호
             rec = {
                 "code":      block_code,
@@ -118,7 +164,9 @@ def slice_solidity(source: str) -> List[Dict[str, str | int]]:
                 break
 
             # '{' 로 끝나면 → 블록 헤더로 처리 (body는 별도 레코드)
-            if _open_blk.search(next_txt):
+            #    ★ F30: **누적 텍스트** 기준으로 식 중괄호를 배제한다
+            #      (`foo(` ⏎ `Bar({` 처럼 중첩되면 그 줄만 봐선 깊이를 알 수 없다)
+            if _open_blk.search(next_txt) and _brace_opens_block(" ".join(accumulated)):
                 found_block_header = True
                 break
 

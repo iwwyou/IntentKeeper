@@ -5,7 +5,7 @@ import { registerSolidity } from '../editor/solidity'
 import { useStore, keyOf } from '../state/store'
 import type { AnalysisResult } from '../types/result'
 import type { NavState } from './useNavigation'
-import { canBreakpointOnLine } from './useNavigation'
+import { canBreakpointOnLine, isLineUnreachable } from './useNavigation'
 
 interface Props {
   source: string // 함수-로컬 소스 (에디터 내부 라인 1 = 함수 첫 줄)
@@ -27,8 +27,6 @@ export default function CodePane({ source, nav, result, startLine }: Props) {
 
   // onMount 콜백은 1회만 실행 → 클로저가 초기 result/offset/nav 를 캡처(함수 전환 시 stale).
   // ref 로 항상 최신값을 참조해 breakpoint 판정/토글이 어긋나지 않게 한다.
-  const resultRef = useRef(result)
-  resultRef.current = result
   const offsetRef = useRef(offset)
   offsetRef.current = offset
   const navRef = useRef(nav)
@@ -41,13 +39,33 @@ export default function CodePane({ source, nav, result, startLine }: Props) {
     .map((it) => it.line)
     .filter((l): l is number => l !== undefined)
 
+  // ★ N4. 모든 노드 조회는 **활성 프레임의 CFG** 기준이다 — callee 프레임이면 callee CFG.
+  const cfg = nav.activeCfg
+  const cfgRef = useRef(cfg)
+  cfgRef.current = cfg
+
   const cursorLine = nav.node?.src_line
   const predLines = nav.highlightedPreds
-    .map((id) => result.cfg.nodes.find((n) => n.id === id)?.src_line)
+    .map((id) => cfg.nodes.find((n) => n.id === id)?.src_line)
+    .filter((l): l is number => l !== undefined)
+  // ★ N1. forward 분기의 다른 feasible successor 들 (커서가 간 첫째는 cursor-line 이 덮는다)
+  const succLines = nav.highlightedSuccs
+    .map((id) => cfg.nodes.find((n) => n.id === id)?.src_line)
     .filter((l): l is number => l !== undefined)
   const violatedLines = result.verdict
     .filter((v) => v.status === 'Violated')
     .flatMap((v) => [v.region[0], v.region[1]])
+  // ★ N2+N3. 접고 넘어온 루프의 헤더 라인 — "여기를 통째로 지나왔다" 를 보이게 한다.
+  //   커서는 루프 **이후** 에 있으므로, 표시가 없으면 루프를 건너뛴 사실이 화면에서 사라진다.
+  const foldedNode = nav.foldedLoopHead
+    ? cfg.nodes.find((n) => n.id === nav.foldedLoopHead)
+    : undefined
+  const foldedLine = foldedNode && foldedNode.src_line >= 0 ? foldedNode.src_line : undefined
+  const foldedHover = foldedNode?.loop_delta
+    ? Object.entries(foldedNode.loop_delta)
+        .map(([k, v]) => `- \`${k}\` → \`${v}\``)
+        .join('\n')
+    : null
 
   useEffect(() => {
     const ed = editorRef.current
@@ -67,13 +85,38 @@ export default function CodePane({ source, nav, result, startLine }: Props) {
       push(cursorLine, { isWholeLine: true, className: 'cursor-line', glyphMarginClassName: 'cursor-glyph' })
     }
     predLines.forEach((l) => push(l, { isWholeLine: true, className: 'pred-line' }))
+    succLines.forEach((l) => push(l, { isWholeLine: true, className: 'succ-line' }))
+    if (foldedLine !== undefined) {
+      push(foldedLine, {
+        isWholeLine: true,
+        className: 'loop-fold-line',
+        hoverMessage: {
+          value: foldedHover
+            ? `**루프를 접어 지나갔습니다** — 고정점 수렴 후 바뀐 값:\n\n${foldedHover}`
+            : '**루프를 접어 지나갔습니다** — iteration 별로 멈추지 않습니다 (상태는 고정점 하나).',
+        },
+      })
+    }
     violatedLines.forEach((l) => push(l, { isWholeLine: true, className: 'violated-line' }))
-    nav.breakpoints.forEach((l) => push(l, { glyphMarginClassName: 'bp-glyph' }))
+    // ★ N5. 도달 불가(⊥) 라인의 breakpoint 는 다른 글리프 + 설명 — Continue 가 멈추지 않는다.
+    nav.breakpoints.forEach((l) =>
+      push(
+        l,
+        isLineUnreachable(cfg, l)
+          ? {
+              glyphMarginClassName: 'bp-glyph-unreachable',
+              glyphMarginHoverMessage: {
+                value: '도달 불가 (⊥) — abstract interpretation 이 이 지점을 도달 불가로 판정했습니다. Continue/next bp 가 멈추지 않습니다.',
+              },
+            }
+          : { glyphMarginClassName: 'bp-glyph' }
+      )
+    )
     intentLines.forEach((l) =>
       push(l, { glyphMarginClassName: 'intent-glyph', glyphMarginHoverMessage: { value: '@During' } })
     )
     decoRef.current = ed.deltaDecorations(decoRef.current, decos)
-  }, [cursorLine, predLines.join(','), violatedLines.join(','), nav.breakpoints, intentLines.join(','), result, offset])
+  }, [cursorLine, predLines.join(','), succLines.join(','), foldedLine, violatedLines.join(','), nav.breakpoints, intentLines.join(','), cfg, offset])
 
   return (
     <Editor
@@ -92,7 +135,7 @@ export default function CodePane({ source, nav, result, startLine }: Props) {
             const ln = e.target.position?.lineNumber
             if (!ln) return
             const abs = ln + offsetRef.current
-            if (canBreakpointOnLine(resultRef.current, abs)) navRef.current.toggleBreakpoint(abs)
+            if (canBreakpointOnLine(cfgRef.current, abs)) navRef.current.toggleBreakpoint(abs)
           }
         })
       }}

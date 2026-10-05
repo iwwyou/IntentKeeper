@@ -1375,8 +1375,9 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
   것이고 슬라이서 `closeBefore` 가 전담한다. 드라이런으로 대상 10건 / 제외 101건 전수 확인.
   → `[ERR]` 28 → **26**, `[ANTLR]` 187 → **183**, 증가 0, 회귀 7/10/7 통과.
   ⚠ **부분 해소**(3건 중 2건). 남은 1건은 여러 줄 시그니처 + `{` 단독 줄이라 형태가 다르다.
-  ⚠ **엔진 결함은 그대로** — 에디터에 `function f() {}` 를 치면 여전히 깨진다.
-  근본 수정은 괄호 상쇄를 **순증감(net)** 으로 바꾸는 것인데 라인 좌표계 핵심부라 별도 판단 필요.
+  ✅ **→ F27(#46)에서 엔진 자체를 고쳤다.** F25 는 이 버그의 한 증상을 소스 전처리로 우회한 것.
+  당시 적어둔 "순증감(net)" 안은 **불충분**했다 — `} else {` 와 `function f() {}` 가 둘 다
+  `net == 0` 이라 구별되지 않는다. F27 은 줄 텍스트를 오른쪽→왼쪽으로 훑어 해결했다.
   ⚠ 범위 초과 1건: `expand_single_line_blocks()` 통째 호출로 RQ1 자산 12개가 `if` 확장까지
   변형됨 → `git checkout` 원복. 전처리는 **필요한 단계만 직접 호출**할 것.
 
@@ -1404,6 +1405,427 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
   F3·F4·F5·F6·F7·F8·F9 는 Guardian 에도 **동일하게 존재함을 읽어서 확인**했다(2026-09-18).
   F10~F14 는 Guardian 미확인 또는 선행 항목(F4·F6) 포팅이 전제다 — 문서의 `Guardian 상태` 참조.
 
+- **(46) 엔진 버그 3건 추가 수정 — F26·F27·F28 (2026-09-30)**:
+  decision #45 의 잔여 오류를 이어서 정리. **보고 → 승인 → 적용** 순서를 지켰고,
+  검증은 전부 **리포를 건드리지 않는 드라이런**(출력 디렉토리를 스크래치로 돌림)으로 먼저 했다.
+  상세·Guardian 포팅 명세 = **`(to_solidityguardian)_engine_fixes.md`** F26~F28.
+
+  **F26 ★코어 · 조용한 오분석 — `reinterpret_from` 이 함수 ENTRY 의 env 를 덮어쓴다**:
+  이 엔진은 미정의 함수 호출을 `pending_calls[callee] = [(caller_fcfg, cur_blk)]` 로 등록해뒀다가
+  그 함수가 선언되면 호출자를 그 지점부터 재해석한다(`reinterpret_from`). 그런데
+  `_compute_in(n)` 은 **언제나** predecessor join 으로 in-env 를 만든다 — "seed 는 언제나
+  함수 중간의 statement 블록" 이라는 **옛 전제(= callee 가 caller 보다 먼저 선언된다)** 의 잔재다.
+  미정의 호출이 **함수의 첫 문장**이면 등록되는 `cur_blk` 이 **ENTRY 자신**이라 전제가 깨진다.
+  그때 ENTRY 의 in 은 predecessor 가 없으면 `{}`, `splice_modifier` 가 modifier 체인을
+  ENTRY **앞에** 붙여놨으면 modifier 자신의 얇은 env 가 되어 **파라미터·state 변수가 통째로 소실**된다.
+  ★ **modifier 는 원인이 아니다** — modifier 없는 합성 케이스에서도 재현했다
+  (`seed=['ENTRY'], preds=[[]]` → `'_total' ... may not be declared`).
+  ⚠ 바깥에서 `n.variables = copy(new_out)` 로 ENTRY 에 **영구 기록**되므로, 예외가 안 나면
+  오류 없이 "state 를 모르는 함수" 가 pkl 로 저장된다(#20·F24 와 같은 부류).
+  **수정**: entry env 는 dataflow 가 아니라 주어지는 값 — ENTRY 에서 `fcfg.related_variables` 의
+  **빠진 키만** 채운다(predecessor 값 우선: modifier 가 바꾼 `_initializing`·`isTopLevelCall` 보존).
+  근거는 같은 파일 `interpret_function_cfg` 가 **이미 그 규약을 쓴다**는 것
+  (`start_block.variables = copy(fcfg.related_variables)`).
+  **버린 대안**: ① callee 먼저 재정렬 — 상호재귀는 위상순서가 없고(합성 `Mutual.sol` 실측)
+  **에디터는 재정렬 자체가 불가**(편집 이벤트를 받는다) ② modifier predecessor 제외 —
+  제외하면 `{}` 가 되어 modifier 없는 케이스와 같은 상태 ③ modifier 를 CFG 에서 분리 —
+  state 변경·require refine·`_` 감싸기를 다 잃는다 ④ seed 를 successor 로 이동 —
+  전파 경로로 ENTRY 가 다시 큐에 들어와 불완전.
+
+  **F27 ★ — 괄호 상쇄 알고리즘이 틀렸다 (복붙 사본 2개)**:
+  위로 거슬러 올라가며 "닫힌 만큼 상쇄하고 남은 첫 `{`" 를 찾는 루프가, `}` 를 만나 진입하는
+  **스킵 모드 안에서 만난 `}` 를 세지 않았다.** 블록이 연달아 닫히면 두 번째부터 증발한다.
+  개수(`line_info`)로는 **한 줄 안의 순서**를 못 가리는데 그게 결정적이다 —
+  `} else {`(이 줄이 여는 줄) vs `function f() {}`(상쇄). 위로 올라가는 탐색이므로
+  줄 안에서도 **오른쪽 → 왼쪽**으로 문자를 훑으면 자연히 맞는다.
+  공용 헬퍼 `_enclosing_open_brace_line` 로 합치고 `find_parent_context`·`find_function_context`
+  둘 다 사용. ★ **둘 다 고쳐야 한다** — 하나만 고치면 오류 형태만 바뀐다(실측).
+  ★ **최대 효과는 `find_parent_context` 쪽**: `assembly` 블록 내부 라인의 ctx 가
+  `{'assembly': 2, 'None': 73}` → `{'assembly': 75}` 로 바뀌어, Yul 코드가 Solidity 파서로
+  가던 것이 멈췄다 → **`[ANTLR]` 183 → 26**. 백로그 ⑥ "Yul 커버리지 157건" 의 대부분은
+  Yul 문제가 아니라 **이 괄호 버그**였다.
+
+  **F28 — 파일 최상위 `enum` 이 file-level 경로에 없다**:
+  `SolidityAnalyzer._handle_file_level` 은 type alias / struct / struct member 를 가로채
+  CA 로 위임하지 않는 **전용 경로**인데 **enum 만 대응물이 전부 없었다**
+  (`visitInteractiveStructDefinition` 의 `current_target_contract is None` 분기도 enum 엔 없음).
+  → CA 로 위임 → raise → `analyze_context` 중단 → ctx 가 `"enum"` 인 채 남아 드라이버가
+  그대로 visit → `contract_cfgs.get(None)` 에서 또 터짐(선언당 2단 × 2줄 × 2파일 = 8건).
+  **수정 = struct 와 대칭** (`_handle_file_level` 분기 2개 + `_CTX_MAP` 2줄 +
+  `process_file_level_enum_*` + visitor 분기 2곳). **문법 변경·파서 재생성 불필요** —
+  `interactiveEnumDefinition : 'enum' identifier '{' '}'` 가 슬라이서의 가짜 닫는 중괄호와
+  정확히 맞고 `interactiveEnumUnit` 도 이미 있다.
+  ★ 진짜 이득은 **에디터 경로**다 — `sa.file_level_enums` 는 지금까지 배치의 regex 사전스캔
+  (F18)에서만 채워졌다. 이제 스캔 없이도 채워진다(실측: `AssetClass` 8멤버 · `Status` 5멤버).
+  즉 **에디터에 파일 최상위 enum 을 치면 지금까지는 깨졌다.**
+
+  **누적**: `[ERR]` **24 → 17** · `[UPDATE_CODE ERR]` **4 → 0** · `[ANTLR]` **183 → 26** ·
+  pkl 143 · 함수 964 → **965**(`con_ERC1155Upgradeable._setURI` 복구) · statement 1267 → 1268 ·
+  **statement 감소 0건 · 사라진 함수 0개**. `temp/` 회귀 **19종 전부 통과**
+  (`test_engine_fixes` 33 · `test_snapshot_grammar` 25 · `test_diff_records` 16 ·
+  `test_intent_attach` 15 · `test_back_edge`/`test_bottom_propagation` 각 13 · … failed 0).
+  일부가 `UnicodeEncodeError` 로 죽던 것은 **cp949 콘솔 인코딩** 문제이고
+  `PYTHONIOENCODING=utf-8` 이면 전부 통과한다(엔진 무관). `test_http`/`test_vault` 는 서버 필요.
+
+  **검증 방법(재사용 권장)**: 기준선을 얻을 때 리포를 되돌리지 않고, 백업본에서 해당 메서드
+  소스만 `ast` 로 떼어 live 모듈 globals 에 exec 해 **메모리에서만 원복**했다
+  (`scratchpad/revert.py`, `usercustomize.py` + `PYTHONPATH` 로 하위 프로세스에도 적용).
+  기준선이 ERR=24·ANTLR=183 로 정확히 재현됐다.
+  ⚠ **드라이런 사고(교훈)**: "저장 무력화" 를 `pickle.dump = no-op` 으로 했더니
+  `analyze_file` 의 `open(out,'wb')` 가 먼저 truncate 해 **pkl 143개가 0바이트**가 됐다
+  (`git checkout` 으로 정확 복원). 저장을 막으려면 **출력 디렉토리(`OBJ_DIR`)를 옮겨야** 한다.
+  또 드라이런 2개가 **같은 스크래치 출력 디렉토리**를 공유해 서로를 덮어썼다 — 실행마다 고유 경로로.
+
+  **잔여 17건**: Float 4(★ 슬라이서가 **식 중괄호**를 블록으로 오인 — `res = FloatStruct({` 가
+  가짜 `}` 로 두 동강) · PRBMathSD59x18 4 · PRBMathUD60x18 4(Yul `switch`/`case` 6 +
+  for-init 복합대입 2) · Controller 3(오버로드 인자개수 미고려 1 · `IAction` 파일 결손 1 ·
+  `delete` 매핑 1) · AddressProviderMeta 2(**F29 제안됨, 미적용**).
+  ※ decision #45 의 26 중 2건(`Qualified type`)은 **콜드스타트 전용**이었다(interface 가
+  library 보다 먼저 분석돼 첫 회차에만 `lib_*.pkl` 이 없다) — 그래서 기준선이 24다.
+
+  **F29 ✅적용 — `Engine._interpret_var_decl` 이 struct 정의를 안 붙인다**:
+  `Meta memory meta;` 선언 직후 `reinterpret_from` 이 predecessor 에서 env 를 다시 계산하므로
+  선언문이 **재실행**되는데, 그 재실행 경로(`Engine._interpret_var_decl`)가
+  `ContractAnalyzer._create_variable_object` 의 **인라인 사본**이면서 `struct_defs` 를 안 붙인다.
+  객체 수명 실측: `[1] CA 가 members=['freezable','frozen'] 로 생성 → [2] 블록에 심음 →
+  [3] reinterpret_from 진입(pred 에 meta 없음 — 선언 전이니 정상) → [4] 재실행이 members=[] 로
+  덮어씀 → [5] 그게 남음`. ★ **`meta` 가 사라지는 게 아니라 `meta.members` 가 빈다.**
+  "CFG 에 등록된 expression 을 보면 되지 않나" = **이미 그렇게 하고 있다**([4]가
+  `stmt.type_obj` 를 읽는다). 문제는 "보지 않음" 이 아니라 **"보고 만드는 방법이 틀림"**.
+  → 인라인 사본을 지우고 `_create_variable_object` 를 부른다(배열·매핑도 같이 고쳐진다).
+  대안(선언 statement 에 프로토타입을 저장해 clone)은 **증분 편집에 불리**하다 —
+  struct 정의가 바뀌면 프로토타입이 낡는다. `type_obj` 재구성은 현재 정의를 집어온다.
+
+  **백로그 신규 3건**: ⑨ **재귀 가드가 아예 없다** — `function f() { f(); }` 나 상호재귀가
+  종료 조건 없이 돌아 `RecursionError`. **두 리포 모두 없고 Guardian git 295 커밋 전수 조회
+  (`git log -S`)에서도 0건** — 사용자가 기억한 "등록해두는 방식" 은 `pending_calls`(같은
+  `dict[str, list]` 모양이지만 용도는 선언 순서 해결)로 보인다. 더 나쁜 것: `_reset_node_vars`
+  가 그 함수 CFG 의 모든 노드 env 를 비우므로 재진입 시 바깥 워크리스트가 순회 중인 노드가
+  밀린다. 삽입 지점은 `interpret_function_cfg` 진입부 하나. F26 이 만든 결함이 아니다
+  (직접 재귀는 F26 이전에도 동일하게 터짐 — 합성 `SelfRec.sol` 로 확인).
+  ⑩ `end_file_level_struct()`/`end_file_level_enum()` 이 **아무 데서도 호출되지 않는다**.
+  ⑪ `_create_variable_object` 의 `ccf` 인자가 미사용 — cross-contract 하강 시
+  `current_target_contract` 가 스왑되지 않아 호출자 기준으로 struct 정의를 찾는다.
+
+  **(이어서) F30~F35 — 잔여 17 → 6건 (2026-09-30)**:
+  상세·Guardian 포팅 명세 = **`(to_solidityguardian)_engine_fixes.md`** F30~F35.
+
+  **F30 ★제품 경로 — 슬라이서가 식(expression) 중괄호를 블록 헤더로 오인**:
+  `_open_blk = r"\{\s*$"` 가 "`{` 로 끝나면 블록 헤더" 로만 판정해, named struct literal
+  `res = FloatStruct({ ... });` 에 **가짜 `}`** 를 붙여 문장을 두 동강 냈다(Float 4건).
+  합쳐 한 줄로 주면 파서는 정상 처리한다 — 순수 슬라이서 결함.
+  수정: 그 `{` 시점에 **괄호가 열려 있으면 식 중괄호**(문자열 리터럴은 건너뜀). 다중 줄은
+  **누적 텍스트** 기준(`foo(` ⏎ `Bar({` 중첩 대비).
+  오탐 전수 검증: `{` 로 끝나는 줄 46,214개 중 괄호 열린 것 189개 → **186개가 struct 리터럴**,
+  3개는 **소스 자체 문법 오류**(닫는 괄호 누락). 오탐 0.
+  ⚠ `Dependencies/main.py` 의 slice_solidity 는 배치 전용이 아니라 **engine_server 가 쓰는 제품 경로**다.
+  ⚠ 슬라이서가 **3벌**이고 갈라져 있다 — `soltotestjson.py`(RQ1 케이스 생성)는 **미수정, 필요**;
+    `Libraries/main.py` 는 **아무도 import 안 함 = 삭제 후보**.
+
+  **F31 — `for` 의 init 이 식일 때 크래시**:
+  ANTLR 은 **각 라벨 대안의 직접 자식만** 접근자로 만든다.
+  `simpleStatement : ... | expressionStatement # EContext` 이므로 `EContextContext` 에는
+  `.expressionStatement()` 뿐이고 `.expression()` 이 **없다**. 비지터가 한 단계를 건너뛰어
+  `for (y >>= 1; ...)` / `for (i = 0; ...)` 가 통째로 실패했다(코퍼스 34건 — Dependencies 2 + **Dataset 32**).
+  수정: 두 단계를 파고들지 않고 **`visitExpressionStatement` 에 위임**(사용자 제안).
+  ⚠ **이 수정이 숨어 있던 오류 3건을 드러냈다**(PRBMathSD59x18.powu L340/342/343) — 원인은
+    F31 이 아니라 **백로그 ⑫ ⊥ write-back**. pkl statement 감소는 0건.
+
+  **F32 — assembly 안의 중첩 Yul 블록이 닫는 `}` 줄을 선할당하지 않는다**:
+  `{` 로 끝나는 줄은 바깥에서 `헤더\n}` 2줄 레코드가 되고, 그 "가짜 `}`" 가 분석기 라인
+  공간에서 **닫는 브레이스 자리를 미리 확보**해 함수 EXIT 를 계속 뒤로 민다. 그런데
+  **assembly 모드는 모든 줄을 단일 줄 레코드로** 냈다 → 여러 줄 `default { ... }` 에서
+  EXIT 가 삽입 지점보다 **앞**에 남아 assembly **바깥**의 뒤따르는 문장들이 터졌다
+  (`No CFG node found after line N` 6건).
+  최소 재현으로 확정: `default { r := 2 }` 한 줄이면 0건, 3줄로 쪼개면 실패.
+  수정: assembly 모드에서도 `{` 로 끝나는 줄을 2줄 레코드로(사용자 제안 "더 잘게 쪼개기").
+  한 줄에서 여닫는 `case 1 { r := 1 }` 는 브레이스가 상쇄되므로 그대로 둔다.
+
+  **F33 — `delete m[k]` 가 resolve-only 규약을 어긴다 ★코어**:
+  `resolve_lhs_expr` 는 "객체만 찾는다" 며 `update_left_var(expr, None, None, ...)` 를 부른다.
+  형제 분기 6곳은 전부 `if r_val is None: return ...` 가드를 갖는데 **2곳만 빠져 있었다**
+  (member-access 키 / identifier 키). 코퍼스엔 1건만 보였지만 `delete m[k]` 는 **전 형태가
+  깨져 있었다**(실측 3형태 → 수정 후 0).
+
+  **F34 — 상속 함수 오버로드가 인자 개수를 안 본다 (미수정, 원인 확정)**:
+  arity 재검색 로직은 있는데 `functions_source = contract_cfg.functions.get(name)` 가
+  **현재 컨트랙트만** 본다. `_prepare` 는 부모 `Preparable` 에 4개 오버로드로 있어
+  `find_function_in_hierarchy` 로 찾히지만 `functions_source` 가 비어 재검색이 동작하지 않는다.
+  수정 방향: `find_function_in_hierarchy` 가 **소유 CFG 의 overload 집합**을 함께 돌려주게.
+
+  **F35 자산 보강 — `IAction` 결손**: `Dependencies/` 에 `IAction.sol` 이 **아예 없었다**.
+  `Web3Bugs/contracts/112/backd/interfaces/actions/IAction.sol`(25줄)에서 가져와
+  관례대로 **블록 주석 제거** 후 `Dependencies/interfaces/IAction.sol` 로 추가.
+
+  **누적 (2026-09-30 최종)**: `[ERR]` **24 → 6(−75%, 552 기준 −99%)** ·
+  `[UPDATE_CODE ERR]` 4 → **0** · `[ANTLR]` 183 → **12** · pkl 143 → **144**(`ifc_IAction`) ·
+  함수 964 → **974** · statement 1267 → **1278** ·
+  **각 단계에서 statement 감소 0건 · 사라진 함수 0개**.
+  회귀 `temp/` **16종 188 checks 전부 통과**.
+  단계별: 24 → 22(F26) → 21(F27) → 17(F28) → 13(F30·F31·F33) → 7(F32) → 6(F35).
+
+  **잔여 6건**: PRBMathSD59x18 3(**백로그 ⑫** ⊥ write-back) ·
+  AddressProviderMeta 2(**F29** 진단·수정안 완료, 🕐 사용자 검토 중) ·
+  112/Controller 1(**F34** 원인 확정, 구체안 미정).
+
+  **★ 백로그 ⑫ — 내부 함수 호출이 호출자 env 를 ⊥ 로 오염시킨다 (신규, 건전성)**:
+  `interpret_function_cfg` 는 ① callee 에 **caller env 를 통째로 얹고**(callee 파라미터만 제외)
+  ② callee exit env 를 **caller 에 되쓴다** — **⊥ 검사가 없다**.
+  실측(`PRBMathSD59x18.powu`): `uint256 absX = uint256(abs(x));` **한 줄이 파라미터 `y` 를 ⊥ 로
+  만든다**(`y` 는 그 줄에 없다). **함수 ENTRY 노드까지 오염**된다. 그 결과 루프 조건의
+  **양쪽 분기가 도달불가**로 판정되고, `fixpoint` 의 exit-env 계산이 `exit_env=None` →
+  `for_exit.variables = {}` → 뒤 문장이 "미선언" 으로 터진다(잔여 3건).
+  **오류 3건보다 파급이 크다** — 오염된 env 는 대부분 **오류 없이** pkl 로 저장된다.
+  사용자 가설("크로스 컨트랙트 함수 리턴이 제대로 안 되는가")이 맞았고, 실제로는
+  **같은 라이브러리 내부 호출**에서도 난다.
+  조사 순서: **(다)** `abs`(`unchecked { require(x > MIN); result = x < 0 ? -x : x; }`) 안에서
+  ⊥ 이 생기는 원인 → (가) write-back ⊥ 필터 → (나) callee 로 넘기는 env 를 state+인자로 좁히기.
+
+  **★ 백로그 ⑬ — Yul 제어흐름 미구현 + 순차 적용 = 건전하지 않다 (신규)**:
+  `visitYulSwitchStatement`/`If`/`For` 가 전부 `return None` 인데 슬라이서가 줄 단위로 자르므로
+  `case`/`default` 가 독립 문장으로 **순차 적용(마지막이 이김)** 된다.
+  실측 반례: `switch x / case 1 { r := 100 } / case 2 { r := 200 } / default { r := 7 }`
+  → 참값 `r ∈ {100,200,7}` 인데 분석기는 **`r = [7,7]`**. `@Post r == 7` 이 `x == 1` 에서
+  실제 위반인데 **Satisfied** 로 나온다.
+  **진행 방향 = (B)**(사용자 결정): assembly 블록을 **한 트리**로 Yul 비지터에 넘겨
+  분기 CFG + join 을 만든다. 사용자가 지적한 "`case 1 {...}` 는 사실 `case 1 {`/`}` + 본문
+  2개" 라는 분해가 바로 그 CFG 구성이다(슬라이서에서 쪼개면 경계만 생기고 join 이 없다).
+  대가: 증분 편집 단위가 블록 전체 · assembly 내부 라인-레벨 intent 불가(사용자 허용).
+
+  **검증 방법**: 매 단계 **리포를 건드리지 않는 드라이런**(`OBJ_DIR` 만 스크래치로) → pkl
+  statement 대조 → `temp/` 회귀 → 그 다음에 실제 재생성. 기준선은 백업본 메서드를
+  `ast` 로 떼어 live 모듈에 exec 하는 **메모리 상 원복**으로 얻었다(`scratchpad/revert.py`).
+
+  **(이어서) F36·F37 — 잔여 6 → 0건, `[ERR]` 552 → 0 (2026-09-30)**:
+
+  **F36 ★코어 — 내부 함수 호출이 호출자 env 를 ⊥ 로 오염시킨다**:
+  `interpret_function_cfg` 가 ① callee 에 **caller env 를 통째로** 얹고(callee 파라미터만 제외)
+  ② callee exit env 를 **caller 에 되썼다** — ⊥ 검사도, 공유 범위 제한도 없었다. 실측:
+  `PRBMathSD59x18.powu` 의 `uint256 absX = uint256(abs(x));` **한 줄이 파라미터 `y` 를 ⊥ 로
+  만든다**(`y` 는 그 줄에 없다). **함수 ENTRY 노드까지 오염**되고, 루프 조건의 양쪽 분기가
+  도달불가로 판정돼 `for_exit.variables = {}` → 뒤 문장이 "미선언" 으로 터졌다.
+  ★ **"덮어쓰기" 자체는 필요하다** — callee 의 `related_variables` 는 **선언 시점 스냅샷**이라
+  caller 가 바꾼 state 를 못 본다(Solidity 에서 state 는 같은 storage). Guardian `46c497e`
+  (2026-04-02)가 "없는 것만 채우기"→"덮어쓰기" 로 바꾼 이유이고, **그 커밋 주석에
+  `caller env의 state variable / global을 callee에 공유` 라고 의도가 적혀 있다** —
+  즉 **의도는 처음부터 state+global 한정이었고 필터만 구현되지 않았다.**
+  수정: `_is_shared_storage`(이름에 `.` → 전역 · `scope == 'state'` → state)로 한정하고
+  진입·복귀에 **대칭** 적용. 판정 기준은 `Variables.scope` 가 이미 제공한다
+  (`state` / `None`+전역 / `local`=지역·파라미터·named return).
+  ⚠ `interpret_function_cfg_for_debug` 는 `caller_env=None` 으로만 호출돼 사장 코드 — 미변경.
+
+  **F37 ★코어 — 오버로드 선택이 인자 타입을 보지 않는다 (F34 흡수)**:
+  표면 증상은 `112/Controller:54` 의 arity 오류지만, **더 중요한 건 조용히 틀리던 3곳**:
+  `Preparable:47 _prepare(key, value, _MIN_DELAY)`(value: **address**) ·
+  `Preparable:83 _setConfig(key, newValue)`(**address**) · `Fixed18:114 UFixed18Lib._from(a)`
+  (a: Fixed18=**int256**) — 전부 uint 버전으로 해석돼 `pendingAddresses` 대신
+  `pendingUInts256` 를 건드리고 있었다.
+  원인 둘: **(1)** `functions_source` 가 현재 컨트랙트만 봐서 상속 오버로드 집합이 비었다(=F34)
+  **(2)** arity 만으로는 구별 불가한 오버로드가 있다 — 전수 조사 결과 pkl **953개 함수 이름 중
+  오버로드 18개, 그중 인자 개수로 구별 불가 6개**(`_prepare`·`_setConfig`·`Fixed18Lib._from`·
+  `UFixed18Lib._from`·`FixedPointMath.add`·`.sub`).
+  ★ **왜 타입을 몰랐나**: `Domain/IR.py:74` 에 `expr_type` 슬롯이 **설계돼 있는데** 비지터가
+  **리터럴과 디버그 합성 표현식에만** 채운다(식별자·멤버·인덱스·호출·산술은 전부 `None`).
+  이 결손이 F14·F16·F34 가 **각각 따로 우회로를 깔게** 만든 공통 원인이다.
+  수정: `_static_type_of` 를 **순수 질의**로 신설(평가 없음 → 부작용 0, IR 미변경 → 기존
+  리터럴 경로 동작 변화 0). 식별자·캐스트(type alias 해소)·멤버·인덱스·호출 리턴·산술·삼항을
+  재귀 처리하고 **리터럴은 None**(Solidity 에서 숫자 리터럴은 독립 타입이 없다).
+  그 위에 `_select_overload`: **arity → 선언 타입 정확 일치 → 암시적 변환**, 그래도 애매하면
+  **raise**. 유효한 Solidity 에는 타입 애매함이 없으므로 그 상황은 (a) 우리 타입 바인딩
+  결손이거나 (b) 소스가 유효하지 않다(solc 도 ambiguity 에러) — 둘 다 드러나야 한다.
+  ★ **raise 가 즉시 값을 했다**: 1차 구현에서 `FixedPointMath.add(self, fromU256(value))` 의
+  2번째 인자(**함수 호출**)를 처리하지 못해 `[ERR]` 2 + **statement 감소 2건**이 났다.
+  조용히 첫 후보를 집었다면 아무 신호도 없었을 것이다. 그 과정에서 호출 IR 모양도 정정 —
+  `context='FunctionCallContext'` 이고 함수 이름은 **`expr.function.identifier`** 에 있다
+  (`evaluate_function_call_context` 첫 줄의 `IdentifierExpContext` 는 변형이다).
+
+  **F30 을 `soltotestjson.py` 에도 반영**(RQ1 케이스 생성 경로). `Libraries/main.py` 의
+  세 번째 슬라이서 사본은 **아무도 import 하지 않아** 삭제 후보로 남긴다.
+
+  **최종 (2026-09-30)**: `[ERR]` **552 → 0** · `[UPDATE_CODE ERR]` 0 · `[ANTLR]` 212 → **12** ·
+  pkl 143 → **144** · 함수 964 → **974** · statement 1267 → **1283** ·
+  **각 단계에서 statement 감소 0건 · 사라진 함수 0개** · 회귀 `temp/` 16종 188 checks 통과.
+  단계: 24 → 22(F26) → 21(F27) → 17(F28) → 13(F30·F31·F33) → 7(F32) → 6(F35) → 3(F29·F36) → **0**(F37).
+
+  **⚠ `[ERR] 0` 이 "다 고쳤다" 는 뜻이 아니다.** `[ERR]` 은 **던져진 예외**만 센다.
+  조용히 틀리거나 미구현인 것이 남아 있다:
+
+  **F39 (신규, 미적용) — 음수 `int` 상수의 부호가 사라진다 ★건전성**:
+  `int256 constant MIN_SD59x18 = -578...968;` 이 `UnsignedIntegerInterval([+578...968])` 로
+  저장된다(부호 소실 + 도메인도 Unsigned). 그래서 `abs` 의 `require(x > MIN_SD59x18)` 이
+  `x > +578...968` 이 되는데 `int256` 최대값은 `578...967` 이라 **항상 거짓** →
+  **`abs` 가 통째로 ⊥(도달불가)** 로 판정된다. **오류는 안 난다.**
+  ★ F36 은 그 ⊥ 의 **전파**를 막았을 뿐이고, ⊥ 자체의 원인은 이것이다.
+  최소 재현: `int256 constant NEG = -5;` → `UnsignedIntegerInterval([2²⁵⁶-5])` ·
+  `POS = 7` → `UnsignedIntegerInterval([7])`(값은 맞지만 도메인 틀림).
+  원인: `-5` 는 `UnaryPrefixOp('-')` + `LiteralExp(5)` 인데 리터럴에 **선언 타입이 전달되지
+  않아** uint 로 평가된 뒤 단항 마이너스가 2의 보수로 감긴다. F16 주석이 이미 경고했던 지점.
+  수정안(프로토타입 검증 완료): `process_constant_variable` 에서 `et.startswith('int')` 일 때
+  리터럴(단항 마이너스면 그 피연산자)에 `expr_type='int'` 를 실어준다 → 3케이스 전부 정확.
+  ⚠ `process_state_variable`·지역변수 선언·대입도 확인 필요. **F38 의 부분집합**이다.
+
+  **F40 (신규, 미적용) — 중첩 Yul 블록이 Solidity 파서로 간다**: `[ANTLR]` 12건 중 **8건**.
+  `find_parent_context` 는 **직근 부모**의 종류를 돌려주는데, `if iszero(...) {` / `case 32 {`
+  안의 줄은 부모가 `"if"`/`"case"` 라 `analyze_context` 의 `parent == "assembly"` 검사를
+  통과하지 못한다 → Solidity 파서로 간다(`revert` 의 기대 토큰 집합이 `interactiveSourceUnit`
+  인 것이 증거). 수정: 괄호 체인을 **위로 걸어올라가** `assembly` 를 만나면 assembly 로 판정
+  (함수/컨트랙트 경계에서 중단). `_enclosing_open_brace_line` 반복 적용.
+  나머지 `[ANTLR]` 4건: `ERC1155Upgradeable` 3건은 `uint256[] memory array` — **`array` 가
+  intent 문법 예약어**(`ceil`/`floor` 부류) → 소스 rename `_array`;
+  `TickMath` 1건은 `else r = ratio << (127 - msb);` — **중괄호 없는 else** → 전처리 확장 필요.
+
+  **F38 (별건) — `expr_type` 을 비지터가 채우고 F14·F16 우회로 제거**: F37 의 `_static_type_of`
+  가 순수 질의라 기존 동작을 안 건드리지만, 근본은 IR 에 타입을 채우는 것이다. 선행 조건:
+  `evaluate_literal_context` 의 `ety` 분기가 정확 타입(`uint256`·`bytes32`)도 받게 고쳐야 한다
+  (지금은 `'uint256'` 을 주면 `Unsupported literal expr_type` 로 터진다 — F16 실측).
+
+  **⑬ Yul 제어흐름 (별건, 방향 결정됨)**: `visitYulSwitchStatement`/`If`/`For` 가 `return None`
+  인데 슬라이서가 줄 단위로 자르므로 `case`/`default` 가 **순차 적용(마지막이 이김)** 된다.
+  반례: `switch x / case 1 {r:=100} / case 2 {r:=200} / default {r:=7}` → 참값
+  `r ∈ {100,200,7}` 인데 분석기는 **`r=[7,7]`** (unsound).
+  **진행 방향(사용자)**: 블록 전체를 한 트리로 받고(=(B)), **Yul 루프도 기존 Solidity 루프와
+  같은 구조**로 — `for_join/for_cond/for_body/for_exit` 를 만들고 body 가 닫히면
+  `Engine.fixpoint(head)` 를 돌린다(기존 fixpoint 재사용). `switch` 는 조건 노드 + case별
+  분기 블록 + join, `if` 는 기존 `if_condition/if_true/if_false/if_join` 과 동일.
+  사용자가 지적한 "`case 1 {...}` 는 사실 `case 1 {`/`}` + 본문 2개" 라는 분해가 그 CFG 구성이다.
+
+  **(이어서) F39·F40 — `[ANTLR]` 12 → 4, 숨은 건전성 결함 1건 (2026-09-30)**:
+  둘 다 **`[ERR]` 에 나타나지 않던** 결함이다. 상세 = `(to_solidityguardian)_engine_fixes.md` F39·F40.
+
+  **F39 ★건전성 — 음수 `int` 상수/변수의 부호가 사라진다**:
+  `int256 constant MIN_SD59x18 = -578...968;` 이 `UnsignedIntegerInterval([+578...968])` 로
+  저장돼, `abs` 의 `require(x > MIN_SD59x18)` 이 `x > +578...968`(int256 최대값 `578...967`
+  초과) 이 되어 **항상 거짓** → `abs` 가 통째로 ⊥(도달불가)로 판정됐다. **오류는 안 났다.**
+  원인: `visitLiteralExp` 가 숫자 리터럴에 **항상** `expr_type='uint'` 를 찍는다(그 자체는
+  옳다 — Solidity 숫자 리터럴은 부호가 없고 음수는 단항 `-` 다). 문제는 **선언 문맥이
+  다시 타이핑해주지 않는** 것 — `-5` 는 `UnaryPrefixOp('-')` + `LiteralExp(5)` 라 리터럴이
+  uint 로 평가된 뒤 단항 마이너스가 **2의 보수로 감긴다**.
+  전수 재현: **상수 · 상태변수 · 지역선언 세 경로 전부** 깨져 있었고 대입받는 변수로 전파.
+  양수도 값은 맞지만 **도메인이 Unsigned** 로 틀렸다.
+  수정: 공용 헬퍼 `_retype_literal_to_declared(init_expr, type_obj)` 신설 —
+  단항 +/- 래퍼를 벗겨 안쪽 리터럴에 `expr_type='int'` + `type_length` 를 실어주고,
+  세 호출부(`process_state_variable`/`process_constant_variable`/`process_variable_declaration`)
+  에서 부른다. 세 곳에 사본을 두지 않은 이유는 이번 세션에 6번 반복된 패턴(F16·F21·F22·F23·
+  F29·F30) 때문이다.
+  ⚠ `'int256'` 이 아니라 `'int'` 를 쓰는 이유: `evaluate_literal_context` 의 `ety` 분기는
+  거친 이름만 받고 `'uint256'` 을 주면 `Unsupported literal expr_type` 로 터진다(F16 실측).
+  비트폭은 `type_length` 로 따로 전달한다.
+  ★ **F36 과의 관계**: F36 은 이 ⊥ 의 **전파**를 막았고 F39 는 **⊥ 자체의 원인**을 없앴다.
+  둘 다 필요하다. ★ **F38 의 부분집합**이다.
+
+  **F40 — 중첩 Yul 블록 안의 줄이 Solidity 파서로 간다**:
+  `analyze_context` 의 assembly 감지가 `find_parent_context(...) == "assembly"` 즉
+  **직근 부모만** 봤다. 그래서 `if iszero(...) {` / `case 32 {` 안의 줄은 부모가
+  `"if"`/`"case"` 라 검사를 통과하지 못하고 **Solidity 파서**로 갔다 — 결정적 증거는
+  `revert(0, returnDataSize)` 의 ANTLR 기대 토큰 집합이 `interactiveSourceUnit`(컨트랙트
+  레벨)이었다는 것. `[ANTLR]` 12건 중 **8건**(SafeTransferLib 6 + PRBMath* 2).
+  수정: `is_inside_assembly(line)` 신설 — F27 의 `_enclosing_open_brace_line` 을
+  **반복 적용**해 괄호 체인을 위로 걸어올라가고, 함수/컨트랙트/struct 경계에서 중단.
+  새 괄호 로직이 없다.
+  → `[ANTLR]` 12 → **4**. `lib_SafeTransferLib.didLastOptionalReturnCallSucceed`
+  statement **1 → 4**, `PRBMath*.log10` 각 1 → 2. **감소 0건.**
+  ★ F32 는 "닫는 `}` 줄 선할당"(CFG 구성)을 고쳤고 F40 은 **컨텍스트 분류**를 고쳤다 — 별개 문제였다.
+
+  **남은 `[ANTLR]` 4건은 엔진이 아니다**: `ERC1155Upgradeable` 3건 = `uint256[] memory array`
+  의 **`array` 가 intent 문법 예약어**(`ceil`/`floor` 부류) → 소스 rename `_array` ;
+  `TickMath` 1건 = `else r = ratio << (127 - msb);` **중괄호 없는 else** → 전처리 확장.
+  "Yul 커버리지 157건" 으로 분류돼 있던 것이 F27·F32·F40 으로 전부 걷히고 나니 남은 것은
+  **예약어 충돌 + 전처리 결손**이었다.
+
+  **최종 (2026-09-30)**: `[ERR]` **552 → 0** · `[UPDATE_CODE ERR]` 0 · `[ANTLR]` 212 → **4** ·
+  pkl 143 → **144** · 함수 964 → **974** · statement 1267 → **1288** ·
+  **각 단계에서 statement 감소 0건 · 사라진 함수 0개** · 회귀 `temp/` 16종 188 checks 통과.
+
+  **(이어서) F41·F42 — `[ANTLR]` 4 → 0 (2026-09-30)**:
+  남은 `[ANTLR]` 은 엔진이 아니라 **예약어 충돌 + 전처리 결손**이었다.
+
+  **F41 — `array` 가 intent 문법의 예약어**: `Parser/Solidity.g4:337` 의 디버그 값 문법
+  `| 'array' '[' ... ']' # DebugIntArray` 에 리터럴로 박혀 있어 ANTLR 이 암묵적 토큰으로
+  만들고 그것이 `Identifier` 보다 우선한다 → `array` 는 **식별자가 될 수 없다**
+  (`ceil`/`floor` 와 같은 부류, F17(B)).
+  전수 조사: 문법의 리터럴 키워드 중 흔한 식별자 후보(`array`·`ceil`·`floor`·`interval`·
+  `percentOf`·`symbolicAddress`)를 Dependencies+RQ1+Dataset 전체에서 조회 → **식별자로
+  쓰인 것은 `ERC1155Upgradeable.sol:100-102` 3줄뿐**, 나머지 히트는 **전부 주석 안**.
+  → 관례대로 `array` → `_array`. **문법 불변**(IntentChecker 제출본).
+
+  **F42 — 중괄호 없는 `else`**: `else r = ratio << (127 - msb);` 처럼 한 줄에 else + 문장이
+  있으면 `extraneous input 'else'`. 슬라이서/분류기는 else 가 **블록을 여는 것**을 전제한다.
+  → 전처리에 `_expand_single_line_else` 추가(`else stmt;` → `else {`/`stmt;`/`}`).
+  ★ `} else {` / `else {` / `else if` 는 명시 배제. 경계 케이스 6종 실측 확인.
+  ★ 선행 `}` 는 **보존**한다 — 슬라이서의 `closeBefore` 경로를 그대로 타야 한다.
+  전수 조사: 대상 85건 / 제외된 `else` 줄 2,500여 건 — **오탐 0**. 그중
+  **Dependencies+RQ1 자산에는 `TickMath.sol:129` 한 건뿐**이라 그 파일에만 적용
+  (Dataset 84건 미적용 — 별도 판단).
+  ⚠ **`expand_single_line_blocks()` 통째 호출 금지** — F25 에서 그게 `if`/`unchecked` 확장까지
+  돌려 RQ1 자산 12개를 의도 없이 변형시킨 사고가 있었다. `_expand_single_line_else` 만 직접 호출.
+  ⚠ 쓰기 시 줄끝이 LF 로 바뀌어 CRLF 복원. `git status -- '*.sol'` 로 **의도한 2파일만**
+  변경된 것을 확인.
+  ⚠ 미처리: 중괄호 없는 **`else if <stmt>;`** (Dataset 16건, Dependencies+RQ1 0건).
+
+  **최종 (2026-09-30)**: `[ERR]` **552 → 0** · `[UPDATE_CODE ERR]` **4 → 0** ·
+  `[ANTLR]` **212 → 0** · pkl 143 → **144** · 함수 964 → **974** · statement 1267 → **1288** ·
+  **각 단계에서 statement 감소 0건 · 사라진 함수 0개** · 회귀 `temp/` 16종 188 checks 통과.
+  ⚠ **카운터가 전부 0 이라는 것이 "다 고쳤다" 는 뜻은 아니다** — `[ERR]` 은 던져진 예외만,
+  `[ANTLR]` 은 파싱 실패만 센다. 조용히 틀리거나 미구현인 것: ⑬ Yul 제어흐름(unsound) ·
+  ⑨ 재귀 가드 없음 · F38 `expr_type` 구조적 채우기 · ⑪ `ccf` 미사용 · navigation N1~N7.
+
+- **(47) 논문 §Source-Level Debugging 절 초안 ↔ 구현 대조 (2026-09-30)**:
+  ChatGPT 와 작성 중인 §Source-Level Debugging over Abstract Program States 개요를
+  실제 구현(`frontend/src/debug/useNavigation.ts` 212줄 = navigation 전부,
+  `frontend/src/types/result.ts` = 계약, `engine_api.py`)과 대조했다. **8개 항목 중 3개 불일치.**
+
+  ✅ **일치**: ① navigation 이 abstract interpreter 를 재호출하지 않음(파일 최상단 주석이
+  근거) ② join 노드 상태 = feasible predecessor 들의 join(`CFGNode.join_from` 이 기여
+  predecessor id 를 실어줌) ③ 루프 본문 상태 = fixpoint 불변식(`StateLocals.tsx` 가
+  "루프 불변식(모든 iteration)" 라벨을 명시적으로 붙임) ④ S/W/V/Unreachable 네 판정 실제 산출.
+
+  ★ **불일치 1 — forward 분기**: 개요는 "multiple feasible successor면 사용자 선택",
+  구현은 `forwardPick = live[0] ?? ss[0]` 로 **자동 첫째**. 분기 표시/선택 UI 없음.
+  게다가 `live[0] ?? ss[0]` 폴백 때문에 **전부 dead 여도 이동**한다.
+  → **결정(사용자)**: 선택 대화상자가 아니라 **backward 와 대칭으로 feasible successor 전부
+  표시**(커서는 첫째, 나머지 하이라이트). 사용자에게 경로를 고르게 하면 오히려 concrete
+  path 선택으로 되돌아간다. = N1.
+
+  ★ **불일치 2 — loop navigation**: 개요의 "Step Forward 가 iteration 으로 이동하지 않음" 은
+  **상태 표시에는 참, navigation 에는 거짓**이다. `pred` 는 `kind !== 'back_edge'` 로 거르는데
+  **`succ` 는 거르지 않아** `stepForward`/`continueRun` 이 루프를 다시 돈다(값은 fixpoint 라
+  안 바뀌지만 커서가 iteration 을 도는 것처럼 보인다). 같은 파일의 applyTick 경로는
+  `succOf` 에서 거른다 — **한 파일 안 불일치**. #43 의 남은 절반.
+  → **결정(사용자)**: `succ` 에 필터를 켜고, 루프 헤더/본문에서 Step Forward 는
+  **루프 이후 첫 statement로 착지**(닫는 `}` = `loop_exit` 가 아니라 — 그쪽은
+  `FORBIDDEN_TARGET_FLAGS` 에 있고 pre-state 가 merge 대상이라 모호). 필터만 켜면 루프
+  꼬리에서 커서가 멈추므로 **fold 규칙 동반 필수**. = N2.
+  ★ **loopDelta 는 엔진에 이미 있다** — `Engine.fixpoint` 가
+  `diff_changed(join_baseline_env, fixpoint_evaluation_node_vars)` 로 **값이 바뀐 변수만**
+  추출해 루프 헤더 라인에 `{"kind":"loopDelta","vars":…}` 로 기록한다. 그런데
+  `engine_api.py` 가 `ledger` 를 **전혀 참조하지 않아** 웹 프론트로 오지 않는다.
+  메커니즘은 있고 **배선만 없다**. = N3.
+
+  ★ **불일치 3 — Step Into/Out**: **전부 stub**(`into`=forward 1칸, `out`=backward 1칸,
+  주석에 "mock"). 구조적으로 막힌 곳 셋 —
+  ① callee 상태가 계산 후 버려진다(`_saved_node_vars` 복원; freeze 는 타겟 fcfg 만)
+  ② `NodeFlag` 에 `'call'`/`'opaque'` 가 없어 프론트가 호출 지점을 모른다
+  ③ `AnalysisResult.cfg` 가 단일 CFG 라 callee CFG 를 담을 자리가 없다.
+  → **결정(사용자)**: 구현한다(재귀 가드는 보류하고 진행). = N4.
+  ⚠ 지원 범위: internal ✅ / 상속 ✅ / library ✅ / **dependency pkl 있는 cross-contract 는
+  조건부** — 호출 대상 주소를 추상 해석이 특정할 수 있어야 한다(`IERC20(addr)` 의 `addr`
+  가 ⊤면 어느 구현인지 모른다). 개요의 "dependency CFG 존재" 는 **필요조건이지 충분조건이 아니다.**
+  / interface-only external ❌(`opaque`; `@IReturn` 이면 caller 쪽 후속 해석만).
+
+  △ **부분 불일치**: ⑤ debugger state 에 **call-context 가 없다**(call stack 자체가 없음).
+  intent 판정은 `CFGNode` 가 보유하지 않고 `verdict: VerdictItem[]` 별도 목록이며
+  `line`+`node` 로 느슨하게 연결된다(정식화 안 하면 무해). `TopVar.provenance` 는
+  `"현재 엔진엔 없음 → null"` — **⊤ 출처 태깅 미구현**이라 §8 에 쓰면 안 된다.
+  ⑥ backward 는 "선택" 이 아니라 **동시 하이라이트**이고 **navigation history 는 없다**
+  (개요의 "structural vs history" 구분 불가).
+  ⑦ `Continue` 는 CFG traversal 이지만 **`next/prev bp` 는 소스 라인 번호 정렬 점프**로
+  CFG 간선을 전혀 안 본다 → **결정(사용자): CFG order 로 통일**(= N6).
+  `continueRun` 이 `isForbiddenTarget` 를 안 봐 merge/loop_exit 에 멈출 수 있다(= N7).
+  ⑧ `FalseRegions` 는 **출력공간**이며 **Warning + 단일 During 절**일 때만 존재 —
+  입력 파라미터 구간으로 읽히면 안 된다(입력공간 역전파는 Plan B 몫).
+
+  → navigation 구현 항목 **N1~N7** 은 `PROGRESS2.md §A.2` 에 기록.
+
 **다음 우선순위:** ~~6 리스트-batch~~ ✅ · ~~7 라인 좌표계~~ ✅ · ~~10 Apply 버튼~~ ✅ ·
 ~~8·9 compound+IReturn 스캐너~~ ✅(decision #34) · ~~13·14 pre-state~~ ✅(#33) · ~~forward dead-branch~~ ✅(#35) ·
 ~~세션 스코프/유령 값~~ ✅(#36 a·b) · ~~#37 라인 주석 게이트~~ ✅ · ~~#36(c) delete 스코프 재검증~~ ✅ ·
@@ -1415,6 +1837,256 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
 ④ try/catch pre-state(#33 잔여) → ⑤ **IntentKeeper 전용 실험 스크립트**(RQ1 대체, 주석 .sol 대신
 `EngineSession` 에 구조화 intent/debug 값 투입 — 개발 얼추 끝난 뒤로 미룸, 사용자 결정).
 (#34 b1/b2 는 인위적 코너라 후순위 격하)
+
+- **(48) 루프가 한 번도 제대로 돌지 않고 있었다 — F43·F44 + N1~N3·N5~N7 (2026-10-01)**:
+  N3(`loopDelta` 웹 배선)을 하려고 `while (i < n)` 테스트를 돌렸더니 `loopDelta` 가 없고
+  **루프 본문 노드 state 가 전부 `{}`** 였다. 추적 결과 추상도메인의 비교 정제가 틀려 있었다.
+
+  ★ **F43 — `refine_intervals_for_comparison` 의 `<`/`>` 가 반대쪽 경계를 쓴다**
+  (`Interpreter/Semantics/Refine.py`). `a < b` 의 올바른 정제는 `a ≤ B.max−1`, `b ≥ A.min+1`
+  인데 코드는 `B.min−1`, `A.max+1` 을 썼다. **우변이 리터럴이면 `B.min == B.max` 라 우연히
+  맞아서** `x < 100` 류는 전부 정상이었고, 양변이 변수인 비교만 깨졌다:
+  `i=[0,0] < n=[0,10]` → `clamp_max(A, -1)` → **⊥** → true 분기 infeasible → 루프 본문
+  영구 미진입. 방향은 **과소근사(too narrow) = unsound** 이며 예외가 아니라 조용히 틀린다
+  (`[ERR]` 0 · `[ANTLR]` 0 과 아무 문제 없이 공존했다).
+  `<=`/`>=` 는 `<`/`>` ∪ `==` 합성이라 자동으로 같이 고쳐졌다.
+
+  ★ **F44 — `loopDelta` 가 narrowing 이전 스냅샷을 썼다** (`Interpreter/Engine.py`).
+  `fixpoint_evaluation_node_vars` 는 widening 루프 안에서만 갱신되므로 수렴 전 값이고
+  widening 의 `INFINITY` 가 남아 `[0,inf]` 로 직렬화됐다 → 최종 상태인 `join_node.variables`
+  를 쓰도록 바꿔 노드 state 와 일치시켰다.
+
+  **검증**: 구조 무변화(pkl 함수 974→974, statement 1288→1288, 사라진 함수 0, statement 감소 0,
+  `[ERR]`/`[ANTLR]`/`[UPDATE_CODE ERR]` 전부 0) → **pkl 재생성 불필요**(pkl 은 CFG 구조만 담는다).
+  `temp/` 19종 119 checks 전부 pass, FAIL 0. 바뀐 출력은 전부 개선 —
+  `test_delete_cfg` 의 `b: [None,None]`(**거짓 ⊥**) → `b: [2,2]`,
+  `test_back_edge` 의 `s: [100,100]`(루프 미진입 잔존값) → 건전한 widening 값 + loopDelta 등장.
+
+  **영향 범위**: 양변 비-리터럴 비교가 Dependencies 135 · **RQ1 499** · Dataset 6896 건이고,
+  **RQ1 루프 헤더 92개 중 82개**가 비-리터럴 경계다. 즉 **RQ1 의 루프는 사실상 전부 본문을
+  해석하지 않은 채 평가되어 왔다** — 논문 평가 수치에 직접 영향이 있다.
+
+  ★ **F43 이 가린 결함 3건이 새로 드러났다**(전부 **미수정 · 승인 대기**, 상세는
+  `(to_solidityguardian)_engine_fixes.md` ⑭⑮⑯⑰):
+  - ⑭ `build_for_statement` 가 `pre` 의 기존 후속을 잇지 않는다 → `for` 가 다른 블록 안에서
+    열리면 루프를 **우회하는 엣지**가 남고 `for_exit_*` 가 **sink** 가 된다.
+    `build_while_statement` 는 `old_succs` 를 전부 재배선해 올바르다 — **빌더 간 불일치**.
+  - ⑮ `traverse_loop_nodes` 가 **모든** `loop_exit_node` 에서 절단 → 중첩 루프에서 내부 exit 이
+    바깥 루프 본문을 잘라 **바깥 fixpoint 가 1회만 돈다**.
+  - ⑯ widening 이 타입 최댓값이 아니라 `INFINITY` 를 넣어 같은 변수가 `[0,inf]` 와
+    `[0,2^256-1]` 로 섞여 보인다. 표시 문제만이 아니라 F43 의 `!= INFINITY` 가드가
+    **정제를 건너뛰게** 만든다. ★ 프론트 문자열 치환 같은 우회는 하지 않았다(폴백 금지).
+  - ⑰ `for_init` 의 `src_line` 이 `-1` → step forward 가 코드 창에 줄 없는 노드에 착지한다.
+
+  ★ **navigation N1·N2·N3·N5·N6·N7 완료** (decision #47 에서 도출). 상세 = `PROGRESS2.md §A.2`.
+  N2 의 설계 요점: **`stepForward` 는 루프를 접지만(`loop_delta` 로 효과 표시) `continueRun`/
+  `next bp` 는 본문을 통과한다** — concrete debugger 에서 Step Over 는 호출을 건너뛰지만
+  Continue 는 그 안의 breakpoint 에 멈추는 것과 같은 관계다. 본문 안 breakpoint 는
+  "루프 불변식" 을 보는 정당한 지점이므로 놓치게 하면 안 된다.
+  back_edge 를 거르는 대가로 생기는 "루프 꼬리에서 커서 갇힘" 은 `exitEnclosingLoop`
+  (꼬리의 back_edge → join → 그 루프를 접음)로 해소했다.
+
+  **남은 것**: N4(Step Into/Out), 브라우저 육안 확인, ⑭⑮⑯⑰ 승인·적용.
+  ⚠ ⑭⑮ 를 고치면 **중첩 루프를 쓰는 RQ1 케이스 결과가 또 바뀐다** — 평가 재측정은 그 뒤에.
+
+- **(49) 중첩 루프가 아예 동작하지 않았다 — F45·F46·F47·F48 (2026-10-01)**:
+  decision #48(F43) 로 루프가 처음 돌기 시작하자 **그 뒤에 숨어 있던 결함 4건**이 드러났다.
+  전부 보고 → 사용자 결정 → 적용 순서를 지켰다. 상세 = `(to_solidityguardian)_engine_fixes.md`.
+
+  ★ **F45(⑯) widening 이 `INFINITY` 를 넣었다** (`Domain/Interval.py`). 산술은 타입 최댓값으로
+  맞추므로 **같은 ⊤ 가 경로에 따라 `[0,inf]` / `[0,2^256-1]` 로 갈렸다.** 표시만의 문제가
+  아니라 F43 의 `!= INFINITY` 가드가 `inf` 를 보면 **정제를 건너뛴다**.
+  ★ 코드 스스로 이미 타입 경계 쪽이었다 — `IntegerInterval.top()` 이 타입 경계를 쓰고 주석에
+  "이론적 ±∞ 대신 실제 비트 범위" 라고 적혀 있다. **`widen()` 만 예외**였다.
+  **사용자 결정: (b) 타입 있는 구간은 `inf` 를 갖지 않는다.** 부수로
+  `UnsignedIntegerInterval.is_top()`(widen 값이 False), `IntegerInterval.is_top()`(top() 이
+  False)의 **기존 불일치 2건이 같이 고쳐졌다**(둘 다 호출자 0개인 죽은 코드였다).
+  참조 전수 **3파일 17곳**뿐이라 범위가 작았다.
+
+  ★ **F46(⑮) `traverse_loop_nodes` 가 모든 `loop_exit_node` 에서 절단했다** (`Engine.py`).
+  중첩이면 **내부 루프의 exit** 이 바깥 본문을 잘라 `for_incr_*` 와 back edge 가
+  `loop_nodes` 에서 빠지고 **바깥 fixpoint 가 1회만 돌았다**. 자기 헤더의 False 엣지가
+  가리키는 노드만 절단점으로 바꿨다.
+  ※ `n` 이 `[0,5]`→`[0,0]` 으로 오염된 것은 **그 자체로는 올바른 정제**였다
+  (`i >= n`, `i=[0,0]` → `n=0`). 틀린 `i` 가 올바른 규칙을 타고 번진 것.
+
+  ★ **flat vs hierarchical 을 실측해 flat 을 택했다** (사용자 판단: loop_delta 는 최외곽 기준).
+  hierarchical(Bourdoncle recursive — 안쪽을 통째로 수렴시켜 한 걸음으로 쓰는 표준 기법)은
+  바깥 카운터를 `[0,5]` 로 정확히 잡지만 **2중 루프 47.4s(flat 4.1s, 14배)** 이고
+  **3중 루프는 크래시**했다(증분 빌드 중간 상태에서 재귀 fixpoint 가 미완성 env 를 건드림:
+  `This 'j' is may be elementary variable but may not be declared`). 이 엔진은 본문 한 줄마다
+  전체를 다시 돌리므로 비용이 (줄 수)×(바깥×안쪽)으로 곱해진다 — "quick" 정체성에 반한다.
+  ⚠ **flat 의 대가**: 중첩 시 바깥 루프 카운터가 ⊤ 로 남는다. **건전**(과대근사)하지만 정밀도
+  손실이다. 원인은 안쪽 back edge 가 **이미 widen 된 바깥 변수를 안쪽 join 으로 되돌려** 넣어
+  바깥 조건 refine 이 매 바퀴 무효화되는 것. `N_MAX` 를 20배 늘려도 안 바뀐다(예산 문제 아님).
+  "widening 을 루프-수정 변수에만" 가설은 **기각** — 구간 도메인의 widening 은 componentwise 가
+  정의 그 자체이고, `new_max = INFINITY if max < current.max else max` 라서 **값이 안 커지면
+  애초에 widen 되지 않는다**(사용자 지적이 맞았다).
+
+  ★ **F47(⑭) `build_for_statement` 가 `pre` 의 기존 후속을 잇지 않았다**
+  (`DynamicCFGBuilder.py`). `EXIT` 이라는 **이름**의 노드 하나만 옮기고 나머지는 그대로 뒀다.
+  최상위 `for` 은 가짜 닫는 중괄호 덕에 `pre` 의 후속이 항상 `EXIT` 이라 우연히 맞았다.
+  `for` 이 블록 안에서 열리면 ① 헌 엣지가 남아 **루프를 우회**하고 ② `for_exit_*` 가
+  **sink** 가 됐다 → `for`-in-`if` 에서 루프는 `acc=⊤` 를 계산했는데 뒷 문장은 **`acc=[7,7]`**.
+  `build_while_statement` 는 처음부터 `old_succs` 를 전부 재배선해 올바랐다 — **빌더 간 불일치**.
+
+  ★ **F47 이 드러낸 잠복 결함 — join 지연 처리 무한루프** (`Engine.py:_run_worklist`).
+  ⑭ 적용 직후 `for`-in-`if` 가 **10분 넘게 멈췄다**(`faulthandler` 로 지점 특정).
+  루프 헤더 처리가 `exit_node` 를 `visited` 에 넣지 않아, 복원된 `for_exit → if_join` 엣지
+  때문에 `if_join` 이 영원히 "미방문 선행" 으로 보고 재큐잉했다. `work` 에 같은 join 이 두 개
+  쌓여 서로 `len(work) > 0` 을 만족시켜 빠져나오지 못한다. → `visited.add(exit_node)`.
+  ⑭ 이전에는 그 엣지가 **끊겨 있어서** 가려져 있었다.
+
+  ★ **F48(⑰) `for_init` 의 `src_line` 이 `-1`** (`ContractAnalyzer.py`). 실제 실행되는 문장인데
+  라인이 없어 Step Forward 가 **코드 창에 줄 없는 노드**에 착지했다. 헤더 라인을 부여했다
+  (사용자 결정: "반복문이 시작되는 위치 자체가 단위"). `line_info["cfg_nodes"]` 에는 넣지
+  않았다 — 그쪽은 intent 부착·삭제 수술의 "라인 → 대표 노드" 매핑이라 cond 하나만 유지한다.
+
+  **검증(매 단계)**: `temp/` **119 checks pass, FAIL 0**. pkl 드라이런 함수 974→974,
+  statement 1288→1288, 사라진 함수 0, 감소 0, `[ERR]`/`[ANTLR]`/`[UPDATE_CODE ERR]` 전부 0
+  → **pkl 재생성 불필요**. 중첩 6형태(`for`/`while`/`if` 조합) 전부 dangling 0 · 우회 0 ·
+  `acc=⊤`(루프 효과가 뒷 문장에 도달). N2 궤적에서 `for_init_8(L-1)` → `(L8)`.
+  ※ `temp/` 중 5종(`test_bottom_propagation`·`test_http`·`test_outline`·`test_vault`·
+  `test_engine_fixes`)은 **원래부터** nonzero exit 이다(출력이 수정 전과 바이트 동일함을 확인).
+
+  ★ **loop_delta 는 최외곽 루프 기준** (사용자 결정). N2 의 step forward 가 최외곽 루프를
+  통째로 접고 그 **뒤**로 착지하므로 안쪽 루프는 navigation 착지점이 되지 않는다.
+  ⚠ 그냥 "안 생긴다" 가 아니라 **걸러야** 했다 — 안쪽 delta 는 증분 빌드 도중(아직 바깥 루프
+  본문에 편입되기 전) `reinterpret_from` 이 안쪽 헤더를 loop head 로 만나 `fixpoint(안쪽)` 을
+  직접 불렀을 때 ledger 에 기록되고 그 뒤 갱신되지 않아 **낡은 스냅샷**으로 남는다.
+  `engine_api._nested_loop_heads` 를 추가해 **직렬화 시점에 매번 다시 판정**한다(ledger 가
+  낡아도 영향 없음). 판정 규칙은 `Engine.traverse_loop_nodes`(F46)와 동일하다.
+
+  **남은 것**: N4(Step Into/Out), 브라우저 육안 확인. ⚠ **RQ1 등 평가 재측정은 지금 해야 한다**
+  — F43·F45·F46·F47 이 모두 루프 결과를 바꿨다.
+
+- **(50) 외부 호출 처리 정리 — F49 + N4 범위 확정 (2026-10-01)**:
+  N4(Step Into/Out) 설계 중 "구체 컨트랙트 호출은 코드를 아는데 왜 하강하지 않나" 를 파고들었다.
+
+  ★ **핵심 사실**: `Vault(a).f()` 는 **런타임 타입 검사가 없는 순수 캐스트**다. 컴파일 결과는
+  주소 `a` 로의 external call 이고 **`a` 에 배포된 임의의 코드가 실행**된다 → **callee 코드는
+  타입 시스템이 결정하지 않는다**. 상태변수 `Vault v` 도 20바이트 주소 슬롯이라 같다. 즉
+  구체 컨트랙트 캐스트와 인터페이스 캐스트는 **의미론적으로 동일**하다(사용자 지적).
+  반면 **mutability 는 결정되고 EVM 이 강제**한다 — 선언이 view/pure 면 solc 가 STATICCALL 을
+  내므로 상태 변경은 revert 한다. **그래서 "부작용 없음이 보장된 외부 호출의 반환값만 사용자
+  가정으로 받는다"(= `@IReturn`)는 구조가 원리적으로 맞다.**
+
+  ★ **내가 한 번 틀렸다가 정정한 것 두 개**:
+  ① "dependency pkl 있고 주소가 풀리면 cross-contract 하강 조건부 가능" → **하강 구현 자체가
+     없다**. 그리고 애초에 주소로 정해지므로 "타입이 final 하면 코드가 하나" 도 틀렸다.
+  ② "코드를 아니까 분석해야 한다" → 캐스트가 런타임 보장을 주지 않으므로 **코드를 아는 게
+     아니다**. 분석으로 가려면 cross-contract 모드(state 변수 비공유, `msg.sender`/`msg.value`
+     재바인딩, 백로그 ⑪)가 필요하고 RQ1 8곳 verdict 가 바뀌는데, callee storage 가 통제 불가라
+     얻는 건 ⊤ 투성이 상태뿐이다. → **기각**.
+  ③ "multi-contract 를 상속+library+`@IReturn` 로 정의하는 게 정직하겠다" 는 **깎아내린 표현**
+     이었다. 그 세 가지가 Solidity 의 multi-contract 를 제대로 덮는다. 실측으로 확인:
+     internal · abstract contract 상속 · library 는 **하강해서 정확한 값**을 낸다.
+
+  ★ **F49 (적용)**: `@IReturn` 의 **캐스트 경로가 변수 경로와 비대칭**이었다. `v.f()` 와
+  `IFoo(a).f()` 는 슬롯이 생기는데 `Vault(a).f()` 만 안 생겨 ⊤ 로 떨어지고 제어 불가였다
+  (슬롯 도출 `classify` + 어노테이션 처리 `process_ireturn_cast` 양쪽). 둘 다 "알려진 interface
+  또는 (라이브러리 아닌) 알려진 contract" 로 넓혔다. 추가로 **슬롯 도출에 view/pure 게이트**를
+  넣었다 — 예전엔 비-view 외부 호출도 슬롯으로 제시하고 값을 넣는 순간 거부했다(fail-open:
+  타입·함수 미해소면 제외하지 않음).
+  ⚠ **논문 미기재 결정(사용자)** — 구현에만 둔다.
+  ⚠ 평가 영향 **0**: 캐스트 형태의 구체 컨트랙트 호출은 Dependencies 0건 / RQ1 0건
+  (캐스트 72건 전부 인터페이스). RQ1 의 구체 컨트랙트 접촉 8곳은 전부 변수 형태라 이미 됐다.
+
+  ★ **`address.call` 류는 무조건 ⊤** (사용자 결정, 현재 동작과 일치). 어느 함수가 호출되는지
+  조차 모르고 대개 `fallback` 인데 fallback 은 보통 view/pure 가 아니다.
+  `Evaluation.py:1842-1860` 이 `_cast_interface` 검사보다 앞에서 `BoolInterval.top()` 을 낸다.
+
+  ★ **N4 범위 확정**: Step Into 가능 = **internal · 상속(`super`/`Parent.f()`/abstract) ·
+  library · `this.f()`** (넷 다 `interpret_function_cfg` 를 탄다). 주소 간접 외부 호출은 전부
+  opaque 이고, 이유 문구는 "미구현" 이 아니라 **"callee 코드가 타입으로 정해지지 않음 —
+  `@IReturn` 으로 반환값 지정"** 으로 쓴다.
+  ⚠ 논문 서술: `PROGRESS2.md` 의 "dependency CFG 가 있으면 들어갈 수 있다" 는 **거짓**이다.
+
+  **N4 단계 계획**: S1 엔진(callee `{node → state}` 보존) → S2 계약(`NodeFlag += call/opaque`,
+  `CalleeRef`, `CFGNode.callees`, `CfgWithStates.callees`) → S3 직렬화(식 트리 스캔으로 호출
+  지점 탐지) → S4 프론트(`cursor` → Frame 스택, stepInto/stepOut, 깊이 상한 + 재귀 표시,
+  callee 소스). 미결정 2건: callee 스냅샷 키(호출 지점 기준 권고) · callee 소스 조달 방식.
+
+- **(51) 도구 비교 평가 설계 + expressible 48 원본 컴파일 게이트 (2026-10-05)**:
+  학위논문 RQ1(latency) 의 비교 대상을 SolQDebug 때의 **Remix 단독**에서 바꾼다.
+  검토 후 사용자 확정: **정량 = Hardhat + Foundry**, **정성 = Remix + Solidity Debugger Pro**.
+
+  ★ **Remix 를 정량에서 내린 근거** (변명이 아니라 측정 전제의 문제). SolQDebug 의
+  `SolDebug/Evaluation/RQ1_Latency/remix/remix_benchmark.py:570` 은 상태를 심으려고
+  `setter_function = f"set_{var_name}"` 를 호출한다 — 즉 **대상 소스에 setter 를 주입**해야 했다.
+  single-contract 에선 감당됐지만 48케이스는 `@StateVar` 가 **87개**(평균 4.4, 최대 WANGMI 17)이고,
+  Remix VM 에는 `setStorageAt` 류 RPC 도 `block.timestamp` 조작도 없다. Remix 쪽만 피측정 코드가
+  변형되면 동일 전제가 깨진다. 반면 hardhat/anvil 은 `hardhat_setStorageAt`·`evm_setNextBlockTimestamp`
+  로 **소스를 안 건드리고** 상태를 심고, 슬롯 계산은 solc `storageLayout` + 매핑 `keccak256(key . slot)`
+  으로 기계화된다. → 심사에서 "SolQDebug 때는 Remix 정량이었는데 왜 뺐나" 가 반드시 나오므로
+  이 문장을 준비해 둔다. Remix 는 시간이 남으면 **소스 수정 없이 측정 가능한 케이스에서만** 정량 시도
+  (사용자: "일단 remix 보류"). 공수의 실체는 측정이 아니라 **2263줄 Selenium 스크립트의 DOM 복구**다.
+  Solidity Debugger Pro 는 공식 repo 에 CLI/headless/DAP 진입점이 없고 라이선스도 불명 — 기능 비교로만.
+
+  ★ **측정 비대칭을 물려받지 않는다**: `solqdebug_benchmark.py` 는 edit trace **전체** wall clock,
+  `remix_benchmark.py` 는 `debug_open + jump_to_end` 만 total 에 넣었다(compile/deploy/state/exec 는
+  따로 기록만 했다). **서로 다른 작업 단위**이고 그대로 쓰면 심사에서 찔린다.
+  주지표 후보 = **증분 재측정 latency**(한 줄 고친 뒤 값을 다시 볼 때까지 — 우리 = `update`+`evaluate`
+  1회 / 상대 = recompile→redeploy→state 재주입→re-tx→re-open). ⚠ **지표는 미확정**, 사용자와 계속 논의
+  (`PROGRESS2.md §B.1`). 또 하나 주의: 우리 `[TIMING]`(`main.py:202`)은 `simulate_inputs` 만 감싸고
+  `load_dependencies()` 는 import 시점(`main.py:125`)에 끝나므로 **dependency 분석 시간은 이미 측정 밖**이다
+  (IntentChecker 전제와 일관). 비교 도구에도 "의존성은 컴파일·배포 완료" 를 대칭으로 적용한다.
+
+  ★ **데이터셋 = IntentChecker expressible 48** (사용자 확정).
+  `SolidityGuardian/evaluation/RQ3/rq3_comparison_table.csv` 가 정확히 48행(web3bugs 41 + numscout 7)이고
+  Guardian `run_all.py` 주석의 "원래 20 + RQ3 확장 28" 과 일치한다. IntentKeeper `evaluation/RQ1/cases/`
+  55개 디렉토리 중 **어노테이션이 있는 것이 정확히 48개**라 자산이 이미 맞춰져 있었다.
+  ⚠ 48개의 디버깅 요소 프로파일은 **루프가 12건(25%)뿐**이다 — F43~F47 이 바꾼 루프·중첩루프와
+  N2/N3(loop fold) 를 n=12 로 말해야 한다. 요소별 **보강셋**(intent 불필요, `@StateVar`/타겟 함수만
+  필요하므로 케이스당 비용이 절반 이하)을 별도로 뽑는 안을 사용자에게 제안해 둔 상태다.
+
+  ★ **48/48 컴파일 통과** — `evaluation/Dataset/reassemble.py --build` (Foundry 1.8.4, 프로젝트 **33개**;
+  w35 가 4케이스, w5·w52·w62·w70 이 각 3케이스를 공유하므로 셋업 비용은 케이스당이 아니다).
+  원칙: **소스 .sol 내용은 한 바이트도 바꾸지 않는다** — 디렉토리 배치·remapping·solc 선택만으로 푼다.
+  (private→internal 5건은 Step 2 harness 단계로 분리.) 파일 출처 집계:
+  target 39 / contest 전용 풀 35 / 범용 풀 116 / flatten 힌트 59 / 복원 2 / npm 3 / sibling 6.
+
+  ★ **그 과정에서 드러난 평가 자산 결함 (논문에 적어야 할 것)**:
+  - **numscout 7개의 "원본"이 원본이 아니었다.** `target_contracts_original/numscout_*.{sol,json}` 은
+    IntentChecker 가 주석 제거·함수 탈락·한줄블록 전개한 형태라 solc 가 못 읽는다
+    (Nokon 62줄 vs Etherscan 271줄, WANGMI 447 vs 1084 — 레코드를 **에디터 삽입 순서로 재생**해도
+    similarity 0.23/0.16). Etherscan 검증 원문 `Dataset/Numscout/Original/` 로 교체했다(5개).
+    **SwordCrowdsale 은 원문이 어디에도 없어** `flyinointment/greedy_contract/SwordCrowdsale_simple.sol`
+    (35줄, `refundMoney` 와 버그는 보존)로 대체 — 논문에 **"simplified reproduction"** 명시 필요.
+  - **복원 인터페이스 3개** (`evaluation/Dataset/Dependencies/reconstructed/`, 헤더에 출처 기재):
+    `IWETH`·`IMarginTrading`(w3 — code4rena 스냅샷에 `contracts/interfaces/` 가 없고 marginswap 조직
+    repo 는 전부 404), `IBentoBoxV1`(w113 — `@sushiswap/bentobox-sdk` 가 npm 에 .sol 을 **전혀** 안 올린다).
+    멤버는 호출부·`override` 구현체에서 복원했다. 인터페이스는 바이트코드를 내지 않고 셀렉터는
+    시그니처로만 결정되므로 **타겟 바이트코드 무관**.
+  - **원 저장소에서 받은 contest 전용 버전 4개** (`Dependencies/fetched/`, URL 은 `FETCHED.txt`):
+    `5_iSYNTH`(풀에는 0.8.9 판만 있어 0.8.3 과 충돌), `51_MathUtils`·`51_LPToken`·`51_ISwap`.
+  - **Guardian `Dependencies/{contracts,interfaces,libraries}` 사본은 컴파일 소스로 쓸 수 없다** —
+    pkl 분석용으로 **import 가 제거/축약된 파일**이 섞여 있다(`51/LPToken.sol` 에 import 0개,
+    `IBentoBoxV1.sol` 이 9줄). resolve 우선순위를 내려 최종 사용 **0건**으로 만들었다.
+  - **solc 핀 1건**: w42 의 `// SPDX-License-Identifier: (c) Mochi.Fi, 2021` 을 최신 solc 가 거부
+    → 0.8.4. 나머지 32개는 auto-detect. 멀티버전은 forge·hardhat 둘 다 네이티브 지원이라 문제 아님.
+  - **순환 import 2건**: w36·w65 의 `IBasket ↔ IAuction ↔ IFactory` 에서 solc 가 처리 순서에 따라
+    전이 심볼(`IFactory.Proposal`)을 놓친다. upstream 과 **바이트 동일**함을 확인했고, 원 프로젝트가
+    hardhat 으로 저장소 전체를 한 번에 컴파일해 통과했으므로 contest 파일 전체를 함께 넣어 해결.
+  - ★ **`cases48.csv` 표기 오류 2건** (데이터셋 표 수정 필요):
+    **w77_H_01** 은 contract 열이 `Exchange` 인데 타겟 함수 `calculateLiquidityTokenQtyForSingleAssetEntry`
+    는 같은 파일의 **`library MathLib`** 안에 있다(그래서 `Exchange.sol` 이 `../libraries/MathLib.sol` 로
+    자기 자신을 import). **w16_H_04** 는 타겟 파일 실체가 `lib/LibBalances.sol`(`library Balances`)인데
+    컨트랙트명으로 파일명이 바뀌어 저장돼 같은 소스가 두 경로에 놓였다. 둘 다 파일명이 아니라
+    **내용 비교(alias)** 로 자동 교정하게 했다 — `reassemble_report.json` 의 `vpath_override` 에 남는다.
+
+  **구조 정리**: `evaluation/Dataset/{cases48.csv, target_original/, target_contraction/, Dependencies/,
+  npm/, projects/, reassemble.py, reassemble_report.json}` + `evaluation/{forge,hardhat}/`.
+  `evaluation/RQ1/target_contracts_{contraction,original}` 은 Dataset 으로 옮기고 삭제했으며
+  `main.py:111-112` 의 interface 스캔 경로를 그에 맞게 바꿨다(interfaces 179 등록 확인).
+  `.gitignore` += `evaluation/forge/bin/`(255MB 바이너리, `install.ps1` 로 재설치)·`npm/`·`projects/`.
+  ⚠ `tools/generate_case_jsons.py`·`tools/preprocess_contraction.py` 는 **이전부터** 존재하지 않는
+  `tools/target_contracts_contraction` 을 가리키고 있다(이번 이동과 무관한 기존 결함). 손대지 않았다.
+
+  **다음**: ① hardhat 게이트(같은 `projects/` 를 hardhat 2.29.1 로도 컴파일) → ② Step 2 상태 주입
+  (`storageLayout` → `setStorageAt`, `@GlobalVar` 10건 → `setNextBlockTimestamp`, `@IReturn` 8건/4케이스
+  → mock 배포, internal 12건 → 상속 harness, **private 5건 → `internal` 패치 + 메타데이터 제거
+  바이트코드 diff 0 확인**).
 
 **Guardian 동기화 방침 변경(2026-07-18)**: 더 이상 동기화하지 않기로 함(사용자) → 코어
 (`Analyzer/ Domain/ Interpreter/ Libraries/ Parser/ Utils/ Dependencies/` + `main.py`)를 **IntentKeeper 에서
@@ -1437,6 +2109,6 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
   "실제 버그를 탐지하나"를 보지 않는다.
 - ANTLR: 생성 CLI `antlr4` 4.13.2 / 런타임 `antlr4-python3-runtime==4.13.2` (2026-07-18 정합).
   파서 재생성 = `Parser/` 에서 `antlr4 -Dlanguage=Python3 -visitor Solidity.g4`.
-- `load_dependencies`는 3개 디렉토리 interface 스캔 필요(`evaluation/RQ1/target_contracts_contraction`, `.../target_contracts_original/dependencies`, `Dataset/Numscout/contraction`).
+- `load_dependencies`는 3개 디렉토리 interface 스캔 필요(`evaluation/Dataset/target_contraction`, `evaluation/Dataset/Dependencies/pool`, `Dataset/Numscout/contraction`). **decision #51 에서 앞 두 경로가 `evaluation/RQ1/...` 에서 옮겨졌다** — 없으면 interface 호출 해석이 조용히 실패한다.
 - 프론트: `cd frontend && npm install` (1회), `npm run dev`. 타입체크 `npx tsc --noEmit`.
 - 작업 규칙(CLAUDE.md): 객관적·비판적 검토 / 제안 도구(코어 수정 전 승인) / 모호하면 질의.

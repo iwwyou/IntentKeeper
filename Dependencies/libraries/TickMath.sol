@@ -126,7 +126,9 @@ library TickMath {
             if (msb >= 128) {
                 r = ratio >> (msb - 127);
             }
-            else r = ratio << (127 - msb);
+            else {
+                r = ratio << (127 - msb);
+            }
 
             int256 log_2 = (int256(msb) - 128) << 64;
 

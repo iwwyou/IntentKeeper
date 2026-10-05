@@ -1,0 +1,754 @@
+{
+  "n_BoostToken": {
+    "cases": [
+      "numscout_BoostToken_indivisible",
+      "numscout_BoostToken_operator"
+    ],
+    "contest": null,
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "n_EthereumGod": {
+    "cases": [
+      "numscout_EthereumGod"
+    ],
+    "contest": null,
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "n_HIT": {
+    "cases": [
+      "numscout_HIT"
+    ],
+    "contest": null,
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "n_Nokon": {
+    "cases": [
+      "numscout_Nokon"
+    ],
+    "contest": null,
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "n_SwordCrowdsale": {
+    "cases": [
+      "flyinointment_SwordCrowdsale"
+    ],
+    "contest": null,
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "n_WANGMI": {
+    "cases": [
+      "numscout_WANGMI"
+    ],
+    "contest": null,
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w101": {
+    "cases": [
+      "web3bugs_101_H_01"
+    ],
+    "contest": "101",
+    "files": 8,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool-pref": 2,
+      "pool": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w112": {
+    "cases": [
+      "web3bugs_112_H_01"
+    ],
+    "contest": "112",
+    "files": 31,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 25,
+      "pool-pref": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w113": {
+    "cases": [
+      "web3bugs_113_H_05"
+    ],
+    "contest": "113",
+    "files": 4,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@boringcrypto/boring-solidity/",
+      "@sushiswap/bentobox-sdk/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 3
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w16": {
+    "cases": [
+      "web3bugs_16_H_04",
+      "web3bugs_16_H_06"
+    ],
+    "contest": "16",
+    "files": 8,
+    "depth": 1,
+    "vpath_override": {
+      "web3bugs_16_H_04": "lib/LibBalances.sol"
+    },
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/",
+      "prb-math/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "pool-pref": 1,
+      "pool": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w192": {
+    "cases": [
+      "web3bugs_192_H_01"
+    ],
+    "contest": "192",
+    "files": 3,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/",
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 2
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w29": {
+    "cases": [
+      "web3bugs_29_H_08",
+      "web3bugs_29_H_11"
+    ],
+    "contest": "29",
+    "files": 10,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "pool-pref": 2,
+      "pool": 6
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w3": {
+    "cases": [
+      "web3bugs_3_H_04",
+      "web3bugs_3_H_05"
+    ],
+    "contest": "3",
+    "files": 18,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/",
+      "@uniswap/v2-core/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "pool": 13,
+      "reconstructed": 2,
+      "pool-pref": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w31": {
+    "cases": [
+      "web3bugs_31_H_01"
+    ],
+    "contest": "31",
+    "files": 17,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool-pref": 9,
+      "npm-path": 2,
+      "pool": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w35": {
+    "cases": [
+      "web3bugs_35_H_08",
+      "web3bugs_35_H_10",
+      "web3bugs_35_H_11",
+      "web3bugs_35_H_12"
+    ],
+    "contest": "35",
+    "files": 14,
+    "depth": 2,
+    "vpath_override": {
+      "web3bugs_35_H_11": "libraries/concentratedPool/Ticks.sol"
+    },
+    "oz_generation": "4",
+    "npm": [
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "pool-pref": 3,
+      "pool": 9
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w36": {
+    "cases": [
+      "web3bugs_36_H_02"
+    ],
+    "contest": "36",
+    "files": 7,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/",
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 3,
+      "sibling": 3
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w42": {
+    "cases": [
+      "web3bugs_42_H_01"
+    ],
+    "contest": "42",
+    "files": 15,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@mochifi/cssr/",
+      "@mochifi/library/",
+      "@mochifi/vmochi/",
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 14
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "0.8.4"
+  },
+  "w45": {
+    "cases": [
+      "web3bugs_45_H_01"
+    ],
+    "contest": "45",
+    "files": 6,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w47": {
+    "cases": [
+      "web3bugs_47_H_02"
+    ],
+    "contest": "47",
+    "files": 8,
+    "depth": 1,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool-pref": 6,
+      "pool": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w5": {
+    "cases": [
+      "web3bugs_5_H_07",
+      "web3bugs_5_H_08",
+      "web3bugs_5_H_12"
+    ],
+    "contest": "5",
+    "files": 9,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "pool": 6,
+      "pool-pref": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w51": {
+    "cases": [
+      "web3bugs_51_H_02"
+    ],
+    "contest": "51",
+    "files": 5,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool-pref": 3,
+      "npm-path": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w52": {
+    "cases": [
+      "web3bugs_52_H_04",
+      "web3bugs_52_H_23",
+      "web3bugs_52_H_34"
+    ],
+    "contest": "52",
+    "files": 24,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "flat": 22
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w56": {
+    "cases": [
+      "web3bugs_56_H_02"
+    ],
+    "contest": "56",
+    "files": 3,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@openzeppelin/contracts/",
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 2
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w58": {
+    "cases": [
+      "web3bugs_58_H_02"
+    ],
+    "contest": "58",
+    "files": 14,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 12,
+      "pool-pref": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w59": {
+    "cases": [
+      "web3bugs_59_H_04"
+    ],
+    "contest": "59",
+    "files": 12,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@openzeppelin/contracts/",
+      "@openzeppelin/upgrades/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 10,
+      "pool-pref": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w60": {
+    "cases": [
+      "web3bugs_60_H_01"
+    ],
+    "contest": "60",
+    "files": 3,
+    "depth": 2,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 2
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w62": {
+    "cases": [
+      "web3bugs_62_H_03",
+      "web3bugs_62_H_08",
+      "web3bugs_62_H_10"
+    ],
+    "contest": "62",
+    "files": 2,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "solmate/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w65": {
+    "cases": [
+      "web3bugs_65_H_01"
+    ],
+    "contest": "65",
+    "files": 7,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/",
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 3,
+      "sibling": 3
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w70": {
+    "cases": [
+      "web3bugs_70_H_04",
+      "web3bugs_70_H_05",
+      "web3bugs_70_H_10"
+    ],
+    "contest": "70",
+    "files": 12,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 11
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w77": {
+    "cases": [
+      "web3bugs_77_H_01"
+    ],
+    "contest": "77",
+    "files": 3,
+    "depth": 0,
+    "vpath_override": {
+      "web3bugs_77_H_01": "libraries/MathLib.sol"
+    },
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 2
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w78": {
+    "cases": [
+      "web3bugs_78_H_02"
+    ],
+    "contest": "78",
+    "files": 2,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w79": {
+    "cases": [
+      "web3bugs_79_H_02"
+    ],
+    "contest": "79",
+    "files": 8,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 7
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w83": {
+    "cases": [
+      "web3bugs_83_H_01"
+    ],
+    "contest": "83",
+    "files": 1,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  }
+}

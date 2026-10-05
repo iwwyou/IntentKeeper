@@ -1,9 +1,32 @@
-\begin{thebibliography}{7}
+\begin{thebibliography}{37}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Arora et~al.(2024)]{secplf}
+Sanidhay Arora et~al.
+\newblock {SecPLF}: Secure protocols for loanable funds against oracle
+  manipulation attacks.
+\newblock In \emph{Proceedings of the 19th ACM Asia Conference on Computer and
+  Communications Security (ASIACCS)}, pages 1394--1405, 2024.
+\newblock \doi{10.1145/3634737.3637681}.
+
+\bibitem[Bartoletti et~al.(2024)]{solvent}
+Massimo Bartoletti et~al.
+\newblock {Solvent}: Liquidity verification of smart contracts.
+\newblock In \emph{International Conference on Integrated Formal Methods
+  (iFM)}, pages 256--266, 2024.
+\newblock \doi{10.1007/978-3-031-76554-4_14}.
+
+\bibitem[Cadar et~al.(2008)]{klee}
+Cristian Cadar et~al.
+\newblock {KLEE}: Unassisted and automatic generation of high-coverage tests
+  for complex systems programs.
+\newblock In \emph{Proceedings of the 8th USENIX Conference on Operating
+  Systems Design and Implementation (OSDI)}, pages 209--224, 2008.
+\newblock \doi{10.5555/1855741.1855756}.
 
 \bibitem[Chen et~al.(2025)]{numscout}
 Jiachi Chen et~al.
@@ -12,10 +35,72 @@ Jiachi Chen et~al.
 \newblock \emph{IEEE Transactions on Software Engineering}, 2025.
 \newblock \doi{10.1109/TSE.2025.3555622}.
 
-\bibitem[{Consensys Diligence}(2026)]{scribble}
+\bibitem[Chimdyalwar(2024)]{fap}
+Bharti Chimdyalwar.
+\newblock Fast and precise interval analysis on industry code.
+\newblock In \emph{2024 IEEE 35th International Symposium on Software
+  Reliability Engineering Workshops (ISSREW)}, 2024.
+\newblock \doi{10.1109/ISSREW63542.2024.00049}.
+
+\bibitem[{Consensys Diligence}(2026{\natexlab{a}})]{mythril}
+{Consensys Diligence}.
+\newblock {Mythril}.
+\newblock \url{https://github.com/ConsenSysDiligence/mythril},
+  2026{\natexlab{a}}.
+\newblock Accessed April 2026.
+
+\bibitem[{Consensys Diligence}(2026{\natexlab{b}})]{mythx}
+{Consensys Diligence}.
+\newblock {MythX}.
+\newblock \url{https://mythx.io/}, 2026{\natexlab{b}}.
+\newblock Accessed April 2026.
+
+\bibitem[{Consensys Diligence}(2026{\natexlab{c}})]{scribble}
 {Consensys Diligence}.
 \newblock {Scribble}.
-\newblock \url{https://diligence.security/scribble/}, 2026.
+\newblock \url{https://diligence.security/scribble/}, 2026{\natexlab{c}}.
+\newblock Accessed April 2026.
+
+\bibitem[Erhard et~al.(2024)]{iac}
+Julian Erhard et~al.
+\newblock Interactive abstract interpretation: reanalyzing multithreaded {C}
+  programs for cheap.
+\newblock \emph{International Journal on Software Tools for Technology
+  Transfer}, 2024.
+\newblock \doi{10.1007/s10009-024-00768-9}.
+
+\bibitem[Feist et~al.(2019)Feist, Grieco, and Groce]{slither}
+Josselin Feist, Gustavo Grieco, and Alex Groce.
+\newblock {Slither}: A static analysis framework for smart contracts.
+\newblock In \emph{2019 IEEE/ACM 2nd International Workshop on Emerging Trends
+  in Software Engineering for Blockchain (WETSEB)}, pages 8--15, 2019.
+\newblock \doi{10.1109/WETSEB.2019.00008}.
+
+\bibitem[{Foundry Forge}(2025)]{forge}
+{Foundry Forge}.
+\newblock {Foundry Forge}.
+\newblock \url{https://book.getfoundry.sh/reference/forge/forge/}, 2025.
+\newblock Accessed November 2025.
+
+\bibitem[Gurfinkel et~al.(2015)]{seahorn}
+Arie Gurfinkel et~al.
+\newblock The {SeaHorn} verification framework.
+\newblock In \emph{International Conference on Computer Aided Verification
+  (CAV)}, pages 343--361, 2015.
+\newblock \doi{10.1007/978-3-319-21690-4_20}.
+
+\bibitem[{Hardhat}(2025)]{hardhat}
+{Hardhat}.
+\newblock {Hardhat}.
+\newblock \url{https://hardhat.org/}, 2025.
+\newblock Accessed November 2025.
+
+\bibitem[{IntentChecker}(2026)]{dappscananalysis}
+{IntentChecker}.
+\newblock {DAppSCAN} contract analysis dataset.
+\newblock
+  \url{https://github.com/iwwyou/IntentChecker/blob/main/evaluation/DappSCAN_contract_analysis/contract_analysis_table.xlsx},
+  2026.
 \newblock Accessed April 2026.
 
 \bibitem[Jeon et~al.(2026)]{solqdebug}
@@ -26,6 +111,69 @@ Inseong Jeon et~al.
   2026.
 \newblock \doi{10.1007/s10515-026-00618-9}.
 
+\bibitem[Kong et~al.(2023)]{defitainter}
+Queping Kong et~al.
+\newblock {DeFiTainter}: Detecting price manipulation vulnerabilities in {DeFi}
+  protocols.
+\newblock In \emph{Proceedings of the 32nd ACM SIGSOFT International Symposium
+  on Software Testing and Analysis (ISSTA)}, pages 1144--1156, 2023.
+\newblock \doi{10.1145/3597926.3598124}.
+
+\bibitem[Li et~al.(2025)]{defitail}
+Xiaoli Li et~al.
+\newblock Penetrating the hostile: Detecting {DeFi} protocol exploits through
+  cross-contract analysis.
+\newblock \emph{IEEE Transactions on Information Forensics and Security},
+  20:\penalty0 11759--11774, 2025.
+\newblock \doi{10.1109/TIFS.2025.3626979}.
+
+\bibitem[{LLVM}(2026)]{libfuzzer}
+{LLVM}.
+\newblock {libFuzzer}.
+\newblock \url{https://llvm.org/docs/LibFuzzer.html}, 2026.
+\newblock Accessed April 2026.
+
+\bibitem[Nguyen et~al.(2023)]{idealist}
+Tai~D. Nguyen et~al.
+\newblock An idealist's approach for smart contract correctness.
+\newblock In \emph{International Conference on Formal Engineering Methods
+  (ICFEM)}, pages 11--28, 2023.
+\newblock \doi{10.1007/978-981-99-7584-6_2}.
+
+\bibitem[Ramezany et~al.(2023)Ramezany, Setthawong, and Setthawong]{midnight}
+Sina Ramezany, Rachsuda Setthawong, and Pisal Setthawong.
+\newblock {Midnight}: An efficient event-driven {EVM} transaction security
+  monitoring approach for flash loan detection.
+\newblock In \emph{Proceedings of the 2023 20th International Joint Conference
+  on Computer Science and Software Engineering (JCSSE)}, pages 237--241, 2023.
+\newblock \doi{10.1109/JCSSE58229.2023.10201970}.
+
+\bibitem[{Remix IDE}(2025)]{remix}
+{Remix IDE}.
+\newblock {Remix IDE}.
+\newblock \url{https://remix.ethereum.org/}, 2025.
+\newblock Accessed November 2025.
+
+\bibitem[Riouak et~al.(2024)]{iaj}
+Idriss Riouak et~al.
+\newblock {IntraJ}: an on-demand framework for intraprocedural {Java} code
+  analysis.
+\newblock \emph{International Journal on Software Tools for Technology
+  Transfer}, 2024.
+\newblock \doi{10.1007/s10009-024-00771-0}.
+
+\bibitem[{Solidity}(2026)]{solidity}
+{Solidity}.
+\newblock {Solidity}.
+\newblock \url{https://www.soliditylang.org/}, 2026.
+\newblock Accessed September 2026.
+
+\bibitem[{Solidity Debugger Pro}(2025)]{soldepro}
+{Solidity Debugger Pro}.
+\newblock {Solidity Debugger Pro}.
+\newblock \url{https://www.soliditydbg.org/}, 2025.
+\newblock Accessed November 2025.
+
 \bibitem[Soud et~al.(2024)Soud, Liebel, and Hamdaqa]{flyinointment}
 Majd Soud, Grischa Liebel, and Mohammad Hamdaqa.
 \newblock A fly in the ointment: an empirical study on the characteristics of
@@ -33,6 +181,19 @@ Majd Soud, Grischa Liebel, and Mohammad Hamdaqa.
 \newblock \emph{Empirical Software Engineering}, 29\penalty0 (1):\penalty0 13,
   2024.
 \newblock \doi{10.1007/s10664-023-10398-5}.
+
+\bibitem[Stein et~al.(2021)Stein, Chang, and Sridharan]{daig}
+Benno Stein, Bor-Yuh~Evan Chang, and Manu Sridharan.
+\newblock Demanded abstract interpretation.
+\newblock In \emph{Proceedings of the 42nd ACM SIGPLAN International Conference
+  on Programming Language Design and Implementation (PLDI)}, 2021.
+\newblock \doi{10.1145/3453483.3454044}.
+
+\bibitem[Stein et~al.(2024)Stein, Chang, and Sridharan]{ds}
+Benno Stein, Bor-Yuh~Evan Chang, and Manu Sridharan.
+\newblock Interactive abstract interpretation with demanded summarization.
+\newblock \emph{ACM Transactions on Programming Languages and Systems}, 2024.
+\newblock \doi{10.1145/3648484}.
 
 \bibitem[Sun et~al.(2024)]{gptscan}
 Yuqiang Sun et~al.
@@ -42,12 +203,65 @@ Yuqiang Sun et~al.
   Software Engineering (ICSE)}, pages 1--13, 2024.
 \newblock \doi{10.1145/3597503.3639117}.
 
+\bibitem[Wang et~al.(2024{\natexlab{a}})]{defiguard}
+Dabao Wang et~al.
+\newblock {DeFiGuard}: A price manipulation detection service in {DeFi} using
+  graph neural networks.
+\newblock \emph{IEEE Transactions on Services Computing}, 2024{\natexlab{a}}.
+\newblock \doi{10.1109/TSC.2024.3489439}.
+
+\bibitem[Wang et~al.(2024{\natexlab{b}})Wang, Pei, and Yang]{smartinv}
+Sally~Junsong Wang, Kexin Pei, and Junfeng Yang.
+\newblock {SmartInv}: Multimodal learning for smart contract invariant
+  inference.
+\newblock In \emph{Proceedings of the 2024 IEEE Symposium on Security and
+  Privacy (SP)}, pages 2217--2235, 2024{\natexlab{b}}.
+\newblock \doi{10.1109/SP54263.2024.00126}.
+
+\bibitem[Wesley et~al.(2022)]{smartace}
+Scott Wesley et~al.
+\newblock Verifying {Solidity} smart contracts via communication abstraction in
+  {SmartACE}.
+\newblock In \emph{International Conference on Verification, Model Checking,
+  and Abstract Interpretation (VMCAI)}, pages 425--449, 2022.
+\newblock \doi{10.1007/978-3-030-94583-1_21}.
+
+\bibitem[Wu et~al.(2023)]{defiranger}
+Siwei Wu et~al.
+\newblock {DeFiRanger}: Detecting {DeFi} price manipulation attacks.
+\newblock \emph{IEEE Transactions on Dependable and Secure Computing},
+  21\penalty0 (4):\penalty0 4147--4161, 2023.
+\newblock \doi{10.1109/TDSC.2023.3346888}.
+
+\bibitem[Xi et~al.(2024)Xi, Wang, and Pattabiraman]{pomabuster}
+Rongwei Xi, Zhuo Wang, and Karthik Pattabiraman.
+\newblock {POMABuster}: Detecting price oracle manipulation attacks in
+  decentralized finance.
+\newblock In \emph{Proceedings of the 2024 IEEE Symposium on Security and
+  Privacy (SP)}, pages 3923--3942, 2024.
+\newblock \doi{10.1109/SP54263.2024.00257}.
+
+\bibitem[Zhang(2024)]{sctype}
+Brian Zhang.
+\newblock Towards finding accounting errors in smart contracts.
+\newblock In \emph{Proceedings of the IEEE/ACM 46th International Conference on
+  Software Engineering (ICSE)}, pages 1--13, 2024.
+\newblock \doi{10.1145/3597503.3639128}.
+
 \bibitem[Zhang et~al.(2023)]{exploitablebugs}
 Zhuo Zhang et~al.
 \newblock Demystifying exploitable bugs in smart contracts.
 \newblock In \emph{Proceedings of the 2023 IEEE/ACM 45th International
   Conference on Software Engineering (ICSE)}, pages 615--627, 2023.
 \newblock \doi{10.1109/ICSE48619.2023.00061}.
+
+\bibitem[Zheng et~al.(2024)]{dappscan}
+Zibin Zheng et~al.
+\newblock {DAppSCAN}: Building large-scale datasets for smart contract
+  weaknesses in {dApp} projects.
+\newblock \emph{IEEE Transactions on Software Engineering}, 50\penalty0
+  (6):\penalty0 1360--1373, 2024.
+\newblock \doi{10.1109/TSE.2024.3383422}.
 
 \bibitem[Zhou et~al.(2023)]{defiattacks}
 Liyi Zhou et~al.

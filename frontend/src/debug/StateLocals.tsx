@@ -25,7 +25,9 @@ const isGlobal = (k: string) =>
 export default function StateLocals({ nav, result }: { nav: NavState; result: AnalysisResult }) {
   const node = nav.node
   const flags = node?.flags ?? []
-  const cfg = result.cfg
+  // ★ N4. **활성 프레임**의 CFG 를 본다 — callee 프레임에서 타겟 CFG 를 뒤지면 노드를
+  //   못 찾아 pre-state/path 가 전부 비어버린다.
+  const cfg = nav.activeCfg
 
   const activeContract = useStore((s) => s.activeContract)
   const activeFunction = useStore((s) => s.activeFunction)
@@ -90,6 +92,20 @@ export default function StateLocals({ nav, result }: { nav: NavState; result: An
   const valClass = (v: string) =>
     v.includes('⊤') || v === 'top' ? 'v top' : v.includes('-') ? 'v neg' : 'v'
 
+  // ★ N2+N3. 보여줄 루프 fold 가 있나.
+  //   - `nav.foldedLoopHead`: 직전 step forward 가 접고 넘어온 루프 (커서는 루프 **이후**)
+  //   - 커서가 루프 헤더 자체: 다음 step 이 접을 루프 (`self`)
+  //   두 경우 다 헤더 노드의 `loop_delta` 를 읽는다. 구조 단계(analyze)엔 delta 가 없다.
+  const loopHeadNode =
+    (nav.foldedLoopHead ? cfg.nodes.find((n) => n.id === nav.foldedLoopHead) : undefined) ??
+    (node && flags.includes('condition') &&
+      ['while', 'for', 'do_while'].includes(node.cond_type ?? '')
+      ? node
+      : undefined)
+  const loopFold = loopHeadNode
+    ? { node: loopHeadNode, delta: loopHeadNode.loop_delta, self: !nav.foldedLoopHead }
+    : undefined
+
   const entries = Object.entries(displayState)
   const realEntries = entries.filter(([k]) => !isGlobal(k))
   const globalEntries = entries.filter(([k]) => isGlobal(k))
@@ -136,6 +152,39 @@ export default function StateLocals({ nav, result }: { nav: NavState; result: An
       {nav.highlightedPreds.length > 1 && (
         <div className="preds">
           merge backward: {nav.highlightedPreds.join(', ')} 양쪽 비-⊥ → 모두 하이라이트
+        </div>
+      )}
+      {/* ★ N1. forward 분기도 backward 와 대칭으로 "동시에" 보여준다 — 경로를 고르게 하지 않는다. */}
+      {nav.highlightedSuccs.length > 1 && (
+        <div className="preds">
+          branch forward: {nav.highlightedSuccs.join(', ')} 전부 feasible → 모두 하이라이트
+          (abstract state 는 여러 경로를 동시에 표현한다)
+        </div>
+      )}
+
+      {/* ★ N2+N3. 루프를 접고 넘어왔으면, 그 루프가 "한 일" = 수렴 후 바뀐 변수만 보여준다.
+          iteration 을 밟게 하지 않는 대신 이 delta 가 루프의 효과를 대표한다(decision #4). */}
+      {loopFold && (
+        <div className="loop-fold">
+          <div className="loop-fold-title">
+            루프 L{loopFold.node.src_line} ({loopFold.node.cond_type}) 를 접었습니다
+            {loopFold.self ? ' — 다음 step 은 루프 이후로' : ''}
+          </div>
+          {loopFold.delta === undefined ? (
+            <div className="loop-fold-none">(아직 값이 없음 — Apply 후 표시)</div>
+          ) : Object.keys(loopFold.delta).length === 0 ? (
+            <div className="loop-fold-none">수렴 후 바뀐 변수 없음 (루프가 0회 또는 무효과)</div>
+          ) : (
+            <>
+              <div className="loop-fold-sub">고정점 수렴 후 값이 바뀐 변수 (모든 iteration 성립)</div>
+              {Object.entries(loopFold.delta).map(([k, v]) => (
+                <div className="kv" key={k}>
+                  <span>{k}</span>
+                  <span className={valClass(v)}>{v}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

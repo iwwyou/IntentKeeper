@@ -528,12 +528,21 @@ class DynamicCFGBuilder:
         G = fcfg.graph
         pre = cur_block
 
-        funcExit = None
-        for succ in list(G.successors(pre)):
-            if succ.name == "EXIT":
-                funcExit = succ
-                G.remove_edge(pre, succ)
-                break
+        # ★ pre 의 **기존 후속 전부**를 떼어내 루프 뒤(exit_)로 옮긴다 — 증분 수술의 splice.
+        #   `build_while_statement` 와 동일한 방식이다(그쪽은 처음부터 이렇게 했다).
+        #
+        # ⚠ 예전에는 **`EXIT` 이라는 이름의 노드 하나만** 찾아서 옮겼다. 최상위 `for` 은
+        #   슬라이서가 닫는 중괄호를 미리 만들어 두는 덕에 `pre` 의 후속이 **항상 `EXIT`** 이라
+        #   우연히 맞았다. 그런데 `for` 이 **다른 블록 안에서** 열리면(`if` 의 then, 다른 루프의
+        #   본문 …) `pre` 의 후속이 그 블록의 continuation(`if_join_*`, `for_incr_*` …)이므로
+        #   두 가지가 동시에 깨졌다:
+        #     ① 떼지 않은 헌 엣지가 남아 **루프를 우회하는 경로**가 됐다
+        #     ② `exit_` 에 붙일 곳을 못 찾아 **나가는 엣지가 없는 sink** 가 됐다
+        #   → 루프가 올바르게 계산한 값이 어디로도 흐르지 못하고, 뒷 문장은 우회 경로의
+        #     옛 값만 받았다(`for`-in-`if` 에서 `acc=[7,7]`). ⑭ / decision #49.
+        old_succs = list(G.successors(pre))
+        for s in old_succs:
+            G.remove_edge(pre, s)
 
         # ── ① join ------------------------------------------------------
         join = CFGNode(f"for_join_{line_no}", fixpoint_evaluation_node=True)
@@ -591,9 +600,9 @@ class DynamicCFGBuilder:
         G.add_edge(body, incr_node)
         G.add_edge(incr_node, join)
 
-        # exit_ → 함수 EXIT (있으면)
-        if funcExit:
-            G.add_edge(exit_, funcExit)
+        # exit_ → pre 의 원래 후속들 (함수 EXIT 도 그중 하나일 뿐이다)
+        for s in old_succs:
+            G.add_edge(exit_, s)
 
         # ── ⑤ line_info ------------------------------------------------
         # 시작 라인: 조건 노드만 매핑

@@ -5,62 +5,59 @@
 \contentsline {chapter}{Table of Contents}{vi}{section*.5}%
 \contentsline {chapter}{List of Tables}{ix}{section*.7}%
 \contentsline {chapter}{List of Figures}{x}{section*.9}%
-\contentsline {chapter}{List of Listings}{xi}{section*.11}%
-\contentsline {chapter}{Nomenclature}{xii}{chapter*.13}%
+\contentsline {chapter}{List of Listings}{xii}{section*.11}%
+\contentsline {chapter}{Nomenclature}{xiii}{chapter*.13}%
 \contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
 \contentsline {section}{\numberline {1.1}Motivation}{1}{section.1.1}%
-\contentsline {section}{\numberline {1.2}Proposed Techniques}{1}{section.1.2}%
-\contentsline {section}{\numberline {1.3}Contributions}{1}{section.1.3}%
-\contentsline {section}{\numberline {1.4}Outline}{1}{section.1.4}%
-\contentsline {chapter}{\numberline {2}Background and Problem Definition}{2}{chapter.2}%
-\contentsline {section}{\numberline {2.1}Solidity Execution Model and Debugging Workflow}{2}{section.2.1}%
-\contentsline {section}{\numberline {2.2}Numeric Logic Errors in Solidity}{5}{section.2.2}%
-\contentsline {section}{\numberline {2.3}Problem Definition}{8}{section.2.3}%
-\contentsline {subsection}{\numberline {2.3.1}Transaction-Dependent and Bytecode-Dependent Debugging}{8}{subsection.2.3.1}%
-\contentsline {subsection}{\numberline {2.3.2}Predefined Detection Criteria and Limited Support for Developer Intent}{10}{subsection.2.3.2}%
-\contentsline {section}{\numberline {2.4}Overview of the Proposed Approach}{11}{section.2.4}%
-\contentsline {subsection}{\numberline {2.4.1}Transaction-Independent Source-Level Debugging}{11}{subsection.2.4.1}%
-\contentsline {subsection}{\numberline {2.4.2}Development-Time Intent Validation}{12}{subsection.2.4.2}%
-\contentsline {chapter}{\numberline {3}The Design of IQDebug}{13}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Overview}{14}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Source-Level Range-Based Analysis}{14}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}Source-Level Program Representation}{14}{subsection.3.2.1}%
-\contentsline {subsection}{\numberline {3.2.2}Range-Based Debugging Inputs}{14}{subsection.3.2.2}%
-\contentsline {subsection}{\numberline {3.2.3}Abstract Interpretation of Program States}{14}{subsection.3.2.3}%
-\contentsline {section}{\numberline {3.3}Intent-Aware Validation}{14}{section.3.3}%
-\contentsline {subsection}{\numberline {3.3.1}Developer-Authored Intent Model}{14}{subsection.3.3.1}%
-\contentsline {subsection}{\numberline {3.3.2}Intent Validation over Abstract States}{14}{subsection.3.3.2}%
-\contentsline {section}{\numberline {3.4}Interactive Debugging over Abstract Program States}{14}{section.3.4}%
-\contentsline {subsection}{\numberline {3.4.1}Integration of Intent Validation into the Debugging Workflow}{14}{subsection.3.4.1}%
-\contentsline {subsection}{\numberline {3.4.2}Debugging Navigation Model}{14}{subsection.3.4.2}%
-\contentsline {subsection}{\numberline {3.4.3}Step-Based Navigation}{14}{subsection.3.4.3}%
-\contentsline {subsection}{\numberline {3.4.4}Branch and Loop Navigation}{14}{subsection.3.4.4}%
-\contentsline {subsection}{\numberline {3.4.5}Breakpoint and Continue}{14}{subsection.3.4.5}%
-\contentsline {section}{\numberline {3.5}Implementation}{14}{section.3.5}%
-\contentsline {subsection}{\numberline {3.5.1}System Implementation}{14}{subsection.3.5.1}%
-\contentsline {subsection}{\numberline {3.5.2}Analysis Engine}{14}{subsection.3.5.2}%
-\contentsline {subsection}{\numberline {3.5.3}Debugging Interface}{14}{subsection.3.5.3}%
-\contentsline {chapter}{\numberline {4}Evaluation}{15}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Experimental Setup}{15}{section.4.1}%
-\contentsline {section}{\numberline {4.2}RQ1: Intent Validation Capability}{15}{section.4.2}%
-\contentsline {section}{\numberline {4.3}Specification and Analysis Cost}{15}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}Specification Cost}{15}{subsection.4.3.1}%
-\contentsline {subsection}{\numberline {4.3.2}Validation and Interactive Analysis Cost}{15}{subsection.4.3.2}%
-\contentsline {section}{\numberline {4.4}RQ3: Comparison with Existing Detection Tools}{15}{section.4.4}%
-\contentsline {section}{\numberline {4.5}Threats to Validity}{15}{section.4.5}%
-\contentsline {chapter}{\numberline {5}Discussion}{16}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Design Trade-offs of Range-Based Debugging}{16}{section.5.1}%
-\contentsline {section}{\numberline {5.2}Practical Guidelines for Debug Inputs and Intent Specification}{16}{section.5.2}%
-\contentsline {section}{\numberline {5.3}Current Limitations}{16}{section.5.3}%
-\contentsline {chapter}{\numberline {6}Related Work}{17}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Solidity Debugging and Development Environments}{17}{section.6.1}%
-\contentsline {section}{\numberline {6.2}Intent- and Specification-Based Smart Contract Analysis}{17}{section.6.2}%
-\contentsline {section}{\numberline {6.3}Abstract Interpretation and Interactive Static Analysis}{17}{section.6.3}%
-\contentsline {chapter}{\numberline {7}Conclusion}{18}{chapter.7}%
-\contentsline {chapter}{Bibliography}{19}{section*.20}%
-\contentsline {chapter}{\numberline {A}Typesetting Reference}{20}{appendix.A}%
-\contentsline {section}{\numberline {A.1}Solidity listing with intent annotations}{20}{appendix.A.1}%
-\contentsline {section}{\numberline {A.2}Algorithm}{21}{appendix.A.2}%
-\contentsline {section}{\numberline {A.3}Theorems and inference rules}{21}{appendix.A.3}%
-\contentsline {section}{\numberline {A.4}Figures and tables}{22}{appendix.A.4}%
-\contentsline {chapter}{Index}{23}{section*.25}%
+\contentsline {section}{\numberline {1.2}Proposed Techniques}{3}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Contributions}{4}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Outlines}{5}{section.1.4}%
+\contentsline {chapter}{\numberline {2}Background}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Solidity Execution Model and Debugging Workflow}{6}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Numeric Logic Errors in Solidity}{9}{section.2.2}%
+\contentsline {chapter}{\numberline {3}Related Work}{13}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Solidity Debugging and Development Environments}{13}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Numeric Logic Error Detection in Solidity}{14}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Specification-Based Smart Contract Analysis}{15}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Abstract Interpretation and Interactive Static Analysis}{16}{section.3.4}%
+\contentsline {chapter}{\numberline {4}The Design of IQDebug}{17}{chapter.4}%
+\contentsline {section}{\numberline {4.1}System Architecture}{17}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Source-Level Program Analysis}{19}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Source-Level Program Representation}{20}{subsection.4.2.1}%
+\contentsline {subsubsection}{Source fragments and interactive parsing}{20}{subsubsection*.21}%
+\contentsline {subsubsection}{Source-Level CFG Representation}{21}{subsubsection*.23}%
+\contentsline {subsubsection}{Line-to-Node Mapping}{24}{subsubsection*.25}%
+\contentsline {subsubsection}{Incremental Source-Code Updates}{25}{subsubsection*.26}%
+\contentsline {subsection}{\numberline {4.2.2}Debugging Input Model}{30}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Abstract Interpretation of Program States}{32}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}Intent-Aware Validation}{36}{section.4.3}%
+\contentsline {subsubsection}{Syntax and Semantics}{39}{subsubsection*.29}%
+\contentsline {subsubsection}{Interval Comparison Diagnostics}{47}{subsubsection*.31}%
+\contentsline {section}{\numberline {4.4}Source-Level Debugging over Abstract Program States}{53}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Forward and Backward Navigation}{55}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Function-Call Navigation}{56}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Breakpoint-Based Navigation}{57}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Navigation over Control-Flow Structures}{58}{subsection.4.4.4}%
+\contentsline {chapter}{\numberline {5}Evaluation}{60}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Experimental Setup}{60}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Intent Validation Capability}{60}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Specification and Analysis Cost}{60}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Specification Cost}{60}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Validation and Interactive Analysis Cost}{60}{subsection.5.3.2}%
+\contentsline {section}{\numberline {5.4}Comparison with Existing Detection Tools}{60}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Threats to Validity}{60}{section.5.5}%
+\contentsline {chapter}{\numberline {6}Discussion}{61}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Design Trade-offs of Source-Level Debugging}{61}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Practical Guidelines for Debug Inputs and Intent Specification}{61}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Current Limitations}{61}{section.6.3}%
+\contentsline {chapter}{\numberline {7}Conclusion}{62}{chapter.7}%
+\contentsline {chapter}{Bibliography}{63}{section*.35}%
+\contentsline {chapter}{\numberline {A}Incremental CFG Construction Patterns}{67}{appendix.A}%
+\contentsline {section}{\numberline {A.1}CFG Hierarchy}{68}{appendix.A.1}%
+\contentsline {section}{\numberline {A.2}Statement-Level Construction Patterns}{69}{appendix.A.2}%
+\contentsline {chapter}{\numberline {B}Abstract Domain and Formal Semantics}{74}{appendix.B}%
+\contentsline {section}{\numberline {B.1}Language Syntax}{74}{appendix.B.1}%
+\contentsline {section}{\numberline {B.2}Abstract Domain}{75}{appendix.B.2}%
+\contentsline {section}{\numberline {B.3}Concrete Semantics}{77}{appendix.B.3}%
+\contentsline {section}{\numberline {B.4}Collecting Semantics}{77}{appendix.B.4}%
+\contentsline {subsection}{\numberline {B.4.1}Abstract Semantics}{78}{subsection.B.4.1}%

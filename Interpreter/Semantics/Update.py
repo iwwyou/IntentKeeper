@@ -307,6 +307,15 @@ class Update :
                 return entry
 
             # (2-B) leaf 에 값 대입 중이면 여기서 patch
+            # ★ F33. resolve-only 호출을 걸러야 한다.
+            #   `resolve_lhs_expr` 는 "순수히 변수 객체만 찾는다" 는 규약으로
+            #   `update_left_var(expr, None, None, ...)` 를 부른다(handle_delete 가 사용).
+            #   형제 분기들(L163/207/240/416/525/570)은 전부 `if r_val is None: return ...`
+            #   가드를 갖는데 **여기만 빠져 있었다** → `compound_assignment(..., None)` 이
+            #   `Unsupported compound-assignment operator: None` 으로 터졌다.
+            #   실측: `delete _admins[msg.sender];` / `delete _bal[msg.sender];`
+            if rVal is None:
+                return entry
             if hasattr(entry, "value"):
                 entry.value = self.compound_assignment(entry.value, rVal, operator)
 
@@ -833,6 +842,11 @@ class Update :
                         return None
                 return entry  # composite (deep access가 이어질 경우)
 
+            # ★ F33. resolve-only 호출은 객체만 돌려준다 (위 member-access 분기와 같은 이유).
+            #   이 가드가 없어 `delete _admins[who];`(식별자가 매핑 키)가
+            #   `_apply_to_leaf` 후 None 을 반환해 `LHS cannot be resolved.` 로 터졌다.
+            if r_val is None:
+                return entry
             _apply_to_leaf(entry, expr)  # leaf + 기록
             return None
 

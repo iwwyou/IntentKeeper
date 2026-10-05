@@ -1,10 +1,17 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces Representative single-transaction numeric logic error patterns from prior work, classified by abstraction level.}}{7}{table.caption.18}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Representative single-transaction numeric logic error patterns from prior work, classified by abstraction level.}}{11}{table.caption.19}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Interactive parser entry rules}}{21}{table.caption.22}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Line-to-node index mapping by statement type}}{24}{table.caption.24}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Fields of the validation context $\Gamma \in \mathbb {C}$. Each intent form reads only the fields required by its semantics.}}{38}{table.caption.28}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Per-operator \texttt {Satisfied}/\texttt {Violated} semantic conditions.}}{49}{table.caption.32}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Per-operator violated-region decomposition.}}{51}{table.caption.34}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\addvspace {10\p@ }
-\contentsline {table}{\numberline {A.1}{\ignorespaces Text width on B5 is 136\,mm --- wide tables need \texttt {sidewaystable}}}{22}{table.caption.24}%
+\contentsline {table}{\numberline {B.4}{\ignorespaces Concrete semantics (denotational)}}{80}{table.caption.49}%
+\contentsline {table}{\numberline {B.5}{\ignorespaces Abstract semantics (denotational)}}{81}{table.caption.50}%

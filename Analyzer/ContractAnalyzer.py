@@ -271,25 +271,98 @@ class ContractAnalyzer:
         if self.current_context_type == "simpleStatement" and not self.current_target_function:
             raise ValueError(f"Function context not found for simple statement at line {start_line}")
 
+    def _enclosing_open_brace_line(self, line_number: int, *, inclusive: bool = True) -> int | None:
+        """`line_number` 를 감싸는 블록의 `{` 가 있는 줄 번호. 못 찾으면 None.
+
+        위로 거슬러 올라가며 "닫힌 만큼 상쇄하고 남은 첫 `{`" 를 찾는다.
+
+        ★ 왜 `line_info` 의 open/close **개수**를 안 쓰고 줄 텍스트를 훑는가:
+          개수만으로는 **한 줄 안에서의 순서**를 알 수 없는데, 그 순서가 결정적이다.
+
+            `} else {`         open=1 close=1 → `{` 가 오른쪽  → **이 줄이 나를 여는 줄**
+            `function f() {}`  open=1 close=1 → `}` 가 오른쪽  → **상쇄**하고 계속 올라가야 함
+
+          우리는 아래에서 위로 올라가는 중이므로, 줄 안에서도 **오른쪽 → 왼쪽**으로 읽으면
+          자연히 맞는다.
+
+        ★ 예전 구현의 버그(F27): "`}` 를 만나면 짝인 `{` 가 나올 때까지 건너뛴다" 는
+          스킵 모드가 있었는데, **스킵 모드 안에서 만난 `}` 를 세지 않았다.**
+          블록이 연달아 닫히면(`}` 두 줄 연속) 두 번째부터 증발한다. 실측 사례:
+
+            L155 `}`  (function 닫기)  → cnt 1, 스킵 모드 진입
+            L154 `}`  (for 닫기)       → ★ 무시됨 (2 가 됐어야 함)
+            L146 `for (...) {`         → cnt 0  (for 의 `{` 가 function 의 `}` 를 상쇄)
+            L137 `function ... {`      → "여기가 나를 감싸는 블록" 이라고 오판
+
+          그 결과 컨트랙트 바디의 `uint256[47] private __gap;` 이 함수 안 문장으로 분류되고,
+          더 크게는 `assembly { ... }` 안의 Yul 라인이 ctx=None 이 되어 **Solidity 파서**로
+          들어갔다(PRBMath* 두 파일에서 `[ANTLR]` 157건).
+
+        ⚠ 문자열 리터럴 안의 중괄호는 여전히 오탐이다 — 기존 `code.count('{')` 도 같으므로
+          회귀는 아니지만 별건으로 남아 있다.
+        """
+        depth = 0
+        start = line_number if inclusive else line_number - 1
+        for line in range(start, 0, -1):
+            text = self.sa.full_code_lines.get(line, "")
+            for ch in reversed(text):
+                if ch == '}':
+                    depth += 1
+                elif ch == '{':
+                    if depth == 0:
+                        return line
+                    depth -= 1
+        return None
+
     def find_parent_context(self, line_number):
-        close_brace_count = 0
-
         # 위로 거슬러 올라가면서 `{`와 `}`의 짝을 찾기
-        for line in range(line_number - 1, 0, -1):
-            brace_info = self.sa.line_info.get(line, {'open': 0, 'close': 0, 'cfg_nodes': []})
-            open_braces = brace_info['open']
-            close_braces = brace_info['close']
+        line = self._enclosing_open_brace_line(line_number, inclusive=False)
+        if line is None:
+            return "unknown"
+        return self.determine_top_level_context(self.sa.full_code_lines.get(line, ""))
 
-            if close_brace_count > 0:
-                close_brace_count -= open_braces
-                if close_brace_count <= 0:
-                    close_brace_count = 0
-            else:
-                if open_braces > 0:
-                    return self.determine_top_level_context(self.sa.full_code_lines[line])
-                close_brace_count += close_braces
+    # `is_inside_assembly` 가 위로 올라가다 멈춰야 하는 경계
+    # (이 밖은 assembly 일 수 없다)
+    _ASM_BOUNDARY = frozenset({
+        "functionDefinition", "constructor", "fallback", "receive", "modifier",
+        "contract", "abstract contract", "interface", "library",
+        "struct", "enum", "event",
+    })
 
-        return "unknown"
+    def is_inside_assembly(self, line_number: int) -> bool:
+        """`line_number` 가 `assembly { ... }` 블록 **안**인가 — **중첩 포함** (F40).
+
+        ★ `find_parent_context` 는 **직근 부모**의 종류만 돌려준다. 그래서 중첩 Yul
+          블록 안의 줄이 ctx=assembly 를 못 받았다:
+          ```solidity
+          assembly {
+              if iszero(callStatus) {
+                  revert(0, returnDataSize)      ← 부모가 "if" → assembly 로 안 잡힘
+              }
+              switch returnDataSize
+              case 32 {
+                  success := iszero(iszero(mload(0)))   ← 부모가 "case"
+              }
+          }
+          ```
+          그 줄들이 **Solidity 파서로** 갔다 — 증거: `revert(0, returnDataSize)` 의
+          ANTLR 기대 토큰 집합이 `interactiveSourceUnit`(= 컨트랙트 레벨)이었다.
+          `[ANTLR]` 12건 중 **8건**이 이것이다(SafeTransferLib 6 + PRBMath* 2).
+
+          그래서 직근 부모 하나만 보지 않고 **괄호 체인을 위로 걸어올라간다.**
+          함수/컨트랙트/struct 등 경계를 만나면 중단한다.
+        """
+        line = line_number
+        for _ in range(64):                 # 중첩 깊이 상한 — 무한 루프 방어
+            line = self._enclosing_open_brace_line(line, inclusive=False)
+            if line is None:
+                return False
+            ctx = self.determine_top_level_context(self.sa.full_code_lines.get(line, ""))
+            if ctx == "assembly":
+                return True
+            if ctx in self._ASM_BOUNDARY:
+                return False
+        return False
 
     def find_contract_context(self, line_number):
         # 위로 거슬러 올라가면서 해당 라인이 속한 컨트랙트를 찾습니다.
@@ -372,25 +445,8 @@ class ContractAnalyzer:
         (함수이름, 파라미터타입리스트) 튜플을 반환한다.
         overload 구분을 위해 파라미터 타입 정보도 추출한다."""
 
-        # 먼저 가장 가까운 '{' 문자가 있는 라인을 찾기
-        open_brace_line = None
-        close_brace_count = 0
-
-        for line in range(line_number, 0, -1):
-            brace_info = self.sa.line_info.get(line, {'open': 0, 'close': 0, 'cfg_nodes': []})
-            open_braces = brace_info['open']
-            close_braces = brace_info['close']
-
-            if close_brace_count > 0:
-                close_brace_count -= open_braces
-                if close_brace_count <= 0:
-                    close_brace_count = 0
-            else:
-                if open_braces > 0:
-                    open_brace_line = line
-                    break
-                close_brace_count += close_braces
-
+        # 먼저 나를 감싸는 '{' 가 있는 라인을 찾기 (F27 — `_enclosing_open_brace_line` 주석 참고)
+        open_brace_line = self._enclosing_open_brace_line(line_number, inclusive=True)
         if open_brace_line is None:
             return None, None
 
@@ -773,6 +829,64 @@ class ContractAnalyzer:
         # 10. contract_cfg를 contract_cfgs에 반영
         self.contract_cfgs[self.current_target_contract] = contract_cfg
 
+    @staticmethod
+    def _retype_literal_to_declared(init_expr, type_obj) -> None:
+        """선언 타입을 초기화식의 **리터럴**에 실어준다 (F39).
+
+        ★ Solidity 의 숫자 리터럴은 **독립적인 타입이 없고 문맥(= 선언 타입)이 정한다.**
+          그런데 `visitLiteralExp` 는 리터럴 단독 판단으로 **항상** `expr_type='uint'`,
+          `type_length=256` 을 찍는다(그 자체는 옳다 — Solidity 숫자 리터럴은 부호가 없고
+          음수는 단항 `-` 로 표현된다). 문제는 **선언 문맥이 그걸 다시 타이핑해주지
+          않는다**는 것이다. 그래서:
+
+              int256 internal constant MIN_SD59x18 = -578...968;
+              → UnsignedIntegerInterval([+578...968])     ← 부호 소실 + 도메인도 Unsigned
+
+          `-5` 는 `UnaryPrefixOp('-')` + `LiteralExp(5)` 이므로, 리터럴이 uint 로 평가된 뒤
+          단항 마이너스가 **2의 보수로 감긴다**(`[2²⁵⁶-5, 2²⁵⁶-5]`).
+
+          실측 — 세 경로 전부 깨져 있었다(그리고 대입받는 변수로 전파된다):
+          | 소스 | 이전 | 참값 |
+          |---|---|---|
+          | `int256 constant C = -5;`  | `UnsignedIntegerInterval([2²⁵⁶-5])` | `[-5,-5]` |
+          | `int256 s = -7;`           | `UnsignedIntegerInterval([2²⁵⁶-7])` | `[-7,-7]` |
+          | `int256 l = -11;`(지역)     | `UnsignedIntegerInterval([2²⁵⁶-11])` | `[-11,-11]` |
+
+          ★ **오류가 나지 않는다.** `PRBMathSD59x18.abs` 의 `require(x > MIN_SD59x18)` 이
+            `x > +578...968` 이 되고 `int256` 최대값은 `578...967` 이라 **항상 거짓** →
+            `abs` 가 통째로 ⊥(도달불가)로 판정된다. F36 은 그 ⊥ 의 **전파**를 막았을
+            뿐이고, ⊥ 자체의 원인이 이것이다.
+
+        ⚠ `uint*` 는 건드리지 않는다 — `visitLiteralExp` 의 기본값이 이미 맞다.
+        ⚠ `bytesN` 은 F16 이 별도로 주입한다(`evaluate_literal_context` 의 `ety` 분기가
+          `'bytes32'` 는 받지만 `'uint256'` 은 못 받기 때문 — 그래서 여기서도 `'int'`/
+          `'uint'` 라는 **거친 이름**을 쓰고 비트폭은 `type_length` 로 따로 전달한다).
+        ⚠ F14 의 `_literal_retype` 과 겹치지 않는다 — 그쪽은 **이항 연산의 피연산자**를
+          상대 타입에 맞추는 것이고(`Evaluation.py:2344`), 여기는 **선언 문맥**이다.
+        """
+        if init_expr is None or type_obj is None:
+            return
+        if getattr(type_obj, "typeCategory", None) != "elementary":
+            return
+        et = getattr(type_obj, "elementaryTypeName", None) or ""
+        if not (et.startswith("int") and not et.startswith("interface")):
+            return
+
+        # 단항 +/- 래퍼를 벗겨 안쪽 리터럴을 찾는다 (`-5` / `- -5` 도 대응)
+        tgt = init_expr
+        for _ in range(4):
+            if (getattr(tgt, "context", None) == "UnaryPrefixOpContext"
+                    and getattr(tgt, "operator", None) in ("-", "+")):
+                tgt = getattr(tgt, "expression", None)
+                if tgt is None:
+                    return
+                continue
+            break
+        if getattr(tgt, "context", None) != "LiteralExpContext":
+            return          # 리터럴이 아닌 초기화식(호출·식별자 등)은 건드리지 않는다
+        tgt.expr_type = "int"
+        tgt.type_length = getattr(type_obj, "intTypeLength", None) or 256
+
     def process_state_variable(self, variable_obj, init_expr=None):
         # 1. 현재 타겟 컨트랙트의 CFG 가져오기
         contract_cfg = self.contract_cfgs[self.current_target_contract]
@@ -861,6 +975,8 @@ class ContractAnalyzer:
             elif isinstance(variable_obj, MappingVariable) : # 관련된 경우 없을 듯
                 pass
             elif variable_obj.typeInfo.typeCategory == "elementary" :
+                # ★ F39: 선언 타입을 리터럴에 실어준다 (int* 음수 부호 소실 방지)
+                self._retype_literal_to_declared(init_expr, variable_obj.typeInfo)
                 variable_obj.value = self.evaluator.evaluate_expression(
                     init_expr,
                     contract_cfg.state_variable_node.variables,
@@ -944,6 +1060,8 @@ class ContractAnalyzer:
                 #     그쪽은 이미 BytesSet.top(32) 로 올바르게 평가된다.
                 if _is_fixed_bytes and getattr(init_expr, "context", None) == "LiteralExpContext":
                     init_expr.expr_type = et
+                # ★ F39: int* 는 선언 타입을 리터럴에 실어준다 (음수 부호 소실 방지)
+                self._retype_literal_to_declared(init_expr, variable_obj.typeInfo)
                 value = self.evaluator.evaluate_expression(init_expr, state_vars, None, None)
                 if value is None:
                     raise ValueError(f"Unable to evaluate constant expression for '{variable_obj.identifier}'")
@@ -1334,6 +1452,8 @@ class ContractAnalyzer:
         # 3-b. 초기화식이 존재하는 경우
         # ----------------------------------------------------------------
         else:
+            # ★ F39: 선언 타입을 리터럴에 실어준다 (int* 음수 부호 소실 방지)
+            self._retype_literal_to_declared(init_expr, type_obj)
             resolved = self.evaluator.evaluate_expression(init_expr,
                                                 cur_blk.variables, None, None)
 
@@ -2335,7 +2455,16 @@ class ContractAnalyzer:
         if initial_statement:
             ctx = initial_statement["context"]
 
-            init_node = CFGNode(f"for_init_{self.current_start_line}")
+            # ★ init 노드에도 **for 헤더 라인**을 준다(⑰). `uint256 i = 0` 은 실제로
+            #   존재하고 실행되는 문장인데 `src_line` 이 없어서(기본 -1) 프론트가
+            #   Step Forward 로 이 노드에 착지하면 **코드 창에 하이라이트되는 줄이 없었다**
+            #   (디버거에서 Step 을 눌렀는데 커서가 사라지는 셈).
+            #   "반복문이 시작되는 위치" 가 단위이므로 init/cond/incr 를 구분하지 않고
+            #   헤더 라인으로 묶는다(사용자 결정).
+            #   ⚠ `line_info[line_no]["cfg_nodes"]` 에는 넣지 않는다 — 그쪽은 intent 부착·
+            #     삭제 수술이 쓰는 "라인 → 대표 노드" 매핑이라 cond 하나만 유지해야 한다.
+            init_node = CFGNode(f"for_init_{self.current_start_line}",
+                                src_line=self.current_start_line)
             init_node.variables = VariableEnv.copy_variables(cur_blk.variables)
 
             if ctx == "VariableDeclaration":
@@ -3037,10 +3166,25 @@ class ContractAnalyzer:
         """
         @IReturn Pattern B annotation 처리: IInterface(addrVar).funcName().<chain>
         """
-        # 1) interface_name이 알려진 interface인지 검증
-        if interface_name not in self.interface_names:
+        # 1) interface_name 이 **외부 호출 대상 타입**인지 검증
+        #    = 알려진 interface  또는  (라이브러리가 아닌) 알려진 contract.
+        #
+        # ★ 구체 컨트랙트도 허용한다(S0). `Vault(a).f()` 는 런타임 타입 검사가 없는
+        #   **순수 캐스트**이므로 주소에 배포된 임의의 코드가 실행된다 → callee 코드가
+        #   타입으로 정해지지 않고, `IFoo(a).f()` 와 의미론적으로 동일하다.
+        #   ⚠ Pattern A(변수 형태 `v.f()`)는 **이미 허용됐다** —
+        #     `_find_interface_name_for_var` 가 `typeInfo.typeCategory == "interface"` 로
+        #     판정하고 비주얼라이저가 구체 컨트랙트 타입 변수에도 그 값을 붙이기 때문이다.
+        #     Pattern B 만 `interface_names` 로 막아 **두 패턴이 비대칭**이었다.
+        #   ⚠ 라이브러리는 제외 — `Lib.f()` 는 external call 이 아니라 하강 해석 대상이다.
+        #   아래 2)·3) 검증(함수 존재·view/pure)은 이미 `contract_cfgs` 기준이라 그대로 동작한다.
+        from Utils.CFG import LibraryCFG
+        _cfg = self.contract_cfgs.get(interface_name)
+        _is_callable_type = (interface_name in self.interface_names
+                             or (_cfg is not None and not isinstance(_cfg, LibraryCFG)))
+        if not _is_callable_type:
             raise ValueError(
-                f"@IReturn: '{interface_name}' is not a known interface. "
+                f"@IReturn: '{interface_name}' is not a known interface or contract. "
                 f"Known interfaces: {list(self.interface_names)}"
             )
 

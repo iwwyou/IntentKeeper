@@ -1625,7 +1625,13 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     # Visit a parse tree produced by SolidityParser#interactiveEnumDefinition.
     def visitInteractiveEnumDefinition(self, ctx:SolidityParser.InteractiveEnumDefinitionContext):
         enum_name = ctx.identifier().getText()
-        self.contract_analyzer.process_enum_definition(enum_name)
+        # ★ 바로 아래 visitInteractiveStructDefinition 과 대칭 (F28).
+        #   Solidity 0.8+ 는 contract/interface 밖 파일 최상위 enum 을 허용한다.
+        if self.contract_analyzer.current_target_contract is None:
+            # file-level enum → SA에서 처리
+            self.contract_analyzer.sa.process_file_level_enum_definition(enum_name)
+        else:
+            self.contract_analyzer.process_enum_definition(enum_name)
         return
 
     # Visit a parse tree produced by SolidityParser#interactiveStructDefinition.
@@ -1641,7 +1647,11 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     def visitInteractiveEnumItems(self, ctx:SolidityParser.InteractiveEnumItemsContext):
         enum_items = [identifier.getText() for identifier in ctx.identifier()]
 
-        self.contract_analyzer.process_enum_item(enum_items)
+        # ★ visitStructMember 의 fileLevelStructMember 분기와 대칭 (F28)
+        if self.contract_analyzer.current_context_type == "fileLevelEnumMember":
+            self.contract_analyzer.sa.process_file_level_enum_item(enum_items)
+        else:
+            self.contract_analyzer.process_enum_item(enum_items)
 
     # Visit a parse tree produced by SolidityParser#interactiveFunctionElement.
     def visitInteractiveFunctionElement(self, ctx:SolidityParser.InteractiveFunctionElementContext):
@@ -1947,8 +1957,17 @@ class EnhancedSolidityVisitor(SolidityVisitor):
                 init_stmt = {'context': 'VariableDeclaration',
                              'initVarType': t, 'initVarName': n, 'initValExpr': v}
             else:  # expressionStatement
+                # ★ F31. init_ctx 는 `simpleStatement` 의 라벨 대안 `# EContext` 다.
+                #   ANTLR 은 **각 대안의 직접 자식만** 접근자로 만들므로
+                #   `EContextContext` 에는 `.expressionStatement()` 하나만 있고
+                #   `.expression()` 은 없다(문법상 한 단계 더 아래다).
+                #   예전 코드가 `init_ctx.expression()` 을 불러
+                #   `for (y >>= 1; y > 0; y >>= 1)` 처럼 **init 이 식인 for 문**이
+                #   AttributeError 로 통째로 실패했다(코퍼스 34건).
+                #   ※ 아래 cond_expr 쪽은 `ctx.expressionStatement()` 가 곧
+                #     ExpressionStatementContext 라서 바로 `.expression()` 이 유효하다.
                 init_stmt = {'context': 'Expression',
-                             'initExpr': self.visitExpression(init_ctx.expression())}
+                             'initExpr': self.visitExpressionStatement(init_ctx.expressionStatement())}
 
         # condition --- expressionStatement 안의 expression ----------------------
         cond_expr = None

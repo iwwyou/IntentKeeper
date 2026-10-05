@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex 2026.9.5)  19 SEP 2026 03:03
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex 2026.9.5)  30 SEP 2026 20:44
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -203,107 +203,9 @@ Package: ragged2e 2023/06/22 v3.6 ragged2e Package
 ) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/setspace\setspace.st
 y
 Package: setspace 2022/12/04 v6.7b set line spacing
-)
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/imakeidx\imakeidx.sty
-Package: imakeidx 2016/10/15 v1.3e Package for typesetting indices in a synchro
-nous mode
-
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/xkeyval\xkeyval.sty
-Package: xkeyval 2022/06/16 v2.9 package option processing (HA)
-
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/xkeyval\xkeyval.tex
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/xkeyval\xkvutils.tex
-\XKV@toks=\toks23
-\XKV@tempa@toks=\toks24
-)
-\XKV@depth=\count290
-File: xkeyval.tex 2014/12/03 v2.7a key=value parser (HA)
-))
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifxetex.sty
-Package: ifxetex 2019/10/25 v0.7 ifxetex legacy package. Use iftex instead.
-)
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifluatex.sty
-Package: ifluatex 2019/10/25 v1.5 ifluatex legacy package. Use iftex instead.
-)
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/tools\multicol.sty
-Package: multicol 2025/10/21 v2.0b multicolumn formatting (FMi)
-\c@tracingmulticols=\count291
-\mult@box=\box54
-\multicol@leftmargin=\dimen165
-\c@unbalance=\count292
-\c@collectmore=\count293
-\doublecol@number=\count294
-\multicoltolerance=\count295
-\multicolpretolerance=\count296
-\full@width=\dimen166
-\page@free=\dimen167
-\premulticols=\dimen168
-\postmulticols=\dimen169
-\multicolsep=\skip67
-\multicolbaselineskip=\skip68
-\partial@page=\box55
-\last@line=\box56
-\mc@boxedresult=\box57
-\maxbalancingoverflow=\dimen170
-\mult@rightbox=\box58
-\mult@grightbox=\box59
-\mult@firstbox=\box60
-\mult@gfirstbox=\box61
-\@tempa=\box62
-\@tempa=\box63
-\@tempa=\box64
-\@tempa=\box65
-\@tempa=\box66
-\@tempa=\box67
-\@tempa=\box68
-\@tempa=\box69
-\@tempa=\box70
-\@tempa=\box71
-\@tempa=\box72
-\@tempa=\box73
-\@tempa=\box74
-\@tempa=\box75
-\@tempa=\box76
-\@tempa=\box77
-\@tempa=\box78
-\@tempa=\box79
-\@tempa=\box80
-\@tempa=\box81
-\@tempa=\box82
-\@tempa=\box83
-\@tempa=\box84
-\@tempa=\box85
-\@tempa=\box86
-\@tempa=\box87
-\@tempa=\box88
-\@tempa=\box89
-\@tempa=\box90
-\@tempa=\box91
-\@tempa=\box92
-\@tempa=\box93
-\@tempa=\box94
-\@tempa=\box95
-\@tempa=\box96
-\@tempa=\box97
-\c@minrows=\count297
-\c@columnbadness=\count298
-\c@finalcolumnbadness=\count299
-\last@try=\dimen171
-\multicolovershoot=\dimen172
-\multicolundershoot=\dimen173
-\mult@nat@firstbox=\box98
-\colbreak@box=\box99
-\mc@col@check@num=\count300
-\g__mc_curr_col_int=\count301
-))
-\main@idxfile=\write3
-\openout3 = `main.idx'.
-
-
-Writing index file main.idx
-(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
 Package: amsmath 2026/05/19 v2.18d AMS math features
-\@mathmargin=\skip69
+\@mathmargin=\skip67
 
 For additional information on amsmath, use the `?' option.
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
@@ -311,61 +213,61 @@ Package: amstext 2024/11/17 v2.01 AMS text
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty
 File: amsgen.sty 1999/11/30 v2.0 generic functions
-\@emptytoks=\toks25
-\ex@=\dimen174
+\@emptytoks=\toks23
+\ex@=\dimen165
 ))
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty
 Package: amsbsy 1999/11/29 v1.2d Bold Symbols
-\pmbraise@=\dimen175
+\pmbraise@=\dimen166
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty
 Package: amsopn 2022/04/08 v2.04 operator names
 )
-\inf@bad=\count302
+\inf@bad=\count290
 LaTeX Info: Redefining \frac on input line 233.
-\uproot@=\count303
-\leftroot@=\count304
+\uproot@=\count291
+\leftroot@=\count292
 LaTeX Info: Redefining \overline on input line 398.
 LaTeX Info: Redefining \colon on input line 409.
-\classnum@=\count305
-\DOTSCASE@=\count306
+\classnum@=\count293
+\DOTSCASE@=\count294
 LaTeX Info: Redefining \ldots on input line 495.
 LaTeX Info: Redefining \dots on input line 498.
 LaTeX Info: Redefining \cdots on input line 619.
-\Mathstrutbox@=\box100
-\strutbox@=\box101
+\Mathstrutbox@=\box54
+\strutbox@=\box55
 LaTeX Info: Redefining \big on input line 721.
 LaTeX Info: Redefining \Big on input line 722.
 LaTeX Info: Redefining \bigg on input line 723.
 LaTeX Info: Redefining \Bigg on input line 724.
-\big@size=\dimen176
+\big@size=\dimen167
 LaTeX Font Info:    Redeclaring font encoding OML on input line 742.
 LaTeX Font Info:    Redeclaring font encoding OMS on input line 743.
-\macc@depth=\count307
+\macc@depth=\count295
 LaTeX Info: Redefining \bmod on input line 904.
 LaTeX Info: Redefining \pmod on input line 909.
 LaTeX Info: Redefining \smash on input line 939.
 LaTeX Info: Redefining \relbar on input line 969.
 LaTeX Info: Redefining \Relbar on input line 970.
-\c@MaxMatrixCols=\count308
+\c@MaxMatrixCols=\count296
 \dotsspace@=\muskip17
-\c@parentequation=\count309
-\dspbrk@lvl=\count310
-\tag@help=\toks26
-\row@=\count311
-\column@=\count312
-\maxfields@=\count313
-\andhelp@=\toks27
-\eqnshift@=\dimen177
-\alignsep@=\dimen178
-\tagshift@=\dimen179
-\tagwidth@=\dimen180
-\totwidth@=\dimen181
-\lineht@=\dimen182
-\@envbody=\toks28
-\multlinegap=\skip70
-\multlinetaggap=\skip71
-\mathdisplay@stack=\toks29
+\c@parentequation=\count297
+\dspbrk@lvl=\count298
+\tag@help=\toks24
+\row@=\count299
+\column@=\count300
+\maxfields@=\count301
+\andhelp@=\toks25
+\eqnshift@=\dimen168
+\alignsep@=\dimen169
+\tagshift@=\dimen170
+\tagwidth@=\dimen171
+\totwidth@=\dimen172
+\lineht@=\dimen173
+\@envbody=\toks26
+\multlinegap=\skip68
+\multlinetaggap=\skip69
+\mathdisplay@stack=\toks27
 LaTeX Info: Redefining \[ on input line 2965.
 LaTeX Info: Redefining \] on input line 2966.
 )
@@ -380,15 +282,15 @@ LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
 (Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
 )) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/amscls\amsthm.sty
 Package: amsthm 2020/05/29 v2.20.6
-\thm@style=\toks30
-\thm@bodyfont=\toks31
-\thm@headfont=\toks32
-\thm@notefont=\toks33
-\thm@headpunct=\toks34
-\thm@preskip=\skip72
-\thm@postskip=\skip73
-\thm@headsep=\skip74
-\dth@everypar=\toks35
+\thm@style=\toks28
+\thm@bodyfont=\toks29
+\thm@headfont=\toks30
+\thm@notefont=\toks31
+\thm@headpunct=\toks32
+\thm@preskip=\skip70
+\thm@postskip=\skip71
+\thm@headsep=\skip72
+\dth@everypar=\toks33
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/jknappen\mathrsfs.sty
 Package: mathrsfs 1996/01/01 Math RSFS package v1.0 (jk)
@@ -404,12 +306,12 @@ LaTeX Font Info:    Overwriting symbol font `stmry' in version `bold'
 sty
 Package: mathpartir 2016/02/24 version 1.3.2 Math Paragraph for Typesetting Inf
 erence Rules
-\mpr@andskip=\skip75
-\mpr@lista=\toks36
-\mpr@listb=\toks37
-\mpr@hlist=\box102
-\mpr@vlist=\box103
-\mpr@right=\box104
+\mpr@andskip=\skip73
+\mpr@lista=\toks34
+\mpr@listb=\toks35
+\mpr@hlist=\box56
+\mpr@vlist=\box57
+\mpr@right=\box58
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.sty
 Package: graphicx 2026-05-17 v1.2e Enhanced LaTeX Graphics (DPC,SPQR)
@@ -430,8 +332,8 @@ Package graphics Info: Driver file: pdftex.def on input line 106.
 f
 File: pdftex.def 2025/09/29 v1.2d Graphics/color driver for pdftex
 ))
-\Gin@req@height=\dimen183
-\Gin@req@width=\dimen184
+\Gin@req@height=\dimen174
+\Gin@req@width=\dimen175
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/caption\subcaption.sty
 Package: subcaption 2023/07/28 v1.6b Sub-captions (AR)
@@ -440,23 +342,23 @@ Package: caption 2023/08/05 v3.6o Customizing captions (AR)
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption3.sty
 Package: caption3 2023/07/31 v2.4d caption3 kernel (AR)
-\caption@tempdima=\dimen185
-\captionmargin=\dimen186
-\caption@leftmargin=\dimen187
-\caption@rightmargin=\dimen188
-\caption@width=\dimen189
-\caption@indent=\dimen190
-\caption@parindent=\dimen191
-\caption@hangindent=\dimen192
+\caption@tempdima=\dimen176
+\captionmargin=\dimen177
+\caption@leftmargin=\dimen178
+\caption@rightmargin=\dimen179
+\caption@width=\dimen180
+\caption@indent=\dimen181
+\caption@parindent=\dimen182
+\caption@hangindent=\dimen183
 Package caption Info: Standard document class detected.
 )
-\c@caption@flags=\count314
-\c@continuedfloat=\count315
+\c@caption@flags=\count302
+\c@continuedfloat=\count303
 )
 Package caption Info: New subtype `subfigure' on input line 238.
-\c@subfigure=\count316
+\c@subfigure=\count304
 Package caption Info: New subtype `subtable' on input line 238.
-\c@subtable=\count317
+\c@subtable=\count305
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/pgf/frontendlayer\tikz
 .sty
@@ -466,13 +368,13 @@ Package caption Info: New subtype `subtable' on input line 238.
 ty
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfuti
 l-common.tex
-\pgfutil@everybye=\toks38
-\pgfutil@tempdima=\dimen193
-\pgfutil@tempdimb=\dimen194
+\pgfutil@everybye=\toks36
+\pgfutil@tempdima=\dimen184
+\pgfutil@tempdimb=\dimen185
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfuti
 l-latex.def
-\pgfutil@abb=\box105
+\pgfutil@abb=\box59
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfrcs
 .code.tex
@@ -492,33 +394,33 @@ Package: pgfsys 2026-08-01 v3.1.12 (3.1.12)
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkey
 s.code.tex
-\pgfkeys@pathtoks=\toks39
-\pgfkeys@temptoks=\toks40
+\pgfkeys@pathtoks=\toks37
+\pgfkeys@temptoks=\toks38
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkey
 slibraryfiltered.code.tex
-\pgfkeys@tmptoks=\toks41
+\pgfkeys@tmptoks=\toks39
 ))
-\pgf@x=\dimen195
-\pgf@y=\dimen196
-\pgf@xa=\dimen197
-\pgf@ya=\dimen198
-\pgf@xb=\dimen199
-\pgf@yb=\dimen256
-\pgf@xc=\dimen257
-\pgf@yc=\dimen258
-\pgf@xd=\dimen259
-\pgf@yd=\dimen260
-\w@pgf@writea=\write4
+\pgf@x=\dimen186
+\pgf@y=\dimen187
+\pgf@xa=\dimen188
+\pgf@ya=\dimen189
+\pgf@xb=\dimen190
+\pgf@yb=\dimen191
+\pgf@xc=\dimen192
+\pgf@yc=\dimen193
+\pgf@xd=\dimen194
+\pgf@yd=\dimen195
+\w@pgf@writea=\write3
 \r@pgf@reada=\read2
-\c@pgf@counta=\count318
-\c@pgf@countb=\count319
-\c@pgf@countc=\count320
-\c@pgf@countd=\count321
-\t@pgf@toka=\toks42
-\t@pgf@tokb=\toks43
-\t@pgf@tokc=\toks44
-\pgf@sys@id@count=\count322
+\c@pgf@counta=\count306
+\c@pgf@countb=\count307
+\c@pgf@countc=\count308
+\c@pgf@countd=\count309
+\t@pgf@toka=\toks40
+\t@pgf@tokb=\toks41
+\t@pgf@tokc=\toks42
+\pgf@sys@id@count=\count310
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgf.
 cfg
@@ -537,8 +439,8 @@ File: pgfsys-common-pdf.def 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfs
 yssoftpath.code.tex
 File: pgfsyssoftpath.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfsyssoftpath@smallbuffer@items=\count323
-\pgfsyssoftpath@bigbuffer@items=\count324
+\pgfsyssoftpath@smallbuffer@items=\count311
+\pgfsyssoftpath@bigbuffer@items=\count312
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfs
 ysprotocol.code.tex
@@ -574,12 +476,12 @@ e.tex
 .code.tex)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathpars
 er.code.tex
-\pgfmath@dimen=\dimen261
-\pgfmath@count=\count325
-\pgfmath@box=\box106
-\pgfmath@toks=\toks45
-\pgfmath@stack@operand=\toks46
-\pgfmath@stack@operation=\toks47
+\pgfmath@dimen=\dimen196
+\pgfmath@count=\count313
+\pgfmath@box=\box60
+\pgfmath@toks=\toks43
+\pgfmath@stack@operand=\toks44
+\pgfmath@stack@operation=\toks45
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunc
 tions.code.tex)
@@ -603,59 +505,59 @@ tions.integerarithmetics.code.tex)
 .code.tex)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfloa
 t.code.tex
-\c@pgfmathroundto@lastzeros=\count326
+\c@pgfmathroundto@lastzeros=\count314
 ))
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfint.code
 .tex)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 repoints.code.tex
 File: pgfcorepoints.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@picminx=\dimen262
-\pgf@picmaxx=\dimen263
-\pgf@picminy=\dimen264
-\pgf@picmaxy=\dimen265
-\pgf@pathminx=\dimen266
-\pgf@pathmaxx=\dimen267
-\pgf@pathminy=\dimen268
-\pgf@pathmaxy=\dimen269
-\pgf@xx=\dimen270
-\pgf@xy=\dimen271
-\pgf@yx=\dimen272
-\pgf@yy=\dimen273
-\pgf@zx=\dimen274
-\pgf@zy=\dimen275
+\pgf@picminx=\dimen197
+\pgf@picmaxx=\dimen198
+\pgf@picminy=\dimen199
+\pgf@picmaxy=\dimen256
+\pgf@pathminx=\dimen257
+\pgf@pathmaxx=\dimen258
+\pgf@pathminy=\dimen259
+\pgf@pathmaxy=\dimen260
+\pgf@xx=\dimen261
+\pgf@xy=\dimen262
+\pgf@yx=\dimen263
+\pgf@yy=\dimen264
+\pgf@zx=\dimen265
+\pgf@zy=\dimen266
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 repathconstruct.code.tex
 File: pgfcorepathconstruct.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@path@lastx=\dimen276
-\pgf@path@lasty=\dimen277
+\pgf@path@lastx=\dimen267
+\pgf@path@lasty=\dimen268
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 repathusage.code.tex
 File: pgfcorepathusage.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@shorten@end@additional=\dimen278
-\pgf@shorten@start@additional=\dimen279
+\pgf@shorten@end@additional=\dimen269
+\pgf@shorten@start@additional=\dimen270
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 rescopes.code.tex
 File: pgfcorescopes.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfpic=\box107
-\pgf@hbox=\box108
-\pgf@layerbox@main=\box109
-\pgf@picture@serial@count=\count327
+\pgfpic=\box61
+\pgf@hbox=\box62
+\pgf@layerbox@main=\box63
+\pgf@picture@serial@count=\count315
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 regraphicstate.code.tex
 File: pgfcoregraphicstate.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgflinewidth=\dimen280
+\pgflinewidth=\dimen271
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 retransformations.code.tex
 File: pgfcoretransformations.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@pt@x=\dimen281
-\pgf@pt@y=\dimen282
-\pgf@pt@temp=\dimen283
+\pgf@pt@x=\dimen272
+\pgf@pt@y=\dimen273
+\pgf@pt@temp=\dimen274
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 requick.code.tex
@@ -672,14 +574,14 @@ File: pgfcorepathprocessing.code.tex 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 rearrows.code.tex
 File: pgfcorearrows.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfarrowsep=\dimen284
+\pgfarrowsep=\dimen275
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 reshade.code.tex
 File: pgfcoreshade.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@max=\dimen285
-\pgf@sys@shading@range@num=\count328
-\pgf@shadingcount=\count329
+\pgf@max=\dimen276
+\pgf@sys@shading@range@num=\count316
+\pgf@shadingcount=\count317
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 reimage.code.tex
@@ -688,7 +590,7 @@ File: pgfcoreimage.code.tex 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 reexternal.code.tex
 File: pgfcoreexternal.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfexternal@startupbox=\box110
+\pgfexternal@startupbox=\box64
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfco
 relayers.code.tex
@@ -709,7 +611,7 @@ File: pgfcorerdf.code.tex 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodul
 eshapes.code.tex
 File: pgfmoduleshapes.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfnodeparttextbox=\box111
+\pgfnodeparttextbox=\box65
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodul
 eplot.code.tex
@@ -718,8 +620,8 @@ File: pgfmoduleplot.code.tex 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfc
 omp-version-0-65.sty
 Package: pgfcomp-version-0-65 2026-08-01 v3.1.12 (3.1.12)
-\pgf@nodesepstart=\dimen286
-\pgf@nodesepend=\dimen287
+\pgf@nodesepstart=\dimen277
+\pgf@nodesepend=\dimen278
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfc
 omp-version-1-18.sty
@@ -737,10 +639,10 @@ e.tex))
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgffor
 .code.tex
 Package: pgffor 2026-08-01 v3.1.12 (3.1.12)
-\pgffor@iter=\dimen288
-\pgffor@skip=\dimen289
-\pgffor@stack=\toks48
-\pgffor@toks=\toks49
+\pgffor@iter=\dimen279
+\pgffor@skip=\dimen280
+\pgffor@stack=\toks46
+\pgffor@toks=\toks47
 ))
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/ti
 kz\tikz.code.tex
@@ -749,34 +651,34 @@ Package: tikz 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflib
 raryplothandlers.code.tex
 File: pgflibraryplothandlers.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@plot@mark@count=\count330
-\pgfplotmarksize=\dimen290
+\pgf@plot@mark@count=\count318
+\pgfplotmarksize=\dimen281
 )
-\tikz@lastx=\dimen291
-\tikz@lasty=\dimen292
-\tikz@lastxsaved=\dimen293
-\tikz@lastysaved=\dimen294
-\tikz@lastmovetox=\dimen295
-\tikz@lastmovetoy=\dimen296
-\tikzleveldistance=\dimen297
-\tikzsiblingdistance=\dimen298
-\tikz@figbox=\box112
-\tikz@figbox@bg=\box113
-\tikz@tempbox=\box114
-\tikz@tempbox@bg=\box115
-\tikztreelevel=\count331
-\tikznumberofchildren=\count332
-\tikznumberofcurrentchild=\count333
-\tikz@fig@count=\count334
+\tikz@lastx=\dimen282
+\tikz@lasty=\dimen283
+\tikz@lastxsaved=\dimen284
+\tikz@lastysaved=\dimen285
+\tikz@lastmovetox=\dimen286
+\tikz@lastmovetoy=\dimen287
+\tikzleveldistance=\dimen288
+\tikzsiblingdistance=\dimen289
+\tikz@figbox=\box66
+\tikz@figbox@bg=\box67
+\tikz@tempbox=\box68
+\tikz@tempbox@bg=\box69
+\tikztreelevel=\count319
+\tikznumberofchildren=\count320
+\tikznumberofcurrentchild=\count321
+\tikz@fig@count=\count322
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodul
 ematrix.code.tex
 File: pgfmodulematrix.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfmatrixcurrentrow=\count335
-\pgfmatrixcurrentcolumn=\count336
-\pgf@matrix@numberofcolumns=\count337
+\pgfmatrixcurrentrow=\count323
+\pgfmatrixcurrentcolumn=\count324
+\pgf@matrix@numberofcolumns=\count325
 )
-\tikz@expandcount=\count338
+\tikz@expandcount=\count326
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/ti
 kz/libraries\tikzlibrarytopaths.code.tex
@@ -833,34 +735,34 @@ File: tikzlibraryshapes.multipart.code.tex 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/shapes
 \pgflibraryshapes.multipart.code.tex
 File: pgflibraryshapes.multipart.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfnodepartlowerbox=\box116
-\pgfnodeparttwobox=\box117
-\pgfnodepartthreebox=\box118
-\pgfnodepartfourbox=\box119
-\pgfnodeparttwentybox=\box120
-\pgfnodepartnineteenbox=\box121
-\pgfnodeparteighteenbox=\box122
-\pgfnodepartseventeenbox=\box123
-\pgfnodepartsixteenbox=\box124
-\pgfnodepartfifteenbox=\box125
-\pgfnodepartfourteenbox=\box126
-\pgfnodepartthirteenbox=\box127
-\pgfnodeparttwelvebox=\box128
-\pgfnodepartelevenbox=\box129
-\pgfnodeparttenbox=\box130
-\pgfnodepartninebox=\box131
-\pgfnodeparteightbox=\box132
-\pgfnodepartsevenbox=\box133
-\pgfnodepartsixbox=\box134
-\pgfnodepartfivebox=\box135
+\pgfnodepartlowerbox=\box70
+\pgfnodeparttwobox=\box71
+\pgfnodepartthreebox=\box72
+\pgfnodepartfourbox=\box73
+\pgfnodeparttwentybox=\box74
+\pgfnodepartnineteenbox=\box75
+\pgfnodeparteighteenbox=\box76
+\pgfnodepartseventeenbox=\box77
+\pgfnodepartsixteenbox=\box78
+\pgfnodepartfifteenbox=\box79
+\pgfnodepartfourteenbox=\box80
+\pgfnodepartthirteenbox=\box81
+\pgfnodeparttwelvebox=\box82
+\pgfnodepartelevenbox=\box83
+\pgfnodeparttenbox=\box84
+\pgfnodepartninebox=\box85
+\pgfnodeparteightbox=\box86
+\pgfnodepartsevenbox=\box87
+\pgfnodepartsixbox=\box88
+\pgfnodepartfivebox=\box89
 )))
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflib
 raryarrows.meta.code.tex
 File: pgflibraryarrows.meta.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgfarrowinset=\dimen299
-\pgfarrowlength=\dimen300
-\pgfarrowwidth=\dimen301
-\pgfarrowlinewidth=\dimen302
+\pgfarrowinset=\dimen290
+\pgfarrowlength=\dimen291
+\pgfarrowwidth=\dimen292
+\pgfarrowlinewidth=\dimen293
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/ti
 kz/libraries\tikzlibrarycalc.code.tex
@@ -873,63 +775,63 @@ File: tikzlibraryfit.code.tex 2026-08-01 v3.1.12 (3.1.12)
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/ti
 kz/libraries\tikzlibrarybackgrounds.code.tex
 File: tikzlibrarybackgrounds.code.tex 2026-08-01 v3.1.12 (3.1.12)
-\pgf@layerbox@background=\box136
-\pgf@layerboxsaved@background=\box137
+\pgf@layerbox@background=\box90
+\pgf@layerboxsaved@background=\box91
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/multirow\multirow.sty
 Package: multirow 2024/11/12 v2.9 Span multiple rows of a table
-\multirow@colwidth=\skip76
-\multirow@cntb=\count339
-\multirow@dima=\skip77
-\bigstrutjot=\dimen303
+\multirow@colwidth=\skip74
+\multirow@cntb=\count327
+\multirow@dima=\skip75
+\bigstrutjot=\dimen294
 ) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.st
 y
 Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
-\heavyrulewidth=\dimen304
-\lightrulewidth=\dimen305
-\cmidrulewidth=\dimen306
-\belowrulesep=\dimen307
-\belowbottomsep=\dimen308
-\aboverulesep=\dimen309
-\abovetopsep=\dimen310
-\cmidrulesep=\dimen311
-\cmidrulekern=\dimen312
-\defaultaddspace=\dimen313
-\@cmidla=\count340
-\@cmidlb=\count341
-\@aboverulesep=\dimen314
-\@belowrulesep=\dimen315
-\@thisruleclass=\count342
-\@lastruleclass=\count343
-\@thisrulewidth=\dimen316
+\heavyrulewidth=\dimen295
+\lightrulewidth=\dimen296
+\cmidrulewidth=\dimen297
+\belowrulesep=\dimen298
+\belowbottomsep=\dimen299
+\aboverulesep=\dimen300
+\abovetopsep=\dimen301
+\cmidrulesep=\dimen302
+\cmidrulekern=\dimen303
+\defaultaddspace=\dimen304
+\@cmidla=\count328
+\@cmidlb=\count329
+\@aboverulesep=\dimen305
+\@belowrulesep=\dimen306
+\@thisruleclass=\count330
+\@lastruleclass=\count331
+\@thisrulewidth=\dimen307
 ) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/tools\tabularx.sty
 Package: tabularx 2023/12/11 v2.12a `tabularx' package (DPC)
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/tools\array.sty
 Package: array 2026/02/24 v2.7b Tabular extension package (FMi)
-\col@sep=\dimen317
-\ar@mcellbox=\box138
-\extrarowheight=\dimen318
-\NC@list=\toks50
-\extratabsurround=\skip78
-\backup@length=\skip79
-\ar@cellbox=\box139
+\col@sep=\dimen308
+\ar@mcellbox=\box92
+\extrarowheight=\dimen309
+\NC@list=\toks48
+\extratabsurround=\skip76
+\backup@length=\skip77
+\ar@cellbox=\box93
 )
-\TX@col@width=\dimen319
-\TX@old@table=\dimen320
-\TX@old@col=\dimen321
-\TX@target=\dimen322
-\TX@delta=\dimen323
-\TX@cols=\count344
-\TX@ftn=\toks51
+\TX@col@width=\dimen310
+\TX@old@table=\dimen311
+\TX@old@col=\dimen312
+\TX@target=\dimen313
+\TX@delta=\dimen314
+\TX@cols=\count332
+\TX@ftn=\toks49
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/float\float.sty
 Package: float 2001/11/08 v1.3d Float enhancements (AL)
-\c@float@type=\count345
-\float@exts=\toks52
-\float@box=\box140
-\@float@everytoks=\toks53
-\@floatcapt=\box141
+\c@float@type=\count333
+\float@exts=\toks50
+\float@box=\box94
+\@float@everytoks=\toks51
+\@floatcapt=\box95
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/placeins\placeins.sty
 Package: placeins 2005/04/18  v 2.2
@@ -939,55 +841,55 @@ Package: rotating 2026-05-17 v2.16e rotated objects in LaTeX
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/base\ifthen.sty
 Package: ifthen 2024/03/16 v1.1e Standard LaTeX ifthen package (DPC)
 )
-\c@r@tfl@t=\count346
-\rotFPtop=\skip80
-\rotFPbot=\skip81
-\rot@float@box=\box142
-\rot@mess@toks=\toks54
+\c@r@tfl@t=\count334
+\rotFPtop=\skip78
+\rotFPbot=\skip79
+\rot@float@box=\box96
+\rot@mess@toks=\toks52
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/enumitem\enumitem.sty
 Package: enumitem 2025/02/06 v3.11 Customized lists
-\labelindent=\skip82
-\enit@outerparindent=\dimen324
-\enit@toks=\toks55
-\enit@inbox=\box143
-\enit@count@id=\count347
-\enitdp@description=\count348
+\labelindent=\skip80
+\enit@outerparindent=\dimen315
+\enit@toks=\toks53
+\enit@inbox=\box97
+\enit@count@id=\count335
+\enitdp@description=\count336
 ) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/base\textcomp.sty
 Package: textcomp 2024/04/24 v2.1b Standard LaTeX package
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/comment\comment.sty
-\CommentStream=\write5
+\CommentStream=\write4
 
 Excluding comment 'comment')
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/tools\verbatim.sty
 Package: verbatim 2024-01-22 v1.5x LaTeX2e package for verbatim enhancements
-\every@verbatim=\toks56
-\verbatim@line=\toks57
+\every@verbatim=\toks54
+\verbatim@line=\toks55
 \verbatim@in@stream=\read3
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/algorithms\algorithm.s
 ty
 Package: algorithm 2009/08/24 v0.1 Document Style `algorithm' - floating enviro
 nment
-\@float@every@algorithm=\toks58
-\c@algorithm=\count349
+\@float@every@algorithm=\toks56
+\c@algorithm=\count337
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algorithm
 icx.sty
 Package: algorithmicx 2005/04/27 v1.2 Algorithmicx
 
 Document Style algorithmicx 1.2 - a greatly improved `algorithmic' style
-\c@ALG@line=\count350
-\c@ALG@rem=\count351
-\c@ALG@nested=\count352
-\ALG@tlm=\skip83
-\ALG@thistlm=\skip84
-\c@ALG@Lnr=\count353
-\c@ALG@blocknr=\count354
-\c@ALG@storecount=\count355
-\c@ALG@tmpcounter=\count356
-\ALG@tmplength=\skip85
+\c@ALG@line=\count338
+\c@ALG@rem=\count339
+\c@ALG@nested=\count340
+\ALG@tlm=\skip81
+\ALG@thistlm=\skip82
+\c@ALG@Lnr=\count341
+\c@ALG@blocknr=\count342
+\c@ALG@storecount=\count343
+\c@ALG@tmpcounter=\count344
+\ALG@tmplength=\skip83
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/algorithmicx\algpseudo
 code.sty
@@ -996,38 +898,38 @@ Package: algpseudocode
 Document Style - pseudocode environments for use with the `algorithmicx' style
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/listings\listings.sty
-\lst@mode=\count357
-\lst@gtempboxa=\box144
-\lst@token=\toks59
-\lst@length=\count358
-\lst@currlwidth=\dimen325
-\lst@column=\count359
-\lst@pos=\count360
-\lst@lostspace=\dimen326
-\lst@width=\dimen327
-\lst@newlines=\count361
-\lst@lineno=\count362
-\lst@maxwidth=\dimen328
+\lst@mode=\count345
+\lst@gtempboxa=\box98
+\lst@token=\toks57
+\lst@length=\count346
+\lst@currlwidth=\dimen316
+\lst@column=\count347
+\lst@pos=\count348
+\lst@lostspace=\dimen317
+\lst@width=\dimen318
+\lst@newlines=\count349
+\lst@lineno=\count350
+\lst@maxwidth=\dimen319
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/listings\lstpatch.sty
 File: lstpatch.sty 2025/11/14 1.11b (Carsten Heinz)
 ) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/listings\lstmisc.sty
 File: lstmisc.sty 2025/11/14 1.11b (Carsten Heinz)
-\c@lstnumber=\count363
-\lst@skipnumbers=\count364
-\lst@framebox=\box145
+\c@lstnumber=\count351
+\lst@skipnumbers=\count352
+\lst@framebox=\box99
 ) (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/listings\listings.cf
 g
 File: listings.cfg 2025/11/14 1.11b listings configuration
 ))
 Package: listings 2025/11/14 1.11b (Carsten Heinz)
-\c@theorem=\count365
+\c@theorem=\count353
  (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/natbib\natbib.sty
 Package: natbib 2010/09/13 8.31b (PWD, AO)
-\bibhang=\skip86
-\bibsep=\skip87
+\bibhang=\skip84
+\bibsep=\skip85
 LaTeX Info: Redefining \cite on input line 694.
-\c@NAT@ctr=\count366
+\c@NAT@ctr=\count354
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.sty
 Package: hyperref 2026-06-17 v7.01r Hypertext links for LaTeX
@@ -1077,20 +979,20 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 y
 Package: kvoptions 2022-06-15 v3.15 Key value format for package options (HO)
 ))
-\c@section@level=\count367
+\c@section@level=\count355
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.sty
 Package: etoolbox 2025/10/02 v2.5m e-TeX tools for LaTeX (JAW)
-\etb@tempcnta=\count368
+\etb@tempcnta=\count356
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringenc.
 sty
 Package: stringenc 2019/11/29 v1.12 Convert strings between diff. encodings (HO
 )
 )
-\@linkdim=\dimen329
-\Hy@linkcounter=\count369
-\Hy@pagecounter=\count370
+\@linkdim=\dimen320
+\Hy@linkcounter=\count357
+\Hy@pagecounter=\count358
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
 File: pd1enc.def 2026-06-17 v7.01r Hyperref: PDFDocEncoding definition (HO)
@@ -1100,7 +1002,7 @@ Now handling font encoding PD1 ...
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.sty
 Package: intcalc 2019/12/15 v1.3 Expandable calculations with integers (HO)
 )
-\Hy@SavedSpaceFactor=\count371
+\Hy@SavedSpaceFactor=\count359
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def
 File: puenc.def 2026-06-17 v7.01r Hyperref: PDF Unicode definition (HO)
 Now handling font encoding PU ...
@@ -1122,13 +1024,13 @@ Package hyperref Info: Plain pages OFF on input line 4214.
 Package hyperref Info: Backreferencing OFF on input line 4219.
 Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
 Package hyperref Info: Bookmarks ON on input line 4466.
-\c@Hy@tempcnt=\count372
+\c@Hy@tempcnt=\count360
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty
 \Urlmuskip=\muskip18
 Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
 )
 LaTeX Info: Redefining \url on input line 4805.
-\XeTeXLinkMargin=\dimen330
+\XeTeXLinkMargin=\dimen321
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
 Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
@@ -1138,9 +1040,9 @@ c.sty
 Package: bigintcalc 2019/12/15 v1.5 Expandable calculations on big integers (HO
 )
 ))
-\Fld@menulength=\count373
-\Field@Width=\dimen331
-\Fld@charsize=\dimen332
+\Fld@menulength=\count361
+\Field@Width=\dimen322
+\Fld@charsize=\dimen323
 Package hyperref Info: Hyper figures OFF on input line 6091.
 Package hyperref Info: Link nesting OFF on input line 6096.
 Package hyperref Info: Hyper index ON on input line 6099.
@@ -1148,16 +1050,16 @@ Package hyperref Info: backreferencing OFF on input line 6106.
 Package hyperref Info: Link coloring ON on input line 6109.
 Package hyperref Info: Link coloring with OCG OFF on input line 6116.
 Package hyperref Info: PDF/A mode OFF on input line 6121.
-\Hy@abspage=\count374
-\c@Item=\count375
-\c@Hfootnote=\count376
+\Hy@abspage=\count362
+\c@Item=\count363
+\c@Hfootnote=\count364
 )
 Package hyperref Info: Driver (autodetected): hpdftex.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hpdftex.def
 File: hpdftex.def 2026-06-17 v7.01r Hyperref driver for pdfTeX
-\Fld@listcount=\count377
-\c@bookmark@seq@number=\count378
+\Fld@listcount=\count365
+\c@bookmark@seq@number=\count366
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\rerunfi
 lecheck.sty
@@ -1170,7 +1072,7 @@ Package: uniquecounter 2019/12/15 v1.4 Provide unlimited unique counter (HO)
 Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 84.
 )
-\Hy@SectionHShift=\skip88
+\Hy@SectionHShift=\skip86
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/xurl\xurl.sty
 Package: xurl 2022/01/09 v 0.10 modify URL breaks
@@ -1209,37 +1111,37 @@ File: se-pdfdoc.def 2019/11/29 v1.12 stringenc: PDFDocEncoding
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/l3kernel\l3backend-pdf
 tex.def
 File: l3backend-pdftex.def 2026-08-10 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count379
+\l__color_backend_stack_int=\count367
 ) (main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for LUC/nanummj/m/n on input line 236.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for LUC/nanummj/m/n on input line 242.
 LaTeX Font Info:    Trying to load font information for LUC+nanummj on input li
-ne 236.
+ne 242.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/nanumtype1\lucnanummj.
 fd
 File: lucnanummj.fd 2013/02/12 v0.1 Nanum Myeongjo font definitions
 )
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 236.
-LaTeX Font Info:    ... okay on input line 236.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 242.
+LaTeX Font Info:    ... okay on input line 242.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -1279,17 +1181,17 @@ LaTeX Font Info:    ... okay on input line 236.
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/context/base/mkii\supp-pdf.m
 kii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count380
-\scratchdimen=\dimen333
-\scratchbox=\box146
-\nofMPsegments=\count381
-\nofMParguments=\count382
-\everyMPshowfont=\toks60
-\MPscratchCnt=\count383
-\MPscratchDim=\dimen334
-\MPnumerator=\count384
-\makeMPintoPDFobject=\count385
-\everyMPtoPDFconversion=\toks61
+\scratchcounter=\count368
+\scratchdimen=\dimen324
+\scratchbox=\box100
+\nofMPsegments=\count369
+\nofMParguments=\count370
+\everyMPshowfont=\toks58
+\MPscratchCnt=\count371
+\MPscratchDim=\dimen325
+\MPnumerator=\count372
+\makeMPintoPDFobject=\count373
+\everyMPtoPDFconversion=\toks59
 )
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/epstopdf-pkg\epstopdf-
 base.sty
@@ -1314,18 +1216,18 @@ Package caption Info: hyperref package is loaded.
 Package caption Info: listings package is loaded.
 Package caption Info: rotating package is loaded.
 Package caption Info: End \AtBeginDocument code.
-\c@lstlisting=\count386
-Package hyperref Info: Link coloring ON on input line 236.
+\c@lstlisting=\count374
+Package hyperref Info: Link coloring ON on input line 242.
  (main.out) (main.out)
-\@outlinefile=\write6
-\openout6 = `main.out'.
+\@outlinefile=\write5
+\openout5 = `main.out'.
 
-Package hyperref Info: Option `pageanchor' set `false' on input line 245.
+Package hyperref Info: Option `pageanchor' set `false' on input line 251.
  [1
 
 {C:/Users/isjeon/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/isj
 eon/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc}] [2] [3]
-Package hyperref Info: Option `pageanchor' set `true' on input line 325.
+Package hyperref Info: Option `pageanchor' set `true' on input line 340.
 *geometry* verbose mode - [ newgeometry ] result:
 * driver: pdftex
 * paper: b5paper
@@ -1363,63 +1265,63 @@ Package hyperref Info: Option `pageanchor' set `true' on input line 325.
 ]
 LaTeX Font Info:    Font shape `LUC/nanummj/b/n' in size <12> not available
 (Font)              Font shape `LUC/nanummj/bx/n' tried instead on input line 3
-66.
+86.
 LaTeX Font Info:    Font shape `LUC/nanummj/b/n' in size <10.95> not available
 (Font)              Font shape `LUC/nanummj/bx/n' tried instead on input line 3
-76.
+96.
  [2] [3]
 LaTeX Font Info:    Trying to load font information for OT1+ztmcm on input line
- 402.
+ 422.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ot1ztmcm.fd
 File: ot1ztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OT1/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OML+ztmcm on input line
- 402.
+ 422.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\omlztmcm.fd
 File: omlztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OML/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OMS+ztmcm on input line
- 402.
+ 422.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\omsztmcm.fd
 File: omsztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OMS/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OMX+ztmcm on input line
- 402.
+ 422.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\omxztmcm.fd
 File: omxztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OMX/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 4
-02.
+22.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ot1ptm.fd
 File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
 )
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10.95> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 402.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 422.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <8> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 402.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 422.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <6> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 402.
-LaTeX Font Info:    Trying to load font information for U+rsfs on input line 40
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 422.
+LaTeX Font Info:    Trying to load font information for U+rsfs on input line 42
 2.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/jknappen\ursfs.fd
 File: ursfs.fd 1998/03/24 rsfs font definition file (jk)
 )
 LaTeX Font Info:    Trying to load font information for U+stmry on input line 4
-02.
+22.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/stmaryrd\ustmry.fd)
-Underfull \hbox (badness 1881) in paragraph at lines 402--405
+Underfull \hbox (badness 1881) in paragraph at lines 422--425
 []\T1/ptm/m/n/10.95 which con-tents have been $[]$, and the con-
  []
 
 
-Underfull \hbox (badness 1701) in paragraph at lines 402--405
+Underfull \hbox (badness 1701) in paragraph at lines 422--425
 \T1/ptm/m/n/10.95 tri-bu-tions of ev-ery au-thor of those multi-authored works 
 (\T1/ptm/m/sc/10.95 SolQDebug\T1/ptm/m/n/10.95 , \T1/ptm/m/sc/10.95 In-
  []
@@ -1431,194 +1333,306 @@ Underfull \hbox (badness 1701) in paragraph at lines 402--405
 ] (main.toc [6
 
 ] [7])
-\tf@toc=\write7
-\openout7 = `main.toc'.
+\tf@toc=\write6
+\openout6 = `main.toc'.
 
  [8] (main.lot)
-\tf@lot=\write8
-\openout8 = `main.lot'.
+\tf@lot=\write7
+\openout7 = `main.lot'.
 
  [9
 
-] (main.lof)
-\tf@lof=\write9
-\openout9 = `main.lof'.
+] (main.lof [10
 
- [10
+])
+\tf@lof=\write8
+\openout8 = `main.lof'.
 
-] (main.lol)
-\tf@lol=\write10
-\openout10 = `main.lol'.
+ [11] (main.lol)
+\tf@lol=\write9
+\openout9 = `main.lol'.
 
 
-[11
+[12
 
-] [12
+] [13
 
 ]
 Chapter 1.
+LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <9> not available
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 521.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <9> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 521.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 521.
 [1
 
 
-]
-Chapter 2.
-<Fig1.pdf, id=473, 660.50401pt x 429.23999pt>
-File: Fig1.pdf Graphic file (type pdf)
-<use Fig1.pdf>
-Package pdftex.def Info: Fig1.pdf  used on input line 506.
-(pdftex.def)             Requested size: 291.15681pt x 189.2133pt.
-[2
+] [2] [3]
+Underfull \hbox (badness 1552) in paragraph at lines 581--585
+[]\T1/ptm/m/n/10.95 These two so-lu-tions di-rectly ad-dress the prob-lems iden
+-ti-fied in Sec-tion [][]1.1[][].
+ []
 
-]
-<Fig2.pdf, id=479, 607.287pt x 429.021pt>
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 5
+90.
+(C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ts1ptm.fd
+File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
+)
+[4] [5]
+Chapter 2.
+<Fig2.pdf, id=526, 660.50401pt x 429.23999pt>
 File: Fig2.pdf Graphic file (type pdf)
 <use Fig2.pdf>
-Package pdftex.def Info: Fig2.pdf  used on input line 520.
-(pdftex.def)             Requested size: 229.56682pt x 162.17865pt.
- [3 <./Fig1.pdf> <./Fig2.pdf>]
-<Fig3.pdf, id=491, 571.37103pt x 303.315pt>
+Package pdftex.def Info: Fig2.pdf  used on input line 633.
+(pdftex.def)             Requested size: 291.15681pt x 189.2133pt.
+[6
+
+]
+<Fig3.pdf, id=532, 607.287pt x 429.021pt>
 File: Fig3.pdf Graphic file (type pdf)
 <use Fig3.pdf>
-Package pdftex.def Info: Fig3.pdf  used on input line 535.
-(pdftex.def)             Requested size: 348.25937pt x 184.88303pt.
-<Fig4.pdf, id=493, 928.99802pt x 437.34299pt>
+Package pdftex.def Info: Fig3.pdf  used on input line 647.
+(pdftex.def)             Requested size: 229.56682pt x 162.17865pt.
+ [7 <./Fig2.pdf> <./Fig3.pdf>]
+<Fig4.pdf, id=544, 571.37103pt x 303.315pt>
 File: Fig4.pdf Graphic file (type pdf)
 <use Fig4.pdf>
-Package pdftex.def Info: Fig4.pdf  used on input line 549.
+Package pdftex.def Info: Fig4.pdf  used on input line 662.
+(pdftex.def)             Requested size: 348.25937pt x 184.88303pt.
+<Fig5.pdf, id=546, 928.99802pt x 437.34299pt>
+File: Fig5.pdf Graphic file (type pdf)
+<use Fig5.pdf>
+Package pdftex.def Info: Fig5.pdf  used on input line 676.
 (pdftex.def)             Requested size: 386.95749pt x 182.16795pt.
- [4 <./Fig3.pdf>] [5 <./Fig4.pdf>]
-LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <9> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 598.
-LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 598.
-LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <5> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 598.
- [6]
-[7]
-LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <9> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 674.
- [8] [9] [10] [11] [12]
+ [8 <./Fig4.pdf>] [9 <./Fig5.pdf>] [10]
+[11] [12]
 Chapter 3.
 [13
 
-]
-Overfull \vbox (103.27493pt too high) has occurred while \output is active []
-
-
-[14]
+] [14] [15] [16]
 Chapter 4.
-[15
+<Fig6.pdf, id=681, 730.22812pt x 465.99094pt>
+File: Fig6.pdf Graphic file (type pdf)
+<use Fig6.pdf>
+Package pdftex.def Info: Fig6.pdf  used on input line 866.
+(pdftex.def)             Requested size: 386.95749pt x 246.93135pt.
+[17
 
-]
+] [18 <./Fig6.pdf>] [19]
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 942.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7.4> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 942.
+
+Underfull \hbox (badness 1552) in paragraph at lines 950--951
+[]|\T1/ptm/m/n/10 Struct mem-ber dec-la-ra-tions added af-ter the
+ []
+
+[20] [21] [22] [23] [24]
+Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
+put line 1095.
+ [25] [26] [27] [28] [29]
+LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <10.95> not available
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 1336.
+ [30] [31]
+Underfull \hbox (badness 1859) in paragraph at lines 1345--1349
+\T1/ptm/m/n/10.95 pa-ram-e-ters, re-spec-tively. \T1/cmtt/m/n/10.95 @IReturn \T
+1/ptm/m/n/10.95 iden-ti-fies an ex-ter-nal func-tion call and may
+ []
+
+[32] [33] [34]
+Underfull \hbox (badness 1509) in paragraph at lines 1425--1429
+\T1/ptm/m/n/10.95 through developer-provided de-bug-ging in-puts, the an-a-lyze
+r es-ti-mates an it-er-a-tion
+ []
+
+[35] [36] [37] [38] [39]
+
+LaTeX Warning: Text page 40 contains only floats.
+
+[40] [41] [42] [43] [44] [45] [46] [47] [48] [49] [50] [51] [52] [53]
+
+LaTeX Warning: Reference `...' on page 54 undefined on input line 2947.
+
+[54] [55]
+Underfull \hbox (badness 1137) in paragraph at lines 2994--3008
+\T1/ptm/m/n/10.95 into the cor-re-spond-ing callee func-tion. In con-trast, add
+ress-based or dy-nam-i-cally
+ []
+
+[56]
+
+LaTeX Warning: Reference `subsec:design:representation:mapping' on page 57 unde
+fined on input line 3025.
+
+
+Underfull \hbox (badness 2735) in paragraph at lines 3048--3049
+[]\T1/ptm/m/n/10.95 Consequently, breakpoint-based nav-i-ga-tion pro-vides coar
+se-grained move-ment
+ []
+
+[57] [58]
+Underfull \hbox (badness 1178) in paragraph at lines 3082--3083
+[]\T1/ptm/m/n/10.95 Through these nav-i-ga-tion rules, IQDe-bug pre-serves the 
+ab-stract se-man-tics of
+ []
+
+[59]
 Chapter 5.
-[16
+[60
 
 ]
 Chapter 6.
-[17
+[61
 
 ]
 Chapter 7.
-[18
+[62
 
-] (main.bbl) [19
+] (main.bbl [63
 
-]
+] [64] [65]) [66]
 Appendix A.
-Package hyperref Info: bookmark level for unknown lstlisting defaults to 0 on i
-nput line 995.
-Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 1011.
-[20
+[67
 
-]
-<kumark.png, id=630, 389.95688pt x 455.45157pt>
-File: kumark.png Graphic file (type png)
-<use kumark.png>
-Package pdftex.def Info: kumark.png  used on input line 1063.
-(pdftex.def)             Requested size: 77.3903pt x 90.38678pt.
- [21]
-LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 1072.
-LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7.4> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 1072.
- [22 <./kumark.png>]
-runsystem(makeindex main.idx)...executed safely (allowed).
+] [68] [69] [70] [71] [72] [73]
+Appendix B.
 
- (main.ind) [23
+Underfull \hbox (badness 1400) in paragraph at lines 3561--3561
+|[]\T1/ptm/b/n/20.74 Abstract Do-main and For-
+ []
+
+[74
+
+] [75] [76]
+Underfull \hbox (badness 10000) in paragraph at lines 3825--3825
+[]|$\OML/ztmcm/m/it/10 F\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 H\OT1/ztmcm/m/n/1
+0 )(\OML/ztmcm/m/it/10 ^^[\OT1/ztmcm/m/n/10 ) = \U/stmry/m/n/10 J\OML/ztmcm/m/i
+t/10 s\U/stmry/m/n/10 K\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 ^^[\OT1/ztmcm/m/n/
+10 )  \OML/ztmcm/m/it/10 .  \OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 ^^U^^[[]:  []
+\OT1/ztmcm/m/n/10 )$\T1/ptm/m/n/10 ;
+ []
 
 
-] (main.aux)
+Underfull \hbox (badness 3525) in paragraph at lines 3825--3825
+[]|\T1/cmss/m/n/10 try $\OML/ztmcm/m/it/10 e$ \T1/ptm/m/n/10 (\T1/cmss/m/n/10 r
+eturns $\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 x\OT1/ztmcm/m/n/10 )$\T1/ptm/m/n/
+10 ) $\OML/ztmcm/m/it/10 s[]$
+ []
+
+[77]
+Underfull \hbox (badness 10000) in paragraph at lines 3960--3960
+[]|$[] \OT1/ztmcm/m/n/10 = []([]\OML/ztmcm/m/it/10 ; p; []\OT1/ztmcm/m/n/10 )$\
+T1/ptm/m/n/10 , $[] \OT1/ztmcm/m/n/10 = []([]\OML/ztmcm/m/it/10 ; p; []\OT1/ztm
+cm/m/n/10 )$\T1/ptm/m/n/10 ; $\U/stmry/m/n/10 J\OMS/ztmcm/m/n/10 ^^A\U/stmry/m/
+n/10 K[]\OT1/ztmcm/m/n/10 ([]) =
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 3960--3960
+[]|$\OML/ztmcm/m/it/10 G[]\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 H\OT1/ztmcm/m/n
+/10 )([]) = [][]\U/stmry/m/n/10 J\OML/ztmcm/m/it/10 s\U/stmry/m/n/10 K[]\OT1/zt
+mcm/m/n/10 ([]([]\OML/ztmcm/m/it/10 ; p; []\OT1/ztmcm/m/n/10 ))  \OML/ztmcm/m/i
+t/10 .[]
+ []
+
+
+Underfull \hbox (badness 3525) in paragraph at lines 3960--3960
+[]|\T1/cmss/m/n/10 try $\OML/ztmcm/m/it/10 e$ \T1/ptm/m/n/10 (\T1/cmss/m/n/10 r
+eturns $\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 x\OT1/ztmcm/m/n/10 )$\T1/ptm/m/n/
+10 ) $\OML/ztmcm/m/it/10 s[]$
+ []
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+[78] [79] [80] [81] (main.aux)
  ***********
 LaTeX2e <2026-06-01>
 L3 programming layer <2026-08-10>
  ***********
+
+
+LaTeX Warning: There were undefined references.
+
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 2764DC1A981513CECAB559C6B2E09B78;5631.
+(rerunfilecheck)             Checksum: BF7AF85D1A80CD8EAB577A4F2978025B;4636.
  ) 
 Here is how much of TeX's memory you used:
- 33928 strings out of 467441
- 641380 string characters out of 5407106
- 1126754 words of memory out of 5000000
- 62403 multiletter control sequences out of 15000+600000
- 734677 words of font info for 216 fonts, out of 8000000 for 9000
+ 34349 strings out of 467441
+ 647853 string characters out of 5407106
+ 1113478 words of memory out of 5000000
+ 62582 multiletter control sequences out of 15000+600000
+ 772433 words of font info for 275 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 92i,15n,131p,457b,2225s stack positions out of 10000i,1000n,20000p,200000b,200000s
- <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ect
-t0900.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi
-600\ectt1095.pk><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/publ
-ic/amsfonts/cm/cmex10.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/
-type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/isjeon/AppData/Local/Programs/MiK
-TeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/isjeon/AppData/Local/Pro
-grams/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/isjeon/AppData
-/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjbad.pfb><C:/Users/i
-sjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjbb8.pf
-b><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/
-nanummjbbb.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/publi
-c/nanumtype1/nanummjbc2.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/font
-s/type1/public/nanumtype1/nanummjbc5.pfb><C:/Users/isjeon/AppData/Local/Program
-s/MiKTeX/fonts/type1/public/nanumtype1/nanummjbc9.pfb><C:/Users/isjeon/AppData/
-Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjbcd.pfb><C:/Users/is
-jeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmac.pfb
-><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/n
-anummjmad.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public
-/nanumtype1/nanummjmae.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts
-/type1/public/nanumtype1/nanummjmb3.pfb><C:/Users/isjeon/AppData/Local/Programs
-/MiKTeX/fonts/type1/public/nanumtype1/nanummjmb5.pfb><C:/Users/isjeon/AppData/L
-ocal/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmb7.pfb><C:/Users/isj
-eon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmb8.pfb>
-<C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/na
-nummjmb9.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/
-nanumtype1/nanummjmba.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/
-type1/public/nanumtype1/nanummjmbb.pfb><C:/Users/isjeon/AppData/Local/Programs/
-MiKTeX/fonts/type1/public/nanumtype1/nanummjmbc.pfb><C:/Users/isjeon/AppData/Lo
-cal/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmbd.pfb><C:/Users/isje
-on/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmc0.pfb><
-C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nan
-ummjmc1.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/n
-anumtype1/nanummjmc2.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/t
-ype1/public/nanumtype1/nanummjmc7.pfb><C:/Users/isjeon/AppData/Local/Programs/M
-iKTeX/fonts/type1/public/nanumtype1/nanummjmc8.pfb><C:/Users/isjeon/AppData/Loc
-al/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmc9.pfb><C:/Users/isjeo
-n/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmcd.pfb><C
-:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanu
-mmjmce.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/na
-numtype1/nanummjmd1.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/ty
-pe1/public/nanumtype1/nanummjmd2.pfb><C:/Users/isjeon/AppData/Local/Programs/Mi
-KTeX/fonts/type1/public/nanumtype1/nanummjmd4.pfb><C:/Users/isjeon/AppData/Loca
-l/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmd5.pfb><C:/Users/isjeon
-/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmd6.pfb><C:
-/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/hoekwater/stmary
-10.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/symbol/us
-yr.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/symbol/us
-yr.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utm
-b8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/ut
-mbi8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/
-utmr8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times
-/utmri8a.pfb>
-Output written on main.pdf (38 pages, 6271610 bytes).
+ 92i,21n,104p,948b,2254s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi525\ect
+t0800.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi
+600\ecss1000.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
+/ec/dpi600\ectt0800.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/j
+knappen/ec/dpi600\ecss1095.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/l
+jfour/jknappen/ec/dpi600\ectt1000.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fon
+ts/pk/ljfour/jknappen/ec/dpi600\ectt0900.pk> <C:\Users\isjeon\AppData\Local\MiK
+TeX\fonts/pk/ljfour/jknappen/ec/dpi600\ectt1095.pk><C:/Users/isjeon/AppData/Loc
+al/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/isjeon/A
+ppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/User
+s/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb
+><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
+cmss10.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/am
+sfonts/cm/cmss8.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/
+public/amsfonts/cm/cmsy10.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fo
+nts/type1/public/amsfonts/symbols/msam10.pfb><C:/Users/isjeon/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb><C:/Users/isjeon/Ap
+pData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjbad.pfb><C:/Us
+ers/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjb
+b8.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumt
+ype1/nanummjbbb.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/
+public/nanumtype1/nanummjbc2.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX
+/fonts/type1/public/nanumtype1/nanummjbc5.pfb><C:/Users/isjeon/AppData/Local/Pr
+ograms/MiKTeX/fonts/type1/public/nanumtype1/nanummjbc9.pfb><C:/Users/isjeon/App
+Data/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjbcd.pfb><C:/Use
+rs/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjma
+c.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumty
+pe1/nanummjmad.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/p
+ublic/nanumtype1/nanummjmae.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/
+fonts/type1/public/nanumtype1/nanummjmb3.pfb><C:/Users/isjeon/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/nanumtype1/nanummjmb5.pfb><C:/Users/isjeon/AppD
+ata/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmb7.pfb><C:/User
+s/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmb8
+.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtyp
+e1/nanummjmb9.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/pu
+blic/nanumtype1/nanummjmba.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/f
+onts/type1/public/nanumtype1/nanummjmbb.pfb><C:/Users/isjeon/AppData/Local/Prog
+rams/MiKTeX/fonts/type1/public/nanumtype1/nanummjmbc.pfb><C:/Users/isjeon/AppDa
+ta/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmbd.pfb><C:/Users
+/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmc0.
+pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype
+1/nanummjmc1.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/pub
+lic/nanumtype1/nanummjmc2.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fo
+nts/type1/public/nanumtype1/nanummjmc7.pfb><C:/Users/isjeon/AppData/Local/Progr
+ams/MiKTeX/fonts/type1/public/nanumtype1/nanummjmc8.pfb><C:/Users/isjeon/AppDat
+a/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmc9.pfb><C:/Users/
+isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmcd.p
+fb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1
+/nanummjmce.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/publ
+ic/nanumtype1/nanummjmd1.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fon
+ts/type1/public/nanumtype1/nanummjmd2.pfb><C:/Users/isjeon/AppData/Local/Progra
+ms/MiKTeX/fonts/type1/public/nanumtype1/nanummjmd4.pfb><C:/Users/isjeon/AppData
+/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmd5.pfb><C:/Users/i
+sjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/nanumtype1/nanummjmd6.pf
+b><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/rsfs/rsfs10
+.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/public/hoekwate
+r/stmary10.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/s
+ymbol/usyr.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/s
+ymbol/usyr.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/t
+imes/utmb8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/
+times/utmbi8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/ur
+w/times/utmr8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/u
+rw/times/utmri8a.pfb>
+Output written on main.pdf (97 pages, 6631201 bytes).
 PDF statistics:
- 968 PDF objects out of 1000 (max. 8388607)
- 167 named destinations out of 1000 (max. 500000)
- 566 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 1685 PDF objects out of 1728 (max. 8388607)
+ 387 named destinations out of 1000 (max. 500000)
+ 494 words of extra memory for PDF output out of 10000 (max. 10000000)
 

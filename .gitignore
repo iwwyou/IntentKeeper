@@ -21,3 +21,15 @@ paper/Reference/**/*.pdf
 
 # ── scratch ──
 temp/
+
+# ── evaluation toolchains / derived trees ──
+# forge 바이너리(255MB)는 evaluation/forge/install.ps1 로 재설치. npm/·projects/ 는 reassemble.py 가 재생성.
+evaluation/forge/bin/
+evaluation/Dataset/npm/
+evaluation/Dataset/projects/
+# playground 빌드 산출물 (forge-std 는 `forge install foundry-rs/forge-std --no-git` 로 재설치)
+evaluation/playground/forge/lib/
+evaluation/playground/forge/out/
+evaluation/playground/forge/cache/
+evaluation/playground/hardhat/artifacts/
+evaluation/playground/hardhat/cache/

@@ -30,6 +30,8 @@ class ParserHelpers:
         'structMember':'interactiveStructUnit',
         'fileLevelStruct':'interactiveSourceUnit',
         'fileLevelStructMember':'interactiveStructUnit',
+        'fileLevelEnum':'interactiveSourceUnit',
+        'fileLevelEnumMember':'interactiveEnumUnit',
         'fileLevelTypeAlias':'interactiveSourceUnit',
 
         'simpleStatement':'interactiveBlockUnit', 'if':'interactiveBlockUnit',

@@ -1,0 +1,674 @@
+[
+  {
+    "code": "pragma solidity ^0.8.0;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "library SafeMath {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "uint256 constant WAD = 10 ** 18;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "uint256 constant RAY = 10 ** 27;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "function wad() public pure returns (uint256) {\n}",
+    "startLine": 7,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "return WAD;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "function ray() public pure returns (uint256) {\n}",
+    "startLine": 11,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "return RAY;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "function add(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 15,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 c = a + b;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "require(c >= a, \"SafeMath: addition overflow\");",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "return c;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "function sub(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 22,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "require(b <= a, \"SafeMath: subtraction overflow\");",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "return a - b;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {\n}",
+    "startLine": 27,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "require(b <= a, errorMessage);",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "uint256 c = a - b;",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "return c;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "function mul(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 34,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "if (a == 0) {\n}",
+    "startLine": 35,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "return 0;",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "uint256 c = a * b;",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "require(c / a == b, \"SafeMath: multiplication overflow\");",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "return c;",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "function div(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 45,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "require(b > 0, \"SafeMath: division by zero\");",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "return a / b;",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {\n}",
+    "startLine": 50,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "require(b > 0, errorMessage);",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "uint256 c = a / b;",
+    "startLine": 52,
+    "endLine": 52,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "return c;",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 56,
+    "endLine": 56,
+    "event": "add"
+  },
+  {
+    "code": "function mod(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 57,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "require(b != 0, \"SafeMath: modulo by zero\");",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "return a % b;",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 61,
+    "endLine": 61,
+    "event": "add"
+  },
+  {
+    "code": "function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {\n}",
+    "startLine": 62,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "require(b != 0, errorMessage);",
+    "startLine": 63,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "return a % b;",
+    "startLine": 64,
+    "endLine": 64,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 66,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "function min(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 67,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "return a <= b ? a : b;",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 70,
+    "endLine": 70,
+    "event": "add"
+  },
+  {
+    "code": "function max(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 71,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "return a >= b ? a : b;",
+    "startLine": 72,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 74,
+    "endLine": 74,
+    "event": "add"
+  },
+  {
+    "code": "function sqrt(uint256 a) internal pure returns (uint256 b) {\n}",
+    "startLine": 75,
+    "endLine": 76,
+    "event": "add"
+  },
+  {
+    "code": "if (a > 3) {\n}",
+    "startLine": 76,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "b = a;",
+    "startLine": 77,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "uint256 x = a / 2 + 1;",
+    "startLine": 78,
+    "endLine": 78,
+    "event": "add"
+  },
+  {
+    "code": "while (x < b) {\n}",
+    "startLine": 79,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "b = x;",
+    "startLine": 80,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "x = (a / x + x) / 2;",
+    "startLine": 81,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "else if (a != 0) {\n}",
+    "startLine": 84,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "b = 1;",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 88,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "function wmul(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 89,
+    "endLine": 90,
+    "event": "add"
+  },
+  {
+    "code": "return mul(a, b) / WAD;",
+    "startLine": 90,
+    "endLine": 90,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 92,
+    "endLine": 92,
+    "event": "add"
+  },
+  {
+    "code": "function wmulRound(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 93,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "return add(mul(a, b), WAD / 2) / WAD;",
+    "startLine": 94,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 96,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "function rmul(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 97,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "return mul(a, b) / RAY;",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 100,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "function rmulRound(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 101,
+    "endLine": 102,
+    "event": "add"
+  },
+  {
+    "code": "return add(mul(a, b), RAY / 2) / RAY;",
+    "startLine": 102,
+    "endLine": 102,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 104,
+    "endLine": 104,
+    "event": "add"
+  },
+  {
+    "code": "function wdiv(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 105,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "return div(mul(a, WAD), b, \"error\");",
+    "startLine": 106,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 108,
+    "endLine": 108,
+    "event": "add"
+  },
+  {
+    "code": "function wdivRound(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 109,
+    "endLine": 110,
+    "event": "add"
+  },
+  {
+    "code": "return add(mul(a, WAD), b / 2) / b;",
+    "startLine": 110,
+    "endLine": 110,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 112,
+    "endLine": 112,
+    "event": "add"
+  },
+  {
+    "code": "function rdiv(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 113,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "return div(mul(a, RAY), b, \"error\");",
+    "startLine": 114,
+    "endLine": 114,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 116,
+    "endLine": 116,
+    "event": "add"
+  },
+  {
+    "code": "function rdivRound(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+    "startLine": 117,
+    "endLine": 118,
+    "event": "add"
+  },
+  {
+    "code": "return add(mul(a, RAY), b / 2) / b;",
+    "startLine": 118,
+    "endLine": 118,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 120,
+    "endLine": 120,
+    "event": "add"
+  },
+  {
+    "code": "function wpow(uint256 x, uint256 n) internal pure returns (uint256) {\n}",
+    "startLine": 121,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "uint256 result = WAD;",
+    "startLine": 122,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "while (n > 0) {\n}",
+    "startLine": 123,
+    "endLine": 124,
+    "event": "add"
+  },
+  {
+    "code": "if (n % 2 != 0) {\n}",
+    "startLine": 124,
+    "endLine": 125,
+    "event": "add"
+  },
+  {
+    "code": "result = wmul(result, x);",
+    "startLine": 125,
+    "endLine": 125,
+    "event": "add"
+  },
+  {
+    "code": "x = wmul(x, x);",
+    "startLine": 127,
+    "endLine": 127,
+    "event": "add"
+  },
+  {
+    "code": "n /= 2;",
+    "startLine": 128,
+    "endLine": 128,
+    "event": "add"
+  },
+  {
+    "code": "return result;",
+    "startLine": 130,
+    "endLine": 130,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 132,
+    "endLine": 132,
+    "event": "add"
+  },
+  {
+    "code": "function rpow(uint256 x, uint256 n) internal pure returns (uint256) {\n}",
+    "startLine": 133,
+    "endLine": 134,
+    "event": "add"
+  },
+  {
+    "code": "uint256 result = RAY;",
+    "startLine": 134,
+    "endLine": 134,
+    "event": "add"
+  },
+  {
+    "code": "while (n > 0) {\n}",
+    "startLine": 135,
+    "endLine": 136,
+    "event": "add"
+  },
+  {
+    "code": "if (n % 2 != 0) {\n}",
+    "startLine": 136,
+    "endLine": 137,
+    "event": "add"
+  },
+  {
+    "code": "result = rmul(result, x);",
+    "startLine": 137,
+    "endLine": 137,
+    "event": "add"
+  },
+  {
+    "code": "x = rmul(x, x);",
+    "startLine": 139,
+    "endLine": 139,
+    "event": "add"
+  },
+  {
+    "code": "n /= 2;",
+    "startLine": 140,
+    "endLine": 140,
+    "event": "add"
+  },
+  {
+    "code": "return result;",
+    "startLine": 142,
+    "endLine": 142,
+    "event": "add"
+  }
+]

@@ -113,8 +113,13 @@ class IntegerInterval(Interval):
 
     # ---------- Top / Bottom ----------
     def is_top(self):
-        return (self.min_value == NEG_INFINITY
-                and self.max_value == INFINITY)
+        # ★ `top()` / `widen()` 과 같은 기준인 **타입 경계**로 판정한다(⑯).
+        #   예전엔 `±INFINITY` 를 봤는데, `top()` 은 타입 경계를 돌려주므로
+        #   `IntegerInterval.top(256).is_top()` 이 **False** 였다.
+        #   (호출자가 없어 증상은 없었지만, 쓰기 시작하면 바로 틀리는 자리였다.
+        #    UnsignedIntegerInterval.is_top 은 처음부터 타입 경계를 본다.)
+        return (self.min_value == -2 ** (self.type_length - 1)
+                and self.max_value == 2 ** (self.type_length - 1) - 1)
 
     @staticmethod
     def _bottom_propagate(a, b, fn):
@@ -201,8 +206,14 @@ class IntegerInterval(Interval):
 
     def widen(self, current_interval):
         """
-        widen: 만약 현재 min/max가 더 작거나 큰 경우 무한대로 확장
-        여기선 실제론 비트 범위가 있으므로 'theoretical_top' 사용 여부는 정책 선택.
+        widen: 값이 자라는 쪽 경계를 **타입 경계**까지 한 번에 밀어 올린다.
+
+        ★ 예전에는 `NEG_INFINITY`/`INFINITY` 를 넣었다. 그런데 `top()` 은 이미
+          `[-2^(bits-1), 2^(bits-1)-1]` 을 쓰고 주석에도 "이론적 ±∞ 대신 실제 비트 범위"
+          라고 적혀 있어 **widen 만 예외**였다. 결과적으로 같은 변수가 경로에 따라
+          `[0,inf]`(widen 경유)와 `[0,2^256-1]`(산술 경유)로 **다르게 직렬화**됐고,
+          `Refine` 의 `!= INFINITY` 가드가 `inf` 를 보면 **정제를 건너뛰어** 타입으로
+          알 수 있는 상한까지 버렸다. 타입 있는 구간은 `inf` 를 갖지 않는다(⑯).
         """
         # (1) 오른쪽이 bottom 이면 self 그대로
         if current_interval is None or current_interval.is_bottom():
@@ -211,13 +222,14 @@ class IntegerInterval(Interval):
         if self.is_bottom():
             return current_interval
 
-        new_min = (NEG_INFINITY
+        type_min = -2 ** (self.type_length - 1)
+        type_max = 2 ** (self.type_length - 1) - 1
+        new_min = (type_min
                    if self.min_value > current_interval.min_value
                    else self.min_value)
-        new_max = (INFINITY
+        new_max = (type_max
                    if self.max_value < current_interval.max_value
                    else self.max_value)
-        # 이 예시에서는 실제 비트 범위를 무시하고 이론적 무한대 사용
         return IntegerInterval(new_min, new_max, self.type_length)
 
     def narrow(self, new_interval):
@@ -660,7 +672,14 @@ class UnsignedIntegerInterval(Interval):
 
     def widen(self, current_interval):
         """
-        간단히 min은 0, max는 ∞(또는 2^bits-1)로 확장
+        min 은 0, max 는 **타입 최댓값**(2^bits-1)으로 확장.
+
+        ★ 예전에는 `INFINITY` 를 넣었다. 그런데 바로 위 `is_top()` 은
+          `max == 2^bits - 1` 을 검사하므로 **widen 된 값이 자기 `is_top()` 에서 False**
+          였고, 산술(`add` → `_fit_unsigned`)은 타입 최댓값으로 맞추므로 같은 변수가
+          경로에 따라 `[0,inf]` 와 `[0,2^256-1]` 로 **다르게 직렬화**됐다.
+          `Refine` 의 `!= INFINITY` 가드가 `inf` 를 보면 정제를 건너뛰는 손실도 있었다.
+          타입 있는 구간은 `inf` 를 갖지 않는다(⑯).
         """
         # (1) 오른쪽이 bottom 이면 self 그대로
         if current_interval is None or current_interval.is_bottom():
@@ -670,8 +689,8 @@ class UnsignedIntegerInterval(Interval):
             return current_interval
 
         new_min = 0 if self.min_value > current_interval.min_value else self.min_value
-        # 이 예시에서는 이론적 무한대로 간주
-        new_max = INFINITY if self.max_value < current_interval.max_value else self.max_value
+        type_max = 2 ** self.type_length - 1
+        new_max = type_max if self.max_value < current_interval.max_value else self.max_value
         return UnsignedIntegerInterval(new_min, new_max, self.type_length)
 
     def narrow(self, new_interval):

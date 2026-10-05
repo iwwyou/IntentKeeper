@@ -3,6 +3,7 @@ import { useNavigation } from './useNavigation'
 import CodePane from './CodePane'
 import DebuggerControls from './DebuggerControls'
 import StateLocals from './StateLocals'
+import CallStack from './CallStack'
 import VerdictPanel from './VerdictPanel'
 import DebugInputPanel from './DebugInputPanel'
 import IntentPanel from './IntentPanel'
@@ -15,9 +16,40 @@ export default function DebugView() {
 
   const analyzeError = useStore((s) => s.analyzeError)
   const syntaxErrors = useStore((s) => s.syntaxErrors)
+  const depContents = useStore((s) => s.depContents)
   const result = results[keyOf(activeContract, activeFunction)]
   const fnMeta = functions.find((f) => f.name === activeFunction)
   const nav = useNavigation(result)
+
+  // ★ N4. 코드 창은 **현재 프레임**의 소스를 보여준다. 조달 순서:
+  //   ① 타겟 프레임 → outline 이 준 fnMeta
+  //   ② callee 가 같은 파일 → store.functions (outline 이 컨트랙트×함수를 전부 열거한다)
+  //   ③ callee 가 의존성 → depContents[컨트랙트] 를 CalleeRef 의 라인 범위로 절취
+  //      (pkl 의 라인 번호는 **그 dep 파일 기준**이라 업로드한 원문과 맞는다)
+  //   ④ 둘 다 없으면 소스 없음 안내 — 상태 패널은 그대로 동작한다
+  const frame = nav.stack[nav.stack.length - 1]
+  const pane = (() => {
+    if (!frame || frame.cfgKey === null) {
+      return { source: fnMeta?.source ?? '', startLine: fnMeta?.startLine, note: '' }
+    }
+    const fm = functions.find((f) => f.contract === frame.contract && f.name === frame.name)
+    if (fm) return { source: fm.source, startLine: fm.startLine, note: '' }
+    const dep = frame.contract ? depContents[frame.contract] : undefined
+    if (dep && frame.startLine && frame.endLine) {
+      // CRLF 도 섞일 수 있어 정규식으로 자른다(업로드된 원문은 줄끝이 보존된다).
+      const lines = dep.split(/\r?\n/)
+      return {
+        source: lines.slice(frame.startLine - 1, frame.endLine).join('\n'),
+        startLine: frame.startLine,
+        note: '',
+      }
+    }
+    return {
+      source: '',
+      startLine: frame.startLine ?? 1,
+      note: `${frame.label} 의 소스가 없습니다 — 의존성 패널에 해당 .sol 을 올리면 표시됩니다. (상태는 아래 패널에서 볼 수 있습니다)`,
+    }
+  })()
 
   if (!result) {
     return (
@@ -47,9 +79,13 @@ export default function DebugView() {
         </div>
       )}
 
-      {/* 좌측 = 코드 (함수만 표시 · 라인넘버는 컨트랙트-절대) */}
+      {/* 좌측 = 코드 (현재 프레임의 함수만 표시 · 라인넘버는 파일-절대) */}
       <div className="dpanel code">
-        <CodePane source={fnMeta?.source ?? ''} startLine={fnMeta?.startLine} nav={nav} result={result} />
+        {pane.note ? (
+          <div className="pane-note">{pane.note}</div>
+        ) : (
+          <CodePane source={pane.source} startLine={pane.startLine} nav={nav} result={result} />
+        )}
       </div>
 
       {/* 우측 사이드바 = 세로 3분할 */}
@@ -64,7 +100,9 @@ export default function DebugView() {
           <DebugInputPanel result={result} />
         </div>
         <div className="dpanel">
-          <div className="dsec-title">State &amp; Locals</div>
+          <div className="dsec-title">Call Stack</div>
+          <CallStack nav={nav} />
+          <div className="dsec-title" style={{ marginTop: 10 }}>State &amp; Locals</div>
           <StateLocals nav={nav} result={result} />
         </div>
       </div>

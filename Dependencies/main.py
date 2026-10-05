@@ -50,6 +50,58 @@ _only_clo  = re.compile(r"^\s*}\s*$")
 _comment   = re.compile(r"^\s*//")
 
 
+def _paren_depth(text: str) -> int:
+    """문자열 리터럴을 건너뛰며 `(` `)` 깊이를 센다 (텍스트 끝 시점)."""
+    d = 0
+    i = 0
+    n = len(text)
+    q = None
+    while i < n:
+        c = text[i]
+        if q:                      # 문자열 리터럴 안
+            if c == "\\":
+                i += 2
+                continue
+            if c == q:
+                q = None
+        elif c == '"' or c == "'":
+            q = c
+        elif c == "(":
+            d += 1
+        elif c == ")":
+            d -= 1
+        i += 1
+    return d
+
+
+def _brace_opens_block(text: str) -> bool:
+    """`{` 로 끝나는 텍스트에서 그 `{` 가 **블록**을 여는가(True), 아니면
+    **식(expression) 중괄호**인가(False).
+
+    ★ F30. `_open_blk` 는 "`{` 로 끝나면 블록 헤더" 로만 판정했다. 그런데 Solidity 의
+      named struct literal 은 `(` **안에** `{` 가 온다:
+      ```solidity
+      res = FloatStruct({
+          numerator : a.numerator * b.denominator,
+          denominator : a.denominator * b.denominator
+      });
+      ```
+      이걸 블록 헤더로 보면 슬라이서가 **가짜 `}`** 를 붙여 문장을 두 동강 낸다
+      (실측: `'res = FloatStruct({\\n}'` + `'numerator : ..., ... });'`).
+      합쳐서 한 줄로 주면 파서는 정상 처리하므로 순수 슬라이서 결함이다.
+
+      판정: 그 `{` 시점에 **괄호가 열려 있으면** 식 중괄호다.
+
+      전수 검증(Dependencies + RQ1 + Dataset): `{` 로 끝나는 줄 46,214개 중 괄호가
+      열린 채인 것 189개 — 186개가 전부 struct 리터럴(`X = Y({`, `Y({`, `Y(Z({` …),
+      나머지 3개는 **소스 자체의 문법 오류**(`if (_output == address(_token) {` —
+      닫는 괄호 누락). 오탐 0.
+
+    ⚠ `_empty_blk`(`{ }` 로 끝나는 줄)는 같은 조건에 걸리는 줄이 **0건**이라 그대로 둔다.
+    """
+    return _paren_depth(text) <= 0
+
+
 def slice_solidity(source: str) -> List[Dict]:
     """Solidity 소스를 라인 단위 JSON records로 변환 (soltotestjson.py와 동일)"""
     lines = source.splitlines()
@@ -94,6 +146,34 @@ def slice_solidity(source: str) -> List[Dict]:
             if _only_clo.match(txt):
                 in_assembly -= 1
                 cur_line += 1; i += 1; continue
+            # ★ F32. `{` 로 끝나는 **Yul 블록 헤더**(`default {`, `for {`, `if cond {`)도
+            #   assembly 바깥과 동일하게 **2줄 레코드**(헤더 + 가짜 `}`)로 낸다.
+            #
+            #   가짜 `}` 의 역할은 분석기 라인 공간에서 **닫는 브레이스가 놓일 줄을 미리
+            #   확보**하는 것이다. 예전엔 assembly 안의 모든 줄을 단일 줄 레코드로 냈고,
+            #   그래서 여러 줄에 걸친 Yul 블록의 닫는 `}` 자리가 확보되지 않아
+            #   함수 EXIT 노드가 **삽입 지점보다 앞**에 남았다. 그러면
+            #   `DynamicCFGBuilder` 가 "내 줄 다음의 첫 CFG 노드" 를 못 찾아
+            #   assembly **바깥**의 뒤따르는 문장들이 터진다:
+            #       `No CFG node found after line N (searched up to line M)`
+            #   (실측: PRBMathSD59x18 L249-251, PRBMathUD60x18 L192-194 — 각 3건)
+            #
+            #   최소 재현: `default { r := 2 }` 한 줄이면 정상, 아래처럼 쪼개지면 실패했다.
+            #       default {
+            #           r := 2
+            #       }
+            #
+            #   ※ `case 1 { r := 1 }` 처럼 한 줄에서 여닫는 블록은 브레이스가 상쇄되므로
+            #     예전에도 문제가 없었다(단일 줄 레코드 그대로 유지).
+            #   ※ Yul `switch`/`case` 의 **분기 join 의미론**은 이것과 별개로 여전히
+            #     미구현이다 — `EnhancedYulVisitor.visitYulSwitchStatement` 가 `return None`
+            #     이고, 줄 단위 레코드라 case 들이 **순차 적용(마지막이 이김)** 되어
+            #     건전하지 않다. 블록 전체를 한 트리로 넘기는 방향(=(B))이 필요하다.
+            if _open_blk.search(txt):
+                in_assembly += 1
+                inputs.append({"code": f"{txt}\n}}", "startLine": cur_line,
+                               "endLine": cur_line + 1, "event": "add"})
+                cur_line += 1; i += 1; continue
             # assembly 내 nested { }
             in_assembly += txt.count('{') - txt.count('}')
             if in_assembly < 0:
@@ -130,8 +210,8 @@ def slice_solidity(source: str) -> List[Dict]:
             inputs.append(rec)
             cur_line += 1; i += 1; continue
 
-        # 3) '{' 로 끝나는 헤더 줄
-        if _open_blk.search(txt):
+        # 3) '{' 로 끝나는 헤더 줄 (★ 식 중괄호는 제외 — _brace_opens_block 주석 참고)
+        if _open_blk.search(txt) and _brace_opens_block(txt):
             block_code = f"{txt}\n}}"
             rec = {"code": block_code, "startLine": cur_line, "endLine": cur_line + 1, "event": "add"}
             if close_before: rec["closeBefore"] = True
@@ -168,7 +248,9 @@ def slice_solidity(source: str) -> List[Dict]:
 
             if _empty_blk.search(next_txt):
                 break
-            if _open_blk.search(next_txt):
+            # ★ 누적 텍스트 기준으로 판정한다 — `foo(` ⏎ `Bar({` 처럼 중첩된 경우
+            #   그 줄만 보면 깊이를 알 수 없다.
+            if _open_blk.search(next_txt) and _brace_opens_block(" ".join(accumulated)):
                 found_block_header = True
                 break
             if _one_liner.search(next_txt):

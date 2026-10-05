@@ -43,6 +43,14 @@ class Engine:
     #  (통합) 문장 해석기 – 기존 Runtime.* 가 여기로 이동
     # =================================================================
     def update_statement_with_variables(self, stmt, current_variables, ret_acc=None, node=None):
+        # ★ N4/S1. "지금 해석 중인 노드" = callee 로 하강할 때의 **호출 지점**.
+        #   여기에 두는 이유: `_run_worklist` 는 평문 노드에 `transfer_function` 을 쓰지 않고
+        #   이 함수를 직접 부른다. 두 경로(`transfer_function` / `_run_worklist`)가 모두
+        #   `node=` 를 넘기므로 이 한 곳이 유일한 공통 지점이다.
+        #   callee 해석 중에는 callee 자신의 노드로 덮이지만, `interpret_function_cfg` 가
+        #   **진입 시점에 로컬로 받아두므로** 중첩 호출에서도 각 프레임이 자기 호출 지점을 쥔다.
+        if node is not None:
+            self._call_site_node = node
         typ = stmt.statement_type
         if   typ == 'variableDeclaration':
             return self._interpret_var_decl(stmt, current_variables)
@@ -75,29 +83,35 @@ class Engine:
         # ──────────────────────────────────────────────────────────────
         if var_name not in variables:
             if var_type.typeCategory in ("struct", "array", "mapping"):
-                # 초기화식 없으면 타입에 맞는 빈 객체 생성
-                if var_type.typeCategory == "array":
-                    vobj = ArrayVariable(
-                        identifier=var_name,
-                        base_type=var_type.arrayBaseType,
-                        array_length=var_type.arrayLength,
-                        is_dynamic=var_type.isDynamicArray,
-                        scope="local"
-                    )
-                elif var_type.typeCategory == "struct":
-                    vobj = StructVariable(
-                        identifier=var_name,
-                        struct_type=var_type.structTypeName,
-                        scope="local"
-                    )
-                elif var_type.typeCategory == "mapping":
-                    vobj = MappingVariable(
-                        identifier=var_name,
-                        key_type=var_type.mappingKeyType,
-                        value_type=var_type.mappingValueType,
-                        scope="local"
-                    )
-                variables[var_name] = vobj
+                # ★ F29. `ContractAnalyzer._create_variable_object` 와 **같은 것**을 만들어야 한다.
+                #   여기엔 그 함수의 **인라인 사본**이 있었는데 struct/enum 정의
+                #   (`struct_defs`/`enum_defs`)를 붙이지 않아 **멤버가 빈** 객체가 나왔다.
+                #
+                #   왜 이 경로가 타지는가: `process_variable_declaration` 은 선언 노드를 만든
+                #   직후 `reinterpret_from(fcfg, stmt_blk)` 를 부른다. 재해석은 in-env 를
+                #   predecessor 에서 다시 계산하므로(선언 전이니 그 변수가 없는 게 정상)
+                #   선언문이 **재실행**되고, 그때 이 코드가 ContractAnalyzer 가 제대로 만든
+                #   객체를 덮어쓴다. 실측 객체 수명(`AddressProviderMeta.fromUInt`):
+                #     [1] CA 가 members=['freezable','frozen'] 로 생성(id=84016)
+                #     [2] 블록 env 에 심음 + 선언 statement 도 CFG 에 등록
+                #     [3] reinterpret_from 진입 — pred 에 meta 없음(정상)
+                #     [4] 여기서 members=[] 로 재생성(id=75280)  ← 덮어씀
+                #     [5] `meta.freezable = ...` → Member 'freezable' not in struct 'meta'
+                #   ★ `meta` 가 사라지는 게 아니라 `meta.members` 가 빈다.
+                #
+                #   "CFG 에 등록된 expression 을 보면 되지 않나" = **이미 그렇게 하고 있다**
+                #   ([4]가 `stmt.type_obj` 를 읽는다). 문제는 "보지 않음" 이 아니라
+                #   **"보고 만드는 방법이 틀림"** 이었다. 그래서 사본을 지우고 팩토리를 부른다.
+                #   배열·매핑도 `struct_defs`/`enum_defs` 를 안 넘겨 같은 결함이 있었다
+                #   (구조체 배열 · 값이 구조체인 매핑).
+                #
+                #   ⚠ 대안(선언 statement 에 프로토타입을 저장해 clone)은 멱등성은 지키지만
+                #     **증분 편집에 불리**하다 — struct 정의가 바뀌면 프로토타입이 낡는다.
+                #     `type_obj` 재구성은 **현재 정의**를 집어온다.
+                #   ⚠ `_create_variable_object` 의 3번째 인자 `ccf` 는 현재 미사용이고
+                #     내부적으로 `get_full_struct_enum_defs()` → `current_target_contract` 를
+                #     본다(백로그 ⑪). 기존 호출부와 동일한 한계이므로 회귀는 아니다.
+                variables[var_name] = self.an._create_variable_object(var_type, var_name, None)
             else:
                 # Elementary / interface 타입 처리
                 vobj = Variables(identifier=var_name, scope="local")
@@ -648,8 +662,17 @@ class Engine:
 
         if join_node is not None:
             base_env = getattr(join_node, "join_baseline_env", None)
-            # ★ fixpoint_evaluation_node_vars: 고정점 도달 후 join 노드의 최종 상태
-            fixpoint_env = getattr(join_node, "fixpoint_evaluation_node_vars", None)
+            # ★ join 노드의 **최종**(narrowing 이후) 상태를 쓴다 = `join_node.variables`.
+            #   narrowing 패스의 `transfer_function` 이 매 방문마다 써 주며, join 노드의
+            #   transfer 는 identity 라 in == out 이다.
+            #   ⚠ `fixpoint_evaluation_node_vars` 는 **widening 루프 안에서만** 갱신되므로
+            #     narrowing 전 스냅샷이고, 그 안에는 widening 이 넣은 `INFINITY` 가 그대로
+            #     남아 `[0,inf]` 로 직렬화된다. 같은 변수를 노드 state 로 보면
+            #     `[0,2^256-1]` 이라 **한 화면에 두 표기가 섞였다**(N3 에서 발견).
+            #     narrowing 이 join 노드에 도달하지 못한 경우 `.variables` 는 마지막
+            #     widening 값이라 예전 동작과 같아진다 — 별도 폴백이 필요 없다.
+            fixpoint_env = getattr(join_node, "variables", None) or getattr(
+                join_node, "fixpoint_evaluation_node_vars", None)
 
             if base_env is not None and fixpoint_env is not None:
                 changed_flat = VariableEnv.diff_changed(base_env, fixpoint_env)
@@ -672,11 +695,32 @@ class Engine:
     #  - evaluate_function_call_context 등에서 호출
     #  - 기록 비활성화, caller env의 state/global을 callee에 공유
     # =================================================================
+    @staticmethod
+    def _is_shared_storage(name: str, var) -> bool:
+        """caller ↔ callee 가 **같은 것을 가리키는** 변수인가 (F36).
+
+        Solidity 에서 caller 와 callee 가 공유하는 것은
+          · **state 변수/상수** — 같은 storage
+          · **block/msg/tx 전역** — 같은 트랜잭션 컨텍스트
+        뿐이다. 지역변수·파라미터·named return 은 각 프레임의 것이므로 공유하면 안 된다.
+
+        판정: `Variables.scope == 'state'` 또는 이름에 `.` 이 있으면(전역) 공유 대상.
+        (실측 분포 — `related_variables`: scope='state' = state 변수·상수,
+         scope=None + `block.*`/`msg.*`/`tx.*` = 전역, scope='local' = 지역·파라미터·named return)
+        """
+        if "." in name:                      # block.timestamp, msg.sender, tx.origin …
+            return True
+        return getattr(var, "scope", None) == "state"
+
     def interpret_function_cfg(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None):
         an = self.an
         _old_func = an.current_target_function
         _old_fcfg = an.current_target_function_cfg
         _old_record_enabled = self._record_enabled
+        # ★ N4/S1. 호출 지점을 **진입 시점에** 로컬로 받아둔다 — callee 해석이
+        #   `self._call_site_node` 를 자기 노드로 덮으므로, 중첩 호출에서도 각 프레임이
+        #   자기 호출 지점을 유지한다.
+        _call_site_node = getattr(self, "_call_site_node", None)
 
         an.current_target_function = fcfg.function_name
         an.current_target_function_cfg = fcfg
@@ -699,10 +743,35 @@ class Engine:
 
         # caller env의 state variable / global을 callee에 공유 (같은 storage)
         # - callee에 이미 있는 key도 caller 값으로 덮어씀 (단, 파라미터는 제외)
+        #
+        # ★ F36. 공유 대상을 **state 변수 + global 로 한정**한다.
+        #   예전 코드는 `if k in param_names: continue` 하나만 걸러 **caller 의 지역변수까지
+        #   전부** callee 에 밀어넣었다. 주석은 원래부터 "state variable / global" 이라고
+        #   써 있었으니(Guardian 46c497e, 2026-04-02) **의도는 처음부터 이것이었고 필터만
+        #   구현되지 않았다.**
+        #
+        #   왜 "덮어쓰기" 자체는 필요한가: callee 의 `related_variables` 에는 이미 state
+        #   변수가 들어 있지만 그것은 **선언 시점 스냅샷**이다. caller 가 `balance -= amount`
+        #   를 한 뒤 callee 를 부르면 callee 는 낡은 `balance` 를 본다 — Solidity 에서
+        #   state 변수는 caller/callee 가 같은 storage 이므로 오류다. 그래서 46c497e 가
+        #   "없는 것만 채우기" → "덮어쓰기" 로 바꿨다.
+        #
+        #   그런데 지역변수까지 넘기면 **이름이 겹칠 때 callee 의 값을 덮어쓰고**, 복귀 시
+        #   write-back 이 그 값을 caller 에 되써서 caller 가 오염된다. 실측:
+        #     `PRBMathSD59x18.powu` 의 `uint256 absX = uint256(abs(x));` 한 줄이
+        #     **파라미터 `y` 를 ⊥ 로 만들었다**(`y` 는 그 줄에 등장조차 하지 않는다).
+        #     함수 ENTRY 노드까지 오염되고, 이어서 루프 조건의 양쪽 분기가 도달불가로
+        #     판정되어 `for_exit` env 가 `{}` 가 되고 뒤 문장이 "미선언" 으로 터졌다.
+        #
+        #   판정 기준은 `Variables.scope` 가 이미 제공한다(실측 분포):
+        #     scope='state' → state 변수·상수  · scope=None + 이름에 '.' → block/msg/tx 전역
+        #     scope='local' → 지역변수·파라미터·named return  ← 공유 금지
         if caller_env is not None:
             param_names = set(getattr(fcfg, 'parameters', []))
             for k, v in caller_env.items():
                 if k in param_names:
+                    continue
+                if not self._is_shared_storage(k, v):
                     continue
                 start_block.variables[k] = VariableEnv.copy_single_variable(v)
 
@@ -714,6 +783,13 @@ class Engine:
         # exit env를 node 복원 전에 캡처
         _exit_env = VariableEnv.copy_variables(fcfg.get_exit_node().variables) if caller_env is not None else None
 
+        # ★ N4/S1. restore 로 baseline 이 복원되기 **전에** callee 노드 상태를 떠낸다.
+        #   아래 restore 루프가 `_reset_node_vars` 의 백업(= 선언 시점 스냅샷)으로 되돌려
+        #   놓으므로, 이 지점을 놓치면 이 호출의 계산 결과는 **어디에도 남지 않는다**.
+        #   (실측: 같은 callee 를 4회 호출해도 복귀 후 상태가 4회 모두 동일 = 전부 baseline)
+        if getattr(an, "_capture_debug_fcfg", False):
+            self._capture_callee_states(fcfg, _call_site_node)
+
         for blk, saved_vars in _saved_node_vars.items():
             blk.variables = saved_vars
 
@@ -723,10 +799,16 @@ class Engine:
 
         # callee의 exit env를 caller에 반영 (state variable 변경 전파)
         # callee 파라미터가 caller의 동명 변수를 오염시키지 않도록 제외
+        # ★ F36. 진입 쪽과 **대칭으로** state 변수 + global 만 되쓴다.
+        #   되쓰기의 목적은 "callee 가 바꾼 storage 를 caller 에 반영" 이므로 지역변수는
+        #   애초에 대상이 아니다. 필터가 없으면 callee 안에서 ⊥ 이 된 동명 지역변수가
+        #   caller 를 오염시킨다(위 진입 쪽 주석의 `powu`/`abs` 사례).
         if caller_env is not None and _exit_env is not None:
             _callee_params = set(getattr(fcfg, 'parameters', []))
             for k, v in _exit_env.items():
                 if k in _callee_params:
+                    continue
+                if not self._is_shared_storage(k, v):
                     continue
                 if k in caller_env:
                     cv = caller_env[k]
@@ -764,6 +846,10 @@ class Engine:
         an.current_target_function_cfg = fcfg
         self._record_enabled = True
         an._seen_stmt_ids.clear()
+        # ★ N4/S1. 이번 해석에서 떠낼 callee 상태를 새로 모은다(이전 회차 잔류 방지).
+        #   역색인도 무효화 — 의존성이 추가됐을 수 있다.
+        an._frozen_callee_states = {}
+        an._fcfg_owner_index = None
 
 
         _saved_node_vars = self._reset_node_vars(fcfg)
@@ -811,6 +897,57 @@ class Engine:
     # =================================================================
     #  공통 헬퍼
     # =================================================================
+    # ── N4/S1. callee 상태 보존 ─────────────────────────────────────────
+    def _fcfg_owner(self, fcfg) -> tuple:
+        """`fcfg` 가 속한 (컨트랙트명, 함수명).
+
+        ⚠ `FunctionCFG` 에는 소속 컨트랙트 역참조가 **없다**(`ContractCFG.contract_name` 만
+          있다). 그리고 의존성 CFG 는 이미 pkl 로 피클돼 있어 필드를 추가해 줄 수도 없다.
+          그래서 `contract_cfgs` 를 런타임에 훑어 **역색인**을 만든다.
+          색인은 `interpret_function_cfg_for_debug` 진입마다 무효화되므로 evaluate 1회당
+          최대 한 번 구축된다.
+        """
+        an = self.an
+        idx = getattr(an, "_fcfg_owner_index", None)
+        if idx is None:
+            idx = {}
+            for cname, ccf in (getattr(an, "contract_cfgs", None) or {}).items():
+                for fname, subs in (getattr(ccf, "functions", {}) or {}).items():
+                    for f in (subs.values() if isinstance(subs, dict) else [subs]):
+                        idx[id(f)] = (cname, fname)
+                ctor = getattr(ccf, "constructor", None)
+                if ctor is not None:
+                    idx[id(ctor)] = (cname, "constructor")
+            an._fcfg_owner_index = idx
+        return idx.get(id(fcfg), (None, getattr(fcfg, "function_name", "?")))
+
+    def _capture_callee_states(self, fcfg, call_site_node) -> None:
+        """callee 노드 상태를 `{노드명: {변수: 직렬화값}}` 으로 떠내 analyzer 에 적재한다.
+
+        ★ fcfg 를 pickle 하지 않는다 — 프론트가 필요한 건 이 dict 뿐이고, 구조(노드·엣지)는
+          호출 횟수와 무관하게 한 번만 직렬화하면 된다(`engine_api` 가 live fcfg 에서 읽는다).
+          전수 pickle 은 측정상 evaluate 의 2%·1.5MB 였지만 호출 수에 선형으로 늘어난다.
+
+        ★ 키 = **호출 지점 + callee**. 함수 이름만으로 키를 잡으면 같은 callee 를 두 지점에서
+          부를 때 마지막 호출이 앞을 덮어 `half(i)` 에 Step Into 했는데 `half(acc)` 의 상태가
+          보인다. 같은 호출 지점의 반복 해석(fixpoint)은 **마지막 = 수렴값**이 남는 게 맞다.
+        """
+        an = self.an
+        store = getattr(an, "_frozen_callee_states", None)
+        if store is None:
+            store = an._frozen_callee_states = {}
+        cname, fname = self._fcfg_owner(fcfg)
+        site = getattr(call_site_node, "name", None) or "?"
+        states: dict[str, dict[str, str]] = {}
+        for n in fcfg.graph.nodes():
+            flat: dict[str, str] = {}
+            for k, var in (getattr(n, "variables", {}) or {}).items():
+                self.rec._flatten_var(var, k, flat)
+            if flat:
+                states[n.name] = {kk: ("⊥" if vv == "[None,None]" else vv)
+                                  for kk, vv in flat.items()}
+        store[(site, cname, fname)] = states
+
     def _reset_node_vars(self, fcfg: FunctionCFG) -> dict:
         """node variables 백업 및 초기화. 백업 dict 반환."""
         an = self.an
@@ -947,6 +1084,17 @@ class Engine:
 
                 elif node.condition_node_type in ["while", "for", "do_while"]:
                     exit_node = self.fixpoint(node)
+                    # ★ loop-exit 도 **처리 완료**로 표시한다. `fixpoint` 가 그 env 를 이미
+                    #   확정했으므로(`exit_node.variables`) 뒤의 join 이 그대로 쓰면 된다.
+                    #
+                    # ⚠ 이게 없으면 루프 **뒤에 join 노드가 오는 모양**에서 무한 루프가 된다.
+                    #   위 join 지연 로직(`unvisited_preds and len(work) > 0` → 재큐잉)이
+                    #   loop-exit 를 영원히 "미방문 선행" 으로 보기 때문이다. work 에 같은
+                    #   join 이 두 개 쌓이면 서로 `len(work) > 0` 을 만족시켜 빠져나오지 못한다.
+                    #   ⑭ 이전에는 `for` 가 블록 안에서 열릴 때 loop-exit 가 join 의 선행이
+                    #   **아니었기 때문에**(배선이 끊겨 있었다) 이 결함이 가려져 있었다.
+                    #   `for`-in-`if` 로 재현됨 — decision #49.
+                    visited.add(exit_node)
                     _succs = list(G.successors(exit_node))
                     for nxt in _succs:
                         if _is_sink(nxt): continue
@@ -1099,7 +1247,33 @@ class Engine:
                 env_p = _edge_env_from_pred(p, n)
                 if env_p is None: continue
                 acc = VariableEnv.join_variables_simple(acc, env_p)
-            return acc or {}
+            acc = acc or {}
+            # ★ 함수 ENTRY 의 env 는 dataflow 로 **유도되는** 값이 아니라 **주어지는** 값이다
+            #   (파라미터 + state 변수 + globals = fcfg.related_variables). 호출 규약이지
+            #   계산 결과가 아니다. interpret_function_cfg 는 이미 그렇게 쓴다
+            #   (`start_block.variables = copy(fcfg.related_variables)`) — 여기만 빠져 있었다.
+            #
+            #   이 함수는 원래 "seed 는 언제나 함수 중간의 statement 블록" 이라는 전제로
+            #   쓰였다(= callee 가 caller 보다 먼저 선언된다는 전제). 나중에 얹힌
+            #   pending_calls 경로는 그 전제를 깬다: 미정의 함수 호출이 **함수의 첫 문장**이면
+            #   ContractAnalyzer 가 등록하는 cur_blk 이 ENTRY 자신이라, 재해석이 ENTRY 부터 돈다.
+            #   그때 ENTRY 는
+            #     · predecessor 가 없으면        -> acc == {}                (modifier 없는 함수)
+            #     · modifier 가 splice 돼 있으면 -> modifier 자신의 얇은 env (splice_modifier 가
+            #                                      modifier 체인을 ENTRY **앞에** 붙인다)
+            #   로 계산돼 파라미터·state 변수가 통째로 사라진다. 게다가 바깥에서
+            #   `n.variables = copy(new_out)` 로 ENTRY 에 **영구 기록**되므로, 예외가 안 나는
+            #   경우엔 오류 없이 "state 를 모르는 함수" 가 그대로 pkl 에 저장된다.
+            #   (실측: ERC1155Upgradeable L29/L30, 그리고 modifier 가 없는 합성 케이스에서도 재현)
+            #
+            #   ⚠ predecessor 값이 **우선**이다 — 빠진 키만 채운다. modifier 가 바꾼 state
+            #     (`_initializing = true`) 와 modifier 지역변수(`isTopLevelCall`) 를 덮으면
+            #     `_;` 이후 구간(EXIT -> modifier 의 뒷부분)이 깨진다.
+            if n is fcfg.get_entry_node():
+                for _k, _v in (fcfg.related_variables or {}).items():
+                    if _k not in acc:
+                        acc[_k] = VariableEnv.copy_single_variable(_v)
+            return acc
 
         def _clear_line_once(ln: int | None) -> None:
             if ln is None or ln in cleared_lines:
@@ -1294,11 +1468,25 @@ class Engine:
     # Engine 클래스 내부에 추가
     def traverse_loop_nodes(self, loop_head: CFGNode) -> set[CFGNode]:
         """
-        loop_head(while/for/do-while 의 조건 노드)에서 시작해,
-        loop-exit 노드(= False 분기에서 loop_exit_node=True)를 '절단점'으로 보고
-        그 안쪽 노드들만 수집한다.
+        loop_head(while/for/do-while 의 조건 노드)에서 전진하며 루프 본문 노드를 수집한다.
+        절단점은 **이 루프 자신의 exit** = 자기 헤더의 False 엣지가 가리키는 노드뿐이다.
+
+        ⚠ 예전에는 `loop_exit_node` **플래그만** 보고 절단했다. 그러면 중첩 루프에서
+          **내부 루프의 exit** 이 바깥 루프 본문 한가운데 놓이므로 거기서 탐색이 멈췄고,
+          그 뒤에 있는 `for_incr_*`(증감)과 back edge 가 바깥 루프의 `loop_nodes` 에서
+          빠졌다. `fixpoint` 의 전파 조건이 `if succ not in loop_nodes: continue` 이라
+          **바깥 fixpoint 가 1회만 돌았다**(⑮ / decision #49).
+
+        ★ 이 방식은 Bourdoncle 분류의 **flat(iterative) chaotic iteration** 이다.
+          바깥 worklist 가 중첩 루프를 평평하게 함께 반복한다. 건전하고 빠르지만,
+          안쪽 루프의 back edge 가 **이미 widen 된 바깥 변수**를 안쪽 join 으로 되돌려
+          넣기 때문에 바깥 루프 카운터가 ⊤ 로 남을 수 있다(알려진 정밀도 비용).
+          대안인 hierarchical(recursive) 방식은 2중 루프에서 14배 느리고(47s) 증분 빌드
+          중간 상태에서 터져서 채택하지 않았다 — 상세는 decision #49.
         """
         G = self.an.current_target_function_cfg.graph
+        own_exit = {s for s in G.successors(loop_head)
+                    if G[loop_head][s].get("condition") is False}
         visited: set[CFGNode] = set()
         stack = [loop_head]
         while stack:
@@ -1307,8 +1495,7 @@ class Engine:
                 continue
             visited.add(cur)
             for succ in G.successors(cur):
-                # 루프 바깥으로 나가는 exit 노드는 확장하지 않음
-                if getattr(succ, "loop_exit_node", False):
+                if succ in own_exit:   # 이 루프의 탈출구 — 바깥이다
                     continue
                 stack.append(cast(CFGNode, succ))
         return visited
@@ -1316,10 +1503,11 @@ class Engine:
     def is_node_in_loop(self, node: CFGNode, loop_head: CFGNode) -> bool:
         """
         node 가 loop_head 로 정의된 루프 본문에 속하는지 확인.
-        loop_exit_node=True 는 바깥으로 간주.
+
+        ⚠ `loop_exit_node` 선행 검사를 제거했다 — 자기 exit 는 `traverse_loop_nodes` 가
+          이미 제외하고, **내부 루프의 exit 는 바깥 루프 본문에 속한다**(⑮).
+        (현재 호출자 없음.)
         """
-        if getattr(node, "loop_exit_node", False):
-            return False
         return node in self.traverse_loop_nodes(loop_head)
 
     def find_loop_exit_node(self, loop_head: CFGNode) -> CFGNode:

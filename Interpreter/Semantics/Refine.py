@@ -395,23 +395,45 @@ class Refine:
             iv.min_value = max(iv.min_value, new_min)
             return iv
 
+        def both_bottom_if_either(A, B):
+            """한쪽이 ⊥ 면 조건 자체가 성립 불가 → 양쪽 모두 ⊥.
+
+            `_branch_feasible` 은 env 에 ⊥ 가 하나라도 있으면 infeasible 로 보므로
+            feasibility 판정은 어느 쪽이든 같다. 다만 화면에 ⊥ 로 보이는 변수 집합이
+            달라지는데, 도달 불가 env 라면 "둘 다 불가" 가 정직하다 (`_set_bottom_env`
+            가 env 전체를 ⊥ 로 만드는 것과 같은 관점).
+            """
+            if A.is_bottom() or B.is_bottom():
+                return A.bottom(A.type_length), B.bottom(B.type_length)
+            return A, B
+
         # --------------------------------------------
 
         # <  ------------------------------------------------
+        # ★ a < b 가 성립 **가능한** 값만 남긴다:
+        #     a ≤ B.max − 1   (b 가 될 수 있는 최댓값보다 작아야 한다)
+        #     b ≥ A.min + 1   (a 가 될 수 있는 최솟값보다 커야 한다)
+        #   ⚠ 양쪽 모두 **원본**(`a_iv`/`b_iv`) 상대편으로 제약한다. 한쪽을 정제한
+        #     결과를 다시 반대쪽 제약에 쓰면 중복 적용돼 과도하게 좁아진다.
+        #   ⚠ 예전 코드는 `B.min − 1` / `A.max + 1` 이라 **반대쪽 경계**를 썼다.
+        #     우변이 리터럴이면 `B.min == B.max` 라 우연히 맞았지만, 비-싱글톤이면
+        #     feasible 상태를 버린다 — `[0,0] < [0,10]` 이 ⊥ 가 되어 `while (i < n)`
+        #     의 본문이 영원히 진입되지 않았다(F43).
         if op == '<':
-            if B.min_value != NEG_INFINITY:
-                A = clamp_max(A, B.min_value - 1)
-            if not A.is_bottom() and A.max_value != INFINITY:
-                B = clamp_min(B, A.max_value + 1)
-            return A, B
+            if b_iv.max_value != INFINITY:
+                A = clamp_max(A, b_iv.max_value - 1)
+            if a_iv.min_value != NEG_INFINITY:
+                B = clamp_min(B, a_iv.min_value + 1)
+            return both_bottom_if_either(A, B)
 
         # >  ------------------------------------------------
+        #   a ≥ B.min + 1,  b ≤ A.max − 1   (위와 대칭)
         if op == '>':
-            if B.max_value != INFINITY:
-                A = clamp_min(A, B.max_value + 1)
-            if not A.is_bottom() and A.min_value != NEG_INFINITY:
-                B = clamp_max(B, A.min_value - 1)
-            return A, B
+            if b_iv.min_value != NEG_INFINITY:
+                A = clamp_min(A, b_iv.min_value + 1)
+            if a_iv.max_value != INFINITY:
+                B = clamp_max(B, a_iv.max_value - 1)
+            return both_bottom_if_either(A, B)
 
         # <=  -----------------------------------------------
         if op == '<=':

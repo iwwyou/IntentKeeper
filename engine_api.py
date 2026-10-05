@@ -61,6 +61,8 @@ class Record(_RecordBase, total=False):
 NodeFlag = Literal[
     "condition", "branch_then", "branch_else", "merge",
     "fixpoint_evaluation", "loop_exit", "loop_body", "exit",
+    # N4: 이 노드에 함수 호출이 있다 / 그 호출로는 들어갈 수 없다
+    "call", "opaque",
 ]
 EdgeKind = Literal["normal", "true", "false", "back_edge"]
 VerdictStatus = Literal["Satisfied", "Warning", "Violated", "Unreachable"]
@@ -95,6 +97,21 @@ SlotKey = str  # "balance" | "a" | "msg.sender" | "token.balanceOf()"
 
 
 @dataclass
+class CalleeRef:
+    """이 노드에서 일어나는 함수 호출 하나 (N4 Step Into 대상 또는 opaque 사유)."""
+    key: str                           # callees 맵 키 = "<호출노드>#<컨트랙트>.<함수>"
+    label: str                         # "Math.mulDiv" — UI 표시용
+    enterable: bool                    # False = opaque
+    contract: Optional[str] = None
+    name: Optional[str] = None
+    reason: Optional[str] = None        # enterable=False 인 이유 (화면에 띄운다)
+    # callee 소스 범위. 같은 파일 callee 는 프론트가 store.functions 로도 찾을 수 있고,
+    # 의존성 pkl callee 는 **그 dep 파일 기준** 라인이라 업로드한 소스(depContents)에 맞다.
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
+
+
+@dataclass
 class CFGNode:
     id: str
     src_line: int
@@ -104,6 +121,13 @@ class CFGNode:
     state: dict[str, str] = field(default_factory=dict)
     # merge 노드면 join 기여 predecessor id들 (backward 양쪽 하이라이트용)
     join_from: Optional[list[str]] = None
+    # 루프 헤더 노드면 "루프 진입 전 ↔ 고정점 수렴 후 값이 바뀐 변수" (N3).
+    #   decision #4 가 iteration 별 stepping 을 금지하므로, 루프는 통째로 접고
+    #   그 효과를 이 delta 하나로 보여준다. 루프 내부에서 새로 선언된 변수는 제외.
+    loop_delta: Optional[dict[str, str]] = None
+    # N4: 이 노드에서 일어나는 호출들. enterable 한 것은 `CfgWithStates.callees[key]` 에
+    #     callee CFG(상태 포함)가 들어 있다.
+    callees: Optional[list[CalleeRef]] = None
 
 
 @dataclass
@@ -231,6 +255,9 @@ class CfgWithStates:
     restore 전에 직렬화된 불변 스냅샷 사본."""
     scope: Scope
     cfg: CFG                         # nodes.state 채워짐 = navigation substrate
+    # N4: Step Into 대상 callee 들의 CFG(상태 포함). 키 = `CalleeRef.key`.
+    #   호출 지점별로 분리된다 — 같은 callee 를 두 곳에서 부르면 **별개 엔트리**다.
+    callees: dict[str, CFG] = field(default_factory=dict)
     top_vars: list[TopVar] = field(default_factory=list)
     # debug 값 입력 오류(잘못된 interval 등). 비어있지 않으면 프론트가 슬롯 옆에 표시(Fix A).
     diagnostics: list[Diagnostic] = field(default_factory=list)
@@ -293,6 +320,122 @@ def _serialize_node_state(n, recorder) -> dict[str, str]:
     return {k: ("⊥" if v == "[None,None]" else v) for k, v in flat.items()}
 
 
+_LOOP_COND_TYPES = ("while", "for", "do_while")
+
+
+def _is_loop_head(n) -> bool:
+    return (getattr(n, "condition_node", False)
+            and getattr(n, "condition_node_type", None) in _LOOP_COND_TYPES)
+
+
+def _loop_region(fcfg, head) -> set:
+    """head 에서 전진하며 모은 루프 본문. 절단점은 **자기 false 후속**뿐.
+
+    `Engine.traverse_loop_nodes`(⑮)와 **같은 규칙**이다. 엔진 인스턴스 없이 그래프만으로
+    계산해야 하므로 여기 한 번 더 둔다 — 규칙이 갈라지면 "중첩 판정" 이 엔진과 어긋난다.
+    """
+    G = fcfg.graph
+    own_exit = {s for s in G.successors(head)
+                if G[head][s].get("condition") is False}
+    seen: set = set()
+    stack = [head]
+    while stack:
+        cur = stack.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        for s in G.successors(cur):
+            if s in own_exit:
+                continue
+            stack.append(s)
+    return seen
+
+
+def _nested_loop_heads(fcfg) -> set:
+    """다른 루프 본문 안에 있는 루프 헤더들 = **최외곽이 아닌** 루프.
+
+    ★ `loop_delta` 는 **최외곽 루프 기준**으로만 내보낸다(사용자 결정). 이유:
+      N2 의 step forward 는 최외곽 루프를 통째로 접고 그 **뒤**로 착지하므로, 안쪽 루프는
+      애초에 navigation 착지점이 되지 않는다. 안쪽 delta 는 보여줄 자리가 없다.
+
+    ⚠ 그냥 "안 내보낸다" 가 아니라 **걸러야** 한다. 안쪽 루프의 `loopDelta` 는 증분 빌드
+      도중(아직 바깥 루프 본문에 편입되기 전) `reinterpret_from` 이 안쪽 헤더를 loop head
+      로 만나 `fixpoint(안쪽)` 을 직접 불렀을 때 ledger 에 기록되고, 그 뒤로 갱신되지 않아
+      **낡은 스냅샷**으로 남는다. 없는 것보다 나쁘다.
+      판정을 직렬화 시점에 매번 다시 하므로 ledger 가 낡아도 영향받지 않는다.
+    """
+    heads = [n for n in fcfg.graph.nodes() if _is_loop_head(n)]
+    if len(heads) < 2:
+        return set()
+    nested: set = set()
+    for h in heads:
+        for other in heads:
+            if other is h:
+                continue
+            if h in _loop_region(fcfg, other):
+                nested.add(h)
+                break
+    return nested
+
+
+def _external_call_roots(ccf, interface_names, contract_cfgs) -> dict:
+    """**외부 호출의 루트 식별자** → 그 호출 대상의 선언 타입명.
+
+    두 형태를 모두 덮는다:
+      · 캐스트 `IFoo(a).f()` / `Vault(a).f()` → 루트가 **타입 이름** 자체
+      · 변수  `v.f()`                        → 루트가 변수명, 타입은 `typeInfo.interfaceName`
+
+    ★ 구체 컨트랙트도 인터페이스와 **동일 취급**한다(F49) — 컨트랙트 타입 캐스트는 런타임
+      검사가 없으므로 주소에 배포된 임의의 코드가 실행된다 = callee 코드가 타입으로 정해지지
+      않는다. 라이브러리는 제외한다(external call 이 아니라 하강 해석 대상).
+
+    ⚠ 이 판정은 **@IReturn 슬롯 도출(`_derive_debug_slots`)과 opaque 호출 표시(N4)** 양쪽이
+      쓴다. 두 곳에 각각 적으면 조용히 어긋나므로 여기 한 곳에만 둔다.
+    """
+    from Utils.CFG import LibraryCFG
+    interface_names = interface_names or set()
+    contract_cfgs = contract_cfgs or {}
+    roots: dict = {}
+    # 타입 이름 (캐스트 형태)
+    for nm in interface_names:
+        roots[nm] = nm
+    for nm, c in contract_cfgs.items():
+        if c is not None and not isinstance(c, LibraryCFG):
+            roots.setdefault(nm, nm)
+    # 그 타입의 상태변수 (변수 형태)
+    svn = getattr(ccf, "state_variable_node", None) if ccf is not None else None
+    for nm, var in ((getattr(svn, "variables", {}) if svn is not None else {}) or {}).items():
+        ti = getattr(var, "typeInfo", None)
+        if getattr(ti, "typeCategory", None) == "interface" or getattr(ti, "interfaceName", None):
+            roots[nm] = getattr(ti, "interfaceName", None) or nm
+    return roots
+
+
+def _loop_delta(n, recorder, nested_heads: set) -> Optional[dict[str, str]]:
+    """루프 헤더 노드면 ledger 의 `loopDelta`(진입 전 ↔ 수렴 후 바뀐 변수)를 꺼낸다.
+
+    `Engine.fixpoint` 가 고정점 후 `head.src_line` 에
+    `{"kind": "loopDelta", "vars": {경로: 직렬화값}}` 로 적어둔다. 엔진에는 이미 있었지만
+    `engine_api` 가 `RecordManager.ledger` 를 전혀 보지 않아 웹으로 오지 않았다(N3).
+
+    ⚠ 한 소스 라인에 노드가 여러 개 있을 수 있다(`for (i=0; i<n; i++)` → init/cond/update).
+      그래서 **루프 조건 노드에만** 붙인다. 라인만으로 매칭하면 같은 delta 가 중복된다.
+    ⚠ 중첩 내부 루프는 제외한다 — `_nested_loop_heads` 참조.
+    """
+    if not _is_loop_head(n):
+        return None
+    if n in nested_heads:
+        return None
+    ln = getattr(n, "src_line", None)
+    if ln is None:
+        return None
+    # ledger 는 defaultdict(list) — `.get` 으로 읽어 빈 키 생성을 막는다.
+    for rec in recorder.ledger.get(ln, ()):
+        if rec.get("kind") == "loopDelta":
+            return dict(rec.get("vars") or {})
+    return None
+
+
 def _back_edges(fcfg) -> set:
     """dominator 기반 back edge 집합 {(u, v)}.
 
@@ -325,21 +468,132 @@ def _back_edges(fcfg) -> set:
     return back
 
 
-def _serialize_cfg(fcfg, recorder, with_states: bool) -> CFG:
+def _node_line_span(fcfg):
+    """노드 `src_line` 의 min/max. `EngineSession._function_span` 은 세션-로컬
+    `line_info` 를 쓰므로 **pkl 로 로드된 함수에는 None** 을 준다 — 그 폴백."""
+    lns = [n.src_line for n in fcfg.graph.nodes()
+           if getattr(n, "src_line", None) is not None and n.src_line > 0]
+    return (min(lns), max(lns)) if lns else (None, None)
+
+
+def _external_call_nodes(fcfg, ext_roots) -> dict:
+    """노드명 → 그 노드의 **외부 호출** 라벨들.
+
+    판정 규칙은 `_external_call_roots` 와 공유한다(= @IReturn 슬롯과 같은 기준).
+    루트가 외부 호출 대상 타입/핸들이고 **accessor 에 call 이 있을 때만** 호출로 센다
+    (`v` 를 그냥 주소로 읽는 것은 호출이 아니다).
+    """
+    from Domain.IR import Expression
+    out: dict = {}
+
+    def scan(e, acc):
+        if not isinstance(e, Expression):
+            return
+        if _ap_is_access(e):
+            root, accs = _ap_spine(e)
+            nm = (root.identifier if _ap_is_ident(root)
+                  else getattr(root, "typeName", None))
+            if nm in ext_roots and any(k == "call" for k, _ in accs):
+                acc.append(_ap_label(e))
+                for side in _ap_side_exprs(e):
+                    scan(side, acc)
+                return
+        for c in _ap_children(e):
+            scan(c, acc)
+
+    for n in fcfg.graph.nodes():
+        acc: list = []
+        for e in _ap_node_exprs(n):
+            scan(e, acc)
+        if acc:
+            out[n.name] = sorted(set(acc))
+    return out
+
+
+_OPAQUE_REASON = ("외부 호출 — callee 코드가 타입으로 정해지지 않습니다 "
+                  "(컨트랙트 타입 캐스트는 런타임 검사가 없어 주소에 배포된 코드가 실행됩니다). "
+                  "@IReturn 으로 반환값을 지정하세요.")
+
+
+def _build_callees(fcfg, ca, ext_roots):
+    """S1 이 떠낸 callee 상태 → (callees 맵, 노드명 → CalleeRef 목록).
+
+    ★ **enterable 목록은 실제로 하강한 것**(`Engine._capture_callee_states` 적재분)에서만
+      만든다. 정적 스캔으로 추정하면 "호출처럼 보이지만 하강하지 않은 것" 을 잘못
+      들어갈 수 있다고 표시한다.
+    ★ **opaque 목록은 외부 호출 스캔**에서 만든다 — 외부 호출은 하강 자체가 없어 포착되지 않는다.
+    """
+    cfgs: dict = {}
+    per_node: dict = {}
+    pending = []
+    captured = getattr(ca, "_frozen_callee_states", None) or {}
+    # ── 1차: CalleeRef 를 전부 만든다 (직렬화는 2차에서) ──────────────
+    for (site, cname, cfunc), states in captured.items():
+        ccf = (getattr(ca, "contract_cfgs", None) or {}).get(cname)
+        callee_fcfg = ccf.get_function_cfg(cfunc) if ccf is not None else None
+        if callee_fcfg is None or isinstance(callee_fcfg, dict):
+            continue        # 못 찾음 / 오버로드 모호 → 들어갈 대상에서 제외
+        key = "%s#%s.%s" % (site, cname or "?", cfunc)
+        lo, hi = _node_line_span(callee_fcfg)
+        pending.append((key, callee_fcfg, states))
+        per_node.setdefault(site, []).append(CalleeRef(
+            key=key, label="%s.%s" % (cname or "?", cfunc), enterable=True,
+            contract=cname, name=cfunc, start_line=lo, end_line=hi))
+    for site, labels in _external_call_nodes(fcfg, ext_roots).items():
+        for lb in labels:
+            per_node.setdefault(site, []).append(CalleeRef(
+                key="", label=lb, enterable=False, reason=_OPAQUE_REASON))
+    # ── 2차: 직렬화. callee CFG **에도** `per_node` 를 넘겨 중첩 Step Into 를 가능하게 한다
+    #   (`_pct` 안의 `Math.mulDiv` 호출 지점이 `_pct` 의 CFG 에서도 보여야 한다).
+    #   ⚠ `per_node` 는 **노드명** 키다. 노드명에 라인번호가 박혀 있어 한 파일 안에서는
+    #     충돌하지 않지만, pkl callee 가 **다른 파일의 같은 라인번호** 노드명을 가지면
+    #     이론상 겹칠 수 있다. 실무상 희박해 지금은 허용하고 기록만 둔다.
+    # ⚠ callee 에는 loop_delta 를 붙이지 않는다 — ledger 는 **라인 번호** 키라서
+    #   pkl callee 의 라인이 사용자 파일의 라인과 겹치면 엉뚱한 delta 가 붙는다.
+    for key, callee_fcfg, states in pending:
+        cfgs[key] = _serialize_cfg(callee_fcfg, ca.recorder, with_states=True,
+                                   states_override=states, node_callees=per_node,
+                                   with_loop_delta=False)
+    return cfgs, per_node
+
+
+def _serialize_cfg(fcfg, recorder, with_states: bool, states_override=None,
+                   node_callees=None, with_loop_delta: bool = True) -> CFG:
     """엔진 FunctionCFG(graph=networkx DiGraph, 노드=CFGNode) → 프론트 CFG.
     with_states=False 면 state={} (analyze 구조 단계). True 면 추상상태 채움(evaluate)."""
     nodes: list[CFGNode] = []
+    # 루프당 한 번만 계산 (노드 루프 안에서 부르면 O(루프²×노드)가 된다)
+    nested_heads = _nested_loop_heads(fcfg) if (with_states and with_loop_delta) else set()
+    node_callees = node_callees or {}
     for n in fcfg.graph.nodes():
         join_from = None
         if getattr(n, "join_point_node", False):
             join_from = [p.name for p in fcfg.graph.predecessors(n)]
+        refs = node_callees.get(n.name) or None
+        flags = _node_flags(n)
+        if refs:                                    # N4
+            flags.append("call")
+            if not any(r.enterable for r in refs):
+                flags.append("opaque")
+        # states_override = callee 직렬화용. callee 의 live `.variables` 는 restore 로
+        #   baseline 이 복원돼 있으므로, S1 이 복귀 직전에 떠낸 dict 를 써야 한다.
+        if with_states:
+            st = (states_override.get(n.name, {}) if states_override is not None
+                  else _serialize_node_state(n, recorder))
+        else:
+            st = {}
         nodes.append(CFGNode(
             id=n.name,
             src_line=n.src_line if getattr(n, "src_line", None) is not None else -1,
-            flags=_node_flags(n),
+            flags=flags,
             cond_type=getattr(n, "condition_node_type", None),
-            state=_serialize_node_state(n, recorder) if with_states else {},
+            state=st,
             join_from=join_from,
+            callees=refs,
+            # 구조 단계(analyze)엔 값이 없다 → delta 도 내보내지 않는다. ledger 에 이전
+            # evaluate 의 loopDelta 가 남아 있어도 "값 없는 결과" 계약을 지킨다.
+            loop_delta=(_loop_delta(n, recorder, nested_heads)
+                        if (with_states and with_loop_delta) else None),
         ))
     back = _back_edges(fcfg)
     edges: list[CFGEdge] = []
@@ -627,7 +881,7 @@ def _ap_node_exprs(n):
 
 
 def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
-                        interface_names=None) -> list[DebugSlot]:
+                        interface_names=None, contract_cfgs=None) -> list[DebugSlot]:
     """구조적 debug 슬롯 도출(값 이전). *이 함수와 관련된* 변수만, 타입별 valueKind로.
       LocalVar = 함수 파라미터 / StateVar = 이 함수가 참조하는 상태변수(func_src 매치)
       GlobalVar = 이 함수가 쓰는 글로벌 / IReturn = 인터페이스 호출.
@@ -638,29 +892,65 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
     from Domain.IR import Expression
     from Domain.Variable import MappingVariable, StructVariable, ArrayVariable
     interface_names = interface_names or set()
+    contract_cfgs = contract_cfgs or {}
     slots: list[DebugSlot] = []
 
     svn = getattr(ccf, "state_variable_node", None) if ccf is not None else None
     statevars = (getattr(svn, "variables", {}) if svn is not None else {}) or {}
-    def _is_ifc_type(ti):
-        return getattr(ti, "typeCategory", None) == "interface" or bool(getattr(ti, "interfaceName", None))
-    interface_var_names = {nm for nm, var in statevars.items()
-                           if _is_ifc_type(getattr(var, "typeInfo", None))}
+    # 외부 호출 루트 판정은 `_external_call_roots` 한 곳에만 둔다(N4 opaque 표시와 공유).
+    ext_roots = _external_call_roots(ccf, interface_names, contract_cfgs)
 
     # ── 접근-경로 스캔 ─────────────────────────────────────────────
     compound: dict[str, tuple] = {}        # label -> (valueKind, opaque, signed, bits)
     compound_roots: set[str] = set()
     ireturn_labels: set[str] = set()
+    ireturn_meta: dict[str, tuple[str, str]] = {}   # label -> (선언타입, 함수명) — S0b 게이트용
 
     def classify(root):
         if _ap_is_ident(root):
             nm = root.identifier
-            if nm in interface_names or nm in interface_var_names: return "IReturn"
+            if nm in ext_roots: return "IReturn"
             if nm in statevars: return "StateVar"
             return None
         tn = getattr(root, "typeName", None)
-        if tn and tn in interface_names: return "IReturn"
+        if tn and tn in ext_roots: return "IReturn"
         return None
+
+    def ireturn_type_of(root):
+        """@IReturn 대상의 **선언 타입 이름** (mutability 조회용)."""
+        if _ap_is_ident(root):
+            return ext_roots.get(root.identifier)
+        return ext_roots.get(getattr(root, "typeName", None))
+
+    def ireturn_rejected(label: str) -> bool:
+        """선언 mutability 가 view/pure 가 **아님이 확정**된 슬롯인가 (S0b).
+
+        `@IReturn` 은 view/pure 만 허용한다 — `ContractAnalyzer.process_ireturn_*` 가
+        `mutability not in ("view","pure")` 이면 raise 한다. 그 게이트가 **슬롯 도출에는
+        없어서** 받지도 않을 슬롯을 프론트에 제시하고, 사용자가 값을 넣는 순간 거부됐다.
+        ★ 이 제한은 원리적으로 옳다: 선언이 view/pure 면 solc 가 **STATICCALL** 을 내므로
+          "부작용 없음" 은 주소에 뭐가 있든 **EVM 이 강제**한다. 보장되지 않는 것은
+          **반환값**뿐이고, 그래서 반환값만 사용자 가정으로 받는다.
+        ⚠ fail-open: 타입/함수를 못 찾으면 제외하지 않는다(기존에 되던 슬롯을 없애지 않음).
+          `mutability=None`(키워드 없음 = nonpayable)은 위 게이트와 동일하게 **거부**로 본다.
+        """
+        meta = ireturn_meta.get(label)
+        if meta is None:
+            return False
+        tn, fn = meta
+        cfg = contract_cfgs.get(tn)
+        if cfg is None:
+            return False
+        fc = None
+        try:
+            fc = cfg.get_function_cfg(fn)
+        except Exception:
+            fc = (getattr(cfg, "functions", {}) or {}).get(fn)
+        if fc is None:
+            return False
+        cands = list(fc.values()) if isinstance(fc, dict) else [fc]
+        # 오버로드는 하나라도 view/pure 면 허용 (어느 오버로드인지 여기선 모른다)
+        return all(getattr(c, "mutability", None) not in ("view", "pure") for c in cands)
 
     def leaf_vk(root, accs):
         cur = statevars.get(root.identifier) if _ap_is_ident(root) else None
@@ -690,6 +980,10 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
                 label = _ap_label(e)
                 if cls == "IReturn":
                     ireturn_labels.add(label)
+                    _tn = ireturn_type_of(root)
+                    _fn = next((k for kind, k in reversed(accs) if kind == "member"), None)
+                    if _tn and _fn:
+                        ireturn_meta[label] = (_tn, _fn)
                 elif accs:  # compound = accessor 가 있을 때만(단순 스칼라 상태변수 제외)
                     compound_roots.add(root.identifier)
                     compound.setdefault(label, leaf_vk(root, accs))
@@ -710,7 +1004,9 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
 
     # 2) 상태변수 — compound root 는 경로 슬롯이, 인터페이스 핸들은 IReturn 이 대체하므로 스킵, 나머지는 스칼라
     for name, var in statevars.items():
-        if name in compound_roots or name in interface_var_names:
+        # 인터페이스/컨트랙트 핸들 상태변수는 IReturn 슬롯이 대체한다.
+        #   `ext_roots` 에는 타입 이름도 들어 있으나, 여기 루프는 statevars 만 돌므로 무해하다.
+        if name in compound_roots or name in ext_roots:
             continue
         if func_src and not _referenced(name, func_src):
             continue
@@ -739,7 +1035,9 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
     # 5) @IReturn — 코드 스캔(신규) ∪ registry(@IReturn 어노테이션 값) — label dedup
     for key in getattr(fcfg, "ireturn_registry", {}) or {}:
         ireturn_labels.add(".".join(str(x) for x in key if x))
-    for label in ireturn_labels:
+    for label in sorted(ireturn_labels):
+        if ireturn_rejected(label):     # S0b: view/pure 아님이 확정된 것만 제외
+            continue
         slots.append(DebugSlot(kind="IReturn", key=label, label=label,
                                valueKind="interval", opaque=True))
     return slots
@@ -1064,7 +1362,8 @@ class EngineSession:
         func_src = "\n".join(r.get("code", "") for r in self._prev_records
                              if lo_ln <= r.get("startLine", -1) <= hi_ln)
         slots = _derive_debug_slots(fcfg, ccf, func_src, func or "",
-                                    interface_names=getattr(self._ca, "interface_names", None))
+                                    interface_names=getattr(self._ca, "interface_names", None),
+                                    contract_cfgs=getattr(self._ca, "contract_cfgs", None))
         self._slots = {s.key: s for s in slots}
         return Structure(scope=self._scope, cfg=cfg, debug_slots=slots, diagnostics=diags)
 
@@ -1259,9 +1558,17 @@ class EngineSession:
 
         self._states_cache[_values_key(debug_values)] = frozen
 
-        cfg = _serialize_cfg(frozen, self._ca.recorder, with_states=True)
+        # ★ N4. callee 상태(S1 포착) → callee CFG 맵 + 노드별 CalleeRef.
+        #   `fcfg`(live)로 호출 지점을 스캔하고, `frozen`(states 스냅샷)으로 CFG 를 직렬화한다.
+        _ccf = (self._ca.contract_cfgs or {}).get(self._scope.contract)
+        _ext = _external_call_roots(_ccf, getattr(self._ca, "interface_names", None),
+                                    getattr(self._ca, "contract_cfgs", None))
+        callee_cfgs, node_callees = _build_callees(frozen, self._ca, _ext)
+        cfg = _serialize_cfg(frozen, self._ca.recorder, with_states=True,
+                             node_callees=node_callees)
         top_vars = _collect_top_vars(frozen, scope=self._scope.function)
-        return CfgWithStates(scope=self._scope, cfg=cfg, top_vars=top_vars, diagnostics=diags)
+        return CfgWithStates(scope=self._scope, cfg=cfg, callees=callee_cfgs,
+                             top_vars=top_vars, diagnostics=diags)
 
     def verify(self, intents: list[IntentItem],
                contract: Optional[str] = None, func: Optional[str] = None,
@@ -1366,6 +1673,8 @@ def to_analysis_result(
     return {
         "scope": asdict(scope),
         "cfg": _cfg_to_dict(cfg),
+        # N4: Step Into 대상 callee 들의 CFG. 키 = CFGNode.callees[].key
+        "callees": {k: _cfg_to_dict(v) for k, v in ((states.callees if states else None) or {}).items()},
         "verdict": [asdict(v) for v in verdict],
         "top_vars": [asdict(t) for t in top_vars],
         "intents": [asdict(i) for i in intents],

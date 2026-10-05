@@ -97,9 +97,9 @@ contract ERC1155Upgradeable is Initializable, ContextUpgradeable, ERC165Upgradea
     }
 
     function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {
-        uint256[] memory array = new uint256[](1);
-        array[0] = element;
-        return array;
+        uint256[] memory _array = new uint256[](1);
+        _array[0] = element;
+        return _array;
     }
 
     function safeTransferFrom(

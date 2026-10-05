@@ -126,7 +126,7 @@ transfer function 은 `Interpreter/Semantics/`(`Evaluation`=식 평가, `Update`
 - `sess.structure()` 를 스코프 없이 호출하면 `_resolve_fcfg(None, None)` 폴백이 **컨트랙트의 마지막
   함수**를 집어 엉뚱한 CFG/슬롯을 돌려준다. 항상 `contract`, `func` 를 명시할 것.
 - `main.load_dependencies()` 는 pkl 외에 **3개 디렉토리**를 interface 이름 regex 스캔에 사용한다
-  (`evaluation/RQ1/target_contracts_contraction`, `.../target_contracts_original/dependencies`,
+  (`evaluation/Dataset/target_contraction`, `evaluation/Dataset/Dependencies/pool`,
   `Dataset/Numscout/contraction`). 하나라도 없으면 interface 호출 해석이 조용히 실패한다.
 - `Dependencies/main.py` 의 contract 분석 순서는 `_con_order` 로 **하드코딩**돼 있다. 임의의 .sol 을
   첨부하려면 topo-sort 가 필요하다(미구현).

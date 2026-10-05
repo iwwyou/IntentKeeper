@@ -1,0 +1,4 @@
+5_iSYNTH.sol  <-  https://raw.githubusercontent.com/code-423n4/2021-04-vader/main/vader-protocol/contracts/interfaces/iSYNTH.sol
+51_MathUtils.sol  <-  https://raw.githubusercontent.com/code-423n4/2021-11-bootfinance/main/customswap/contracts/MathUtils.sol
+51_LPToken.sol  <-  https://raw.githubusercontent.com/code-423n4/2021-11-bootfinance/main/customswap/contracts/LPToken.sol
+51_ISwap.sol  <-  https://raw.githubusercontent.com/code-423n4/2021-11-bootfinance/main/customswap/contracts/interfaces/ISwap.sol

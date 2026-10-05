@@ -351,6 +351,38 @@ def _expand_empty_block(line: str):
     return [m.group("head").rstrip(), f"{indent}}}"]
 
 
+# 중괄호 없는 else — `else <stmt>;` (선행 `}` 선택)
+# ★ `else {` / `} else {` / `else if (...)` 는 **절대 제외**한다:
+#   · `else {` 는 이미 블록이다
+#   · `else if` 는 슬라이서의 `interactiveIfElseUnit` 경로가 전담한다
+#   `(?!\s*(?:\{|if))` 로 둘을 명시적으로 배제한다.
+# 전수 조사(Dependencies + RQ1 + Dataset): 대상 85건, 제외된 `else` 줄 2,500여 건
+#   (`} else {` 2051 · `} else if (...) {` 등) — 오탐 0.
+RE_SINGLE_ELSE = re.compile(
+    r"^(\s*)(\}\s*)?else(?![A-Za-z0-9_])(?!\s*(?:\{|if(?![A-Za-z0-9_])))\s*(?P<stmt>.+;)\s*$")
+
+
+def _expand_single_line_else(line: str):
+    """'else stmt;' -> ['else {', '    stmt;', '}'] 로 확장. 대상이 아니면 None.
+
+    ★ 왜 필요한가: 슬라이서/분류기는 `else` 가 **블록을 여는 것**을 전제한다.
+      `else r = ratio << (127 - msb);` 처럼 한 줄에 문장까지 있으면
+      `[ANTLR] extraneous input 'else'` 로 파싱이 깨진다(TickMath.sol:129 실측).
+
+    ★ 선행 `}` 는 **그대로 보존한다** — 슬라이서가 `}` 로 시작하고 `else` 를 포함하는
+      줄에서 앞의 `}` 를 떼어 `closeBefore=True` 로 표시하는 메커니즘이 있으므로,
+      `} else stmt;` 는 `} else {` / `stmt;` / `}` 가 되어야 그 경로를 그대로 탄다.
+    """
+    m = RE_SINGLE_ELSE.match(line)
+    if not m:
+        return None
+    indent = m.group(1)
+    closer = (m.group(2) or "").strip()          # '}' 또는 ''
+    stmt = m.group("stmt").strip()
+    head = f"{indent}{closer + ' ' if closer else ''}else {{"
+    return [head, f"{indent}    {stmt}", f"{indent}}}"]
+
+
 def expand_single_line_blocks(lines: list[str]) -> list[str]:
     """single-line if/unchecked 블록을 multi-line으로 확장"""
     result = []
@@ -362,6 +394,10 @@ def expand_single_line_blocks(lines: list[str]) -> list[str]:
         expanded_empty = _expand_empty_block(line)
         if expanded_empty is not None:
             result.extend(expanded_empty)
+            continue
+        expanded_else = _expand_single_line_else(line)
+        if expanded_else is not None:
+            result.extend(expanded_else)
             continue
         m_unc = RE_SINGLE_UNCHECKED.match(line)
         if m_unc:

@@ -1,15 +1,30 @@
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {1.1}{\ignorespaces Example requiring state preparation before debugging the target function.}}{2}{figure.caption.14}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {2.1}{\ignorespaces Compilation in a conventional Solidity debugging workflow.}}{3}{figure.caption.14}%
-\contentsline {figure}{\numberline {2.2}{\ignorespaces Contract deployment in a conventional Solidity debugging workflow.}}{3}{figure.caption.15}%
-\contentsline {figure}{\numberline {2.3}{\ignorespaces State initialization and target-function execution in a conventional Solidity debugging workflow.}}{4}{figure.caption.16}%
-\contentsline {figure}{\numberline {2.4}{\ignorespaces Transaction-based bytecode debugging in a conventional Solidity debugging workflow.}}{5}{figure.caption.17}%
-\contentsline {figure}{\numberline {2.5}{\ignorespaces Example requiring state preparation before debugging the target function.}}{9}{figure.caption.19}%
-\addvspace {10\p@ }
-\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Compilation in a conventional Solidity debugging workflow.}}{7}{figure.caption.15}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Contract deployment in a conventional Solidity debugging workflow.}}{7}{figure.caption.16}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces State initialization and target-function execution in a conventional Solidity debugging workflow.}}{8}{figure.caption.17}%
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Transaction-based bytecode debugging in a conventional Solidity debugging workflow.}}{9}{figure.caption.18}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Overall architecture of \textsc {IQDebug}{}.}}{18}{figure.caption.20}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Grammar of the debugging input.}}{31}{figure.caption.27}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Grammar of developer-authored intent. }}{40}{figure.caption.30}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Spectrum of $L$ vs $R$ configurations for $op = \text {``$>$''}$.}}{50}{figure.caption.33}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {A.1}{\ignorespaces Korea University global symbol}}{22}{figure.caption.22}%
-\contentsline {figure}{\numberline {A.2}{\ignorespaces A minimal control-flow graph}}{22}{figure.caption.23}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {A.1}{\ignorespaces Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions.}}{68}{figure.caption.37}%
+\contentsline {figure}{\numberline {A.2}{\ignorespaces Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt {\_}) back to the function body, eventually reaching the function exit.}}{69}{figure.caption.38}%
+\contentsline {figure}{\numberline {A.3}{\ignorespaces Simple statement insertion: single node spliced between current node and successors}}{69}{figure.caption.39}%
+\contentsline {figure}{\numberline {A.4}{\ignorespaces If statement insertion. The builder creates a \texttt {condition node}, two nodes for true/false arms, and an \texttt {if join}}}{70}{figure.caption.40}%
+\contentsline {figure}{\numberline {A.5}{\ignorespaces Else-if statement insertion. The builder replaces the false arm with a new \texttt {condition node}, two nodes, and an \texttt {else-if join}}}{70}{figure.caption.41}%
+\contentsline {figure}{\numberline {A.6}{\ignorespaces Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt {if join}}}{71}{figure.caption.42}%
+\contentsline {figure}{\numberline {A.7}{\ignorespaces While loop insertion. The builder creates a \texttt {fixpoint evaluation node} $\phi $, a \texttt {condition node}, a loop body node, and a \texttt {loop exit node}}}{71}{figure.caption.43}%
+\contentsline {figure}{\numberline {A.8}{\ignorespaces Break statement insertion. The \texttt {break} node's outgoing edge is redirected to the \texttt {loop exit node}}}{72}{figure.caption.44}%
+\contentsline {figure}{\numberline {A.9}{\ignorespaces Continue statement insertion. The \texttt {continue} node's outgoing edge is redirected to the loop's \texttt {fixpoint evaluation node} $\phi $}}{72}{figure.caption.45}%
+\contentsline {figure}{\numberline {A.10}{\ignorespaces Return statement insertion. The containing node's edge is rewired to the function's unique \texttt {return exit node}}}{73}{figure.caption.46}%
+\contentsline {figure}{\numberline {A.11}{\ignorespaces Require/assert statement insertion. The builder creates a \texttt {condition node} with true edge to a node and false edge to the \texttt {error exit node}}}{73}{figure.caption.47}%
+\contentsline {figure}{\numberline {A.12}{\ignorespaces Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt {error exit node}}}{73}{figure.caption.48}%
+\addvspace {10\p@ }

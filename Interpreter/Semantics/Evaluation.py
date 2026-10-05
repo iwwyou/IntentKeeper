@@ -386,6 +386,279 @@ class Evaluation :
         else:
             return mvar.value
 
+    # =================================================================
+    #  F37. 정적 타입 질의 + 오버로드 선택
+    # =================================================================
+    #  Solidity 는 정적 타입 언어이고 오버로드 해소는 **결정적**이다.
+    #  그런데 이 엔진은 식(expression)의 정적 타입을 추적하지 않았다 —
+    #  `Domain/IR.py:74` 에 `expr_type` 슬롯이 **설계돼 있는데** 비지터가
+    #  리터럴과 디버그 어노테이션 합성 표현식에만 채운다(식별자·멤버·인덱스·
+    #  호출·산술은 전부 `None`). 그 결손 때문에 F14(리터럴 문맥 타이핑)·
+    #  F16(bytesN 상수)·F34(오버로드 arity)가 **각각 따로 우회로**를 깔았다.
+    #
+    #  아래 `_static_type_of` 는 그 결손을 메우는 **순수 질의**다:
+    #    · 평가하지 않는다 → 매핑 엔트리 생성·중첩 호출 재해석 같은 부작용 0
+    #    · IR 을 쓰지 않는다(`expr_type` 미변경) → 기존 리터럴 경로 동작 변화 0
+    #  비지터가 `expr_type` 을 채우고 F14·F16 우회로를 걷어내는 것은 별건이다
+    #  (`evaluate_literal_context` 의 `ety` 분기가 정확 타입 `uint256`·`bytes32` 도
+    #   받게 먼저 고쳐야 한다 — F16 주석의 실측 기록 참조).
+    # =================================================================
+
+    @staticmethod
+    def _type_name(t) -> str | None:
+        """SolType → 선언 타입 이름 문자열 (`parameter_types` 와 비교 가능한 형태)."""
+        if t is None:
+            return None
+        cat = getattr(t, "typeCategory", None)
+        if cat == "elementary":
+            return getattr(t, "elementaryTypeName", None)
+        if cat == "struct":
+            return getattr(t, "structTypeName", None)
+        if cat == "enum":
+            return getattr(t, "enumTypeName", None)
+        if cat == "interface":
+            return getattr(t, "interfaceName", None)
+        if cat == "array":
+            base = Evaluation._type_name(getattr(t, "arrayBaseType", None))
+            return f"{base}[]" if base else None
+        return None
+
+    def _static_type_of(self, expr, variables):
+        """식의 **정적 타입**(SolType). 평가하지 않고 선언 정보만 본다. 모르면 None.
+
+        리터럴은 **의도적으로 None** 이다 — Solidity 에서 숫자 리터럴은 독립적인
+        타입이 없고 문맥이 정한다(그래서 `f(5)` 가 `(int256)`/`(uint256)` 오버로드를
+        가지면 solc 자신도 ambiguity 에러를 낸다).
+        """
+        if expr is None:
+            return None
+        ctx = getattr(expr, "context", None)
+
+        # ── 함수 호출: 리턴 타입
+        #   `visitFunctionCall` 이 만드는 모양은
+        #     Expression(function=<IdentifierExp|MemberAccess>, arguments=[...],
+        #                operator='()', context='FunctionCallContext')
+        #   이라 함수 이름은 `expr.function.identifier` 에 있다.
+        #   (`evaluate_function_call_context` 는 `expr.context == "IdentifierExpContext"`
+        #    인 변형도 받으므로 그쪽도 함께 본다.)
+        #   ★ 이 분기가 없으면 `add(self, fromU256(value))` 의 2번째 인자 타입이
+        #     None 이 되어 오버로드를 못 고른다(실측: FixedPointMath L28/L38).
+        if ctx == "FunctionCallContext" or (
+                ctx == "IdentifierExpContext"
+                and (getattr(expr, "arguments", None) is not None
+                     or getattr(expr, "named_arguments", None))):
+            return self._return_type_of_call(expr, variables)
+
+        # ── 식별자: 선언 타입 그대로
+        if ctx == "IdentifierExpContext":
+            v = variables.get(getattr(expr, "identifier", None))
+            return getattr(v, "typeInfo", None) if v is not None else None
+
+        # ── 캐스트: `uint256(x)` / `address(x)` / `IERC20(x)` / `Fixed18(x)`
+        #   visitTypeConversion 이 typeName 에 **문자열**을 담는다.
+        if ctx == "TypeConversion":
+            ty = getattr(expr, "typeName", None)
+            if not isinstance(ty, str):
+                return ty if hasattr(ty, "typeCategory") else None
+            t = SolType()
+            resolved = self.an.sa.resolve_type(ty)      # type alias → underlying
+            if resolved is not None:
+                t.typeCategory = "elementary"
+                t.elementaryTypeName = resolved
+                t.aliasName = ty
+            elif ty in self.an.interface_names:
+                t.typeCategory = "interface"
+                t.interfaceName = ty
+            else:
+                t.typeCategory = "elementary"
+                t.elementaryTypeName = ty
+            if (t.elementaryTypeName or "").startswith(("int", "uint")):
+                digits = "".join(c for c in t.elementaryTypeName if c.isdigit())
+                t.intTypeLength = int(digits) if digits else 256
+            return t
+
+        # ── 멤버 접근: struct 필드의 선언 타입
+        if ctx == "MemberAccessContext":
+            base_t = self._static_type_of(getattr(expr, "base", None), variables)
+            member = getattr(expr, "member", None)
+            if base_t is None or member is None:
+                return None
+            if getattr(base_t, "typeCategory", None) == "struct":
+                sname = base_t.structTypeName
+                structs, _ = self.an.get_full_struct_enum_defs()
+                sdef = structs.get(sname) or (structs.get(sname.split('.')[-1])
+                                              if sname and '.' in sname else None)
+                members = getattr(sdef, "members", None) if sdef is not None else None
+                if isinstance(members, dict):
+                    return members.get(member)
+            return None
+
+        # ── 인덱스 접근: 배열 base / 매핑 value
+        if ctx == "IndexAccessContext":
+            base_t = self._static_type_of(getattr(expr, "base", None), variables)
+            cat = getattr(base_t, "typeCategory", None)
+            if cat == "array":
+                return getattr(base_t, "arrayBaseType", None)
+            if cat == "mapping":
+                return getattr(base_t, "mappingValueType", None)
+            return None
+
+        # ── 산술/비트 연산: 피연산자에서 유도 (아는 쪽, 둘 다 알면 넓은 쪽)
+        if getattr(expr, "left", None) is not None and getattr(expr, "right", None) is not None:
+            lt = self._static_type_of(expr.left, variables)
+            rt = self._static_type_of(expr.right, variables)
+            if lt is None:
+                return rt
+            if rt is None:
+                return lt
+            ll = getattr(lt, "intTypeLength", None) or 0
+            rl = getattr(rt, "intTypeLength", None) or 0
+            return lt if ll >= rl else rt
+
+        # ── 삼항: true/false 분기
+        if ctx in ("ConditionalContext", "TernaryContext"):
+            return (self._static_type_of(getattr(expr, "true_expr", None), variables)
+                    or self._static_type_of(getattr(expr, "false_expr", None), variables))
+
+        # ── 리터럴: Solidity 의미론상 독립 타입이 없다
+        return None
+
+    def _return_type_of_call(self, expr, variables):
+        """이름만으로 하는 함수 호출의 **리턴 타입**(SolType). 모르면 None.
+
+        오버로드가 있어도 ① 모든 오버로드의 리턴 타입이 같으면 고르지 않고도 알 수 있고
+        (실측: `FixedPointMath.add/sub` 가 둘 다 `FixedDecimal`),
+        ② 인자 개수로 유일하면 그걸 쓴다.
+        ★ `_select_overload` 을 부르지 않는다 — 상호 재귀를 막기 위해서다.
+        """
+        # 이름은 `expr.function.identifier`(FunctionCallContext) 또는
+        # `expr.identifier`(IdentifierExpContext 변형) 에 있다.
+        # 라이브러리 한정 호출(`UFixed18Lib._from(a)`)은 function 이 MemberAccess 라
+        # 여기선 None 을 돌려준다 — 필요해지면 별도로 확장한다.
+        fn_expr = getattr(expr, "function", None)
+        name = getattr(fn_expr, "identifier", None) if fn_expr is not None else None
+        if not name:
+            name = getattr(expr, "identifier", None)
+        if not name:
+            return None
+        target = self.an.current_target_contract
+        ccf = (self.an.contract_cfgs.get(target)
+               or self.an.library_cfgs.get(target)) if target else None
+        if ccf is None:
+            return None
+        subs = self.find_function_overloads_in_hierarchy(ccf, name)
+        if not subs:
+            return None
+        with_rt = [f for f in subs.values() if getattr(f, "return_types", None)]
+        if not with_rt:
+            return None
+        # ① 리턴 타입이 하나로 수렴하면 오버로드 선택 불필요
+        names = {self._type_name(f.return_types[0]) for f in with_rt}
+        if len(names) == 1 and next(iter(names)) is not None:
+            return with_rt[0].return_types[0]
+        # ② 인자 개수로 유일하면 그것
+        n_args = len(getattr(expr, "arguments", None) or [])
+        cands = [f for f in with_rt
+                 if len(getattr(f, "parameters", None) or []) == n_args]
+        if len(cands) == 1:
+            return cands[0].return_types[0]
+        return None
+
+    def find_function_overloads_in_hierarchy(self, contract_cfg, function_name: str):
+        """함수 이름의 **overload 집합**(`{sig: FunctionCFG}`)을 **소유 CFG** 에서 찾는다.
+
+        ★ F34. `find_function_in_hierarchy` 는 부모 체인까지 찾아 FunctionCFG 하나를
+          돌려주는데(`param_types` 가 없으면 `next(iter(sub.values()))` = **dict 첫 항목**,
+          즉 임의), 호출부는 오버로드 재검색용 집합을 `contract_cfg.functions.get(name)`
+          으로 **현재 컨트랙트에서만** 가져왔다. 상속받은 오버로드 함수는 집합이 비어
+          재검색이 아예 돌지 않았다(실측: `112/Controller` 의 `_prepare(key, amount)` 가
+          `Preparable` 의 3-인자 오버로드로 해석돼 arity 오류).
+          탐색 순서는 `find_function_in_hierarchy` 와 **동일**해야 한다.
+        """
+        sub = (getattr(contract_cfg, "functions", None) or {}).get(function_name)
+        if sub:
+            return sub
+        parent_cfgs = getattr(contract_cfg, "parent_cfgs", {}) or {}
+        for parent_name in (getattr(contract_cfg, "parent_contracts", None) or []):
+            pcfg = parent_cfgs.get(parent_name)
+            if pcfg is None:
+                continue
+            r = self.find_function_overloads_in_hierarchy(pcfg, function_name)
+            if r:
+                return r
+        return None
+
+    @staticmethod
+    def _implicitly_convertible(arg_type_name: str | None, param_type_name: str | None) -> bool:
+        """`arg_type_name` 값을 `param_type_name` 파라미터에 암시적으로 넘길 수 있나.
+
+        Solidity 규칙 전체가 아니라 **오버로드를 가르는 데 필요한 만큼**만 본다:
+        같은 부호 계열의 확장(`uint128` → `uint256`), `bytesN` 확장, 동일 이름.
+        `uint` ↔ `int`, `uint` ↔ `address` 처럼 **계열이 다르면 False** — 이게
+        `_prepare(bytes32,uint256)` vs `_prepare(bytes32,address)` 를 가른다.
+        """
+        if arg_type_name is None or param_type_name is None:
+            return True                      # 모르면 배제하지 않는다
+        if arg_type_name == param_type_name:
+            return True
+
+        def _split(n):
+            head = n.rstrip("0123456789")
+            digits = n[len(head):]
+            return head, (int(digits) if digits else None)
+
+        ah, an_ = _split(arg_type_name)
+        ph, pn = _split(param_type_name)
+        if ah != ph:
+            return False                     # uint vs int, uint vs address … 계열 불일치
+        if an_ is None or pn is None:
+            return True
+        return an_ <= pn                     # 확장만 허용
+
+    def _select_overload(self, overloads, arguments, named_arguments,
+                         variables, function_name):
+        """오버로드 후보 중 하나를 **결정적으로** 고른다. 못 고르면 raise (F37).
+
+        절차: ① 인자 개수로 후보 필터 → ② 선언 타입 **정확 일치** → ③ 암시적 변환.
+        ③ 이후에도 후보가 여럿이면 (a) 우리 타입 바인딩이 결손이거나 (b) 소스가
+        유효한 Solidity 가 아니다(solc 도 ambiguity 에러). 둘 다 **드러나야 하는**
+        상황이므로 조용히 첫 것을 집지 않고 raise 한다.
+        """
+        total_args = len(arguments) + len(named_arguments)
+        cands = [f for f in overloads.values()
+                 if len(getattr(f, 'parameters', None) or []) == total_args]
+        if len(cands) == 1:
+            return cands[0]
+        if not cands:
+            return None                      # 호출자가 기존 arity 오류로 처리
+
+        # 위치 인자만 타입 비교 (named 인자는 이름으로 이미 매칭된다)
+        arg_types = [self._static_type_of(a, variables) for a in arguments]
+        known = [i for i, t in enumerate(arg_types) if t is not None]
+        arg_names = [self._type_name(t) for t in arg_types]
+
+        def _ptypes(f):
+            return getattr(f, 'parameter_types', None) or []
+
+        if known:
+            exact = [f for f in cands
+                     if all(i < len(_ptypes(f)) and _ptypes(f)[i] == arg_names[i]
+                            for i in known)]
+            if len(exact) == 1:
+                return exact[0]
+            pool = exact or cands
+            conv = [f for f in pool
+                    if all(i < len(_ptypes(f))
+                           and self._implicitly_convertible(arg_names[i], _ptypes(f)[i])
+                           for i in known)]
+            if len(conv) == 1:
+                return conv[0]
+
+        raise ValueError(
+            f"Cannot resolve overload for '{function_name}': "
+            f"arg types={arg_names}, candidates={[_ptypes(f) for f in cands]}"
+        )
+
     def find_function_in_hierarchy(self, contract_cfg, function_name: str):
         """
         Args:
@@ -2477,8 +2750,10 @@ class Evaluation :
             function_cfg = next(iter(functions_source.values())) if functions_source else None
         else:
             function_cfg = self.find_function_in_hierarchy(contract_cfg, function_name)
-            functions_source = (contract_cfg.functions.get(function_name)
-                                 if hasattr(contract_cfg, 'functions') else None)
+            # ★ F34. overload 집합은 function_cfg 와 **같은 탐색 범위**(부모 체인 포함)
+            #   에서 가져와야 한다 — 예전엔 현재 컨트랙트만 봐서 상속 오버로드를 놓쳤다.
+            functions_source = self.find_function_overloads_in_hierarchy(
+                contract_cfg, function_name)
 
         if not function_cfg:
             # 함수를 찾을 수 없음 → Top 반환 (외부 함수, interface 메서드, 미정의 함수)
@@ -2498,16 +2773,27 @@ class Evaluation :
         total_params = len(param_names)
         total_args = len(arguments) + len(named_arguments)
 
-        # overload 재검색: 인자 개수 불일치 시 같은 이름의 다른 overload 탐색
-        # (owning_lib가 있으면 라이브러리 쪽, 없으면 contract_cfg 쪽 — 둘 다
+        # overload 선택: 인자 개수 + **선언 타입** 으로 결정 (F37)
+        # (owning_lib가 있으면 라이브러리 쪽, 없으면 소유 CFG 쪽 — 둘 다
         # functions_source 하나로 통일했으므로 분기 불필요)
-        if total_params != total_args and functions_source:
-            for sig, fcfg_candidate in functions_source.items():
-                if len(getattr(fcfg_candidate, 'parameters', [])) == total_args:
-                    function_cfg = fcfg_candidate
-                    param_names = function_cfg.parameters
-                    total_params = len(param_names)
-                    break
+        #
+        # ★ 예전엔 **인자 개수만** 보고 첫 후보를 집었다. 그래서 개수가 같은
+        #   오버로드(`_prepare(bytes32,uint256)` vs `_prepare(bytes32,address)`)는
+        #   dict 순서로 결정돼 **오류 없이 엉뚱한 쪽**으로 갔다 — 실측:
+        #     `Preparable:47  _prepare(key, value, _MIN_DELAY)`  value: address
+        #     `Preparable:83  _setConfig(key, newValue)`          newValue: address
+        #     `Fixed18:114    UFixed18Lib._from(a)`               a: Fixed18(=int256)
+        #   이 세 곳이 각각 uint256/uint256/uint256 버전으로 해석돼
+        #   `pendingAddresses` 대신 `pendingUInts256` 를 건드렸다(조용한 오분석).
+        #   전수 조사: pkl 953개 함수 이름 중 오버로드 18개, 그중 **인자 개수로
+        #   구별 불가 6개** — 전부 선언 타입으로 유일하게 갈린다.
+        if functions_source and len(functions_source) > 1:
+            _selected = self._select_overload(
+                functions_source, arguments, named_arguments, variables, function_name)
+            if _selected is not None:
+                function_cfg = _selected
+                param_names = getattr(function_cfg, 'parameters', None) or []
+                total_params = len(param_names)
 
         if total_params != total_args:
             raise ValueError(f"Argument count mismatch in function call to '{function_name}': "

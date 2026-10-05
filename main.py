@@ -108,8 +108,8 @@ def load_dependencies():
     # 3) 입력 소스 + original dependencies에서 interface 이름 regex 사전 수집 (Phase 0과 동일)
     _ifc_re = re.compile(r'interface\s+(\w+)')
     scan_dirs = [
-        base / "evaluation" / "RQ1" / "target_contracts_contraction",
-        base / "evaluation" / "RQ1" / "target_contracts_original" / "dependencies",
+        base / "evaluation" / "Dataset" / "target_contraction",
+        base / "evaluation" / "Dataset" / "Dependencies" / "pool",
         base / "Dataset" / "Numscout" / "contraction",
     ]
     for d in scan_dirs:

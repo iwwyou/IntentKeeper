@@ -137,6 +137,15 @@ body {
 .path { margin-top: 8px; color: #888; font-size: 12px; }
 .preds { margin-top: 6px; color: #f0c040; font-size: 12px; }
 
+/* N2+N3: 접힌 루프의 효과(loop_delta) */
+.loop-fold {
+  margin-top: 8px; padding: 6px 8px; background: #252526;
+  border-left: 3px solid #4ec9b0; border-radius: 2px;
+}
+.loop-fold-title { color: #4ec9b0; font-size: 12px; font-weight: 600; }
+.loop-fold-sub { color: #777; font-size: 11px; font-style: italic; margin: 3px 0 4px; }
+.loop-fold-none { color: #777; font-size: 11px; margin-top: 3px; }
+
 .verdict-item { border-left: 3px solid; padding: 6px 8px; margin-bottom: 8px; cursor: pointer; background: #252526; }
 .verdict-item.Violated { border-color: #f06060; }
 .verdict-item.Warning { border-color: #f0c040; }
@@ -206,6 +215,30 @@ body {
 .cursor-line { background: rgba(38, 79, 120, 0.5); }
 .cursor-glyph::before { content: '▶'; color: #4fc1ff; margin-left: 4px; }
 .pred-line { background: rgba(240, 192, 64, 0.18); }
+/* N1: forward 분기의 다른 feasible successor — pred(노랑)와 구분되는 청록 */
+.succ-line { background: rgba(78, 201, 176, 0.16); }
+/* N2: 접어서 지나온 루프 헤더 — 점선 테두리로 "여긴 통째로 지나갔다" 표시 */
+.loop-fold-line { background: rgba(78, 201, 176, 0.08); border-left: 2px dashed #4ec9b0; }
 .violated-line { background: rgba(240, 96, 96, 0.18); }
 .bp-glyph { background: #f06060; border-radius: 50%; width: 8px !important; height: 8px !important;
   margin: 5px 0 0 6px; }
+/* N5: 도달 불가(⊥) 라인의 breakpoint — 걸 수는 있지만 Continue 가 멈추지 않는다 */
+.bp-glyph-unreachable { background: transparent; border: 2px solid #6b6b6b; border-radius: 50%;
+  width: 8px !important; height: 8px !important; margin: 5px 0 0 6px; box-sizing: border-box; }
+
+/* ---------- N4: Call Stack ---------- */
+.callstack { margin-bottom: 4px; }
+.cs-frame {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 2px 4px; border-radius: 3px; cursor: pointer; font-size: 12px;
+}
+.cs-frame:hover { background: #2a2d2e; }
+.cs-frame.active { background: #094771; cursor: default; }
+.cs-depth { color: #666; }
+.cs-label { color: #9cdcfe; }
+.cs-at { color: #888; font-size: 11px; }
+.cs-hint { margin-top: 4px; font-size: 11px; color: #4ec9b0; }
+.cs-opaque { margin-top: 4px; font-size: 11px; color: #f0c040; }
+.cs-reason { color: #888; font-size: 11px; margin-left: 12px; }
+/* 소스를 못 구한 프레임 안내 */
+.pane-note { padding: 16px; color: #888; font-size: 12px; line-height: 1.6; }
