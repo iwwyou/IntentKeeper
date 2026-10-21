@@ -1,0 +1,128 @@
+[
+ {
+  "code": "pragma solidity ^0.8.0;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "contract GasOracle is IOracle, Ownable {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "using LibMath for uint256;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "IChainlinkOracle public gasOracle;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "IChainlinkOracle public priceOracle;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "uint8 public override decimals = 18;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant MAX_DECIMALS = 18;",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "function latestAnswer() external view override returns (uint256) {\n}",
+  "startLine": 10,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "uint256 gasPrice = uint256(gasOracle.latestAnswer());",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "uint256 ethPrice = uint256(priceOracle.latestAnswer());",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "uint256 result = PRBMathUD60x18.mul(gasPrice, ethPrice);",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "return result;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "// @Post result == (gasPrice * (10 ** 9) * ethPrice * (10 ** 12)) / (10 ** 18)",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "// @IReturn gasOracle.latestAnswer() = [5000000000, 5000000000]",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "// @IReturn priceOracle.latestAnswer() = [3000000000, 3000000000]",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ }
+]

@@ -897,19 +897,22 @@ class ContractAnalyzer:
         if not contract_cfg.state_variable_node:
             contract_cfg.initialize_state_variable_node()
 
-        # 우변 표현식을 저장하기 위해 init_expr를 확인
+        # ★ (2026-10-20, 사용자 승인) 상태변수의 진입값 = **알 수 없는 호출 직전 상태(pre-state)** 이므로 ⊤.
+        #   예전엔 Solidity 기본값 0(또는 initializer 값)이었는데, 그건 "막 배포된 컨트랙트" 라는 특정 시나리오를
+        #   고른 것이다. IntentChecker 원고("debug 어노테이션은 otherwise unknown 값을 대체", "제약이 없으면 ⊤")와
+        #   일치시킨다. initializer 도 배포 직후 값일 뿐이라 pre-state 로는 쓰지 않는다(init_expr 는 CFG 에 기록만).
+        #   constant/immutable 은 process_constant_variable 경로라 영향 없음(값이 바뀔 수 없으므로 유지가 맞다).
+        #   동적 배열은 길이를 모르는 배열을 표현할 수단이 없어 예전처럼 빈 배열로 남는다(⚠ 미해결).
+        record_expr = init_expr          # CFG 기록용 원래 initializer (진입값 계산에는 쓰지 않는다)
+        if init_expr is not None and variable_obj.typeInfo.typeCategory == "elementary" \
+                and not isinstance(variable_obj, (ArrayVariable, StructVariable, MappingVariable, EnumVariable)):
+            init_expr = None
         if init_expr is None: # 초기화가 없으면
             if isinstance(variable_obj, ArrayVariable) :
                 # arrayBaseType이 elementary type인 경우에만 elementaryTypeName 체크
                 if variable_obj.typeInfo.arrayBaseType.typeCategory == "elementary":
-                    if variable_obj.typeInfo.arrayBaseType.elementaryTypeName.startswith("int") :
-                        variable_obj.initialize_elements(IntegerInterval(0, 0, 256))
-                    elif variable_obj.typeInfo.arrayBaseType.elementaryTypeName.startswith("uint") :
-                        variable_obj.initialize_elements(UnsignedIntegerInterval(0, 0, 256))
-                    elif variable_obj.typeInfo.arrayBaseType.elementaryTypeName.startswith("bool") :
-                        variable_obj.initialize_elements(BoolInterval(0, 0))
-                    elif variable_obj.typeInfo.arrayBaseType.elementaryTypeName in ["address", "address payable", "string", "bytes", "Byte", "Fixed", "Ufixed"] :
-                        variable_obj.initialize_not_abstracted_type()
+                    # 고정 길이 numeric/bool 배열 원소 = ⊤, address/string 등은 기존대로 (initialize_default_by_base_type 가 분기)
+                    variable_obj.initialize_default_by_base_type()
                 # struct, enum 등 다른 타입의 배열은 동적으로 초기화됨 (필요 시)
             elif isinstance(variable_obj, StructVariable) :
                 struct_name = variable_obj.typeInfo.structTypeName
@@ -948,15 +951,11 @@ class ContractAnalyzer:
                     variable_obj.value._cast_interface = ifc_name
             elif variable_obj.typeInfo.typeCategory == "elementary":
                 et = variable_obj.typeInfo.elementaryTypeName
-                # ── ① int / uint / bool 은 종전 로직 유지
-                if et.startswith(("int", "uint", "bool")):
-                    variable_obj.value = self.evaluator.calculate_default_interval(et)
-                elif et == "address":
-                    # 초기화식이 없으면 TOP AddressSet
-                    variable_obj.value = AddressSet.top()
-                elif et.startswith("bytes") and len(et) > 5:  # bytes32, bytes16 등
-                    # bytes32의 기본값은 bytes32(0)
-                    variable_obj.value = self.evaluator.calculate_default_interval(et)
+                # int/uint/bool/address/bytesN = 타입 전체 범위 ⊤ (파라미터·struct 멤버와 같은 top_from_soltype 사용)
+                if et.startswith(("int", "uint", "bool")) or et == "address" \
+                        or (et.startswith("bytes") and len(et) > 5):
+                    variable_obj.value = VariableEnv.top_from_soltype(
+                        variable_obj.typeInfo, identifier=variable_obj.identifier).value
                 # (string / bytes 등 - 추상화 안 할 타입은 심볼릭 문자열 그대로)
                 else:
                     variable_obj.value = f"symbol_{variable_obj.identifier}"
@@ -986,7 +985,7 @@ class ContractAnalyzer:
         self.register_var(variable_obj)
 
         # 4. 상태 변수를 ContractCFG에 추가
-        contract_cfg.add_state_variable(variable_obj, expr=init_expr, line_no=self.current_start_line)
+        contract_cfg.add_state_variable(variable_obj, expr=record_expr, line_no=self.current_start_line)
 
         # 5. ContractCFG에 있는 모든 FunctionCFG에 상태 변수 추가
         #    copy를 저장하여 분석 중 _make_bottom() in-place mutation이 전파되지 않도록 함
@@ -1241,6 +1240,7 @@ class ContractAnalyzer:
 
         fcfg = StaticCFGFactory.make_function_cfg(self, function_name, parameters, modifiers, returns)
         fcfg.mutability = mutability
+        self._narrow_msg_value_for_nonpayable(fcfg)
 
         contract_cfg.add_function_cfg(function_name, fcfg)
         self.contract_cfgs[self.current_target_contract] = contract_cfg
@@ -1251,6 +1251,22 @@ class ContractAnalyzer:
         exit_node = fcfg.get_exit_node()
         if exit_node not in self.sa.line_info[self.current_end_line]["cfg_nodes"]:
             self.sa.line_info[self.current_end_line]["cfg_nodes"].append(exit_node)
+
+    @staticmethod
+    def _narrow_msg_value_for_nonpayable(fcfg):
+        """non-payable 함수의 진입 환경에서 msg.value 를 [0,0] 으로 좁힌다 (2026-10-20).
+        전역 테이블의 msg.value 는 ⊤ 이지만, payable 이 아닌 함수는 value 가 붙은 호출을 EVM 이 revert 하므로
+        정상 실행 경로에서 msg.value == 0 이 보장된다. 전역 객체는 함수들이 공유하므로 **복사본**을 바꾼다."""
+        if getattr(fcfg, "mutability", None) == "payable":
+            return
+        gv = fcfg.related_variables.get("msg.value")
+        if gv is None:
+            return
+        narrowed = VariableEnv.copy_single_variable(gv)
+        narrowed.value = UnsignedIntegerInterval(0, 0, 256)
+        for env in (fcfg.related_variables, fcfg.entry_env, fcfg.assign_env, fcfg.entry_node.variables):
+            if env is not None and "msg.value" in env:
+                env["msg.value"] = VariableEnv.copy_single_variable(narrowed)
 
     def get_full_struct_enum_defs(self, contract_name: str | None = None):
         """
@@ -3065,13 +3081,13 @@ class ContractAnalyzer:
             traceback.print_exc()
 
     # ------------------------------------------------------------------
-    #  @LocalVar   debug 주석
+    #  @Param   debug 주석 (타깃 함수 파라미터)
     # ------------------------------------------------------------------
-    def process_local_var_for_debug(self, lhs_expr: Expression, value):
+    def process_param_for_debug(self, lhs_expr: Expression, value):
         ccf  = self.contract_cfgs[self.current_target_contract]
         self.current_target_function_cfg = ccf.get_function_cfg(self.current_target_function, param_types=self.current_target_function_param_types)
         if self.current_target_function_cfg is None:
-            raise ValueError("@LocalVar must be inside a function.")
+            raise ValueError("@Param must be inside a function.")
 
         self.debug_initializer.apply_debug_directive_enhanced(
             scope="local",

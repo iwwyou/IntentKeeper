@@ -1690,13 +1690,21 @@ class GuardianVerificationEngine:
         exit_node 기준 env를 계산할 때 순환 호출을 피하기 위해 씀).
         """
         G = fn_cfg.graph
-        exit_n = node if node is not None else self._get_post_exit_node(fn_cfg)
+        # ★ (2026-10-21) node 를 지정하지 않으면 **정상 종료 전체** = EXIT 선행 ∪ RETURN 선행.
+        #   예전엔 `_get_post_exit_node` 가 RETURN 이나 EXIT 중 **하나**만 골라서, 중간 `return` 과 본문 끝 도달이
+        #   섞인 함수에서 한쪽 경로를 @Post 판정에서 빠뜨렸다. Solidity 에서 둘은 똑같이 정상 종료다.
+        #   엔진 쪽(`Engine.normal_completion_preds`, `_force_join_before_exit`)과 같은 집합을 쓴다.
+        sinks = [node] if node is not None else [fn_cfg.get_exit_node(), fn_cfg.get_return_exit_node()]
         out = []
-        for p in G.predecessors(exit_n):
-            ed = G.get_edge_data(p, exit_n, default={})
-            if normal_only and ed.get("abnormal"):
+        for exit_n in sinks:
+            if exit_n is None or exit_n not in G:
                 continue
-            out.append(p)
+            for p in G.predecessors(exit_n):
+                ed = G.get_edge_data(p, exit_n, default={})
+                if normal_only and ed.get("abnormal"):
+                    continue
+                if p not in out:
+                    out.append(p)
         return out
 
     def _exit_env(self, fn_cfg, *, normal_only: bool = True, node=None) -> dict:
@@ -1721,8 +1729,13 @@ class GuardianVerificationEngine:
                 f"호출부에서 도달불가를 먼저 걸러야 한다."
             )
 
-        env = VariableEnv.copy_variables(preds[0].variables)
-        for p in preds[1:]:
+        # ★ (2026-10-21) 도달 불가(⊥) 선행은 join 에서 뺀다 — 넣으면 그 경로에 남은 다른 변수의 묵은 값이
+        #   정상 경로 값과 섞여 구간이 넓어진다. 전부 ⊥ 면 예전처럼 ⊥ 들의 join 을 돌려줘서 호출부가 도달불가로 판정한다.
+        is_bot = self.analyzer.engine._is_bottom_env
+        live = [p for p in preds if not is_bot(p.variables or {})]
+        use = live or preds
+        env = VariableEnv.copy_variables(use[0].variables)
+        for p in use[1:]:
             env = VariableEnv.join_variables_simple(env, p.variables)
         return env
     def _eval_on_exit_value(self, expr, fn_cfg, *, normal_only: bool = True):

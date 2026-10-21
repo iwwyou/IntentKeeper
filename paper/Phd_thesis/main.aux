@@ -8,9 +8,9 @@
 \@writefile{toc}{\contentsline {chapter}{Acknowledgment}{v}{chapter*.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {chapter}{Table of Contents}{vi}{section*.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {chapter}{List of Tables}{ix}{section*.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{List of Figures}{x}{section*.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{List of Listings}{xii}{section*.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{Nomenclature}{xiii}{chapter*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{List of Figures}{xi}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{List of Listings}{xiii}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{Nomenclature}{xiv}{chapter*.13}\protected@file@percent }
 \citation{solidity}
 \citation{dappscananalysis,dappscan}
 \@writefile{toc}{\contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}\protected@file@percent }
@@ -247,43 +247,157 @@
 \@writefile{toc}{\contentsline {section}{\numberline {5.1}Experimental Setup}{60}{section.5.1}\protected@file@percent }
 \newlabel{sec:eval:setup}{{5.1}{60}{Experimental Setup}{section.5.1}{}}
 \newlabel{sec:eval:setup@cref}{{[section][1][5]5.1}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5.2}Intent Validation Capability}{60}{section.5.2}\protected@file@percent }
-\newlabel{sec:eval:rq1}{{5.2}{60}{Intent Validation Capability}{section.5.2}{}}
-\newlabel{sec:eval:rq1@cref}{{[section][2][5]5.2}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5.3}Specification and Analysis Cost}{60}{section.5.3}\protected@file@percent }
-\newlabel{sec:eval:cost}{{5.3}{60}{Specification and Analysis Cost}{section.5.3}{}}
-\newlabel{sec:eval:cost@cref}{{[section][3][5]5.3}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.1}Specification Cost}{60}{subsection.5.3.1}\protected@file@percent }
-\newlabel{subsec:eval:speccost}{{5.3.1}{60}{Specification Cost}{subsection.5.3.1}{}}
-\newlabel{subsec:eval:speccost@cref}{{[subsection][1][5,3]5.3.1}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.2}Validation and Interactive Analysis Cost}{60}{subsection.5.3.2}\protected@file@percent }
-\newlabel{subsec:eval:analysiscost}{{5.3.2}{60}{Validation and Interactive Analysis Cost}{subsection.5.3.2}{}}
-\newlabel{subsec:eval:analysiscost@cref}{{[subsection][2][5,3]5.3.2}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5.4}Comparison with Existing Detection Tools}{60}{section.5.4}\protected@file@percent }
-\newlabel{sec:eval:rq3}{{5.4}{60}{Comparison with Existing Detection Tools}{section.5.4}{}}
-\newlabel{sec:eval:rq3@cref}{{[section][4][5]5.4}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5.5}Threats to Validity}{60}{section.5.5}\protected@file@percent }
-\newlabel{sec:eval:threats}{{5.5}{60}{Threats to Validity}{section.5.5}{}}
-\newlabel{sec:eval:threats@cref}{{[section][5][5]5.5}{[1][60][]60}{}{}{}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {6}Discussion}{61}{chapter.6}\protected@file@percent }
+\citation{numscout}
+\citation{flyinointment}
+\citation{exploitablebugs}
+\@writefile{lot}{\contentsline {table}{\numberline {5.1}{\ignorespaces Composition of the benchmark before and after applying the exclusion criteria.}}{62}{table.caption.35}\protected@file@percent }
+\newlabel{tab:eval:dataset}{{5.1}{62}{Composition of the benchmark before and after applying the exclusion criteria}{table.caption.35}{}}
+\newlabel{tab:eval:dataset@cref}{{[table][1][5]5.1}{[1][62][]62}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.2}{\ignorespaces Benchmark subsets used by the four research questions.}}{64}{table.caption.36}\protected@file@percent }
+\newlabel{tab:eval:rq-datasets}{{5.2}{64}{Benchmark subsets used by the four research questions}{table.caption.36}{}}
+\newlabel{tab:eval:rq-datasets@cref}{{[table][2][5]5.2}{[1][64][]64}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.2}RQ1: Comparison with Existing Solidity Debugging Workflows}{65}{section.5.2}\protected@file@percent }
+\newlabel{sec:eval:rq1}{{5.2}{65}{RQ1: Comparison with Existing Solidity Debugging Workflows}{section.5.2}{}}
+\newlabel{sec:eval:rq1@cref}{{[section][2][5]5.2}{[1][65][]65}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.1}Evaluation Protocol}{66}{subsection.5.2.1}\protected@file@percent }
+\newlabel{subsec:eval:rq1:protocol}{{5.2.1}{66}{Evaluation Protocol}{subsection.5.2.1}{}}
+\newlabel{subsec:eval:rq1:protocol@cref}{{[subsection][1][5,2]5.2.1}{[1][66][]66}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.3}{\ignorespaces Debugging workflow comparison. Abstr.\,=\,abstract; Conc.\,=\,concrete.}}{68}{table.caption.37}\protected@file@percent }
+\newlabel{tab:eval:rq1-workflow}{{5.3}{68}{Debugging workflow comparison. Abstr.\,=\,abstract; Conc.\,=\,concrete}{table.caption.37}{}}
+\newlabel{tab:eval:rq1-workflow@cref}{{[table][3][5]5.3}{[1][68][]68}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.2}Debugging Workflow Comparison}{68}{subsection.5.2.2}\protected@file@percent }
+\newlabel{subsec:eval:rq1:workflow}{{5.2.2}{68}{Debugging Workflow Comparison}{subsection.5.2.2}{}}
+\newlabel{subsec:eval:rq1:workflow@cref}{{[subsection][2][5,2]5.2.2}{[1][67][]68}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.3}Debugging Preparation Requirements}{68}{subsection.5.2.3}\protected@file@percent }
+\newlabel{subsec:eval:rq1:preparation}{{5.2.3}{68}{Debugging Preparation Requirements}{subsection.5.2.3}{}}
+\newlabel{subsec:eval:rq1:preparation@cref}{{[subsection][3][5,2]5.2.3}{[1][68][]68}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.4}{\ignorespaces Debugging-state preparation requirements for IQDebug, Forge, and Hardhat.}}{69}{table.caption.38}\protected@file@percent }
+\newlabel{tab:eval:rq1-preparation}{{5.4}{69}{Debugging-state preparation requirements for IQDebug, Forge, and Hardhat}{table.caption.38}{}}
+\newlabel{tab:eval:rq1-preparation@cref}{{[table][4][5]5.4}{[1][69][]69}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.4}Time-to-Result}{69}{subsection.5.2.4}\protected@file@percent }
+\newlabel{subsec:eval:rq1:time}{{5.2.4}{69}{Time-to-Result}{subsection.5.2.4}{}}
+\newlabel{subsec:eval:rq1:time@cref}{{[subsection][4][5,2]5.2.4}{[1][69][]69}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.5}{\ignorespaces Base Time-to-Result for a singleton debugging state. Forge is reported both raw and adjusted for no-op \texttt  {forge build} CLI overhead.}}{71}{table.caption.39}\protected@file@percent }
+\newlabel{tab:eval:rq1-base-time}{{5.5}{71}{Base Time-to-Result for a singleton debugging state. Forge is reported both raw and adjusted for no-op \texttt {forge build} CLI overhead}{table.caption.39}{}}
+\newlabel{tab:eval:rq1-base-time@cref}{{[table][5][5]5.5}{[1][70][]71}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.5}State-Space Scaling}{71}{subsection.5.2.5}\protected@file@percent }
+\newlabel{subsec:eval:rq1:scaling}{{5.2.5}{71}{State-Space Scaling}{subsection.5.2.5}{}}
+\newlabel{subsec:eval:rq1:scaling@cref}{{[subsection][5][5,2]5.2.5}{[1][70][]71}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.1}{\ignorespaces Computational cost as the number of concrete input combinations represented by the debugging state increases.}}{73}{figure.caption.40}\protected@file@percent }
+\newlabel{fig:eval:rq1-scaling}{{5.1}{73}{Computational cost as the number of concrete input combinations represented by the debugging state increases}{figure.caption.40}{}}
+\newlabel{fig:eval:rq1-scaling@cref}{{[figure][1][5]5.1}{[1][73][]73}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.6}Source-Edit Responsiveness}{73}{subsection.5.2.6}\protected@file@percent }
+\newlabel{subsec:eval:rq1:edit}{{5.2.6}{73}{Source-Edit Responsiveness}{subsection.5.2.6}{}}
+\newlabel{subsec:eval:rq1:edit@cref}{{[subsection][6][5,2]5.2.6}{[1][73][]73}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.6}{\ignorespaces Time-to-Result after value, operator, and structural source edits. For IQDebug, \textit  {Incr.} and \textit  {Rebuild} separate the incremental update path from the full-rebuild fallback.}}{75}{table.caption.41}\protected@file@percent }
+\newlabel{tab:eval:rq1-edit}{{5.6}{75}{Time-to-Result after value, operator, and structural source edits. For IQDebug, \textit {Incr.} and \textit {Rebuild} separate the incremental update path from the full-rebuild fallback}{table.caption.41}{}}
+\newlabel{tab:eval:rq1-edit@cref}{{[table][6][5]5.6}{[1][74][]75}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.7}RQ1 Summary}{75}{subsection.5.2.7}\protected@file@percent }
+\newlabel{subsec:eval:rq1:summary}{{5.2.7}{75}{RQ1 Summary}{subsection.5.2.7}{}}
+\newlabel{subsec:eval:rq1:summary@cref}{{[subsection][7][5,2]5.2.7}{[1][74][]75}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.3}RQ2: Precision of Interpretation-Driven Debugging}{75}{section.5.3}\protected@file@percent }
+\newlabel{sec:eval:rq2}{{5.3}{75}{RQ2: Precision of Interpretation-Driven Debugging}{section.5.3}{}}
+\newlabel{sec:eval:rq2@cref}{{[section][3][5]5.3}{[1][75][]75}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.1}Evaluation Protocol}{76}{subsection.5.3.1}\protected@file@percent }
+\newlabel{subsec:eval:rq2:protocol}{{5.3.1}{76}{Evaluation Protocol}{subsection.5.3.1}{}}
+\newlabel{subsec:eval:rq2:protocol@cref}{{[subsection][1][5,3]5.3.1}{[1][76][]76}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.2}Precision under State-Specification Expansion}{78}{subsection.5.3.2}\protected@file@percent }
+\newlabel{subsec:eval:rq2:state}{{5.3.2}{78}{Precision under State-Specification Expansion}{subsection.5.3.2}{}}
+\newlabel{subsec:eval:rq2:state@cref}{{[subsection][2][5,3]5.3.2}{[1][78][]78}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.7}{\ignorespaces Precision characteristics observed as the specified state space is broadened. Singl.\,=\,singleton abstract result; Fin.\,=\,finite non-singleton interval; Exact\,=\,exact endpoint match; Wide\,=\,widened range.}}{79}{table.caption.42}\protected@file@percent }
+\newlabel{tab:eval:rq2-state-precision}{{5.7}{79}{Precision characteristics observed as the specified state space is broadened. Singl.\,=\,singleton abstract result; Fin.\,=\,finite non-singleton interval; Exact\,=\,exact endpoint match; Wide\,=\,widened range}{table.caption.42}{}}
+\newlabel{tab:eval:rq2-state-precision@cref}{{[table][7][5]5.7}{[1][79][]79}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.2}{\ignorespaces Evolution of the abstract and concrete output ranges as the debugging state is expanded.}}{80}{figure.caption.43}\protected@file@percent }
+\newlabel{fig:eval:rq2-state-precision}{{5.2}{80}{Evolution of the abstract and concrete output ranges as the debugging state is expanded}{figure.caption.43}{}}
+\newlabel{fig:eval:rq2-state-precision@cref}{{[figure][2][5]5.2}{[1][79][]80}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.3}Control-Flow Precision}{80}{subsection.5.3.3}\protected@file@percent }
+\newlabel{subsec:eval:rq2:controlflow}{{5.3.3}{80}{Control-Flow Precision}{subsection.5.3.3}{}}
+\newlabel{subsec:eval:rq2:controlflow@cref}{{[subsection][3][5,3]5.3.3}{[1][80][]80}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.8}{\ignorespaces Control-flow precision characteristics of the analyzed benchmark cases. \(|B_A|\) and \(|B_C|\) are the abstractly feasible and concretely reached branch counts; the last column is the abstract-only difference \(B_A\setminus B_C\), defined only for exhaustively enumerated regions.}}{81}{table.caption.44}\protected@file@percent }
+\newlabel{tab:eval:rq2-controlflow}{{5.8}{81}{Control-flow precision characteristics of the analyzed benchmark cases. \(|B_A|\) and \(|B_C|\) are the abstractly feasible and concretely reached branch counts; the last column is the abstract-only difference \(B_A\setminus B_C\), defined only for exhaustively enumerated regions}{table.caption.44}{}}
+\newlabel{tab:eval:rq2-controlflow@cref}{{[table][8][5]5.8}{[1][81][]81}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.3}{\ignorespaces Relationship between state-specification expansion, branch feasibility, and the resulting abstract-state precision.}}{82}{figure.caption.45}\protected@file@percent }
+\newlabel{fig:eval:rq2-controlflow}{{5.3}{82}{Relationship between state-specification expansion, branch feasibility, and the resulting abstract-state precision}{figure.caption.45}{}}
+\newlabel{fig:eval:rq2-controlflow@cref}{{[figure][3][5]5.3}{[1][81][]82}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.4}Loop Analysis}{82}{subsection.5.3.4}\protected@file@percent }
+\newlabel{subsec:eval:rq2:loops}{{5.3.4}{82}{Loop Analysis}{subsection.5.3.4}{}}
+\newlabel{subsec:eval:rq2:loops@cref}{{[subsection][4][5,3]5.3.4}{[1][82][]82}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.9}{\ignorespaces Fixpoint and precision characteristics of loop-containing benchmark instances.}}{83}{table.caption.46}\protected@file@percent }
+\newlabel{tab:eval:rq2-loops}{{5.9}{83}{Fixpoint and precision characteristics of loop-containing benchmark instances}{table.caption.46}{}}
+\newlabel{tab:eval:rq2-loops@cref}{{[table][9][5]5.9}{[1][83][]83}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.5}Relationship to Intent Validation}{84}{subsection.5.3.5}\protected@file@percent }
+\newlabel{subsec:eval:rq2:intent}{{5.3.5}{84}{Relationship to Intent Validation}{subsection.5.3.5}{}}
+\newlabel{subsec:eval:rq2:intent@cref}{{[subsection][5][5,3]5.3.5}{[1][83][]84}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.6}RQ2 Summary}{84}{subsection.5.3.6}\protected@file@percent }
+\newlabel{subsec:eval:rq2:summary}{{5.3.6}{84}{RQ2 Summary}{subsection.5.3.6}{}}
+\newlabel{subsec:eval:rq2:summary@cref}{{[subsection][6][5,3]5.3.6}{[1][84][]84}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.4}RQ3: Evaluation of the Intent-Aware Model}{84}{section.5.4}\protected@file@percent }
+\newlabel{sec:eval:rq3}{{5.4}{84}{RQ3: Evaluation of the Intent-Aware Model}{section.5.4}{}}
+\newlabel{sec:eval:rq3@cref}{{[section][4][5]5.4}{[1][84][]84}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4.1}Intent Expressiveness}{85}{subsection.5.4.1}\protected@file@percent }
+\newlabel{subsec:eval:rq3:expressiveness}{{5.4.1}{85}{Intent Expressiveness}{subsection.5.4.1}{}}
+\newlabel{subsec:eval:rq3:expressiveness@cref}{{[subsection][1][5,4]5.4.1}{[1][85][]85}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.10}{\ignorespaces Expressibility of bug-relevant numeric intent (74 eligible instances).}}{86}{table.caption.47}\protected@file@percent }
+\newlabel{tab:eval:rq3:expressibility}{{5.10}{86}{Expressibility of bug-relevant numeric intent (74 eligible instances)}{table.caption.47}{}}
+\newlabel{tab:eval:rq3:expressibility@cref}{{[table][10][5]5.10}{[1][85][]86}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.11}{\ignorespaces Annotation form of the reconstructed intent by relation type (48 expressible cases).}}{86}{table.caption.48}\protected@file@percent }
+\newlabel{tab:eval:rq3:annotation-form}{{5.11}{86}{Annotation form of the reconstructed intent by relation type (48 expressible cases)}{table.caption.48}{}}
+\newlabel{tab:eval:rq3:annotation-form@cref}{{[table][11][5]5.11}{[1][86][]86}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.12}{\ignorespaces Expressibility by defect abstraction level and value availability across the 74 eligible findings.}}{87}{table.caption.49}\protected@file@percent }
+\newlabel{tab:eval:rq3:boundary}{{5.12}{87}{Expressibility by defect abstraction level and value availability across the 74 eligible findings}{table.caption.49}{}}
+\newlabel{tab:eval:rq3:boundary@cref}{{[table][12][5]5.12}{[1][87][]87}{}{}{}}
+\newlabel{subsubsec:eval:rq3:boundary}{{5.4.1}{87}{Intent Expressiveness}{table.caption.48}{}}
+\newlabel{subsubsec:eval:rq3:boundary@cref}{{[subsection][1][5,4]5.4.1}{[1][87][]87}{}{}{}}
+\citation{solqdebug}
+\@writefile{lot}{\contentsline {table}{\numberline {5.13}{\ignorespaces Validation outcomes for the 48 expressible findings. The semantic judgments are reported separately from analysis or validation failures, which are execution outcomes rather than judgments.}}{89}{table.caption.50}\protected@file@percent }
+\newlabel{tab:eval:rq3:validation}{{5.13}{89}{Validation outcomes for the 48 expressible findings. The semantic judgments are reported separately from analysis or validation failures, which are execution outcomes rather than judgments}{table.caption.50}{}}
+\newlabel{tab:eval:rq3:validation@cref}{{[table][13][5]5.13}{[1][89][]89}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4.2}Intent Validation}{89}{subsection.5.4.2}\protected@file@percent }
+\newlabel{subsec:eval:rq3:validation}{{5.4.2}{89}{Intent Validation}{subsection.5.4.2}{}}
+\newlabel{subsec:eval:rq3:validation@cref}{{[subsection][2][5,4]5.4.2}{[1][88][]89}{}{}{}}
+\citation{sctype}
+\citation{gptscan}
+\citation{numscout}
+\@writefile{lot}{\contentsline {table}{\numberline {5.14}{\ignorespaces Comparison of the analysis models of IQDebug and the three existing tools. IQD\,=\,IQDebug; Interp.\,=\,interpretation; Dev.\,=\,developer.}}{90}{table.caption.51}\protected@file@percent }
+\newlabel{tab:eval:rq4:model}{{5.14}{90}{Comparison of the analysis models of IQDebug and the three existing tools. IQD\,=\,IQDebug; Interp.\,=\,interpretation; Dev.\,=\,developer}{table.caption.51}{}}
+\newlabel{tab:eval:rq4:model@cref}{{[table][14][5]5.14}{[1][90][]90}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.5}RQ4: Comparison with Existing Numerical Logic-Error Analysis}{90}{section.5.5}\protected@file@percent }
+\newlabel{sec:eval:rq4}{{5.5}{90}{RQ4: Comparison with Existing Numerical Logic-Error Analysis}{section.5.5}{}}
+\newlabel{sec:eval:rq4@cref}{{[section][5][5]5.5}{[1][90][]90}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.1}Comparison of Analysis Models}{90}{subsection.5.5.1}\protected@file@percent }
+\newlabel{subsec:eval:rq4:model}{{5.5.1}{90}{Comparison of Analysis Models}{subsection.5.5.1}{}}
+\newlabel{subsec:eval:rq4:model@cref}{{[subsection][1][5,5]5.5.1}{[1][90][]90}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.15}{\ignorespaces Execution coverage over the applicable portion of the benchmark. IQDebug: 10 runs/finding; GPTScan/ScType/NumScout: 3 runs/finding. Appl.\,=\,applicable; Compl.\,=\,completed; Unsup.\,=\,unsupported.}}{91}{table.caption.52}\protected@file@percent }
+\newlabel{tab:eval:rq4:runtime}{{5.15}{91}{Execution coverage over the applicable portion of the benchmark. IQDebug: 10 runs/finding; GPTScan/ScType/NumScout: 3 runs/finding. Appl.\,=\,applicable; Compl.\,=\,completed; Unsup.\,=\,unsupported}{table.caption.52}{}}
+\newlabel{tab:eval:rq4:runtime@cref}{{[table][15][5]5.15}{[1][91][]91}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.2}Runtime Characteristics}{91}{subsection.5.5.2}\protected@file@percent }
+\newlabel{subsec:eval:rq4:runtime}{{5.5.2}{91}{Runtime Characteristics}{subsection.5.5.2}{}}
+\newlabel{subsec:eval:rq4:runtime@cref}{{[subsection][2][5,5]5.5.2}{[1][91][]91}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.4}{\ignorespaces Runtime distributions of the completed findings for IQDebug and the three baseline tools, log scale (box: IQR with median; whiskers: min--max; dots: individual findings).}}{93}{figure.caption.53}\protected@file@percent }
+\newlabel{fig:eval:rq4:latency}{{5.4}{93}{Runtime distributions of the completed findings for IQDebug and the three baseline tools, log scale (box: IQR with median; whiskers: min--max; dots: individual findings)}{figure.caption.53}{}}
+\newlabel{fig:eval:rq4:latency@cref}{{[figure][4][5]5.4}{[1][92][]93}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.6}Threats to Validity}{93}{section.5.6}\protected@file@percent }
+\newlabel{sec:eval:threats}{{5.6}{93}{Threats to Validity}{section.5.6}{}}
+\newlabel{sec:eval:threats@cref}{{[section][6][5]5.6}{[1][93][]93}{}{}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {6}Discussion}{95}{chapter.6}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\newlabel{chap:discussion}{{6}{61}{Discussion}{chapter.6}{}}
-\newlabel{chap:discussion@cref}{{[chapter][6][]6}{[1][61][]61}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6.1}Design Trade-offs of Source-Level Debugging}{61}{section.6.1}\protected@file@percent }
-\newlabel{sec:disc:tradeoffs}{{6.1}{61}{Design Trade-offs of Source-Level Debugging}{section.6.1}{}}
-\newlabel{sec:disc:tradeoffs@cref}{{[section][1][6]6.1}{[1][61][]61}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6.2}Practical Guidelines for Debug Inputs and Intent Specification}{61}{section.6.2}\protected@file@percent }
-\newlabel{sec:disc:guidelines}{{6.2}{61}{Practical Guidelines for Debug Inputs and Intent Specification}{section.6.2}{}}
-\newlabel{sec:disc:guidelines@cref}{{[section][2][6]6.2}{[1][61][]61}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6.3}Current Limitations}{61}{section.6.3}\protected@file@percent }
-\newlabel{sec:disc:limitations}{{6.3}{61}{Current Limitations}{section.6.3}{}}
-\newlabel{sec:disc:limitations@cref}{{[section][3][6]6.3}{[1][61][]61}{}{}{}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {7}Conclusion}{62}{chapter.7}\protected@file@percent }
+\newlabel{chap:discussion}{{6}{95}{Discussion}{chapter.6}{}}
+\newlabel{chap:discussion@cref}{{[chapter][6][]6}{[1][95][]95}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6.1}Design Trade-offs of Source-Level Debugging}{95}{section.6.1}\protected@file@percent }
+\newlabel{sec:disc:tradeoffs}{{6.1}{95}{Design Trade-offs of Source-Level Debugging}{section.6.1}{}}
+\newlabel{sec:disc:tradeoffs@cref}{{[section][1][6]6.1}{[1][95][]95}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6.2}Practical Guidelines for Debug Inputs and Intent Specification}{95}{section.6.2}\protected@file@percent }
+\newlabel{sec:disc:guidelines}{{6.2}{95}{Practical Guidelines for Debug Inputs and Intent Specification}{section.6.2}{}}
+\newlabel{sec:disc:guidelines@cref}{{[section][2][6]6.2}{[1][95][]95}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6.3}Current Limitations}{95}{section.6.3}\protected@file@percent }
+\newlabel{sec:disc:limitations}{{6.3}{95}{Current Limitations}{section.6.3}{}}
+\newlabel{sec:disc:limitations@cref}{{[section][3][6]6.3}{[1][95][]95}{}{}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {7}Conclusion}{96}{chapter.7}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\newlabel{chap:conclusion}{{7}{62}{Conclusion}{chapter.7}{}}
-\newlabel{chap:conclusion@cref}{{[chapter][7][]7}{[1][62][]62}{}{}{}}
+\newlabel{chap:conclusion}{{7}{96}{Conclusion}{chapter.7}{}}
+\newlabel{chap:conclusion@cref}{{[chapter][7][]7}{[1][96][]96}{}{}{}}
 \bibstyle{plainnat}
 \bibdata{references}
 \bibcite{secplf}{{1}{2024}{{Arora et~al.}}{{}}}
@@ -295,7 +409,7 @@
 \bibcite{mythx}{{7}{2026{}}{{Consensys Diligence}}{{}}}
 \bibcite{scribble}{{8}{2026{}}{{Consensys Diligence}}{{}}}
 \bibcite{iac}{{9}{2024}{{Erhard et~al.}}{{}}}
-\@writefile{toc}{\contentsline {chapter}{Bibliography}{63}{section*.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{Bibliography}{97}{section*.54}\protected@file@percent }
 \bibcite{slither}{{10}{2019}{{Feist et~al.}}{{Feist, Grieco, and Groce}}}
 \bibcite{forge}{{11}{2025}{{Foundry Forge}}{{}}}
 \bibcite{seahorn}{{12}{2015}{{Gurfinkel et~al.}}{{}}}
@@ -325,63 +439,63 @@
 \bibcite{dappscan}{{36}{2024}{{Zheng et~al.}}{{}}}
 \bibcite{defiattacks}{{37}{2023}{{Zhou et~al.}}{{}}}
 \citation{solqdebug}
-\@writefile{toc}{\contentsline {chapter}{\numberline {A}Incremental CFG Construction Patterns}{67}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {A}Incremental CFG Construction Patterns}{101}{appendix.A}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\newlabel{app:cfg-patterns}{{A}{67}{Incremental CFG Construction Patterns}{appendix.A}{}}
-\newlabel{app:cfg-patterns@cref}{{[chapter][1][]A}{[1][67][]67}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {A.1}CFG Hierarchy}{68}{appendix.A.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {A.1}{\ignorespaces Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions.}}{68}{figure.caption.37}\protected@file@percent }
-\newlabel{fig:contract-cfg}{{A.1}{68}{Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions}{figure.caption.37}{}}
-\newlabel{fig:contract-cfg@cref}{{[figure][1][1]A.1}{[1][67][]68}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.2}{\ignorespaces Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt  {\_}) back to the function body, eventually reaching the function exit.}}{69}{figure.caption.38}\protected@file@percent }
-\newlabel{fig:function-cfg}{{A.2}{69}{Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt {\_}) back to the function body, eventually reaching the function exit}{figure.caption.38}{}}
-\newlabel{fig:function-cfg@cref}{{[figure][2][1]A.2}{[1][68][]69}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {A.2}Statement-Level Construction Patterns}{69}{appendix.A.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {A.3}{\ignorespaces Simple statement insertion: single node spliced between current node and successors}}{69}{figure.caption.39}\protected@file@percent }
-\newlabel{fig:new-simple-statement}{{A.3}{69}{Simple statement insertion: single node spliced between current node and successors}{figure.caption.39}{}}
-\newlabel{fig:new-simple-statement@cref}{{[figure][3][1]A.3}{[1][69][]69}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.4}{\ignorespaces If statement insertion. The builder creates a \texttt  {condition node}, two nodes for true/false arms, and an \texttt  {if join}}}{70}{figure.caption.40}\protected@file@percent }
-\newlabel{fig:new-if}{{A.4}{70}{If statement insertion. The builder creates a \texttt {condition node}, two nodes for true/false arms, and an \texttt {if join}}{figure.caption.40}{}}
-\newlabel{fig:new-if@cref}{{[figure][4][1]A.4}{[1][69][]70}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.5}{\ignorespaces Else-if statement insertion. The builder replaces the false arm with a new \texttt  {condition node}, two nodes, and an \texttt  {else-if join}}}{70}{figure.caption.41}\protected@file@percent }
-\newlabel{fig:new-else-if}{{A.5}{70}{Else-if statement insertion. The builder replaces the false arm with a new \texttt {condition node}, two nodes, and an \texttt {else-if join}}{figure.caption.41}{}}
-\newlabel{fig:new-else-if@cref}{{[figure][5][1]A.5}{[1][70][]70}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.6}{\ignorespaces Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt  {if join}}}{71}{figure.caption.42}\protected@file@percent }
-\newlabel{fig:new-else}{{A.6}{71}{Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt {if join}}{figure.caption.42}{}}
-\newlabel{fig:new-else@cref}{{[figure][6][1]A.6}{[1][70][]71}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.7}{\ignorespaces While loop insertion. The builder creates a \texttt  {fixpoint evaluation node} $\phi $, a \texttt  {condition node}, a loop body node, and a \texttt  {loop exit node}}}{71}{figure.caption.43}\protected@file@percent }
-\newlabel{fig:new-while}{{A.7}{71}{While loop insertion. The builder creates a \texttt {fixpoint evaluation node} $\phi $, a \texttt {condition node}, a loop body node, and a \texttt {loop exit node}}{figure.caption.43}{}}
-\newlabel{fig:new-while@cref}{{[figure][7][1]A.7}{[1][71][]71}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.8}{\ignorespaces Break statement insertion. The \texttt  {break} node's outgoing edge is redirected to the \texttt  {loop exit node}}}{72}{figure.caption.44}\protected@file@percent }
-\newlabel{fig:new-break}{{A.8}{72}{Break statement insertion. The \texttt {break} node's outgoing edge is redirected to the \texttt {loop exit node}}{figure.caption.44}{}}
-\newlabel{fig:new-break@cref}{{[figure][8][1]A.8}{[1][71][]72}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.9}{\ignorespaces Continue statement insertion. The \texttt  {continue} node's outgoing edge is redirected to the loop's \texttt  {fixpoint evaluation node} $\phi $}}{72}{figure.caption.45}\protected@file@percent }
-\newlabel{fig:new-continue}{{A.9}{72}{Continue statement insertion. The \texttt {continue} node's outgoing edge is redirected to the loop's \texttt {fixpoint evaluation node} $\phi $}{figure.caption.45}{}}
-\newlabel{fig:new-continue@cref}{{[figure][9][1]A.9}{[1][72][]72}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.10}{\ignorespaces Return statement insertion. The containing node's edge is rewired to the function's unique \texttt  {return exit node}}}{73}{figure.caption.46}\protected@file@percent }
-\newlabel{fig:new-return}{{A.10}{73}{Return statement insertion. The containing node's edge is rewired to the function's unique \texttt {return exit node}}{figure.caption.46}{}}
-\newlabel{fig:new-return@cref}{{[figure][10][1]A.10}{[1][72][]73}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.11}{\ignorespaces Require/assert statement insertion. The builder creates a \texttt  {condition node} with true edge to a node and false edge to the \texttt  {error exit node}}}{73}{figure.caption.47}\protected@file@percent }
-\newlabel{fig:new-require}{{A.11}{73}{Require/assert statement insertion. The builder creates a \texttt {condition node} with true edge to a node and false edge to the \texttt {error exit node}}{figure.caption.47}{}}
-\newlabel{fig:new-require@cref}{{[figure][11][1]A.11}{[1][73][]73}{}{}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {A.12}{\ignorespaces Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt  {error exit node}}}{73}{figure.caption.48}\protected@file@percent }
-\newlabel{fig:new-revert}{{A.12}{73}{Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt {error exit node}}{figure.caption.48}{}}
-\newlabel{fig:new-revert@cref}{{[figure][12][1]A.12}{[1][73][]73}{}{}{}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {B}Abstract Domain and Formal Semantics}{74}{appendix.B}\protected@file@percent }
+\newlabel{app:cfg-patterns}{{A}{101}{Incremental CFG Construction Patterns}{appendix.A}{}}
+\newlabel{app:cfg-patterns@cref}{{[chapter][1][]A}{[1][101][]101}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A.1}CFG Hierarchy}{102}{appendix.A.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {A.1}{\ignorespaces Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions.}}{102}{figure.caption.56}\protected@file@percent }
+\newlabel{fig:contract-cfg}{{A.1}{102}{Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions}{figure.caption.56}{}}
+\newlabel{fig:contract-cfg@cref}{{[figure][1][1]A.1}{[1][101][]102}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.2}{\ignorespaces Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt  {\_}) back to the function body, eventually reaching the function exit.}}{103}{figure.caption.57}\protected@file@percent }
+\newlabel{fig:function-cfg}{{A.2}{103}{Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt {\_}) back to the function body, eventually reaching the function exit}{figure.caption.57}{}}
+\newlabel{fig:function-cfg@cref}{{[figure][2][1]A.2}{[1][102][]103}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A.2}Statement-Level Construction Patterns}{103}{appendix.A.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {A.3}{\ignorespaces Simple statement insertion: single node spliced between current node and successors}}{103}{figure.caption.58}\protected@file@percent }
+\newlabel{fig:new-simple-statement}{{A.3}{103}{Simple statement insertion: single node spliced between current node and successors}{figure.caption.58}{}}
+\newlabel{fig:new-simple-statement@cref}{{[figure][3][1]A.3}{[1][103][]103}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.4}{\ignorespaces If statement insertion. The builder creates a \texttt  {condition node}, two nodes for true/false arms, and an \texttt  {if join}}}{104}{figure.caption.59}\protected@file@percent }
+\newlabel{fig:new-if}{{A.4}{104}{If statement insertion. The builder creates a \texttt {condition node}, two nodes for true/false arms, and an \texttt {if join}}{figure.caption.59}{}}
+\newlabel{fig:new-if@cref}{{[figure][4][1]A.4}{[1][103][]104}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.5}{\ignorespaces Else-if statement insertion. The builder replaces the false arm with a new \texttt  {condition node}, two nodes, and an \texttt  {else-if join}}}{104}{figure.caption.60}\protected@file@percent }
+\newlabel{fig:new-else-if}{{A.5}{104}{Else-if statement insertion. The builder replaces the false arm with a new \texttt {condition node}, two nodes, and an \texttt {else-if join}}{figure.caption.60}{}}
+\newlabel{fig:new-else-if@cref}{{[figure][5][1]A.5}{[1][104][]104}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.6}{\ignorespaces Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt  {if join}}}{105}{figure.caption.61}\protected@file@percent }
+\newlabel{fig:new-else}{{A.6}{105}{Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt {if join}}{figure.caption.61}{}}
+\newlabel{fig:new-else@cref}{{[figure][6][1]A.6}{[1][104][]105}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.7}{\ignorespaces While loop insertion. The builder creates a \texttt  {fixpoint evaluation node} $\phi $, a \texttt  {condition node}, a loop body node, and a \texttt  {loop exit node}}}{105}{figure.caption.62}\protected@file@percent }
+\newlabel{fig:new-while}{{A.7}{105}{While loop insertion. The builder creates a \texttt {fixpoint evaluation node} $\phi $, a \texttt {condition node}, a loop body node, and a \texttt {loop exit node}}{figure.caption.62}{}}
+\newlabel{fig:new-while@cref}{{[figure][7][1]A.7}{[1][105][]105}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.8}{\ignorespaces Break statement insertion. The \texttt  {break} node's outgoing edge is redirected to the \texttt  {loop exit node}}}{106}{figure.caption.63}\protected@file@percent }
+\newlabel{fig:new-break}{{A.8}{106}{Break statement insertion. The \texttt {break} node's outgoing edge is redirected to the \texttt {loop exit node}}{figure.caption.63}{}}
+\newlabel{fig:new-break@cref}{{[figure][8][1]A.8}{[1][105][]106}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.9}{\ignorespaces Continue statement insertion. The \texttt  {continue} node's outgoing edge is redirected to the loop's \texttt  {fixpoint evaluation node} $\phi $}}{106}{figure.caption.64}\protected@file@percent }
+\newlabel{fig:new-continue}{{A.9}{106}{Continue statement insertion. The \texttt {continue} node's outgoing edge is redirected to the loop's \texttt {fixpoint evaluation node} $\phi $}{figure.caption.64}{}}
+\newlabel{fig:new-continue@cref}{{[figure][9][1]A.9}{[1][106][]106}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.10}{\ignorespaces Return statement insertion. The containing node's edge is rewired to the function's unique \texttt  {return exit node}}}{107}{figure.caption.65}\protected@file@percent }
+\newlabel{fig:new-return}{{A.10}{107}{Return statement insertion. The containing node's edge is rewired to the function's unique \texttt {return exit node}}{figure.caption.65}{}}
+\newlabel{fig:new-return@cref}{{[figure][10][1]A.10}{[1][106][]107}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.11}{\ignorespaces Require/assert statement insertion. The builder creates a \texttt  {condition node} with true edge to a node and false edge to the \texttt  {error exit node}}}{107}{figure.caption.66}\protected@file@percent }
+\newlabel{fig:new-require}{{A.11}{107}{Require/assert statement insertion. The builder creates a \texttt {condition node} with true edge to a node and false edge to the \texttt {error exit node}}{figure.caption.66}{}}
+\newlabel{fig:new-require@cref}{{[figure][11][1]A.11}{[1][107][]107}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {A.12}{\ignorespaces Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt  {error exit node}}}{107}{figure.caption.67}\protected@file@percent }
+\newlabel{fig:new-revert}{{A.12}{107}{Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt {error exit node}}{figure.caption.67}{}}
+\newlabel{fig:new-revert@cref}{{[figure][12][1]A.12}{[1][107][]107}{}{}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {B}Abstract Domain and Formal Semantics}{108}{appendix.B}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\newlabel{app:semantics}{{B}{74}{Abstract Domain and Formal Semantics}{appendix.B}{}}
-\newlabel{app:semantics@cref}{{[chapter][2][]B}{[1][74][]74}{}{}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {B.1}Language Syntax}{74}{appendix.B.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B.2}Abstract Domain}{75}{appendix.B.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B.3}Concrete Semantics}{77}{appendix.B.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B.4}Collecting Semantics}{77}{appendix.B.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.4.1}Abstract Semantics}{78}{subsection.B.4.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {B.4}{\ignorespaces Concrete semantics (denotational)}}{80}{table.caption.49}\protected@file@percent }
-\newlabel{tab:conc-denot}{{B.4}{80}{Concrete semantics (denotational)}{table.caption.49}{}}
-\newlabel{tab:conc-denot@cref}{{[table][4][2]B.4}{[1][77][]80}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {B.5}{\ignorespaces Abstract semantics (denotational)}}{81}{table.caption.50}\protected@file@percent }
-\newlabel{tab:abs-denot}{{B.5}{81}{Abstract semantics (denotational)}{table.caption.50}{}}
-\newlabel{tab:abs-denot@cref}{{[table][5][2]B.5}{[1][78][]81}{}{}{}}
-\gdef \@abspage@last{97}
+\newlabel{app:semantics}{{B}{108}{Abstract Domain and Formal Semantics}{appendix.B}{}}
+\newlabel{app:semantics@cref}{{[chapter][2][]B}{[1][108][]108}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {B.1}Language Syntax}{108}{appendix.B.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B.2}Abstract Domain}{109}{appendix.B.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B.3}Concrete Semantics}{111}{appendix.B.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B.4}Collecting Semantics}{111}{appendix.B.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.4.1}Abstract Semantics}{112}{subsection.B.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {B.4}{\ignorespaces Concrete semantics (denotational)}}{114}{table.caption.68}\protected@file@percent }
+\newlabel{tab:conc-denot}{{B.4}{114}{Concrete semantics (denotational)}{table.caption.68}{}}
+\newlabel{tab:conc-denot@cref}{{[table][4][2]B.4}{[1][111][]114}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {B.5}{\ignorespaces Abstract semantics (denotational)}}{115}{table.caption.69}\protected@file@percent }
+\newlabel{tab:abs-denot}{{B.5}{115}{Abstract semantics (denotational)}{table.caption.69}{}}
+\newlabel{tab:abs-denot@cref}{{[table][5][2]B.5}{[1][112][]115}{}{}{}}
+\gdef \@abspage@last{132}

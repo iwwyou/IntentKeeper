@@ -1,0 +1,716 @@
+[
+  {
+    "code": "pragma solidity ^0.6.12;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "abstract contract Context {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "function _msgSender() internal view virtual returns (address payable) {\n}",
+    "startLine": 4,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "return msg.sender;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "function _msgData() internal view virtual returns (bytes memory) {\n}",
+    "startLine": 8,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "this;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "return msg.data;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "contract Ownable is Context {\n}",
+    "startLine": 14,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "address private _owner;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "address private _previousOwner;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private _lockTime;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "constructor () internal {\n}",
+    "startLine": 21,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "address msgSender = _msgSender();",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "_owner = msgSender;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "emit OwnershipTransferred(address(0), msgSender);",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "function owner() public view returns (address) {\n}",
+    "startLine": 27,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "return _owner;",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "modifier onlyOwner() {\n}",
+    "startLine": 31,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "require(_owner == _msgSender(), \"Ownable: caller is not the owner\");",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "_;",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "function renounceOwnership() public virtual onlyOwner {\n}",
+    "startLine": 36,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "emit OwnershipTransferred(_owner, address(0));",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "_owner = address(0);",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "function transferOwnership(address newOwner) public virtual onlyOwner {\n}",
+    "startLine": 41,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "require(newOwner != address(0), \"Ownable: new owner is the zero address\");",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "emit OwnershipTransferred(_owner, newOwner);",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "_owner = newOwner;",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "interface IUniswapV2Router02 {\n}",
+    "startLine": 49,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "function WETH() external pure returns (address);",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "function addLiquidityETH( address token, uint amountTokenDesired, uint amountTokenMin, uint amountETHMin, address to, uint deadline ) external payable returns (uint amountToken, uint amountETH, uint liquidity);",
+    "startLine": 52,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "function swapExactTokensForETHSupportingFeeOnTransferTokens( uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline ) external;",
+    "startLine": 61,
+    "endLine": 67,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 69,
+    "endLine": 69,
+    "event": "add"
+  },
+  {
+    "code": "contract EthereumGod is Context, Ownable {\n}",
+    "startLine": 70,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint256;",
+    "startLine": 71,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "using Address for address;",
+    "startLine": 72,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 73,
+    "endLine": 73,
+    "event": "add"
+  },
+  {
+    "code": "event Approval(address indexed owner, address indexed spender, uint256 value);",
+    "startLine": 74,
+    "endLine": 74,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 75,
+    "endLine": 75,
+    "event": "add"
+  },
+  {
+    "code": "event SwapAndLiquify( uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity );",
+    "startLine": 76,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 81,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "mapping (address => mapping (address => uint256)) private _allowances;",
+    "startLine": 82,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 83,
+    "endLine": 83,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private _marketingFee = 2;",
+    "startLine": 84,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private _liquidityFee = 4;",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "address payable private _marketingWalletAddress = payable(0x63a391e3b4174f63D3e45Dedf5044Ca2540E783f);",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "IUniswapV2Router02 public uniswapV2Router;",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 88,
+    "endLine": 88,
+    "event": "add"
+  },
+  {
+    "code": "bool inSwapAndLiquify = false;",
+    "startLine": 89,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 90,
+    "endLine": 90,
+    "event": "add"
+  },
+  {
+    "code": "modifier lockTheSwap {\n}",
+    "startLine": 91,
+    "endLine": 92,
+    "event": "add"
+  },
+  {
+    "code": "inSwapAndLiquify = true;",
+    "startLine": 92,
+    "endLine": 92,
+    "event": "add"
+  },
+  {
+    "code": "_;",
+    "startLine": 93,
+    "endLine": 93,
+    "event": "add"
+  },
+  {
+    "code": "inSwapAndLiquify = false;",
+    "startLine": 94,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 96,
+    "endLine": 96,
+    "event": "add"
+  },
+  {
+    "code": "function _approve(address owner, address spender, uint256 amount) private {\n}",
+    "startLine": 97,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "require(owner != address(0), \"ERC20: approve from the zero address\");",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "require(spender != address(0), \"ERC20: approve to the zero address\");",
+    "startLine": 99,
+    "endLine": 99,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 100,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "_allowances[owner][spender] = amount;",
+    "startLine": 101,
+    "endLine": 101,
+    "event": "add"
+  },
+  {
+    "code": "emit Approval(owner, spender, amount);",
+    "startLine": 102,
+    "endLine": 102,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 104,
+    "endLine": 104,
+    "event": "add"
+  },
+  {
+    "code": "function swapTokensForEth(uint256 tokenAmount) private {\n}",
+    "startLine": 105,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "address[] memory path = new address[](2);",
+    "startLine": 106,
+    "endLine": 106,
+    "event": "add"
+  },
+  {
+    "code": "path[0] = address(this);",
+    "startLine": 107,
+    "endLine": 107,
+    "event": "add"
+  },
+  {
+    "code": "path[1] = uniswapV2Router.WETH();",
+    "startLine": 108,
+    "endLine": 108,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 109,
+    "endLine": 109,
+    "event": "add"
+  },
+  {
+    "code": "_approve(address(this), address(uniswapV2Router), tokenAmount);",
+    "startLine": 110,
+    "endLine": 110,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 111,
+    "endLine": 111,
+    "event": "add"
+  },
+  {
+    "code": "uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens( tokenAmount, 0, path, address(this), block.timestamp );",
+    "startLine": 112,
+    "endLine": 118,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 120,
+    "endLine": 120,
+    "event": "add"
+  },
+  {
+    "code": "function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {\n}",
+    "startLine": 121,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "_approve(address(this), address(uniswapV2Router), tokenAmount);",
+    "startLine": 122,
+    "endLine": 122,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 123,
+    "endLine": 123,
+    "event": "add"
+  },
+  {
+    "code": "uniswapV2Router.addLiquidityETH{value: ethAmount}( address(this), tokenAmount, 0, 0, owner(), block.timestamp );",
+    "startLine": 124,
+    "endLine": 131,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 133,
+    "endLine": 133,
+    "event": "add"
+  },
+  {
+    "code": "function sendETHToMarketing(uint256 amount) private {\n}",
+    "startLine": 134,
+    "endLine": 135,
+    "event": "add"
+  },
+  {
+    "code": "_marketingWalletAddress.transfer(amount);",
+    "startLine": 135,
+    "endLine": 135,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 137,
+    "endLine": 137,
+    "event": "add"
+  },
+  {
+    "code": "function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {\n}",
+    "startLine": 138,
+    "endLine": 139,
+    "event": "add"
+  },
+  {
+    "code": "uint256 toMarketing = contractTokenBalance.mul(_marketingFee).div(_marketingFee.add(_liquidityFee));",
+    "startLine": 139,
+    "endLine": 139,
+    "event": "add"
+  },
+  {
+    "code": "uint256 toLiquify = contractTokenBalance.sub(toMarketing);",
+    "startLine": 140,
+    "endLine": 140,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 141,
+    "endLine": 141,
+    "event": "add"
+  },
+  {
+    "code": "uint256 half = toLiquify.div(2);",
+    "startLine": 142,
+    "endLine": 142,
+    "event": "add"
+  },
+  {
+    "code": "uint256 otherHalf = toLiquify.sub(half);",
+    "startLine": 143,
+    "endLine": 143,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 144,
+    "endLine": 144,
+    "event": "add"
+  },
+  {
+    "code": "uint256 initialBalance = address(this).balance;",
+    "startLine": 145,
+    "endLine": 145,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 146,
+    "endLine": 146,
+    "event": "add"
+  },
+  {
+    "code": "uint256 toSwapForEth = half.add(toMarketing);",
+    "startLine": 147,
+    "endLine": 147,
+    "event": "add"
+  },
+  {
+    "code": "swapTokensForEth(toSwapForEth);",
+    "startLine": 148,
+    "endLine": 148,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 149,
+    "endLine": 149,
+    "event": "add"
+  },
+  {
+    "code": "uint256 fromSwap = address(this).balance.sub(initialBalance);",
+    "startLine": 150,
+    "endLine": 150,
+    "event": "add"
+  },
+  {
+    "code": "uint256 newBalance = fromSwap.mul(half).div(toSwapForEth);",
+    "startLine": 151,
+    "endLine": 151,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 152,
+    "endLine": 152,
+    "event": "add"
+  },
+  {
+    "code": "addLiquidity(otherHalf, newBalance);",
+    "startLine": 153,
+    "endLine": 153,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 154,
+    "endLine": 154,
+    "event": "add"
+  },
+  {
+    "code": "emit SwapAndLiquify(half, newBalance, otherHalf);",
+    "startLine": 155,
+    "endLine": 155,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 156,
+    "endLine": 156,
+    "event": "add"
+  },
+  {
+    "code": "sendETHToMarketing(fromSwap.sub(newBalance));",
+    "startLine": 157,
+    "endLine": 157,
+    "event": "add"
+  },
+  {
+    "code": "// @During newBalance == (fromSwap * half + toSwapForEth - 1) / toSwapForEth",
+    "startLine": 151,
+    "endLine": 151,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 139,
+    "endLine": 139,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar contractTokenBalance = [17, 17]",
+    "startLine": 140,
+    "endLine": 140,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _marketingFee = [2, 2]",
+    "startLine": 141,
+    "endLine": 141,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _liquidityFee = [4, 4]",
+    "startLine": 142,
+    "endLine": 142,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar address(this).balance = [1000000000000000000, 1000000000000000000]",
+    "startLine": 143,
+    "endLine": 143,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 144,
+    "endLine": 144,
+    "event": "add"
+  }
+]

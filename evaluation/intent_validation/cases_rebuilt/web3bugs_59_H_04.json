@@ -1,0 +1,236 @@
+[
+ {
+  "code": "pragma solidity >=0.6.6;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "contract AuctionBurnReserveSkew is Initializable, Permissions {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "using SafeMath for uint256;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint256[] public pegObservations;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public auctionAverageLookback = 10;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "IStabilizerNode public stabilizerNode;",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "IAuction public auction;",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public count;",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "function getPegDeltaFrequency() public view returns (uint256) {\n}",
+  "startLine": 14,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "uint256 initialIndex = 0;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "uint256 index;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "if (count > auctionAverageLookback) {\n}",
+  "startLine": 18,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "initialIndex = count - auctionAverageLookback;",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "uint256 total = 0;",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "for (uint256 i = initialIndex; i < count; ++i) {\n}",
+  "startLine": 24,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "index = _getIndexOfObservation(i);",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "total = total + pegObservations[index];",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "return total * 10000 / auctionAverageLookback;",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "function _getIndexOfObservation(uint _index) internal view returns (uint index) {\n}",
+  "startLine": 32,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "return _index % auctionAverageLookback;",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "// @Post returnExpression == total * 10000 / (count - initialIndex)",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar auctionAverageLookback = [10, 10]",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar count = [3, 3]",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar pegObservations[0] = [1, 1]",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar pegObservations[1] = [1, 1]",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar pegObservations[2] = [0, 0]",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ }
+]

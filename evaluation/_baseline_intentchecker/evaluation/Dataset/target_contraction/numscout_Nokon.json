@@ -1,0 +1,332 @@
+[
+  {
+    "code": "pragma solidity 0.7.4;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "interface IERC20 {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "function totalSupply() external view returns (uint256);",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "function balanceOf(address account) external view returns (uint256);",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "function allowance(address _owner, address spender) external view returns (uint256);",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "function transfer(address recipient, uint256 amount) external returns (bool);",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "function approve(address spender, uint256 amount) external returns (bool);",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "contract Nokon is IERC20 {\n}",
+    "startLine": 18,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint256;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "event Bought(uint256 amountz);",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "event Sold(uint256 amount);",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "event Approval(address indexed tokenOwner, address indexed spender, uint tokens);",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "event Transfer(address indexed from, address indexed to, uint tokens);",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint256) balances;",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "bool presell = true;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "uint256 ethRateFix = 10000000000;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "function balanceOf(address tokenOwner) public override view returns (uint256) {\n}",
+    "startLine": 33,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "return balances[tokenOwner];",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "function calculateRate() private returns (uint256){\n}",
+    "startLine": 37,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "uint256 balance = balanceOf(address(this));",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "if (balance > 100000000000000000) {\n}",
+    "startLine": 39,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "return 666666;",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "if (balance > 50000000000000000) {\n}",
+    "startLine": 42,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "return 333333;",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "return 250000;",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "function buy() public payable {\n}",
+    "startLine": 48,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "require(presell, \"presell is closed\");",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "uint256 minBuy = 50000000000000000;",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "uint256 amountToBuy = msg.value / ethRateFix * calculateRate();",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "uint256 dexBalance = balanceOf(address(this));",
+    "startLine": 52,
+    "endLine": 52,
+    "event": "add"
+  },
+  {
+    "code": "require(msg.value >= minBuy, \"minimum buy is 0.05 eth\");",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "require(amountToBuy < dexBalance, \"not enough token in reserve\");",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 56,
+    "endLine": 56,
+    "event": "add"
+  },
+  {
+    "code": "balances[address(this)] = balances[address(this)] - amountToBuy;",
+    "startLine": 57,
+    "endLine": 57,
+    "event": "add"
+  },
+  {
+    "code": "balances[msg.sender] = balances[msg.sender] + amountToBuy;",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "emit Transfer(address(this), msg.sender, amountToBuy);",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "emit Bought(amountToBuy);",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  }
+]

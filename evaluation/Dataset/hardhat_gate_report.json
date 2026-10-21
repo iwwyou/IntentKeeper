@@ -1,0 +1,1276 @@
+{
+  "n_BoostToken": {
+    "cases": [
+      "numscout_BoostToken_indivisible",
+      "numscout_BoostToken_operator"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "n_EthereumGod": {
+    "cases": [
+      "numscout_EthereumGod"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "n_HIT": {
+    "cases": [
+      "numscout_HIT"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "n_Nokon": {
+    "cases": [
+      "numscout_Nokon"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "n_SwordCrowdsale": {
+    "cases": [
+      "flyinointment_SwordCrowdsale"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "n_WANGMI": {
+    "cases": [
+      "numscout_WANGMI"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w101": {
+    "cases": [
+      "web3bugs_101_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu3",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz3"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w110": {
+    "cases": [
+      "web3bugs_110_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "openzeppelin-contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w112": {
+    "cases": [
+      "web3bugs_112_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu4",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w113": {
+    "cases": [
+      "web3bugs_113_H_05"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@boringcrypto/boring-solidity/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\vendor\\BoringSolidity",
+      "@sushiswap/bentobox-sdk/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\Dependencies\\reconstructed\\bentobox-sdk (wrapper)"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w16": {
+    "cases": [
+      "web3bugs_16_H_04",
+      "web3bugs_16_H_06"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4",
+      "prb-math/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\prb-math"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w17": {
+    "cases": [
+      "web3bugs_17_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@chainlink/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@chainlink\\contracts",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz3",
+      "contracts/ -> src (sources root)"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w192": {
+    "cases": [
+      "web3bugs_192_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4",
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w25": {
+    "cases": [
+      "web3bugs_25_H_01",
+      "web3bugs_25_H_05"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w29": {
+    "cases": [
+      "web3bugs_29_H_08",
+      "web3bugs_29_H_11",
+      "web3bugs_29_H_05"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w3": {
+    "cases": [
+      "web3bugs_3_H_04",
+      "web3bugs_3_H_05"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4",
+      "@uniswap/v2-core/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@uniswap\\v2-core"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w31": {
+    "cases": [
+      "web3bugs_31_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w34": {
+    "cases": [
+      "web3bugs_34_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4",
+      "@pooltogether/owner-manager-contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@pooltogether\\owner-manager-contracts",
+      "@pooltogether/pooltogether-rng-contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@pooltogether\\pooltogether-rng-contracts"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w35": {
+    "cases": [
+      "web3bugs_35_H_08",
+      "web3bugs_35_H_10",
+      "web3bugs_35_H_11",
+      "web3bugs_35_H_12"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w36": {
+    "cases": [
+      "web3bugs_36_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu4",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4",
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w39": {
+    "cases": [
+      "web3bugs_39_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w42": {
+    "cases": [
+      "web3bugs_42_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@mochifi/cssr/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@mochifi\\cssr",
+      "@mochifi/library/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@mochifi\\library",
+      "@mochifi/vmochi/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@mochifi\\vmochi",
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu4",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.8.4"
+    ],
+    "forge_ok": true
+  },
+  "w44": {
+    "cases": [
+      "web3bugs_44_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w45": {
+    "cases": [
+      "web3bugs_45_H_01",
+      "web3bugs_45_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu4",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w47": {
+    "cases": [
+      "web3bugs_47_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w5": {
+    "cases": [
+      "web3bugs_5_H_07",
+      "web3bugs_5_H_08",
+      "web3bugs_5_H_12",
+      "web3bugs_5_H_15"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w51": {
+    "cases": [
+      "web3bugs_51_H_02",
+      "web3bugs_51_H_04",
+      "web3bugs_51_H_06"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz3"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w52": {
+    "cases": [
+      "web3bugs_52_H_04",
+      "web3bugs_52_H_23",
+      "web3bugs_52_H_34",
+      "web3bugs_52_H_15",
+      "web3bugs_52_H_16"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w56": {
+    "cases": [
+      "web3bugs_56_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz3",
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w58": {
+    "cases": [
+      "web3bugs_58_H_02",
+      "web3bugs_58_H_04"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w59": {
+    "cases": [
+      "web3bugs_59_H_04",
+      "web3bugs_59_H_05"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz3",
+      "@openzeppelin/upgrades/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\@openzeppelin\\upgrades"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w60": {
+    "cases": [
+      "web3bugs_60_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w61": {
+    "cases": [
+      "web3bugs_61_H_01",
+      "web3bugs_61_H_02",
+      "web3bugs_61_H_04"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu3",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz3"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w62": {
+    "cases": [
+      "web3bugs_62_H_03",
+      "web3bugs_62_H_08",
+      "web3bugs_62_H_10",
+      "web3bugs_62_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "solmate/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\solmate\\src (wrapper)"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w65": {
+    "cases": [
+      "web3bugs_65_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts-upgradeable/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\ozu4",
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4",
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w70": {
+    "cases": [
+      "web3bugs_70_H_04",
+      "web3bugs_70_H_05",
+      "web3bugs_70_H_10",
+      "web3bugs_70_H_03",
+      "web3bugs_70_H_08",
+      "web3bugs_70_H_09"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w71": {
+    "cases": [
+      "web3bugs_71_H_11"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w77": {
+    "cases": [
+      "web3bugs_77_H_01"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w78": {
+    "cases": [
+      "web3bugs_78_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w79": {
+    "cases": [
+      "web3bugs_79_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w8": {
+    "cases": [
+      "web3bugs_8_H_03"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "hardhat/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\hardhat\\node_modules\\hardhat"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  },
+  "w83": {
+    "cases": [
+      "web3bugs_83_H_01",
+      "web3bugs_83_H_02"
+    ],
+    "ok": true,
+    "errors": [],
+    "junctions": [
+      "@openzeppelin/contracts/ -> C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\evaluation\\Dataset\\npm\\node_modules\\oz4"
+    ],
+    "compilers": [
+      "0.4.26",
+      "0.5.17",
+      "0.6.6",
+      "0.6.8",
+      "0.6.12",
+      "0.7.4",
+      "0.7.6",
+      "0.8.1",
+      "0.8.3",
+      "0.8.4",
+      "0.8.6",
+      "0.8.7",
+      "0.8.9",
+      "0.8.10",
+      "0.8.11",
+      "0.8.12",
+      "0.8.13"
+    ],
+    "forge_ok": true
+  }
+}

@@ -20,9 +20,13 @@ class StaticCFGFactory:
         글로벌 변수 테이블 생성 (block, msg, tx 등)
         ContractCFG와 AbstractContractCFG 모두에서 사용
         """
-        def _u256(val: int = 0) -> UnsignedIntegerInterval:
-            """[val,val] 256-bit uint Interval"""
-            return UnsignedIntegerInterval(val, val, 256)
+        def _u256() -> UnsignedIntegerInterval:
+            """미지정 환경값 = uint256 전체 범위(⊤).
+            ★ (2026-10-20, 사용자 승인) 예전엔 [0,0] 이었다. block.timestamp 등은 Solidity 의 "기본값" 이 아니라
+              호출 시점의 환경이므로, @GlobalVar 로 지정하지 않으면 **알 수 없는 값**이다 — IntentChecker 원고
+              (debug 어노테이션은 "otherwise unknown" 값을 대체한다, 제약이 없으면 ⊤ 로 남는다)와 일치시킨다.
+              msg.value 는 non-payable 함수에서 EVM 이 0 을 강제하므로 ContractAnalyzer 가 함수별로 [0,0] 으로 좁힌다."""
+            return UnsignedIntegerInterval.top(256)
 
         def _addr_fixed(nid: int) -> AddressSet:
             """symbolicAddress nid → AddressSet({nid})"""

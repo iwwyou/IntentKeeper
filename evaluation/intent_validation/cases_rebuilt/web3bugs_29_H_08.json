@@ -1,0 +1,308 @@
+[
+ {
+  "code": "pragma solidity >=0.8.0;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "contract HybridPool is IPool, TridentERC20 {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "using MathUtils for uint256;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint256 internal constant MINIMUM_LIQUIDITY = 10**3;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant PRECISION = 112;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant MAX_LOOP_LIMIT = 256;",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "uint256 internal constant MAX_FEE = 10000;",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public immutable swapFee;",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable barFeeTo;",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable bento;",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable masterDeployer;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable token0;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable token1;",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public immutable A;",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "uint256 internal immutable N_A;",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "uint256 internal constant A_PRECISION = 100;",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public immutable token0PrecisionMultiplier;",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public immutable token1PrecisionMultiplier;",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 24,
+  "endLine": 24,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public barFee;",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "uint128 internal reserve0;",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "uint128 internal reserve1;",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 public constant override poolIdentifier = \"Trident:HybridPool\";",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "uint256 internal unlocked;",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "function _getReserves() internal view returns (uint256 _reserve0, uint256 _reserve1) {\n}",
+  "startLine": 34,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "(_reserve0, _reserve1) = (reserve0, reserve1);",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "_reserve0 = _toAmount(token0, _reserve0);",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "_reserve1 = _toAmount(token1, _reserve1);",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "function _toAmount(address token, uint256 input) internal view returns (uint256 output) {\n}",
+  "startLine": 40,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "(, bytes memory _output) = bento.staticcall(abi.encodeWithSelector(IBentoBoxMinimal.toAmount.selector, token, input, false));",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "output = abi.decode(_output, (uint256));",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "// @Post _reserve0 == reserve0",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "// @Post _reserve1 == reserve1",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar bento = symbolicAddress 1",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar token0 = symbolicAddress 2",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar token1 = symbolicAddress 3",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar reserve0 = [1500, 1500]",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar reserve1 = [900, 900]",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ }
+]

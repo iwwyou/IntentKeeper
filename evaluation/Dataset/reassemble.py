@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-48 expressible 케이스의 원본을 컴파일 가능한 Foundry/Hardhat 프로젝트로 재조립한다.
+IntentChecker 74 eligible 케이스(expressible 48 + inexpressible 26)의 원본을 컴파일 가능한
+Foundry/Hardhat 프로젝트로 재조립한다.
 
 입력 (evaluation/Dataset/):
-  cases48.csv              case_id / contract / function  (IntentChecker RQ3 표 그대로)
+  cases74.csv              case_id / contract / function / expressible ... (cases48.csv = RQ3 표 원본은 별도 보존)
   target_original/         케이스별 원본 .sol (4개는 레코드 .json → 이어붙여 원본 복원)
   Dependencies/pool/       RQ1 의존성 풀 313개 ({contest}_{Name}.sol 또는 {Name}.sol)
   Dependencies/{contracts,interfaces,libraries}/   Guardian Dependencies 트리
@@ -64,6 +65,13 @@ NPM_MAP = {
     "prb-math/": NPM / "prb-math",                                      # w16 (2.4.x)
     "@boringcrypto/boring-solidity/": VENDOR / "BoringSolidity",
     "hardhat/": HH_NPM / "hardhat",
+    # w110: forge 식 lib remapping 이름(`openzeppelin-contracts-upgradeable/...`) — 레이아웃은 npm 패키지와 동일
+    "openzeppelin-contracts-upgradeable/": "ozu",
+    # w34: v4-core@35b00f7 package.json 이 고정한 버전 (owner-manager 1.1.0, rng 1.4.0)
+    "@pooltogether/owner-manager-contracts/": NPM / "@pooltogether" / "owner-manager-contracts",
+    "@pooltogether/pooltogether-rng-contracts/": NPM / "@pooltogether" / "pooltogether-rng-contracts",
+    # w17: code-423n4/2021-06-gro package.json 고정 버전 0.0.11
+    "@chainlink/contracts/": NPM / "@chainlink" / "contracts",
 }
 NPM_PREFIXES = tuple(NPM_MAP)
 
@@ -72,6 +80,10 @@ NPM_PREFIXES = tuple(NPM_MAP)
 # 원 프로젝트는 hardhat 이 저장소 전체를 한 번에 컴파일해 통과했으므로, 같은 파일 집합(contest 디렉토리의
 # 나머지 소스)을 함께 넣는다. 타겟 바이트코드와는 무관하다.
 INCLUDE_SIBLINGS = {"w36", "w65"}
+
+# 저장소 루트 기준(non-relative) import 를 쓰는 프로젝트 (hardhat 의 `contracts/...` 식). 이 접두어를 src 루트로
+# 보고 해석하고, 같은 접두어를 `src/` 로 remapping 한다. flatten 이름(common_FixedContracts.sol)이 접두어 아래 경로다.
+ROOT_IMPORT_PREFIX = {"w17": "contracts/"}
 
 # 타겟의 가상 경로를 수동으로 고정해야 할 때 (case_id → src 루트 기준 경로). 현재는 비어 있다 —
 # 다른 파일이 타겟을 import 하는 경우는 내용 비교(alias)로 자동 처리된다 (w16 LibBalances, w35 Ticks, w77 MathLib).
@@ -83,7 +95,7 @@ def read(p: pathlib.Path) -> str:
 
 
 def case_rows():
-    return list(csv.DictReader(open(DS / "cases48.csv", encoding="utf-8")))
+    return list(csv.DictReader(open(DS / "cases74.csv", encoding="utf-8")))
 
 
 def orig_name(cid):
@@ -254,6 +266,7 @@ def assemble(rows, cid, pool: Pool, depth: int, gen: str, vpath_override=None):
     alias = {}          # case_id → 다른 파일이 타겟을 참조한 가상 경로
     prefix = "/".join(["_"] * depth)
     vpath_override = vpath_override or {}
+    root_pref = ROOT_IMPORT_PREFIX.get(project_key(rows[0]))
 
     # 1) 타겟 배치 — alias 재시도 경로 > 수동 고정(TARGET_VPATH) > flatten 힌트 > Contract.sol. prefix 아래.
     for r in rows:
@@ -285,10 +298,14 @@ def assemble(rows, cid, pool: Pool, depth: int, gen: str, vpath_override=None):
             if imp.startswith(NPM_PREFIXES):
                 npm_used.add(next(p for p in NPM_PREFIXES if imp.startswith(p)))
                 continue
-            if not imp.startswith("."):
+            if root_pref and imp.startswith(root_pref):
+                rel = imp[len(root_pref):]
+                tgt = posixpath.join(prefix, rel) if prefix else rel
+            elif not imp.startswith("."):
                 missing.append((vp, imp + "  (non-relative, no remapping)"))
                 continue
-            tgt = posixpath.normpath(posixpath.join(posixpath.dirname(vp), imp))
+            else:
+                tgt = posixpath.normpath(posixpath.join(posixpath.dirname(vp), imp))
             if tgt.startswith(".."):
                 escaped = True
                 missing.append((vp, imp + "  (escapes src root)"))
@@ -378,6 +395,9 @@ def build_project(pkey, rows, pool: Pool, report):
             tgt = NPM / f"ozu{gen}"
         rel = posixpath.relpath(tgt.as_posix(), pdir.as_posix())
         remaps.append(f"{pref}={rel}/")
+    if pkey in ROOT_IMPORT_PREFIX:
+        root = posixpath.join("src", "/".join(["_"] * depth)) if depth else "src"
+        remaps.append(f"{ROOT_IMPORT_PREFIX[pkey]}={root}/")
     (pdir / "remappings.txt").write_text("\n".join(remaps) + ("\n" if remaps else ""), encoding="utf-8")
 
     toml = [
@@ -480,7 +500,13 @@ def main():
         total = sum(len(v["cases"]) for v in report.values())
         print(f"\n컴파일 통과 케이스: {ok_cases}/{total}")
 
-    (DS / "reassemble_report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    # --only 는 그 프로젝트 항목만 갱신한다 (보고서 전체를 한 프로젝트로 덮어쓰지 않는다)
+    rpath = DS / "reassemble_report.json"
+    if a.only and rpath.exists():
+        merged = json.loads(rpath.read_text(encoding="utf-8"))
+        merged.update(report)
+        report = merged
+    rpath.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 if __name__ == "__main__":

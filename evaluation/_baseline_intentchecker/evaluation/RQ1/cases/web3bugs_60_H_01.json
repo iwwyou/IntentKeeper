@@ -1,0 +1,164 @@
+[
+  {
+    "code": "pragma solidity 0.8.10;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "struct OptimisticLedger {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => UFixed18) balances;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "UFixed18 total;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "UFixed18 shortfall;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "library OptimisticLedgerLib {\n}",
+    "startLine": 9,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "using UFixed18Lib for UFixed18;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "using Fixed18Lib for Fixed18;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "function settleAccount(OptimisticLedger storage self, address account, Fixed18 amount) internal returns (UFixed18 shortfall) {\n}",
+    "startLine": 13,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.shortfall = [100, 100]",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar self.balances[account] = [50, 50]",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar amount = [-100, -100]",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "Fixed18 newBalance = Fixed18Lib.from(self.balances[account]).add(amount);",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "if (newBalance.sign() == -1) {\n}",
+    "startLine": 20,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "shortfall = self.shortfall.add(newBalance.abs());",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "newBalance = Fixed18Lib.ZERO;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "self.balances[account] = newBalance.abs();",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "// @During self.shortfall == 150",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "self.shortfall = self.shortfall.add(shortfall);",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "function debit(OptimisticLedger storage self, UFixed18 amount) internal {\n}",
+    "startLine": 30,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "self.total = self.total.sub(amount);",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  }
+]

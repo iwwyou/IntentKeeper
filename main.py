@@ -13,83 +13,76 @@ snapman           = contract_analyzer.snapman
 batch_mgr         = DebugBatchManager(contract_analyzer, snapman)
 
 
-def load_dependencies():
-    """Dependencies/objectfile의 pkl + 입력 소스에서 interface 이름을 사전 등록"""
-    import pathlib, pickle, re
+def _load_pkl(pkl_path):
+    """pkl 하나 → (cfg, payload). 실패하면 예외 (2026-10-21: 예전엔 `except Exception: pass` 로 조용히 건너뛰어
+    해당 의존성이 없는 채 분석이 진행됐다 — 조용한 오분석)."""
+    import pickle
+    with open(pkl_path, 'rb') as f:
+        raw = pickle.load(f)
+    if isinstance(raw, dict) and "cfg" in raw:
+        sa.file_level_structs.update(raw.get("file_level_structs", {}))
+        sa.type_aliases.update(raw.get("type_aliases", {}))
+        return raw["cfg"]
+    return raw
+
+
+def load_dependencies(deps_root=None, exclude=()):
+    """의존성 pkl + interface 이름 사전 등록.
+
+    deps_root=None : 기존 공용 트리(Dependencies/objectfile, Libraries/objectfile) — 레거시 48 케이스.
+    deps_root=<dir>: **프로젝트 단위** 트리 (2026-10-21, evaluation/Dataset/build_project_deps.py 가 만든
+                     deps/<p>/{interfaces,libraries,contracts,objectfile}). 그 프로젝트의 선언만 로드하므로
+                     프로젝트 간 이름 충돌(OZ ERC20 vs solmate ERC20)이 없다.
+    exclude        : 분석 대상 소스가 스스로 선언하는 이름 — pkl 판을 올리지 않는다(같은 선언이 두 판 생기지 않게).
+    """
+    import pathlib, re
     base = pathlib.Path(__file__).parent
-    # 1) pkl에서 interface 이름 수집
-    obj_dirs = [base / "Dependencies" / "objectfile", base / "Libraries" / "objectfile"]
+    exclude = set(exclude or ())
+    if deps_root is not None:
+        root = pathlib.Path(deps_root)
+        if not (root / "objectfile").is_dir():
+            raise FileNotFoundError(f"project deps not built: {root / 'objectfile'}")
+        obj_dirs = [root / "objectfile"]
+        src_dirs = [root / "libraries", root / "contracts", root / "interfaces"]
+        ifc_scan_dirs = src_dirs
+    else:
+        obj_dirs = [base / "Dependencies" / "objectfile", base / "Libraries" / "objectfile"]
+        src_dirs = [base / "Dependencies" / "libraries", base / "Dependencies" / "contracts",
+                    base / "Dependencies" / "interfaces", base / "Libraries"]
+        ifc_scan_dirs = [base / "evaluation" / "Dataset" / "target_contraction",
+                         base / "evaluation" / "Dataset" / "Dependencies" / "pool",
+                         base / "Dataset" / "Numscout" / "contraction"]
+
+    def strip_prefix(raw_name):
+        # con_47_ERC20Upgradeable → ERC20Upgradeable (공용 트리의 contest 접두어)
+        parts = raw_name.split("_", 1)
+        return parts[1] if len(parts) > 1 and parts[0].isdigit() and deps_root is None else raw_name
+
+    # 1) pkl 로드
     for obj_dir in obj_dirs:
         if not obj_dir.exists():
             continue
         for pkl_path in sorted(obj_dir.glob("*.pkl")):
-            name = pkl_path.stem
-            if name.startswith("ifc_"):
-                # prefix 제거: ifc_5_iERC20 → iERC20
-                raw_name = name[4:]
-                parts = raw_name.split("_", 1)
-                ifc_name = parts[1] if len(parts) > 1 and parts[0].isdigit() else raw_name
-                contract_analyzer.interface_names.add(ifc_name)
-                # interface CFG 로드 → IReturn, interface call return type 등에서 사용
-                try:
-                    with open(pkl_path, 'rb') as f:
-                        raw = pickle.load(f)
-                    if isinstance(raw, dict) and "cfg" in raw:
-                        ifc_cfg = raw["cfg"]
-                        sa.file_level_structs.update(raw.get("file_level_structs", {}))
-                        sa.type_aliases.update(raw.get("type_aliases", {}))
-                    else:
-                        ifc_cfg = raw
-                    contract_analyzer.contract_cfgs[ifc_name] = ifc_cfg
-                except Exception:
-                    pass
-            elif name.startswith("lib_"):
-                # library CFG 로드 → library 함수 호출 해석에 사용
-                # prefix 제거: lib_47_SafeMathUpgradeable → SafeMathUpgradeable
-                parts = name[4:].split("_", 1)
-                lib_name = parts[1] if len(parts) > 1 and parts[0].isdigit() else name[4:]
-                try:
-                    with open(pkl_path, 'rb') as f:
-                        raw = pickle.load(f)
-                    if isinstance(raw, dict) and "cfg" in raw:
-                        lib_cfg = raw["cfg"]
-                        sa.file_level_structs.update(raw.get("file_level_structs", {}))
-                        sa.type_aliases.update(raw.get("type_aliases", {}))
-                    else:
-                        lib_cfg = raw
-                    contract_analyzer.library_cfgs[lib_name] = lib_cfg
-                    contract_analyzer.contract_cfgs[lib_name] = lib_cfg
-                except Exception:
-                    pass
-            elif name.startswith("con_"):
-                # contract CFG 로드 → 상속 parent contract 해석에 사용
-                # prefix 제거: con_47_ERC20Upgradeable → ERC20Upgradeable
-                parts = name[4:].split("_", 1)
-                con_name = parts[1] if len(parts) > 1 and parts[0].isdigit() else name[4:]
-                try:
-                    with open(pkl_path, 'rb') as f:
-                        raw = pickle.load(f)
-                    if isinstance(raw, dict) and "cfg" in raw:
-                        con_cfg = raw["cfg"]
-                        sa.file_level_structs.update(raw.get("file_level_structs", {}))
-                        sa.type_aliases.update(raw.get("type_aliases", {}))
-                    else:
-                        con_cfg = raw
-                    contract_analyzer.contract_cfgs[con_name] = con_cfg
-                except Exception:
-                    pass
+            stem = pkl_path.stem
+            kind, raw_name = stem[:4], stem[4:]
+            name = strip_prefix(raw_name)
+            if name in exclude:
+                continue
+            if kind == "ifc_":
+                contract_analyzer.interface_names.add(name)
+                contract_analyzer.contract_cfgs[name] = _load_pkl(pkl_path)
+            elif kind == "lib_":
+                cfg = _load_pkl(pkl_path)
+                contract_analyzer.library_cfgs[name] = cfg
+                contract_analyzer.contract_cfgs[name] = cfg
+            elif kind == "con_":
+                contract_analyzer.contract_cfgs[name] = _load_pkl(pkl_path)
     # 2) type alias + file-level enum 사전 수집
     #    file-level enum(컨트랙트/인터페이스 밖 최상위 enum)은 pkl 에 구워져 있지 않다
     #    (오프라인 빌드가 enum 을 추적 안 함) → type alias 와 같은 regex 사전-스캔으로 보완.
     _type_re = re.compile(r'type\s+(\w+)\s+is\s+(\w+)\s*;')
     _enum_re = re.compile(r'enum\s+(\w+)\s*\{([^}]*)\}', re.DOTALL)
-    type_scan_dirs = [
-        base / "Dependencies" / "libraries",
-        base / "Dependencies" / "contracts",
-        base / "Dependencies" / "interfaces",
-        base / "Libraries",
-    ]
-    for d in type_scan_dirs:
+    for d in src_dirs:
         if not d.exists():
             continue
         for sol in d.rglob("*.sol"):
@@ -105,14 +98,9 @@ def load_dependencies():
     if sa.file_level_enums:
         print(f"[Dependencies] {len(sa.file_level_enums)} file-level enums registered")
 
-    # 3) 입력 소스 + original dependencies에서 interface 이름 regex 사전 수집 (Phase 0과 동일)
+    # 3) interface 이름 regex 사전 수집 (Phase 0과 동일)
     _ifc_re = re.compile(r'interface\s+(\w+)')
-    scan_dirs = [
-        base / "evaluation" / "Dataset" / "target_contraction",
-        base / "evaluation" / "Dataset" / "Dependencies" / "pool",
-        base / "Dataset" / "Numscout" / "contraction",
-    ]
-    for d in scan_dirs:
+    for d in ifc_scan_dirs:
         if not d.exists():
             continue
         for sol in d.rglob("*.sol"):
@@ -122,7 +110,10 @@ def load_dependencies():
         print(f"[Dependencies] {len(contract_analyzer.interface_names)} interfaces registered")
 
 
-load_dependencies()
+# 프로젝트 단위 의존성: 실행 드라이버가 환경변수로 지정 (evaluation/intent_validation/run_cases.py --rebuilt)
+import os as _os
+load_dependencies(_os.environ.get("IQ_DEPS_ROOT") or None,
+                  [x for x in _os.environ.get("IQ_DEPS_EXCLUDE", "").split(",") if x])
 
 
 def simulate_inputs(records, silent=False):
@@ -162,7 +153,7 @@ def simulate_inputs(records, silent=False):
                 EnhancedSolidityVisitor(contract_analyzer).visit(tree)
                 continue
 
-            # Debug annotation (@LocalVar, @StateVar, @GlobalVar, @IReturn)
+            # Debug annotation (@Param, @StateVar, @GlobalVar, @IReturn)
             # list 기반 batch 전환(2026-07-03): 라인 키가 없어졌으므로 modify/delete 는
             # 개별 라인 갱신이 불가 → add 로 누적만. (레거시 CLI 경로, 회귀 무시 승인됨)
             if ev != "delete":

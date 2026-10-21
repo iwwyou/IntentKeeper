@@ -1,0 +1,340 @@
+[
+ {
+  "code": "pragma solidity =0.8.7;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "contract Basket is IBasket, ERC20Upgradeable, ReentrancyGuard {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "using SafeERC20 for IERC20;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public constant TIMELOCK_DURATION = 1 days;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public constant ONE_YEAR = 365.25 days;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant BASE = 1e18;",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public maxSupply;",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "address public publisher;",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public licenseFee;",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "IFactory public override factory;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "IAuction public override auction;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public override ibRatio;",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "PendingPublisher public pendingPublisher;",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "PendingLicenseFee public pendingLicenseFee;",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "PendingWeights public pendingWeights;",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "PendingMaxSupply public pendingMaxSupply;",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 24,
+  "endLine": 24,
+  "event": "add"
+ },
+ {
+  "code": "address[] public tokens;",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "uint256[] public weights;",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public override lastFee;",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "bool public override initialized;",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "function handleFees(uint256 startSupply) private {\n}",
+  "startLine": 32,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "if (lastFee == 0) {\n}",
+  "startLine": 33,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "lastFee = block.timestamp;",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "else if (startSupply == 0) {\n}",
+  "startLine": 35,
+  "endLine": 36,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "return;",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "else {\n}",
+  "startLine": 37,
+  "endLine": 38,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "uint256 timeDiff = (block.timestamp - lastFee);",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "uint256 feePct = timeDiff * licenseFee / ONE_YEAR;",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "uint256 fee = startSupply * feePct / (BASE - feePct);",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "_mint(publisher, fee * (BASE - factory.ownerSplit()) / BASE);",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "_mint(Ownable(address(factory)).owner(), fee * factory.ownerSplit() / BASE);",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "lastFee = block.timestamp;",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "uint256 newIbRatio = ibRatio * startSupply / totalSupply();",
+  "startLine": 46,
+  "endLine": 46,
+  "event": "add"
+ },
+ {
+  "code": "ibRatio = newIbRatio;",
+  "startLine": 47,
+  "endLine": 47,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "emit NewIBRatio(ibRatio);",
+  "startLine": 49,
+  "endLine": 49,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 52,
+  "endLine": 52,
+  "event": "add"
+ },
+ {
+  "code": "// @Post lastFee == block.timestamp",
+  "startLine": 51,
+  "endLine": 51,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar lastFee = [1000000, 1000000]",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar startSupply = [0, 0]",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar block.timestamp = [1086400, 1086400]",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ }
+]

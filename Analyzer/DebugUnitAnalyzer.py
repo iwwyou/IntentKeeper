@@ -5,14 +5,14 @@ from Analyzer.EnhancedSolidityVisitor import EnhancedSolidityVisitor
 
 class DebugBatchManager:
     """
-    디버그 값 주석(`// @StateVar/@LocalVar/@GlobalVar/@IReturn <ref> = <val>`)을
+    디버그 값 주석(`@StateVar/@Param/@GlobalVar/@IReturn <ref> = <val>`)을
     **삽입 순서대로 리스트에 누적**했다가 flush() 에서 한 번에 해석한다.
 
     설계(2026-07-03, list 기반 전환):
       - 프론트가 함수별 디버그 값을 통째로 넘기고 engine_api._queue_debug_values 가
         슬롯마다 add() 로 쌓는다.
       - 디버그 값 주석에는 라인번호가 무의미하다
-        (visitDebugStateVar/LocalVar/GlobalVar/IReturn 모두 line 미사용 → 값만 설정).
+        (visitDebugStateVar/Param/GlobalVar/IReturn 모두 line 미사용 → 값만 설정).
         과거 dict[startLine] 방식은 여러 슬롯이 같은 startLine(0)으로 들어오면 충돌해
         마지막 하나만 남는 버그가 있었다 → 순서 리스트로 교체.
       - snapshot/restore 로 감싸 매 디버깅이 독립적(값 초기화)인 성질은 유지.

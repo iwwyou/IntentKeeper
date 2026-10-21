@@ -1,0 +1,308 @@
+[
+  {
+    "code": "pragma solidity 0.7.6;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "pragma abicoder v2;",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 3,
+    "endLine": 3,
+    "event": "add"
+  },
+  {
+    "code": "contract LenderPool is ERC1155Upgradeable, ReentrancyGuardUpgradeable, IPooledCreditLineEnums, ILenderPool {\n}",
+    "startLine": 4,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "using SafeMath for uint256;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "using SafeERC20 for IERC20;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "ISavingsAccount public immutable SAVINGS_ACCOUNT;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "IPooledCreditLine public immutable POOLED_CREDIT_LINE;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "IVerification public immutable VERIFICATION;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint256 constant SCALING_FACTOR = 1e18;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "struct LenderInfo {\n}",
+    "startLine": 13,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowerInterestSharesWithdrawn;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint256 yieldInterestWithdrawnShares;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "struct LenderPoolConstants {\n}",
+    "startLine": 18,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "uint256 startTime;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "address borrowAsset;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "address collateralAsset;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowLimit;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "uint256 minBorrowAmount;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "address lenderVerifier;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "address borrowAssetStrategy;",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "bool areTokensTransferable;",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "struct LenderPoolVariables {\n}",
+    "startLine": 29,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => LenderInfo) lenders;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "uint256 sharesHeld;",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowerInterestShares;",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowerInterestSharesWithdrawn;",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "uint256 yieldInterestWithdrawnShares;",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "uint256 collateralHeld;",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => LenderPoolConstants) public pooledCLConstants;",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => LenderPoolVariables) public pooledCLVariables;",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => uint256) public totalSupply;",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "function _calculatePrincipalWithdrawable(uint256 _id, address _lender) private view returns (uint256) {\n}",
+    "startLine": 42,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _borrowedTokens = pooledCLConstants[_id].borrowLimit;",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _totalLiquidityWithdrawable = _borrowedTokens.sub(POOLED_CREDIT_LINE.getPrincipal(_id));",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _principalWithdrawable = _totalLiquidityWithdrawable.mul(balanceOf(_lender, _id)).div(_borrowedTokens);",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "return _principalWithdrawable;",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "// @During _principalWithdrawable <= _totalLiquidityWithdrawable",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _id = [1, 1]",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar pooledCLConstants[_id].borrowLimit = [99000, 99000]",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn POOLED_CREDIT_LINE.getPrincipal() = [0, 0]",
+    "startLine": 46,
+    "endLine": 46,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _lender = symbolicAddress 102",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _balances[_id][_lender] = [100000, 100000]",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  }
+]

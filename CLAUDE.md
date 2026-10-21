@@ -98,7 +98,8 @@ CFG·환경이 라인 이벤트마다 수술되므로, 라인 좌표·`closeBefo
 
 ### 어노테이션 두 종류 (혼동 주의)
 
-- **debug 값**(`@StateVar/@LocalVar/@GlobalVar/@IReturn`) = 슬롯 채우기. 엔진이 슬롯을 도출
+- **debug 값**(`@StateVar/@Param/@GlobalVar/@IReturn`) = 슬롯 채우기. (`@Param` 은 2026-10-20 `@LocalVar` 를 대체 —
+  기존 case JSON 의 `// @LocalVar` 는 드라이버에서 변환한다.) 엔진이 슬롯을 도출
   (`engine_api._derive_debug_slots`), 사용자는 값만 넣는다. `DebugBatchManager.flush()` 가 한 번에
   해석하고 **restore 로 값을 지운다** — 그래서 `engine_api` 는 restore 전에 states 를 freeze 해야 한다.
 - **intent**(`@During/@Post`) = 코드의 영구 일부. `process_during/process_post` 로 CFG 노드에 부착.
@@ -128,7 +129,7 @@ transfer function 은 `Interpreter/Semantics/`(`Evaluation`=식 평가, `Update`
 - `main.load_dependencies()` 는 pkl 외에 **3개 디렉토리**를 interface 이름 regex 스캔에 사용한다
   (`evaluation/Dataset/target_contraction`, `evaluation/Dataset/Dependencies/pool`,
   `Dataset/Numscout/contraction`). 하나라도 없으면 interface 호출 해석이 조용히 실패한다.
-- `Dependencies/main.py` 의 contract 분석 순서는 `_con_order` 로 **하드코딩**돼 있다. 임의의 .sol 을
-  첨부하려면 topo-sort 가 필요하다(미구현).
+- `Dependencies/main.py` 의 분석 순서는 **위상정렬**(`_topo_order`, 상속·라이브러리 호출·using·타입 참조 기준)이다.
+  예전의 `_con_order` 하드코딩은 대체됐다. 순환 참조·이름 충돌은 폴백 없이 예외를 던진다.
 - 분석 실패가 예외가 아니라 **조용한 오분석**으로 나타나는 경우가 많다(pkl 로드 `except: pass`,
   SyntaxValid 게이트 거부 등). 결과가 이상하면 diagnostics 부터 확인할 것.

@@ -304,8 +304,8 @@ class SolidityVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by SolidityParser#debugLocalVar.
-    def visitDebugLocalVar(self, ctx:SolidityParser.DebugLocalVarContext):
+    # Visit a parse tree produced by SolidityParser#debugParam.
+    def visitDebugParam(self, ctx:SolidityParser.DebugParamContext):
         return self.visitChildren(ctx)
 
 

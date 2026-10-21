@@ -101,7 +101,7 @@ export interface TopVar {
   provenance: string | null // ⊤ 출처 태깅 (현재 엔진엔 없음 → null)
 }
 
-export type DebugKind = 'StateVar' | 'LocalVar' | 'GlobalVar' | 'IReturn'
+export type DebugKind = 'StateVar' | 'Param' | 'GlobalVar' | 'IReturn'
 
 // 값 입력 종류 — 슬롯의 타입이 결정 (numeric→interval, bool→bool, address→symbolicAddress)
 export type ValueKind = 'interval' | 'bool' | 'address' | 'array' | 'bytes' | 'enum'

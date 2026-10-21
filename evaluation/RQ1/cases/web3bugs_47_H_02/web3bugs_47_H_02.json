@@ -157,8 +157,8 @@
   },
   {
     "code": "// @Post _allowances[sender][msg.sender] == 900",
-    "startLine": 32,
-    "endLine": 32,
+    "startLine": 28,
+    "endLine": 28,
     "event": "add"
   },
   {

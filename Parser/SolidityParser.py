@@ -746,7 +746,7 @@ class SolidityParser ( Parser ):
                      "'for'", "'|'", "'&'", "'+'", "'-'", "'/'", "'%'", 
                      "'=='", "'!='", "'struct'", "'modifier'", "'function'", 
                      "'event'", "'enum'", "'['", "']'", "'mapping'", "'=>'", 
-                     "'@GlobalVar'", "'address'", "'@StateVar'", "'@LocalVar'", 
+                     "'@GlobalVar'", "'address'", "'@StateVar'", "'@Param'", 
                      "'@IReturn'", "'@During'", "'require feasible'", "'assert feasible'", 
                      "'arg'", "'@Post'", "'returnExpression'", "'return'", 
                      "'PercentOf'", "'ceil'", "'floor'", "'changed'", "'true'", 
@@ -867,7 +867,7 @@ class SolidityParser ( Parser ):
     RULE_debugInput = 51
     RULE_debugGlobalVar = 52
     RULE_debugStateVar = 53
-    RULE_debugLocalVar = 54
+    RULE_debugParam = 54
     RULE_debugIReturn = 55
     RULE_ireturnAccessChain = 56
     RULE_ireturnAccess = 57
@@ -963,12 +963,12 @@ class SolidityParser ( Parser ):
                    "interactiveStructUnit", "interactiveBlockUnit", "interactiveDoWhileUnit", 
                    "interactiveIfElseUnit", "interactiveCatchClauseUnit", 
                    "intentUnit", "debugInput", "debugGlobalVar", "debugStateVar", 
-                   "debugLocalVar", "debugIReturn", "ireturnAccessChain", 
-                   "ireturnAccess", "duringIntent", "duringClause", "postIntent", 
-                   "postClause", "commonClause", "debugValue", "intentValue", 
-                   "arithExpr", "arithAdd", "arithTerm", "arithExp", "arithFactor", 
-                   "varRef", "subAccess", "signedNumberLiteral", "logicOp", 
-                   "relOp", "interactiveSimpleStatement", "interactiveVariableDeclarationStatement", 
+                   "debugParam", "debugIReturn", "ireturnAccessChain", "ireturnAccess", 
+                   "duringIntent", "duringClause", "postIntent", "postClause", 
+                   "commonClause", "debugValue", "intentValue", "arithExpr", 
+                   "arithAdd", "arithTerm", "arithExp", "arithFactor", "varRef", 
+                   "subAccess", "signedNumberLiteral", "logicOp", "relOp", 
+                   "interactiveSimpleStatement", "interactiveVariableDeclarationStatement", 
                    "interactiveExpressionStatement", "interactiveStateVariableElement", 
                    "interactiveEnumDefinition", "interactiveStructDefinition", 
                    "interactiveEnumItems", "interactiveFunctionElement", 
@@ -5883,8 +5883,8 @@ class SolidityParser ( Parser ):
             return self.getTypedRuleContext(SolidityParser.DebugStateVarContext,0)
 
 
-        def debugLocalVar(self):
-            return self.getTypedRuleContext(SolidityParser.DebugLocalVarContext,0)
+        def debugParam(self):
+            return self.getTypedRuleContext(SolidityParser.DebugParamContext,0)
 
 
         def debugIReturn(self):
@@ -5932,7 +5932,7 @@ class SolidityParser ( Parser ):
             elif token in [51]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 886
-                self.debugLocalVar()
+                self.debugParam()
                 pass
             elif token in [52]:
                 self.enterOuterAlt(localctx, 4)
@@ -6154,7 +6154,7 @@ class SolidityParser ( Parser ):
         return localctx
 
 
-    class DebugLocalVarContext(ParserRuleContext):
+    class DebugParamContext(ParserRuleContext):
         __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -6170,29 +6170,29 @@ class SolidityParser ( Parser ):
 
 
         def getRuleIndex(self):
-            return SolidityParser.RULE_debugLocalVar
+            return SolidityParser.RULE_debugParam
 
         def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterDebugLocalVar" ):
-                listener.enterDebugLocalVar(self)
+            if hasattr( listener, "enterDebugParam" ):
+                listener.enterDebugParam(self)
 
         def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitDebugLocalVar" ):
-                listener.exitDebugLocalVar(self)
+            if hasattr( listener, "exitDebugParam" ):
+                listener.exitDebugParam(self)
 
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitDebugLocalVar" ):
-                return visitor.visitDebugLocalVar(self)
+            if hasattr( visitor, "visitDebugParam" ):
+                return visitor.visitDebugParam(self)
             else:
                 return visitor.visitChildren(self)
 
 
 
 
-    def debugLocalVar(self):
+    def debugParam(self):
 
-        localctx = SolidityParser.DebugLocalVarContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 108, self.RULE_debugLocalVar)
+        localctx = SolidityParser.DebugParamContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 108, self.RULE_debugParam)
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 916

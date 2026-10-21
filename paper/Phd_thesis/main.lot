@@ -9,9 +9,24 @@
 \contentsline {table}{\numberline {4.4}{\ignorespaces Per-operator \texttt {Satisfied}/\texttt {Violated} semantic conditions.}}{49}{table.caption.32}%
 \contentsline {table}{\numberline {4.5}{\ignorespaces Per-operator violated-region decomposition.}}{51}{table.caption.34}%
 \addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Composition of the benchmark before and after applying the exclusion criteria.}}{62}{table.caption.35}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Benchmark subsets used by the four research questions.}}{64}{table.caption.36}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Debugging workflow comparison. Abstr.\,=\,abstract; Conc.\,=\,concrete.}}{68}{table.caption.37}%
+\contentsline {table}{\numberline {5.4}{\ignorespaces Debugging-state preparation requirements for IQDebug, Forge, and Hardhat.}}{69}{table.caption.38}%
+\contentsline {table}{\numberline {5.5}{\ignorespaces Base Time-to-Result for a singleton debugging state. Forge is reported both raw and adjusted for no-op \texttt {forge build} CLI overhead.}}{71}{table.caption.39}%
+\contentsline {table}{\numberline {5.6}{\ignorespaces Time-to-Result after value, operator, and structural source edits. For IQDebug, \textit {Incr.} and \textit {Rebuild} separate the incremental update path from the full-rebuild fallback.}}{75}{table.caption.41}%
+\contentsline {table}{\numberline {5.7}{\ignorespaces Precision characteristics observed as the specified state space is broadened. Singl.\,=\,singleton abstract result; Fin.\,=\,finite non-singleton interval; Exact\,=\,exact endpoint match; Wide\,=\,widened range.}}{79}{table.caption.42}%
+\contentsline {table}{\numberline {5.8}{\ignorespaces Control-flow precision characteristics of the analyzed benchmark cases. \(|B_A|\) and \(|B_C|\) are the abstractly feasible and concretely reached branch counts; the last column is the abstract-only difference \(B_A\setminus B_C\), defined only for exhaustively enumerated regions.}}{81}{table.caption.44}%
+\contentsline {table}{\numberline {5.9}{\ignorespaces Fixpoint and precision characteristics of loop-containing benchmark instances.}}{83}{table.caption.46}%
+\contentsline {table}{\numberline {5.10}{\ignorespaces Expressibility of bug-relevant numeric intent (74 eligible instances).}}{86}{table.caption.47}%
+\contentsline {table}{\numberline {5.11}{\ignorespaces Annotation form of the reconstructed intent by relation type (48 expressible cases).}}{86}{table.caption.48}%
+\contentsline {table}{\numberline {5.12}{\ignorespaces Expressibility by defect abstraction level and value availability across the 74 eligible findings.}}{87}{table.caption.49}%
+\contentsline {table}{\numberline {5.13}{\ignorespaces Validation outcomes for the 48 expressible findings. The semantic judgments are reported separately from analysis or validation failures, which are execution outcomes rather than judgments.}}{89}{table.caption.50}%
+\contentsline {table}{\numberline {5.14}{\ignorespaces Comparison of the analysis models of IQDebug and the three existing tools. IQD\,=\,IQDebug; Interp.\,=\,interpretation; Dev.\,=\,developer.}}{90}{table.caption.51}%
+\contentsline {table}{\numberline {5.15}{\ignorespaces Execution coverage over the applicable portion of the benchmark. IQDebug: 10 runs/finding; GPTScan/ScType/NumScout: 3 runs/finding. Appl.\,=\,applicable; Compl.\,=\,completed; Unsup.\,=\,unsupported.}}{91}{table.caption.52}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {B.4}{\ignorespaces Concrete semantics (denotational)}}{80}{table.caption.49}%
-\contentsline {table}{\numberline {B.5}{\ignorespaces Abstract semantics (denotational)}}{81}{table.caption.50}%
+\contentsline {table}{\numberline {B.4}{\ignorespaces Concrete semantics (denotational)}}{114}{table.caption.68}%
+\contentsline {table}{\numberline {B.5}{\ignorespaces Abstract semantics (denotational)}}{115}{table.caption.69}%

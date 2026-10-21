@@ -1,0 +1,314 @@
+[
+ {
+  "code": "pragma solidity 0.8.9;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "contract StakerVault is IStakerVault, Authorization, Pausable, Initializable, Preparable {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "using AddressProviderHelpers for IAddressProvider;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "using SafeERC20 for IERC20;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "using ScaledMath for uint256;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 internal constant _LP_GAUGE = \"lpGauge\";",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "IController public immutable controller;",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "address public token;",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) public balances;",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) public actionLockedBalances;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => mapping(address => uint256)) internal _allowances;",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private _poolTotalStaked;",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => bool) public strategies;",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public strategiesTotalStaked;",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "function transfer(address account, uint256 amount) external override notPaused returns (bool) {\n}",
+  "startLine": 24,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "require(msg.sender != account, Error.SELF_TRANSFER_NOT_ALLOWED);",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "require(balances[msg.sender] >= amount, Error.INSUFFICIENT_BALANCE);",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "ILiquidityPool pool = controller.addressProvider().getPoolForToken(token);",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "pool.handleLpTokenTransfer(msg.sender, account, amount);",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "balances[msg.sender] -= amount;",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "balances[account] += amount;",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "address lpGauge = currentAddresses[_LP_GAUGE];",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "if (lpGauge != address(0)) {\n}",
+  "startLine": 35,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "ILpGauge(lpGauge).userCheckpoint(msg.sender);",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "ILpGauge(lpGauge).userCheckpoint(account);",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "emit Transfer(msg.sender, account, amount);",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "return true;",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "// @During changed(balances[msg.sender], false)",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "// @During changed(balances[account], false)",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar msg.sender = symbolicAddress 1",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account = symbolicAddress 2",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar amount = [1000, 1000]",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isPaused = false",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar balances[msg.sender] = [1000, 1000]",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar balances[account] = [0, 0]",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar currentAddresses[_LP_GAUGE] = symbolicAddress 3",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ }
+]

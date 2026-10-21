@@ -1,0 +1,495 @@
+[
+  {
+    "code": "pragma solidity ^0.6.12;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "struct TokenLoanParams {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "uint128 valuation;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "uint64 duration;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "uint16 annualInterestBPS;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "uint16 ltvBPS;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "INFTOracle oracle;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "contract NFTPairWithOracle {\n}",
+    "startLine": 11,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "using BoringMath for uint256;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "event LogLend(address indexed lender, uint256 indexed tokenId);",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "IBentoBoxV1 public immutable bentoBox;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "IERC20 public asset;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public feesEarnedShare;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => TokenLoanParams) public tokenLoanParams;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "uint8 private constant LOAN_INITIAL = 0;",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "uint8 private constant LOAN_REQUESTED = 1;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "uint8 private constant LOAN_OUTSTANDING = 2;",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "struct TokenLoan {\n}",
+    "startLine": 26,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "address borrower;",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "address lender;",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "uint64 startTime;",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "uint8 status;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "mapping(uint256 => TokenLoan) public tokenLoan;",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant PROTOCOL_FEE_BPS = 1000;",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant OPEN_FEE_BPS = 100;",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private constant BPS = 10_000;",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "constructor(IBentoBoxV1 bentoBox_) public {\n}",
+    "startLine": 38,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "bentoBox = bentoBox_;",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "function _lend( address lender, uint256 tokenId, TokenLoanParams memory accepted, bool skim ) internal {\n}",
+    "startLine": 42,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "TokenLoan memory loan = tokenLoan[tokenId];",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "require(loan.status == LOAN_REQUESTED, \"NFTPair: not available\");",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "TokenLoanParams memory params = tokenLoanParams[tokenId];",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "require( params.valuation == accepted.valuation && params.duration <= accepted.duration && params.annualInterestBPS >= accepted.annualInterestBPS && params.ltvBPS >= accepted.ltvBPS, \"NFTPair: bad params\" );",
+    "startLine": 52,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "if (params.oracle != INFTOracle(0)) {\n}",
+    "startLine": 60,
+    "endLine": 61,
+    "event": "add"
+  },
+  {
+    "code": "(, uint256 rate) = params.oracle.get(address(this), tokenId);",
+    "startLine": 61,
+    "endLine": 61,
+    "event": "add"
+  },
+  {
+    "code": "require(rate.mul(uint256(params.ltvBPS)) / BPS >= params.valuation, \"Oracle: price too low.\");",
+    "startLine": 62,
+    "endLine": 62,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 64,
+    "endLine": 64,
+    "event": "add"
+  },
+  {
+    "code": "uint256 totalShare = bentoBox.toShare(asset, params.valuation, false);",
+    "startLine": 65,
+    "endLine": 65,
+    "event": "add"
+  },
+  {
+    "code": "uint256 openFeeShare = (totalShare * OPEN_FEE_BPS) / BPS;",
+    "startLine": 66,
+    "endLine": 66,
+    "event": "add"
+  },
+  {
+    "code": "uint256 protocolFeeShare = (openFeeShare * PROTOCOL_FEE_BPS) / BPS;",
+    "startLine": 67,
+    "endLine": 67,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "if (skim) {\n}",
+    "startLine": 69,
+    "endLine": 70,
+    "event": "add"
+  },
+  {
+    "code": "require( bentoBox.balanceOf(asset, address(this)) >= (totalShare - openFeeShare + protocolFeeShare + feesEarnedShare), \"NFTPair: skim too much\" );",
+    "startLine": 70,
+    "endLine": 73,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 74,
+    "endLine": 75,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "bentoBox.transfer(asset, lender, address(this), totalShare - openFeeShare + protocolFeeShare);",
+    "startLine": 75,
+    "endLine": 75,
+    "event": "add"
+  },
+  {
+    "code": "uint256 borrowerShare = totalShare - openFeeShare;",
+    "startLine": 77,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "bentoBox.transfer(asset, address(this), loan.borrower, borrowerShare);",
+    "startLine": 78,
+    "endLine": 78,
+    "event": "add"
+  },
+  {
+    "code": "feesEarnedShare += protocolFeeShare;",
+    "startLine": 79,
+    "endLine": 79,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 80,
+    "endLine": 80,
+    "event": "add"
+  },
+  {
+    "code": "loan.lender = lender;",
+    "startLine": 81,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "loan.status = LOAN_OUTSTANDING;",
+    "startLine": 82,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "loan.startTime = uint64(block.timestamp);",
+    "startLine": 83,
+    "endLine": 83,
+    "event": "add"
+  },
+  {
+    "code": "tokenLoan[tokenId] = loan;",
+    "startLine": 84,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 85,
+    "endLine": 85,
+    "event": "add"
+  },
+  {
+    "code": "emit LogLend(lender, tokenId);",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "// @During params.ltvBPS <= accepted.ltvBPS",
+    "startLine": 52,
+    "endLine": 52,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar lender = symbolicAddress 1",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar tokenId = [1, 1]",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar skim = false",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar accepted.valuation = [1000, 1000]",
+    "startLine": 52,
+    "endLine": 52,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar accepted.duration = [604800, 604800]",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar accepted.annualInterestBPS = [500, 500]",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar accepted.ltvBPS = [8000, 8000]",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar tokenLoan[tokenId].status = [1, 1]",
+    "startLine": 56,
+    "endLine": 56,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar tokenLoanParams[tokenId].valuation = [1000, 1000]",
+    "startLine": 57,
+    "endLine": 57,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar tokenLoanParams[tokenId].duration = [604800, 604800]",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar tokenLoanParams[tokenId].annualInterestBPS = [500, 500]",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar tokenLoanParams[tokenId].ltvBPS = [8600, 8600]",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 61,
+    "endLine": 61,
+    "event": "add"
+  }
+]

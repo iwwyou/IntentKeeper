@@ -207,7 +207,7 @@
 \def\UrlBreaks{\do\/\do-\do\_\do\.\do\?\do\&}
 
 \hypersetup{
-  pdftitle  = {An Intent-Aware and Transaction-Independent Source-Level Debugging Assistant for Solidity Smart Contracts},
+  pdftitle  = {An Interpretation-Driven Debugging Framework for Solidity Smart Contracts with an Intent-Aware Model},
   pdfauthor = {Inseong Jeon},
   pdfsubject= {Doctoral Dissertation, Korea University},
   pdfkeywords={smart contract, Solidity, abstract interpretation, intent, debugging}
@@ -252,20 +252,30 @@
 
 \begin{center}
 {\fontsize{16pt}{16pt}\selectfont Doctoral Dissertation \par}
-% 3cm -> 2.5cm and 4.5cm -> 4cm below: the four-line title made this block
-% 553.9 pt against a 540.6 pt \textheight, pushing the date onto a second page.
-% Trimming 28.4 pt of leading brings it to 525.4 pt.
-\vspace{2.5cm}
+% Vertical gaps on this page follow the Graduate School rules
+% (일반대학원 학위논문 작성법, rev. 2022-12-22, p. 11): 3 cm above the title,
+% then 0.5 cm / 1.5 cm / 0.5 cm / 1 cm -- all kept exactly.  The gap *below*
+% the title is the only one the rules mark "spacing can be adjusted", and it
+% is where the four-line title is paid for: at the template's 4.5 cm this
+% block is 553.9 pt against \textheight 540.6 pt, at 3.8 cm it is 533.9 pt.
+\vspace{3cm}
+% 21 pt, the size the rules prescribe; no exception needed.  Four lines,
+% measured at 21 pt against the 330.05 pt text block:
+%   An Interpretation-Driven       209.7 pt
+%   Debugging Framework            194.2 pt
+%   for Solidity Smart Contracts   237.4 pt
+%   with an Intent-Aware Model     237.5 pt
+% Of the 78 possible word-runs this is the least ragged breaking (43 pt) that
+% keeps every phrase intact -- the one split is between the premodifier and
+% the head noun.  Three lines are impossible at any usable size: the natural
+% first phrase "An Interpretation-Driven Debugging Framework" is 409.2 pt at
+% 21 pt, so it would need <= 16.94 pt, below even \LARGE.
 {\fontsize{21pt}{25pt}\selectfont
-% Four lines, broken at phrase boundaries.  Measured at 21 pt against the
-% 330.05 pt measure: 140.7 / 244.8 / 292.7 / 237.4 pt.  The whole title is
-% 931.4 pt, so three lines are impossible; breaking after "and" or after "for"
-% fits too, but leaves a dangling conjunction/preposition.
-An Intent-Aware \par
-and Transaction-Independent \par
-Source-Level Debugging Assistant \par
-for Solidity Smart Contracts \par}
-\par\vspace{4cm}
+An Interpretation-Driven \par
+Debugging Framework \par
+for Solidity Smart Contracts \par
+with an Intent-Aware Model \par}
+\par\vspace{3.8cm}
 {\fontsize{16pt}{16pt}\selectfont Inseong Jeon \par}
 \vspace{0.5cm}
 {\fontsize{16pt}{16pt}\selectfont Department of Computer Science \par}
@@ -281,28 +291,32 @@ for Solidity Smart Contracts \par}
 \newpage
 \begin{center}
 {\fontsize{21pt}{25pt}\selectfont
-An Intent-Aware \par
-and Transaction-Independent \par
-Source-Level Debugging Assistant \par
-for Solidity Smart Contracts \par}   % breaks: see cover
-% 3.3cm -> 2.5cm here, 1.5cm -> 1cm and 1cm -> 0.8cm below: this block was
-% 571.9 pt against a 540.6 pt \textheight.  Trimming 42.7 pt brings it to 529.2.
-\par\vspace{2.5cm}
+An Interpretation-Driven \par
+Debugging Framework \par
+for Solidity Smart Contracts \par
+with an Intent-Aware Model \par}   % size and line breaks: see cover
+% This page is tighter than the cover, so three of the gaps the rules leave
+% unannotated are shaved: 3.3 -> 1.8 cm here, 1.0 -> 0.8 cm under the name,
+% 0.7 -> 0.5 cm under the supervisor line.  The three the rules do fix by
+% value (1.5 cm / 0.5 cm / 1 cm, further down) are untouched.  With the
+% template's own values the block is 580.4 pt against \textheight 540.6 pt;
+% as it stands it is 526.4 pt.
+\par\vspace{1.8cm}
 {\fontsize{16pt}{16pt}\selectfont by \par Inseong Jeon \par}
-\vspace{1.0cm}
+\vspace{0.8cm}
 \rule{.6\textwidth}{0.4pt}          % student's signature goes above this line
 \par\vspace{0.2cm}
 {\fontsize{16pt}{18pt}\selectfont under the supervision of Professor Hoh Peter In \par
-\vspace{0.7cm}
+\vspace{0.5cm}
 A dissertation submitted in partial fulfillment of \par
 the requirements for the degree of \par
 Doctor of Philosophy \par}
 \vspace{10pt}
 {\fontsize{16pt}{16pt}\selectfont Department of Computer Science \par}
-\vspace{1cm}
-{\fontsize{18pt}{18pt}\selectfont Graduate School \par\vspace{0.2cm}
+\vspace{1.5cm}
+{\fontsize{18pt}{18pt}\selectfont Graduate School \par\vspace{0.5cm}
 Korea University \par}
-\vspace{0.8cm}
+\vspace{1cm}
 {\fontsize{14pt}{14pt}\selectfont October 2026}   % TODO: examination-copy deadline
 \end{center}
 
@@ -345,12 +359,14 @@ Doctor of Philosophy \par}
 \phantomsection
 \addcontentsline{toc}{chapter}{Abstract}
 \begin{center}
-% \LARGE is 17.28 pt, so the title needs only three lines here:
-% 321.5 / 240.9 / 195.4 pt against 330.05 pt.  Same phrase boundaries as the
-% cover, with the first two adjectival phrases fitting on one line.
-{\LARGE An Intent-Aware and Transaction-Independent \par
-Source-Level Debugging Assistant \par
-for Solidity Smart Contracts\par}
+% Same four-line breaking as the cover.  \LARGE is 17.28 pt, which still
+% cannot hold the first phrase on one line (it needs <= 16.94 pt), so there is
+% nothing to be gained by re-breaking here: 172.5 / 159.8 / 195.4 / 195.5 pt
+% against 330.05 pt.
+{\LARGE An Interpretation-Driven \par
+Debugging Framework \par
+for Solidity Smart Contracts \par
+with an Intent-Aware Model\par}
 \vspace{20pt}
 {\normalsize
 Inseong Jeon\par
@@ -2944,7 +2960,7 @@ The state presented by IQDebug therefore represents an abstraction of the progra
 
 Navigation itself does not invoke the abstract interpreter as long as the analyzed source code and debugging inputs remain unchanged. Instead, IQDebug reuses the abstract states already stored in the CFG and moves among source-level program points according to the CFG structure. Consequently, a step operation in IQDebug does not execute the next concrete instruction. It navigates to the next relevant source-level program point and presents the abstract state associated with that point. In this respect, IQDebug differs from a conventional debugger that follows a single concrete execution trace: multiple feasible control-flow successors or predecessors may be represented simultaneously by the abstract CFG.
 
-Loop states require a similar interpretation. IQDebug does not maintain a sequence of concrete states for individual loop iterations. The abstract state associated with a loop body represents the state stabilized through fixpoint computation and therefore summarizes the loop behavior rather than a particular iteration. The navigation behavior for loops is described in Section~\ref{...}.
+Loop states require a similar interpretation. IQDebug does not maintain a sequence of concrete states for individual loop iterations. The abstract state associated with a loop body represents the state stabilized through fixpoint computation and therefore summarizes the loop behavior rather than a particular iteration. The navigation behavior for loops is described in Section~\ref{subsec:design:navigation-control-flow}.
 \smallskip
 \noindent\textbf{Update handling and state reuse.}
 Because source code, debugging inputs, and developer intent can be modified independently during debugging, IQDebug distinguishes three update cases and reuses existing analysis artifacts whenever possible.
@@ -3022,7 +3038,7 @@ The abstract state presented after returning reflects the return value and state
 \subsection{Breakpoint-Based Navigation}
 \label{subsec:design:navigation-breakpoint}
 IQDebug supports breakpoint-based navigation over source-level program points represented in the CFG.
-A breakpoint is attached to a source line and mapped to the corresponding CFG node through the line-to-node mapping described in Section~\ref{subsec:design:representation:mapping}.
+A breakpoint is attached to a source line and mapped to the corresponding CFG node through the line-to-node mapping described in Section~\ref{subsubsec:design:representation:mapping}.
 Unlike a breakpoint in a concrete runtime debugger, an IQDebug breakpoint does not suspend program execution.
 Instead, it serves as a navigation target over precomputed abstract program states.
 
@@ -3084,58 +3100,1453 @@ Through these navigation rules, IQDebug preserves the abstract semantics of bran
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Evaluation}\label{chap:eval}
-% Evaluation 전체 논리 = 세 RQ
-%   RQ1 Capability  : 무엇을 표현하고 검증할 수 있는가?
-%   RQ2 Cost        : 그것을 명세하고 분석하며 interactive 하게 쓰는 데 얼마가 드는가?
-%   RQ3 Comparison  : 기존 detection approach 와 분석 모델/범위/비용이 어떻게 다른가?
+% Evaluation 전체 논리 = 네 RQ (2026-10-20 재구조화; 이전 3-RQ 구성에서 변경)
+%   RQ1 Debugging workflow : 기존 Solidity 디버깅 워크플로와 준비비용/시간 비교
+%   RQ2 Precision          : state specification 을 넓힐 때의 정밀도 특성
+%   RQ3 Intent-Aware Model : 무엇을 표현하고 검증할 수 있는가?
+%   RQ4 Comparison         : 기존 numerical logic-error 분석기법과의 비교
+% 이전 구성과의 대응: 옛 "Intent Validation Capability"(RQ1) -> 새 RQ3,
+%   옛 "Specification and Analysis Cost" -> 새 RQ1 + RQ3 Specification Requirements,
+%   옛 "Comparison with Existing Detection Tools"(RQ3) -> 새 RQ4.
 % Threats to Validity 에서 "defect-unaware developer 가 더 잘 디버깅한다"는 주장이
 % 아님을 명확히 선 긋는다.
 
+This chapter evaluates IQDebug with respect to the two principal components of the proposed framework: interpretation-driven debugging and the Intent-Aware Model.
+The evaluation is organized around four research questions.
+RQ1 compares IQDebug with existing Solidity debugging workflows and examines the preparation and computational costs required to inspect program states.
+RQ2 investigates the precision characteristics of interpretation-driven debugging as the specified program state is broadened, including the effects of control-flow joins and loop fixpoints.
+RQ3 evaluates the expressiveness and validation capability of the Intent-Aware Model.
+Finally, RQ4 compares IQDebug's intent-aware validation with existing numerical logic-error analysis techniques.
+Together, these questions evaluate not only whether IQDebug can analyze the selected benchmark programs, but also the computational and precision trade-offs introduced by its abstract interpretation-based debugging model.
+
 \section{Experimental Setup}\label{sec:eval:setup}
-% plan: implementation and execution environment; benchmark/dataset;
-%       통합된 IQDebug 환경에서 기존 IntentChecker 실험을 재실행한다는 점;
-%       기존 비교 도구와 configuration; (필요 시) evaluation procedure.
+
+\noindent\textbf{Experimental Setting.}
+All experiments are conducted on a machine equipped with an 11th Gen Intel\textregistered{} Core\texttrademark{} i7-11390H CPU at 3.40\,GHz and 16.0\,GB RAM, running Windows 11 Pro (10.0.26200).
+IQDebug is implemented and executed using Python 3.10.11.
+The concrete-debugging comparison uses Foundry 1.8.4 and Hardhat 2.29.1.
+[TODO: specify the Solidity compiler versions and any additional tool configuration used for the final experiments.]
+All timing experiments are performed on the same machine to avoid cross-platform differences in the reported execution costs.
+
+\smallskip
+\noindent\textbf{Implementation and Execution.}
+IQDebug operates on Solidity source code together with optional debugging inputs, developer-authored intents, and dependency CFGs.
+For each target program, the framework constructs and maintains a source-level CFG and computes abstract program states using abstract interpretation.
+Debugging inputs constrain the abstract state associated with the analyzed execution context, while the Intent-Aware Model interprets and validates developer-authored intents over the resulting abstract states.
+
+The evaluation invokes IQDebug through a controlled scripting environment so that analysis, state specification, intent validation, source updates, and repeated measurements can be executed consistently across benchmark cases.
+Dependency representations required by the analyzed target are prepared before the timed portion of the corresponding experiment unless stated otherwise.
+For experiments involving source-code modification, computations triggered by the modification itself, including incremental CFG updates and reinterpretation, are included in the measured Time-to-Result.
+
+RQ1 compares IQDebug with Foundry and Hardhat.
+Unlike IQDebug, these tools obtain program states through concrete execution and therefore require the target code to be compiled and an executable state to be constructed before the target function is invoked.
+The comparison therefore distinguishes tool- or dependency-level preparation performed before measurement from target-specific processing and state preparation required by the debugging task.
+The detailed measurement boundary and timing model are defined in Section~\ref{sec:eval:rq1}.
+
+Remix is included in the qualitative workflow comparison as a representative transaction-based Solidity debugger.
+It is not included in the automated state-space scaling experiment because the experiment requires systematic construction of prescribed storage and environmental states across the benchmark, whereas the Remix debugging workflow operates on concrete transactions executed in its environment.
+% 사용자 메모: 정말 필요할 때만 "our evaluated Remix VM workflow did not provide the
+%   same direct state/environment manipulation used in the scripted Forge/Hardhat
+%   harness" 정도를 덧붙인다. setter 주입 같은 구현 우회 세부는 본문에 넣지 않는다.
+
+\smallskip
+\noindent\textbf{Dataset Collection.}
+The benchmark is inherited from the numerical logic-error dataset constructed for the preceding intent-validation study.
+We initially collect 89 real-world numerical logic-error instances from NumScout, Flyinointment, and Web3Bugs.
+After applying the exclusion criteria described below, 74 instances remain as the effective benchmark used in this dissertation.
+
+The NumScout subset contains seven instances selected from the dataset distributed with NumScout.
+These instances cover the five numerical defect patterns considered in that work: Div In Path, Exchange Problem, Operator Order Issue, Precision Loss Trend, and Minor Amount Retention.
+The Flyinointment subset contributes one Greedy Contract instance categorized as a numerical logic weakness.
+
+The largest portion of the benchmark is obtained from Web3Bugs, which collected vulnerabilities reported in Code4rena audit contests.
+We select cases that fall within the single-transaction analysis scope considered by IQDebug from categories corresponding to erroneous accounting and inconsistent state updates.
+For inconsistent-state-update cases, we retain only instances whose root cause involves a numerical computation together with a missing or stale state-variable update.
+The resulting Web3Bugs subset contains 81 collected instances before exclusions.
+
+Table~\ref{tab:eval:dataset} presents the composition of the benchmark before and after applying the exclusion criteria.
+
+\begin{table}[t]
+\centering
+\caption{Composition of the benchmark before and after applying the exclusion criteria.}
+\label{tab:eval:dataset}
+\footnotesize
+% Relative widths, not cm: the B5 measure is 116 mm (330.05 pt).
+% TODO(table): the per-source breakdown of the 15 exclusions is not yet
+% available -- only the totals were supplied.  Add two more columns
+% (Excluded / Effective) per source once that breakdown is fixed.
+\begin{tabular}{@{}p{0.50\textwidth}r@{}}
+\toprule
+Source & Instances \\
+\midrule
+NumScout~\citep{numscout}             & 7  \\
+Flyinointment~\citep{flyinointment}   & 1  \\
+Web3Bugs~\citep{exploitablebugs}      & 81 \\
+\midrule
+Total collected                       & 89 \\
+Excluded (E1--E8)                     & 15 \\
+\midrule
+Effective benchmark                   & 74 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\smallskip
+\noindent\textbf{Exclusion Criteria.}
+Of the 89 collected instances, 15 are excluded after manual inspection because they do not satisfy the numerical logic-error definition adopted in this dissertation, fall outside the analysis scope, or cannot serve as distinct and reproducible benchmark instances.
+The exclusions are classified as follows.
+
+\begin{itemize}
+    \item \textbf{E1: Source already patched (3).}
+    The available source corresponds to a post-fix version and therefore does not contain the reported defect.
+
+    \item \textbf{E2: Integer overflow or underflow (2).}
+    Under Solidity~$\geq$0.8 checked arithmetic, the reported operation causes execution to revert rather than producing an incorrect numerical value, and therefore does not satisfy the numerical logic-error definition used in this study.
+
+    \item \textbf{E3: Duplicate (2).}
+    Multiple reported findings correspond to the same buggy code location and therefore do not constitute distinct benchmark instances.
+
+    \item \textbf{E4: Not a bug (1).}
+    Inspection of the corresponding audit discussion and final adjudication indicates that the reported behavior is intentional.
+
+    \item \textbf{E5: Missing dependency (2).}
+    Required external libraries or source dependencies are unavailable, preventing reconstruction of the program required for reproducible analysis.
+
+    \item \textbf{E6: Multi-transaction behavior (3).}
+    The defect requires state transitions across multiple independent transactions and therefore falls outside the single-transaction analysis scope considered in this dissertation.
+
+    \item \textbf{E7: Language semantics (1).}
+    The reported behavior follows directly from Solidity's specified integer-division semantics and does not constitute an erroneous numerical implementation that violates a distinct intended relation.
+
+    \item \textbf{E8: Misidentified target (1).}
+    Provenance inspection indicates that the reported defect resides in a different contract from the provided benchmark target, and the supplied target therefore cannot serve as a reproducible defect instance.
+\end{itemize}
+
+The remaining 74 instances constitute the effective benchmark.
+This filtering is independent of whether a defect can subsequently be expressed using the Intent-Aware Model; therefore, all 74 cases remain candidates for evaluating interpretation-driven debugging.
+
+\smallskip
+\noindent\textbf{Benchmark Subsets.}
+The four research questions use different subsets of the effective benchmark according to the property being evaluated.
+RQ1 uses all 74 instances because its objective is to evaluate the debugging workflow itself rather than the expressibility of developer intent.
+Each case is analyzed from a prescribed program state toward the normal exit of its target function.
+
+RQ2 also uses the 74 instances as the candidate population for analyzing the precision characteristics of interpretation-driven debugging.
+Aggregate precision characteristics are measured across the applicable cases, while detailed state-specification sensitivity experiments use representative cases selected according to predefined criteria.
+Loop-related analysis uses the subset containing loops in the target function or in statically resolved callees, according to the loop-classification procedure defined in Section~\ref{sec:eval:rq2}.
+
+RQ3 evaluates the Intent-Aware Model.
+All 74 instances are used for the expressiveness analysis, whereas validation is evaluated on the 48 instances for which the intended numerical relation can be represented by the current intent language.
+The remaining 26 cases are retained in the expressiveness analysis and are classified according to the reason that the intended property cannot be represented.
+
+RQ4 uses the same 48 intent-expressible instances to compare IQDebug's intent-aware validation with existing numerical logic-error analysis techniques.
+Using the same subset ensures that the comparison is restricted to cases for which IQDebug has an explicit developer-authored intent to validate.
+
+Table~\ref{tab:eval:rq-datasets} summarizes the benchmark subsets used by the four research questions.
+
+\begin{table}[t]
+\centering
+\caption{Benchmark subsets used by the four research questions.}
+\label{tab:eval:rq-datasets}
+\footnotesize
+\begin{tabular}{@{}p{0.08\textwidth}p{0.86\textwidth}@{}}
+\toprule
+RQ & Benchmark subset \\
+\midrule
+RQ1 & All 74 effective instances. \\
+RQ2 & All 74 instances as the candidate pool; representative cases for the state-specification sensitivity experiments; the loop subset for loop analysis. \\
+RQ3 & All 74 instances for expressiveness; the 48 intent-expressible instances for validation. \\
+RQ4 & The 48 intent-expressible instances. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\smallskip
+\noindent\textbf{Measurement and Reporting Principles.}
+The evaluation separates whether a benchmark case can be analyzed from how precisely its state is represented.
+An abstract result that contains a wide interval or the corresponding top element is therefore not treated as an analysis failure.
+Such results are instead examined as precision characteristics in RQ2.
+Implementation failures within the declared analysis scope are handled separately from conservative abstract results.
+
+For timing experiments, one-time environment and dependency preparation is excluded consistently across tools, while computation triggered by the evaluated debugging task is included.
+The reported Time-to-Result therefore captures target-specific processing, state preparation, program analysis or execution, and result production under the measurement boundary defined for each experiment.
+For source-edit experiments, recompilation or incremental analysis triggered by the edit is included because it forms part of the interaction being evaluated.
+
+[TODO: specify the number of warm-up runs, measurement repetitions, summary statistic, and timeout policy after the final measurement protocol is fixed.]
+
+[TODO: specify the threshold up to which finite state spaces are exhaustively executed in the RQ1 scaling experiment and the point beyond which concrete-execution costs are extrapolated.]
 
 % -----------------------------------------------------------------------------
-\section{Intent Validation Capability}\label{sec:eval:rq1}
-% plan: 기존 IntentChecker RQ1 구조를 최대한 유지 —
-%       expressibility / validatability; Value-level vs Algorithm-level;
-%       Usable vs Unusable; Satisfied / Warning / Violated
-%       (+ 현재 구현에서 필요하면 Unreachable 포함);
-%       현재 grammar/engine 기준으로 결과 재산정.
+\section{RQ1: Comparison with Existing Solidity Debugging Workflows}
+\label{sec:eval:rq1}
+
+RQ1 examines how IQDebug's interpretation-driven debugging differs from existing Solidity debugging workflows in terms of the preparation required to establish a debugging state and the computational cost of obtaining a program-state observation. The comparison is organized in two tiers. A qualitative workflow comparison covers IQDebug, Remix, Forge, and Hardhat, so that the most widely used interactive Solidity debugger is represented alongside the scripted test frameworks. The quantitative preparation, Time-to-Result, scaling, and source-edit experiments cover IQDebug, Forge, and Hardhat, whose workflows can be driven systematically across the benchmark. Rather than assuming that one workflow should always be faster, this research question evaluates the different cost structures induced by abstract interpretation and repeated concrete execution.
+
+The comparison is performed over all 74 instances in the effective benchmark. Intent expressibility is not used as an inclusion criterion for this research question because the debugging workflow can be evaluated independently of whether the corresponding numerical property can be represented by the Intent-Aware Model. For each benchmark instance, the experiment identifies a target function, establishes a prescribed debugging state, and observes the resulting values at the normal exit of the function.
+
+\subsection{Evaluation Protocol}
+\label{subsec:eval:rq1:protocol}
+
+\noindent\textbf{Common Debugging Objective.}
+The three workflows are evaluated using the same debugging objective: given a target function and a prescribed debugging state, obtain the values of selected program elements at the normal exit of the target function. We use the normal function exit rather than the final textual statement because a function may contain multiple return points or control-flow paths that do not reach the last statement in source order.
+
+Let \(O_{\mathrm{exit}}\) denote the set of values observed at the normal exit. The observation set consists of the function return value or values and the numerical state locations modified by the target function or by statically resolved callees:
+\[
+O_{\mathrm{exit}}
+=
+O_{\mathrm{return}}
+\cup
+O_{\mathrm{state}}.
+\]
+For IQDebug, these observations are obtained from the abstract state associated with the normal function exit. If multiple feasible control-flow paths reach different return statements, the normal-exit state represents their abstract join. For Forge and Hardhat, the corresponding observations are obtained from the return value and post-call contract state of each concrete execution.
+
+This definition intentionally excludes arbitrary local variables that do not form part of the selected exit observation. The purpose of the experiment is therefore not to reproduce every intermediate value exposed by a conventional execution trace, but to compare the cost of obtaining the same function-level debugging observation under abstract and concrete execution models.
+
+\medskip
+\noindent\textbf{Required Debugging Inputs.}
+For each benchmark instance, the evaluated workflows receive the same explicitly specified target-level debugging inputs. IQDebug derives these inputs from the target function and supports parameters, target-level state variables, global values, and interface-return values. State values read only within a callee are not introduced as additional debugging inputs; when such values cannot be determined from the available analysis context, they remain conservatively abstracted.
+
+Depending on the program, the resulting input set may include function parameters, contract state variables, blockchain or transaction-level global values, and return values of supported external interface calls. In IQDebug, these values are represented using the corresponding debugging-input forms, including \texttt{@Param}, \texttt{@StateVar}, \texttt{@GlobalVar}, and \texttt{@IReturn}. Forge and Hardhat receive concrete counterparts of the same required values through call arguments, direct state preparation, environment manipulation, or mocks.
+
+Values that cannot be determined from the available source-level context and are not explicitly specified are conservatively represented by the corresponding top element in IQDebug. Such unspecified values are not assumed to have Solidity's default deployment-time value when analyzing an arbitrary transaction pre-state. Because the execution-based workflows instead run with whatever concrete value such a location holds, the two workflows are not guaranteed to agree on state outside the specified target-level inputs; this asymmetry is discussed in Section~\ref{sec:eval:threats}.
+
+[TODO(protocol): Verify that the derived debugging-input set is restricted to the target-level input model used by IQDebug and does not introduce callee-only state as an additional specification.]
+
+\medskip
+\noindent\textbf{Baseline State.}
+For each benchmark instance, the scaling experiment begins from a concrete input combination that reaches a normal exit of the target function. This singleton state serves as the \(N=1\) endpoint of the state-space experiment and as the common baseline for the concrete and abstract workflows.
+
+Where the original benchmark, audit report, or reconstructed test case provides a reproducible input state, that state is used as the baseline. Cases for which such a state is unavailable are assigned a normal-exit state according to a deterministic procedure applied consistently across the benchmark.
+
+[TODO(protocol): Define the deterministic normal-exit-state selection procedure for cases without an existing reproducible witness.]
+
+The baseline is subsequently broadened into finite state specifications for the state-space scaling experiment. Constructor-derived immutable values are held fixed unless they can be controlled consistently by both IQDebug's debugging-input model and the concrete execution workflow. This prevents the scaling experiment from comparing different state dimensions across the evaluated tools.
+
+\subsection{Debugging Workflow Comparison}
+\label{subsec:eval:rq1:workflow}
+
+Before the quantitative measurements, we compare the debugging workflows themselves. This comparison includes Remix, whose debugger is the most widely used interactive interface for Solidity, alongside Forge and Hardhat. The characteristics summarized here follow the descriptions of these environments given in Section~\ref{sec:rel:debugging}: each of the three existing workflows inspects a concrete execution, and therefore requires an executed transaction or test before a program state can be observed. IQDebug instead observes abstract states produced by interpreting the source directly, which is what allows a debugging state to be specified as a region rather than as a single concrete execution.
+
+% --- PARTIALLY FILLED --------------------------------------------------------
+% IQDebug / Remix cells are grounded in Section~\ref{sec:rel:debugging} and in
+% the navigation design (\ref{subsec:design:navigation-forward-backward},
+% \ref{subsec:design:navigation-call}, \ref{subsec:design:navigation-breakpoint}).
+% The Forge/Hardhat navigation cells are left "--" on purpose: the thesis text
+% does not establish which stepping operations Forge Debug and the Hardhat VS
+% Code integration expose, and these should not be asserted without checking.
+% TODO(result): fill the remaining cells after verifying each tool's debugger.
+\begin{table}[t]
+\centering
+\caption{Debugging workflow comparison. Abstr.\,=\,abstract;
+Conc.\,=\,concrete.}
+\label{tab:eval:rq1-workflow}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{} >{\raggedright\arraybackslash}X
+                                 l l l l @{}}
+\toprule
+\textbf{Capability} & \textbf{IQDebug} & \textbf{Remix} & \textbf{Forge} &
+\textbf{Hardhat} \\
+\midrule
+Executed transaction required & No      & Yes    & Yes   & Yes   \\
+Program state                 & Abstr.  & Conc.  & Conc. & Conc. \\
+Specifiable input state       & Region  & Single & Single & Single \\
+\midrule
+Source-level navigation       & Yes     & Yes    & --    & --    \\
+Step Into                     & Yes     & Yes    & --    & --    \\
+Step Backward                 & Yes     & Yes    & --    & --    \\
+Breakpoint                    & Yes     & Yes    & --    & --    \\
+State inspection              & Source  & EVM    & --    & --    \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:eval:rq1-workflow} summarizes this comparison. The remaining parts of RQ1 are measured over IQDebug, Forge, and Hardhat.
+
+\subsection{Debugging Preparation Requirements}
+\label{subsec:eval:rq1:preparation}
+
+The first part of RQ1 measures the explicit preparation required to establish the prescribed debugging state. We report objective counts rather than combining heterogeneous activities into a single effort score. In particular, generated harness source-code size is not used as an effort metric because, when harness code is generated automatically, its line count does not correspond directly to code that a developer must manually write.
+
+For IQDebug, we record the number and type of debugging inputs required by each benchmark instance. For Forge and Hardhat, we record the corresponding operations required to construct a concrete debugging state. The measured preparation characteristics include the number of parameter, state-variable, global-value, and interface-return specifications; state-initialization operations; required mock contracts; additional deployments; target calls; and, where applicable, wrapper or visibility adaptations necessary to access the target program.
+
+These measurements describe the structural requirements of each workflow rather than developer performance. They therefore do not measure the time required for a developer to discover which values should be specified or to manually construct a debugging environment.
+
+% TODO(table):
+% Insert the RQ1 debugging-preparation table.
+% Suggested columns:
+% Case / @Param / @StateVar / @GlobalVar / @IReturn /
+% concrete state-setup operations / mock required /
+% deployment count / call count / wrapper or visibility adaptation.
+% --- SHELL ONLY ---------------------------------------------------------------
+% The float below is an empty shell carrying the suggested columns, inserted so
+% that \ref{tab:eval:rq1-preparation} resolves.  Rows come from TODO(result).
+% The ten suggested columns do not fit the 330.05 pt B5 measure as a flat table,
+% so they are grouped under two spanning headers; \rotatebox or a landscape
+% float (\begin{sidewaystable}, package rotating is already loaded) is the
+% alternative if per-case rows are reported rather than aggregates.
+\begin{table}[t]
+\centering
+\caption{Debugging-state preparation requirements for IQDebug, Forge, and
+Hardhat.}
+\label{tab:eval:rq1-preparation}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l l r @{}}
+\toprule
+\textbf{Workflow} & \textbf{Preparation characteristic} & \textbf{Count} \\
+\midrule
+IQDebug  & \texttt{@Param} specifications            & -- \\
+         & \texttt{@StateVar} specifications         & -- \\
+         & \texttt{@GlobalVar} specifications        & -- \\
+         & \texttt{@IReturn} specifications          & -- \\
+\midrule
+Forge /  & State-initialization operations           & -- \\
+Hardhat  & Mock contracts required                   & -- \\
+         & Additional deployments                    & -- \\
+         & Target calls                              & -- \\
+         & Wrapper or visibility adaptations         & -- \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq1-preparation} presents the debugging-state preparation requirements for IQDebug, Forge, and Hardhat.
+
+% TODO(result):
+% Populate Table~\ref{tab:eval:rq1-preparation} from the 74 benchmark cases.
+
+% TODO(interpretation):
+% Compare the types and distributions of preparation required by the three
+% workflows. Discuss which forms of concrete setup correspond directly to
+% IQDebug debugging inputs and identify cases requiring mocks, additional
+% deployments, or source-level adaptations.
+% Do not convert the individual counts into an artificial aggregate effort score,
+% and do not claim reduced developer effort without a user study.
+
+\subsection{Time-to-Result}
+\label{subsec:eval:rq1:time}
+
+We use \textit{Time-to-Result} as the common latency metric throughout RQ1. The measurement excludes one-time preparation of the debugging environment and reusable dependencies, but includes computation triggered specifically by the evaluated target or debugging interaction. This boundary is intended to compare the work required to obtain a result for the target program without repeatedly charging either workflow for unrelated environment initialization.
+
+For the base experiment, IQDebug is measured from target-specific analysis through result production. The timed operations include parsing and analyzing the target source, constructing its source-level CFG, applying the debugging inputs, performing abstract interpretation, and obtaining \(O_{\mathrm{exit}}\). Dependency representations required by the target are loaded before measurement.
+
+For Forge and Hardhat, package installation and compilation of unchanged dependencies are completed before measurement. The timed portion includes target-specific compilation triggered for the benchmark case, deployment of the required target and supporting contracts, construction of the prescribed concrete state, target invocation, and retrieval of \(O_{\mathrm{exit}}\). Thus, both workflows include target-specific processing while excluding reusable dependency preparation.
+
+The same measurement principle is maintained for later source-edit experiments: an operation caused by the edit is included in Time-to-Result, whereas unchanged environmental preparation is not.
+
+\medskip
+\noindent\textbf{Forge Process Overhead.}
+IQDebug can invoke target analysis within a persistent process, and Hardhat permits programmatic operations within an already running environment. In contrast, target compilation with Forge is invoked through the \texttt{forge build} command, which introduces command-line process startup and cache-checking overhead into the observed latency.
+
+To make this implementation-specific overhead visible rather than silently incorporating it into the target-processing cost, we retain the raw Forge build latency and separately measure a no-change invocation of \texttt{forge build} under the same cached project state. The latter provides an estimate of command startup and cache-checking overhead. Both the raw latency and an adjusted target-processing value are retained for reporting.
+
+[TODO(protocol): Fix the exact procedure and statistic used to estimate Forge no-op CLI overhead. The raw measurement must always be retained even if an adjusted value is used in cross-tool comparisons.]
+
+% TODO(table):
+% Insert base Time-to-Result results for the three workflows.
+% Preserve both raw and adjusted Forge timing where applicable.
+% --- SHELL ONLY ---------------------------------------------------------------
+\begin{table}[t]
+\centering
+\caption{Base Time-to-Result for a singleton debugging state. Forge is reported
+both raw and adjusted for no-op \texttt{forge build} CLI overhead.}
+\label{tab:eval:rq1-base-time}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r r r @{}}
+\toprule
+\textbf{Workflow} & \textbf{Median (s)} & \textbf{IQR (s)} & \textbf{Cases} \\
+\midrule
+IQDebug             & -- & -- & -- \\
+Forge (raw)         & -- & -- & -- \\
+Forge (adjusted)    & -- & -- & -- \\
+Hardhat             & -- & -- & -- \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq1-base-time} reports the base Time-to-Result measurements.
+
+% TODO(result):
+% Insert repeated-measurement statistics after completing all benchmark runs.
+
+% TODO(interpretation):
+% Compare the observed base Time-to-Result distributions without assuming that
+% IQDebug must be faster than either concrete workflow.
+% Separate differences attributable to target analysis/compilation from those
+% caused by state construction and concrete execution.
+% If raw and adjusted Forge results differ materially, explain the effect of
+% unavoidable CLI invocation overhead and report both values transparently.
+
+\subsection{State-Space Scaling}
+\label{subsec:eval:rq1:scaling}
+
+The base experiment evaluates a singleton debugging state. However, IQDebug can also interpret a finite region of possible input states using interval-valued debugging inputs. RQ1 therefore examines how the computational cost changes as the represented state space grows.
+
+Let \(S\) denote a finite Cartesian product of debugging-input values. If the \(i\)-th input is assigned an integer interval \(I_i=[l_i,u_i]\), the number of concrete input combinations represented by the specification is
+\[
+N
+=
+|S|
+=
+\prod_{i=1}^{k}|I_i|,
+\qquad
+|I_i|
+=
+u_i-l_i+1.
+\]
+Thus, \(N\) denotes the number of concrete input combinations represented by the state specification, not the number of abstract states constructed by IQDebug. IQDebug does not enumerate these \(N\) combinations individually. Instead, it summarizes the finite region through a single abstract interpretation.
+
+For concrete execution, all combinations are exhaustively executed while \(N\) remains within the practical measurement threshold. Each concrete combination is initialized from the same baseline contract state. Because execution of one combination can modify contract storage that is not explicitly part of the debugging-input set, the environment is reset before proceeding to the next combination.
+
+The concrete execution cost is modeled as
+% The one-line form overruns the 330.05 pt B5 measure; split with aligned.
+\[
+\begin{aligned}
+T_{\mathrm{concrete}}(N)
+={} & T_{\mathrm{fixed}}
++ N
+\left(
+T_{\mathrm{inject}}
++
+T_{\mathrm{invoke}}
++
+T_{\mathrm{observe}}
+\right) \\
+& + (N-1)\,T_{\mathrm{reset}},
+\end{aligned}
+\]
+where \(T_{\mathrm{fixed}}\) denotes work performed once for the target, \(T_{\mathrm{inject}}\) is the cost of constructing one concrete input state, \(T_{\mathrm{invoke}}\) is target execution time, \(T_{\mathrm{observe}}\) is the cost of retrieving the selected exit observations, and \(T_{\mathrm{reset}}\) is the cost of restoring the common baseline before the next state. The reset term occurs \(N-1\) times because no reset is required before the first state.
+
+For \(N=1\),
+\[
+T_{\mathrm{concrete}}(1)
+=
+T_{\mathrm{fixed}}
++
+T_{\mathrm{inject}}
++
+T_{\mathrm{invoke}}
++
+T_{\mathrm{observe}},
+\]
+which corresponds to the base measurement defined above.
+
+IQDebug is modeled as
+\[
+T_{\mathrm{IQ}}(S_N)
+=
+T'_{\mathrm{fixed}}
++
+T_{\mathrm{interpret}}(S_N),
+\]
+where \(T'_{\mathrm{fixed}}\) includes target-specific source processing and CFG construction, and \(T_{\mathrm{interpret}}(S_N)\) is the cost of interpreting the interval-valued state specification representing \(N\) concrete input combinations. This formulation does not assume that \(T_{\mathrm{interpret}}\) is constant as \(N\) increases; widening input intervals can change feasible control flow and the amount of abstract-state propagation required by the analysis.
+
+The concrete workflows exhaustively enumerate \(S_N\) while the number of combinations remains tractable. Beyond a predefined threshold, the measured fixed and per-state components are used to extrapolate the concrete execution cost. Measured and extrapolated regions are reported separately so that modeled values are not presented as direct runtime observations.
+
+[TODO(protocol): Define the finite interval-expansion schedule around the singleton baseline state.]
+
+[TODO(protocol): Define the maximum \(N\) for direct exhaustive execution and the procedure used to validate the extrapolation model.]
+
+Some combinations within a broadened state specification may not reach the normal function exit because they violate a program guard or revert during execution. Such combinations remain part of the computational scaling experiment because the concrete workflow must execute them to determine their behavior. For value comparison, however, normal-exit observations are defined only for combinations that reach the normal exit. The corresponding distinction is maintained when interpreting IQDebug's reachable abstract exit states.
+
+% TODO(figure):
+% Plot represented concrete input combinations N against total Time-to-Result.
+% Show IQDebug actual measurements and Forge/Hardhat measured concrete execution
+% over the exhaustive region.
+% Clearly distinguish any extrapolated concrete-execution region.
+% --- SHELL ONLY ---------------------------------------------------------------
+% Placeholder frame so that \ref{fig:eval:rq1-scaling} resolves.  Replace the
+% \fbox with \includegraphics{FigN.pdf} once the plot exists.
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}[c][0.28\textheight][c]{0.92\linewidth}
+\centering\footnotesize
+[TODO(figure): scaling plot --- represented concrete input combinations \(N\)
+against total Time-to-Result, with the extrapolated concrete-execution region
+marked separately.]
+\end{minipage}}
+\caption{Computational cost as the number of concrete input combinations
+represented by the debugging state increases.}
+\label{fig:eval:rq1-scaling}
+\end{figure}
+
+Figure~\ref{fig:eval:rq1-scaling} illustrates the computational cost as the number of concrete input combinations represented by the debugging state increases.
+
+% TODO(result):
+% Populate the scaling curves after completing the finite-state experiments.
+
+% TODO(interpretation):
+% Compare how Time-to-Result changes as N increases.
+% Identify any observed crossover only if one is present in the measured or
+% explicitly extrapolated results.
+% Explain that IQDebug summarizes the represented state space rather than
+% individually executing N states.
+% Do not interpret lower computational cost in isolation as superior debugging:
+% explicitly connect the state-space expansion to the precision measurements
+% reported in RQ2.
+% Distinguish observations from directly measured regions and extrapolated regions.
+
+\subsection{Source-Edit Responsiveness}
+\label{subsec:eval:rq1:edit}
+
+The final part of RQ1 evaluates the cost of obtaining an updated debugging result after a source-code modification. This experiment is intended to exercise different levels of IQDebug's incremental processing while preserving a deterministic edit-selection procedure across benchmark cases.
+
+We consider three edit categories: value edits, operator edits, and structural edits.
+
+A \textit{value edit} modifies the first eligible numerical literal in source order within the target function while excluding literals used solely as a \texttt{require} guard. The transformation changes the literal according to a fixed replacement rule. If no eligible literal exists, the corresponding edit is reported as not applicable for that case.
+
+An \textit{operator edit} modifies the first eligible arithmetic operator in source order according to a predefined replacement mapping. As with the value edit, cases without an eligible operator are reported as not applicable rather than being assigned a different manually selected location.
+
+[TODO(protocol): Finalize the literal-replacement and arithmetic-operator replacement mappings and verify that each generated edit remains syntactically and semantically well-formed enough to reach the intended measurement stage.]
+
+A \textit{structural edit} changes the source-level CFG rather than only modifying an expression already represented by an existing node. The primary structural transformation inserts a fresh sequential statement at a deterministic location in the target function while avoiding a change to the selected exit observations. This transformation adds source-level program structure without intentionally introducing a new branch or revert condition. A branch-insertion transformation may be evaluated separately if an additional experiment is needed to exercise edge and join creation explicitly.
+
+[TODO(protocol): Finalize the structural transformation and the deterministic insertion location. Verify that the transformation changes IQDebug's source-level CFG while preserving the target observations used by the experiment.]
+
+For IQDebug, Time-to-Result begins when the source update is submitted and includes incremental source processing, CFG maintenance, reinterpretation of affected program states, and production of the updated exit observation. IQDebug contains a safety mechanism that may fall back to a broader reconstruction when an edited structure is not supported by the incremental update path. We therefore record not only the total edit-to-result latency, but also whether the update was processed incrementally or through the full-rebuild fallback.
+
+For Forge and Hardhat, edit Time-to-Result includes the recompilation triggered by the source modification, any required redeployment, reconstruction of the prescribed concrete state, target invocation, and retrieval of the updated observation. Unchanged dependencies remain prepared or cached according to the same measurement boundary used in the base experiment.
+
+% TODO(table):
+% Insert source-edit Time-to-Result results.
+% Separate value, operator, and structural edits.
+% For IQDebug, record incremental-update vs full-rebuild fallback path.
+% Report N/A counts for edit categories that cannot be applied under the
+% deterministic selection rule.
+% --- SHELL ONLY ---------------------------------------------------------------
+\begin{table}[t]
+\centering
+\caption{Time-to-Result after value, operator, and structural source edits.
+For IQDebug, \textit{Incr.} and \textit{Rebuild} separate the incremental
+update path from the full-rebuild fallback.}
+\label{tab:eval:rq1-edit}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l l r r r @{}}
+\toprule
+\textbf{Edit} & \textbf{Workflow} & \textbf{Median (s)} &
+\textbf{Applicable} & \textbf{N/A} \\
+\midrule
+Value      & IQDebug (Incr.)   & -- & -- & -- \\
+           & IQDebug (Rebuild) & -- & -- & -- \\
+           & Forge             & -- & -- & -- \\
+           & Hardhat           & -- & -- & -- \\
+\midrule
+Operator   & IQDebug (Incr.)   & -- & -- & -- \\
+           & IQDebug (Rebuild) & -- & -- & -- \\
+           & Forge             & -- & -- & -- \\
+           & Hardhat           & -- & -- & -- \\
+\midrule
+Structural & IQDebug (Incr.)   & -- & -- & -- \\
+           & IQDebug (Rebuild) & -- & -- & -- \\
+           & Forge             & -- & -- & -- \\
+           & Hardhat           & -- & -- & -- \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq1-edit} reports the Time-to-Result after the three classes of source modification.
+
+% TODO(result):
+% Populate latency distributions and applicable/N/A case counts.
+
+% TODO(interpretation):
+% Compare the measured edit-to-result costs across value, operator, and
+% structural modifications.
+% For IQDebug, interpret latency only after distinguishing incremental-update
+% cases from full-rebuild fallback cases.
+% Determine whether structural edits incur additional cost relative to
+% expression-level edits, but do not assume such a difference in advance.
+% For Forge and Hardhat, explain the contribution of recompilation and
+% redeployment where it is visible in the measured data.
+
+\subsection{RQ1 Summary}
+\label{subsec:eval:rq1:summary}
+
+RQ1 characterizes the debugging workflows along three related dimensions: the preparation required to instantiate a debugging state, the Time-to-Result for a singleton state and subsequent source modifications, and the computational scaling associated with broader state specifications. The state-space experiment deliberately separates computational cost from abstract precision. IQDebug's ability to summarize multiple concrete input combinations in one interpretation does not imply that the resulting abstract state is equally precise to enumerating those states concretely. RQ2 therefore evaluates the precision of the same interpretation-driven process as the specified state space is broadened.
+
+% TODO(result):
+% Insert a concise answer to RQ1 after all preparation, timing, scaling,
+% and edit experiments have been completed.
+
+% TODO(interpretation):
+% Provide the final answer to RQ1 using all RQ1 measurements together.
+% Discuss preparation requirements, base Time-to-Result, scaling behavior,
+% and source-edit responsiveness as separate observations rather than reducing
+% them to a single winner/loser conclusion.
+% Avoid claims about developer productivity, bug-discovery success, or
+% debugging effectiveness because these are not measured by this experiment.
+
+% -----------------------------------------------------------------------------
+\section{RQ2: Precision of Interpretation-Driven Debugging}
+\label{sec:eval:rq2}
+
+RQ2 examines how the precision of IQDebug's interpretation-driven debugging changes as the specified program state is broadened. Whereas RQ1 evaluates the computational cost of summarizing a state space instead of repeatedly executing individual concrete states, RQ2 evaluates the precision cost associated with the same abstraction. The purpose is therefore not to determine whether abstract interpretation reproduces every concrete execution exactly, but to characterize how much information is retained or lost when multiple concrete input combinations are represented by interval-valued program states.
+
+The evaluation uses the 74 effective benchmark instances as the candidate population. Aggregate characteristics are reported across all applicable cases, while detailed state-specification experiments are conducted on cases for which finite input regions can be constructed and concretely enumerated under the protocol defined in RQ1. Loop-specific measurements are additionally reported for the subset containing loops in the target function or in statically resolved callees.
+
+\subsection{Evaluation Protocol}
+\label{subsec:eval:rq2:protocol}
+
+\noindent\textbf{State-Specification Expansion.}
+RQ2 reuses the finite state specifications constructed for the state-space scaling experiment in RQ1. Each experiment begins with the singleton baseline state \(S_1\) and progressively broadens one or more debugging inputs according to the predefined expansion schedule. This produces a sequence of nested state specifications,
+\[
+S_1
+\subseteq
+S_2
+\subseteq
+\cdots
+\subseteq
+S_m,
+\]
+where each \(S_i\) represents a finite Cartesian product of concrete input combinations.
+
+The same \(S_i\) is used for both the abstract and concrete measurements. IQDebug interprets \(S_i\) as an interval-valued abstract input state, whereas the concrete workflow enumerates the corresponding concrete combinations while exhaustive execution remains practical. This pairing enables the computational results from RQ1 and the precision results from RQ2 to be interpreted over the same underlying state space.
+
+The singleton \(S_1\) is not assumed to remain perfectly precise throughout the program. Even when every debugging input is concrete, joins, opaque operations, or loop abstraction may introduce over-approximation. RQ2 therefore measures precision at the selected observations rather than treating singleton input as an exactness guarantee.
+
+\medskip
+\noindent\textbf{Observed Program Values.}
+Precision is evaluated primarily over the normal-exit observation set defined in RQ1:
+\[
+O_{\mathrm{exit}}
+=
+O_{\mathrm{return}}
+\cup
+O_{\mathrm{state}}.
+\]
+For each observed numerical value \(o\), IQDebug produces an abstract interval
+\[
+A_o(S)
+=
+[l_A,u_A],
+\]
+or the corresponding top element if no finite interval can be established.
+
+When every concrete state in \(S\) is exhaustively executed, the resulting concrete values form a reachable value set
+% The one-line set-builder overruns the 330.05 pt B5 measure; split with aligned.
+\[
+\begin{aligned}
+C_o(S)
+=
+\{v_o(s)\mid{} & s\in S \\
+               & \text{and }s\text{ reaches the normal exit}\}.
+\end{aligned}
+\]
+For nonempty \(C_o(S)\), its concrete range is defined as
+\[
+R_o(S)
+=
+[\min C_o(S),\max C_o(S)].
+\]
+Because interval abstract interpretation is intended to conservatively summarize reachable values, the principal correctness relation examined in these experiments is whether the concrete observations are contained in the corresponding abstract result:
+\[
+C_o(S)
+\subseteq
+\gamma(A_o(S)),
+\]
+where \(\gamma\) denotes the concretization of the abstract interval.
+
+The evaluation distinguishes this containment relation from precision. An abstract interval may contain all observed concrete values while also containing values that no enumerated execution reaches. Such additional values characterize over-approximation rather than analysis failure.
+
+\medskip
+\noindent\textbf{Exact and Observational Comparisons.}
+When all states in a finite specification are exhaustively executed, \(C_o(S)\) provides the complete concrete result set for that specified finite region. These cases permit direct comparison between the abstract result and the concrete reachable range.
+
+For state spaces beyond the exhaustive-execution threshold, concrete sampling may be used only as an observational check. Let \(O_o(S)\) denote the set of values observed from sampled concrete executions. Since sampling cannot establish that unobserved values are unreachable, the evaluation does not treat
+\[
+O_o(S)
+\]
+as ground truth and does not classify values in
+\[
+\gamma(A_o(S))\setminus O_o(S)
+\]
+as false positives. For such experiments, we report whether the sampled observations are contained in the abstract result and describe the difference between the observed and abstract ranges without assigning an exact precision score.
+
+This distinction prevents incomplete concrete sampling from being interpreted as evidence of abstract imprecision.
+
+\subsection{Precision under State-Specification Expansion}
+\label{subsec:eval:rq2:state}
+
+The first part of RQ2 evaluates how numerical precision changes as the debugging-input specification is broadened. For each applicable benchmark instance, we record the abstract interval of each selected exit observation at each state-space size and compare it with the corresponding concrete result where exhaustive enumeration is available.
+
+For a finite abstract interval \(A=[l_A,u_A]\), its interval width is defined as
+\[
+w(A)=u_A-l_A.
+\]
+Similarly, for a nonempty concrete range \(R=[l_C,u_C]\),
+\[
+w(R)=u_C-l_C.
+\]
+The absolute interval expansion beyond the concrete range is then
+\[
+\Delta w
+=
+w(A)-w(R).
+\]
+A value of \(\Delta w=0\) indicates that the abstract and concrete ranges have the same endpoints, although it does not imply equality of the underlying value sets when the concrete set is non-contiguous. A positive value indicates that the abstract interval spans a wider numerical region than the exact concrete range.
+
+Top-valued abstract results are reported separately rather than assigning them an arbitrary finite width. Likewise, bottom or unreachable normal exits are distinguished from finite precision results.
+
+Where useful, a normalized width ratio may additionally be reported for cases with nonzero concrete width:
+\[
+\rho_w
+=
+\frac{w(A)}{w(R)}.
+\]
+This ratio is not used when \(w(R)=0\); singleton concrete outputs are instead characterized by the absolute interval expansion and by whether IQDebug preserves a singleton abstract value.
+
+[TODO(protocol): Decide whether the normalized width ratio is retained as a reported metric or whether absolute interval expansion is sufficient for the final evaluation.]
+
+For each specification level, the experiment additionally records whether the resulting observation remains a finite singleton, becomes a wider finite interval, or reaches the top element. These categories provide an aggregate view of how frequently state-space expansion leads to loss of numerical precision across the benchmark.
+
+% TODO(table):
+% Insert aggregate state-specification precision results.
+% Candidate columns:
+% state-space level / number of applicable observations /
+% singleton abstract result / finite non-singleton interval / top /
+% exact endpoint match / widened range.
+% --- SHELL ONLY ---------------------------------------------------------------
+% Empty shell carrying the candidate columns so \ref resolves; rows from
+% TODO(result).  Headers are abbreviated to fit the 330.05 pt B5 measure
+% (Singl. = singleton abstract result; Fin. = finite non-singleton interval;
+% Exact = exact endpoint match; Wide = widened range).
+\begin{table}[t]
+\centering
+\caption{Precision characteristics observed as the specified state space is
+broadened. Singl.\,=\,singleton abstract result;
+Fin.\,=\,finite non-singleton interval; Exact\,=\,exact endpoint match;
+Wide\,=\,widened range.}
+\label{tab:eval:rq2-state-precision}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r r r r r r @{}}
+\toprule
+\textbf{Level} & \textbf{Obs.} & \textbf{Singl.} & \textbf{Fin.} &
+\textbf{Top} & \textbf{Exact} & \textbf{Wide} \\
+\midrule
+\(S_1\)      & -- & -- & -- & -- & -- & -- \\
+\(S_2\)      & -- & -- & -- & -- & -- & -- \\
+\(\vdots\)   &    &    &    &    &    &    \\
+\(S_m\)      & -- & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq2-state-precision} summarizes the precision characteristics observed as the specified state space is broadened.
+
+% TODO(figure):
+% For representative cases, plot state-space size or specification breadth
+% against abstract output width and exact concrete output width.
+% Use the same state specifications as the RQ1 scaling experiment.
+% --- SHELL ONLY ---------------------------------------------------------------
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}[c][0.26\textheight][c]{0.92\linewidth}
+\centering\footnotesize
+[TODO(figure): for representative cases, specification breadth against abstract
+output width \(w(A)\) and exact concrete output width \(w(R)\), over the same
+state specifications as the RQ1 scaling experiment.]
+\end{minipage}}
+\caption{Evolution of the abstract and concrete output ranges as the debugging
+state is expanded.}
+\label{fig:eval:rq2-state-precision}
+\end{figure}
+
+Figure~\ref{fig:eval:rq2-state-precision} illustrates how the abstract and concrete output ranges evolve as the debugging state is expanded.
+
+% TODO(result):
+% Populate the aggregate and representative-case precision measurements.
+
+% TODO(interpretation):
+% Explain how abstract precision changes as the specified state space broadens.
+% Identify cases in which wider input ranges produce little or no additional
+% output over-approximation as well as cases in which intervals widen rapidly.
+% Distinguish a wide but finite conservative interval from a top-valued result.
+% Relate the observed precision trend to the computational scaling results in RQ1.
+% Do not describe a wider abstract interval as incorrect if all reachable
+% concrete values remain contained in it.
+
+\subsection{Control-Flow Precision}
+\label{subsec:eval:rq2:controlflow}
+
+Numerical interval width alone does not capture all forms of abstraction introduced by interpretation-driven debugging. Broader abstract inputs can also make additional control-flow paths feasible, causing states from multiple branches to be propagated and joined even when individual concrete executions traverse only one branch. We therefore evaluate control-flow precision alongside numerical precision.
+
+For each applicable conditional in the analyzed region, IQDebug determines which successors are abstractly feasible under the current state specification. The experiment records the number of feasible abstract branches and compares it with the branches reached by concrete execution over the corresponding finite state space.
+
+When the state space is exhaustively enumerated, let
+\[
+B_C(S)
+\]
+denote the set of branches traversed by at least one concrete execution in \(S\), and let
+\[
+B_A(S)
+\]
+denote the branches considered feasible by the abstract interpretation. The abstract analysis is expected to conservatively preserve concrete feasibility such that
+\[
+B_C(S)
+\subseteq
+B_A(S).
+\]
+The difference
+\[
+B_A(S)\setminus B_C(S)
+\]
+therefore identifies abstractly feasible branches that are not taken by any concrete execution in the exhaustively enumerated state region. These branches are reported as control-flow over-approximation for the evaluated finite region.
+
+As with numerical precision, this classification is used only when the corresponding finite state space has been exhaustively enumerated. Under concrete sampling, an abstractly feasible but unobserved branch cannot be established as unreachable and is therefore reported only as an abstractly feasible branch not observed in the sampled executions.
+
+The evaluation also records changes in branch feasibility as the state specification is broadened. A condition that is resolved to one successor under a singleton state may become uncertain under a wider interval, causing both successors to participate in subsequent abstract-state joins. This effect provides one mechanism by which broader debugging inputs can increase the numerical intervals observed at the normal function exit.
+
+% TODO(table):
+% Insert control-flow precision results.
+% Candidate measurements:
+% number of conditional sites;
+% abstractly feasible branches;
+% concretely reached branches;
+% abstract-only feasible branches for exhaustively enumerated regions;
+% changes in branch count as the input specification expands.
+% --- SHELL ONLY ---------------------------------------------------------------
+\begin{table}[t]
+\centering
+\caption{Control-flow precision characteristics of the analyzed benchmark
+cases. \(|B_A|\) and \(|B_C|\) are the abstractly feasible and concretely
+reached branch counts; the last column is the abstract-only difference
+\(B_A\setminus B_C\), defined only for exhaustively enumerated regions.}
+\label{tab:eval:rq2-controlflow}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r r r r @{}}
+\toprule
+\textbf{Level} & \textbf{Cond. sites} & \(|B_A|\) & \(|B_C|\) &
+\(|B_A\setminus B_C|\) \\
+\midrule
+\(S_1\)      & -- & -- & -- & -- \\
+\(S_2\)      & -- & -- & -- & -- \\
+\(\vdots\)   &    &    &    &    \\
+\(S_m\)      & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq2-controlflow} reports the control-flow precision characteristics of the analyzed benchmark cases.
+
+% TODO(figure):
+% For selected representative cases, show how feasible-branch count changes
+% with increasing state-space size and relate this to output interval widening.
+% --- SHELL ONLY ---------------------------------------------------------------
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}[c][0.26\textheight][c]{0.92\linewidth}
+\centering\footnotesize
+[TODO(figure): for selected representative cases, feasible-branch count against
+state-space size, related to output interval widening.]
+\end{minipage}}
+\caption{Relationship between state-specification expansion, branch
+feasibility, and the resulting abstract-state precision.}
+\label{fig:eval:rq2-controlflow}
+\end{figure}
+
+Figure~\ref{fig:eval:rq2-controlflow} illustrates the relationship between state-specification expansion, branch feasibility, and the resulting abstract-state precision.
+
+% TODO(result):
+% Populate branch-feasibility and control-flow over-approximation measurements.
+
+% TODO(interpretation):
+% Identify whether output widening coincides with additional abstractly feasible
+% branches and subsequent joins.
+% Distinguish genuine branch coverage by concrete states from abstract-only
+% feasibility established by exhaustive comparison.
+% For sampled state spaces, do not claim that an unobserved branch is spurious.
+% Explain representative cases in which branch uncertainty is a major source
+% of precision loss, while avoiding the assumption that every interval widening
+% is caused by control-flow joins.
+
+\subsection{Loop Analysis}
+\label{subsec:eval:rq2:loops}
+
+Loops introduce a distinct precision consideration because IQDebug does not represent individual concrete loop iterations as a debugging trace. Instead, the abstract interpreter computes a stabilized loop state that summarizes the reachable iterations according to the interval domain and the fixpoint procedure described in Chapter~\ref{chap:design}.
+
+We therefore separately analyze benchmark instances containing a loop in the target function or in a statically resolved callee that can affect the selected exit observation. The classification is performed statically so that the loop subset is defined independently of the observed experimental outcome.
+
+[TODO(protocol): Finalize the exact loop-subset rule, including whether loops that are syntactically present but cannot influence \(O_{\mathrm{exit}}\) are retained.]
+
+For each analyzed loop, we record the abstract state at loop entry, the stabilized loop state, and the post-loop state relevant to the selected observations. We additionally record the number of fixpoint iterations required for convergence and whether the widening operator is applied.
+
+Let
+\[
+\sigma_{\mathrm{entry}}^\#
+\]
+denote the abstract state before the summarized loop execution and
+\[
+\sigma_{\mathrm{fix}}^\#
+\]
+the stabilized loop state. The evaluation records changes between these states for variables affected by the loop. These changes correspond to the loop summary exposed by IQDebug rather than to a sequence of concrete iteration snapshots.
+
+Where the implementation exposes the debugging-time \textit{loopDelta}, the experiment additionally records the variables whose abstract values change from loop entry to the stabilized loop summary. This measurement is descriptive: it characterizes the amount of state information generalized by the loop analysis and is not interpreted as an execution trace.
+
+The post-loop abstract observation is compared with the concrete outputs obtained from the corresponding finite state specification wherever exhaustive execution is feasible. This allows loop-related over-approximation to be separated, where possible, from imprecision that already exists before entering the loop.
+
+% TODO(table):
+% Insert loop-subset characteristics.
+% Candidate columns:
+% case / loop location (target or callee) /
+% input-state size / fixpoint iterations /
+% widening used / relevant variables /
+% entry interval / stabilized interval / post-loop interval.
+% --- SHELL ONLY ---------------------------------------------------------------
+% The nine candidate columns do not fit the 330.05 pt B5 measure as a flat
+% per-case table.  This shell groups them; if per-case rows are reported,
+% switch to \begin{sidewaystable} (package rotating is already loaded).
+\begin{table}[t]
+\centering
+\caption{Fixpoint and precision characteristics of loop-containing benchmark
+instances.}
+\label{tab:eval:rq2-loops}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l l @{}}
+\toprule
+\textbf{Characteristic} & \textbf{Value} \\
+\midrule
+Loop location (target / statically resolved callee) & -- \\
+Input-state size                                    & -- \\
+Fixpoint iterations to convergence                  & -- \\
+Widening applied                                    & -- \\
+Relevant variables                                  & -- \\
+\midrule
+Entry interval \(\sigma_{\mathrm{entry}}^\#\)       & -- \\
+Stabilized interval \(\sigma_{\mathrm{fix}}^\#\)    & -- \\
+Post-loop interval                                  & -- \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq2-loops} presents the fixpoint and precision characteristics of loop-containing benchmark instances.
+
+% TODO(figure):
+% If the measured data supports it, plot either:
+% (1) fixpoint iterations vs analysis latency,
+% or
+% (2) state-specification breadth vs post-loop interval width,
+% or provide representative loop-state evolution diagrams.
+% Do not create a figure solely to imply that loops necessarily dominate cost.
+% NOTE: no shell float inserted here -- the text does not \ref a loop figure,
+%   and whether the figure exists at all is conditional on the measured data.
+
+% TODO(result):
+% Populate loop count, convergence iterations, widening frequency, and
+% before/after precision measurements.
+
+% TODO(interpretation):
+% Explain how loop fixpoint computation affects the resulting abstract states.
+% Separate precision loss already present at loop entry from widening introduced
+% during fixpoint computation.
+% If widening frequently produces top or substantially wider intervals, report
+% this directly as a limitation of the current interval/fixpoint configuration.
+% If loop results remain precise, explain the program characteristics that
+% permit this behavior rather than generalizing beyond the measured subset.
+% Discuss the prevalence of loop-containing cases in the benchmark so that
+% loop-specific observations are not overgeneralized.
+
+\subsection{Relationship to Intent Validation}
+\label{subsec:eval:rq2:intent}
+
+The precision measured in RQ2 also influences the information available to the Intent-Aware Model. A broad abstract state may prevent an intent from being classified uniformly as satisfied or violated, resulting instead in a Warning judgment. Conversely, tightening the state specification can reduce abstract uncertainty and make a uniform validation result possible.
+
+RQ2 does not treat these judgment changes as a primary precision metric because they depend on the particular intent written for a benchmark case. Numerical and control-flow precision are therefore evaluated independently of intent expressibility over the broader 74-case population. Changes among Satisfied, Violated, Warning, and Unreachable judgments are reported in RQ3 for the 48 intent-expressible cases and are interpreted there using the precision characteristics established in this section.
+
+This separation allows a loss of abstract precision to be characterized even in benchmark cases for which the current intent language cannot express the reported numerical property.
+
+% TODO(interpretation):
+% When RQ3 results are available, cross-reference representative cases where
+% broadening or narrowing the debugging state changes the validation judgment.
+% Explain those changes using the interval or control-flow precision evidence
+% established in RQ2 rather than treating Warning as an independent error.
+
+\subsection{RQ2 Summary}
+\label{subsec:eval:rq2:summary}
+
+RQ2 evaluates the precision side of the state-space trade-off introduced in RQ1. The same interval-valued debugging inputs that allow IQDebug to summarize multiple concrete input combinations can also enlarge numerical intervals, make additional branches abstractly feasible, and require loop states to be represented by fixpoint abstractions. The evaluation therefore considers numerical output precision, control-flow feasibility, and loop stabilization together rather than reducing abstract precision to a single measurement.
+
+% TODO(result):
+% Insert the final concise answer to RQ2 after completing the numerical,
+% control-flow, and loop experiments.
+
+% TODO(interpretation):
+% Answer how state-specification breadth affects IQDebug's interpretation
+% precision across the measured benchmark.
+% Summarize both cases in which precision is preserved and cases in which
+% significant over-approximation occurs.
+% Relate the answer directly to RQ1: explain the observed computational-versus-
+% precision trade-off without presenting either side in isolation.
+% Identify the dominant observed sources of precision loss only after the
+% experimental evidence is available.
+
+% -----------------------------------------------------------------------------
+\section{RQ3: Evaluation of the Intent-Aware Model}\label{sec:eval:rq3}
 % 핵심 질문: Can developer-authored numeric intent be expressed and validated
 %            over the analyzed Solidity behaviors?
+% 본문 출처: SolidityGuardian/paper/first_revision/main.tex 의 RQ1
+%   (Expressibility and Validatability, 원본 2129-2356) 을 그대로 가져왔다.
+%   기계적 변환만 적용: IntentChecker -> IQDebug, 산문의 "RQ1" -> "RQ3",
+%   라벨을 thesis 스키마로 개명, 표 \small -> \footnotesize (B5 측정폭 330.05pt),
+%   Fig.~\ref -> Figure~\ref, \S\ref{sec:background} -> Section~\ref{sec:bg:nle}.
+% 원본의 subsubsection 3개 중 "Expressibility of Numeric Intent" 와 "Validation of
+%   Expressible Intent" 는 아래 두 subsection 제목이 대신하므로 헤딩을 흡수했다.
+
+RQ3 examines two distinct capabilities of IQDebug. First, we ask whether the bug-relevant numeric intent associated with a reported numeric logic error can be represented in IQDebug's current intent model. Second, for the cases whose intent is expressible, we evaluate whether the analyzer can actually validate the specified relation against the buggy implementation. Separating these two capabilities is important because expressibility is a prerequisite for validation, whereas successful validation additionally depends on how precisely the current analyzer models the relevant program context. An intent may therefore be expressible but remain inconclusive for a particular implementation when the analysis loses the precision or semantic information needed to evaluate it. This does not make the intent itself unusable: the same relation may still produce a meaningful validation result in another program context where the relevant values and state transitions are modeled with sufficient precision. Conversely, if the relation cannot be represented by the intent model in the first place, improving analysis precision alone cannot make it validatable.
+
+We first examine the representational side of this distinction by reconstructing the bug-relevant numeric intent for each benchmark instance and assessing whether it can be expressed in the current intent model.
+
+\subsection{Intent Expressiveness}\label{subsec:eval:rq3:expressiveness}
+
+The expressibility evaluation is retrospective. For each benchmark instance, we reconstruct the bug-relevant intended numeric behavior using the audit report, the buggy source code, and, where available, the recommended or implemented fix. These sources are used to establish the bug-relevant behavior to be specified; the reported fix, when available, is not mechanically translated into an annotation. Instead, we aim to reconstruct a numeric relation that is as implementation-independent as the available evidence permits while remaining sufficient to distinguish the reported buggy behavior from the intended behavior. In some cases, however, the reconstructed relation necessarily reflects implementation-specific details because the reported intended behavior can only be characterized through those details. A finding is considered expressible when all independently required bug-relevant numeric obligations identified through this reconstruction can be represented using values available at supported observation points. Accordingly, the expressibility analysis asks whether this reconstructed relation can be represented in IQDebug's current intent model; it does not establish that developers who are unaware of the reported bug would independently formulate the same specification.
+
+\begin{table}[t]
+\centering
+\caption{Expressibility of bug-relevant numeric intent
+(74 eligible instances).}
+\label{tab:eval:rq3:expressibility}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r @{}}
+\toprule
+\textbf{Classification} & \textbf{Findings} \\
+\midrule
+Expressible   & 48 \\
+Inexpressible & 26 \\
+\midrule
+\textbf{Total} & \textbf{74} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Of the 74 eligible benchmark instances, the bug-relevant numeric intent is expressible for \textbf{48 (64.9\%)} and inexpressible for \textbf{26 (35.1\%)}. Table~\ref{tab:eval:rq3:expressibility} summarizes this overall result.
+
+\begin{table}[t]
+\centering
+\caption{Annotation form of the reconstructed intent by relation type
+(48 expressible cases).}
+\label{tab:eval:rq3:annotation-form}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r r r @{}}
+\toprule
+\textbf{Intent relation type} & \textbf{@During} & \textbf{@Post} & \textbf{Total} \\
+\midrule
+Equality / inequality / bound       & 14 & 11 & 25 \\
+Entry/Exit relation                 & 0  & 8  & 8  \\
+Return-value relation               & 0  & 7  & 7  \\
+Call-argument relation              & 3  & 0  & 3  \\
+State-change property               & 1  & 1  & 2  \\
+Before/After relation               & 1  & 0  & 1  \\
+Conditional (implication) relation  & 1  & 0  & 1  \\
+Feasibility / reachability relation & 1  & 0  & 1  \\
+\midrule
+\textbf{Total} & \textbf{21} & \textbf{27} & \textbf{48} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Among the 48 expressible cases, we further characterize how the reconstructed intent is represented in IQDebug's annotation model. For findings requiring multiple annotations, we use the representative annotation that captures the primary bug-relevant numeric relation for case-level classification. The annotation form depends on the observation point required by that relation: \texttt{@During} is used for intermediate program states or statement-level effects, whereas \texttt{@Post} is used for relations over function entry, function exit, or the final state.
+
+Table~\ref{tab:eval:rq3:annotation-form} reports the distribution of these representative annotations by relation type. Equality, inequality, and bound relations form the largest group, accounting for 25 of the 48 expressible cases, and occur under both \texttt{@During} and \texttt{@Post} depending on the required observation point. Return-value relations, represented using a dedicated \texttt{returnExpression} form rather than a general equality/bound comparison, account for a further 7 cases. Entry/Exit and return-value relations are both represented using \texttt{@Post}, whereas call-argument, Before/After, conditional, and feasibility relations are represented using \texttt{@During}. State-change properties occur under both forms because the relevant change may concern either a statement-level effect or a function-level state transition.
+
+These results show how expressible intent is represented in the current annotation model; the next question is what distinguishes the findings that can be represented from those that cannot.
+
+\smallskip
+% 원본은 \subsubsection{Characterizing the Boundary of Intent Expressibility}.
+% 이 문서는 secnumdepth 기본값(2)이고 subsubsection 을 쓰는 곳이 한 군데도 없어
+% 본문 전체가 쓰는 run-in bold 헤딩으로 바꿨다. 번호가 필요하면 secnumdepth 를
+% 3 으로 올리고 \subsubsection 으로 되돌리면 된다.
+\noindent\textbf{Characterizing the Boundary of Intent Expressibility.}
+\label{subsubsec:eval:rq3:boundary}
+To characterize what distinguishes expressible from inexpressible findings, we
+reuse the Value-/Algorithm-level abstraction introduced in
+Section~\ref{sec:bg:nle} and introduce a second axis concerning value
+availability. Along this axis, each finding is classified as follows:
+
+\begin{itemize}
+    \item \textbf{\texttt{Usable}.}
+    Every value required by the reconstructed numeric intent is directly
+    referenceable at a supported program point.
+
+    \item \textbf{\texttt{Unusable}.}
+    At least one value required by the reconstructed numeric intent is not
+    directly referenceable at a supported program point.
+\end{itemize}
+
+This classification concerns the availability of the values needed to specify
+the intended relation, rather than the structural form of the underlying
+defect.
+
+\begin{table}[t]
+\centering
+\caption{Expressibility by defect abstraction level and value availability
+across the 74 eligible findings.}
+\label{tab:eval:rq3:boundary}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l l r r r @{}}
+\toprule
+\textbf{Defect level} &
+\textbf{Value availability} &
+\textbf{Expressible} &
+\textbf{Inexpressible} &
+\textbf{Total} \\
+\midrule
+Value     & Usable   & 30 & 1  & 31 \\
+Value     & Unusable & 0  & 10 & 10 \\
+Algorithm & Usable   & 18 & 1  & 19 \\
+Algorithm & Unusable & 0  & 14 & 14 \\
+\midrule
+\textbf{Total} & & \textbf{48} & \textbf{26} & \textbf{74} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Table~\ref{tab:eval:rq3:boundary} characterizes the boundary between the expressible
+and inexpressible findings reported above. It relates
+expressibility to the two properties introduced above: the abstraction level of
+the reported defect and the availability of the values required to specify its
+bug-relevant intent.
+
+IQDebug is designed primarily as a value-level intent validation tool.
+Accordingly, Value-level defects align most directly with the intended scope of
+the specification model. Some Algorithm-level defects can also be expressed,
+however, when their intended behavior can be rewritten as a numeric relation
+over values available at a supported program point.
+In the benchmark, 30 of the 31 Usable Value-level findings and 18 of the 19
+Usable Algorithm-level findings are expressible.
+
+Value availability further determines which findings fall within this supported
+range. Among the 50 findings for which all required values are Usable, 48 are
+expressible. In contrast, none of the 24 Unusable findings can be represented by
+the current intent model. This indicates that the current model can represent
+the reconstructed numeric intent in nearly all cases where the required values
+are directly referenceable at supported program points.
+
+One notable boundary case occurs among the Usable Value-level findings.
+In this case, the reconstructed numeric intent must be specified inside a
+loop body. IQDebug computes a fixpoint for the loop as a whole and does
+not expose abstract states for intent evaluation at individual loop-body
+statements. Although the values required by the intent are referenceable, the
+observation point needed to specify and evaluate the intent is therefore not
+supported. This case marks one edge of the current expressibility range: the
+numeric intent is expressible in terms of the required values, but cannot be
+placed at an observation point supported by the current intent model.
+
+Taken together, these results characterize the current expressibility boundary
+of IQDebug as a value-level intent validation tool. Value-level defects
+align most directly with the design target of the intent model, provided that the
+values required by the intended relation are available at supported observation
+points. Algorithm-level defects can also fall within this boundary when the
+effect of a missing, additional, or misordered operation can be reduced to an
+observable numeric relation. Conversely, even a Value-level defect becomes
+inexpressible when the required value or observation point is unavailable.
+
+\subsection{Intent Validation}\label{subsec:eval:rq3:validation}
+
+We next evaluate how the 48 expressible specifications are handled by the
+current analyzer. For each finding, we insert the reconstructed target
+annotation into the buggy implementation and provide the required debug
+annotations using the batch-annotation workflow adopted from
+SolQDebug~\citep{solqdebug}. We then execute IQDebug and record the
+resulting semantic judgment.
+
+Table~\ref{tab:eval:rq3:validation} summarizes the observed validation outcomes for
+the 48 expressible findings.
+
+% TODO(result): 원고에 숫자를 넣지 않은 상태다. 기존 IntentChecker 수치
+%   (V33 / W14 / S1)는 삭제했고, 오류 수정 전의 현재 재실행 수치도 넣지 않는다.
+%   최종 재실행 후에 Satisfied / Violated / Warning / Unreachable 네 judgment 를
+%   먼저 집계하고, 처리 실패가 남아 있으면 Analysis/Validation Failure 를 별도
+%   reporting category 로 보고한다. Unreachable 은 정의된 semantic judgment 이므로
+%   result missing / exception 과 같은 칸에 합치지 않는다.
+[TODO(result): report the Satisfied, Violated, Warning, and Unreachable counts
+over the 48 expressible findings after the final re-run, together with any
+analysis or validation failures as a separate reporting category.]
+
+% The four semantic judgments and the execution-outcome categories are kept in
+% separate blocks on purpose: \texttt{Unreachable} is a defined judgment of the
+% validation semantics, whereas a missing result or an exception is an
+% implementation or execution outcome and must not be folded into it.
+\begin{table}[t]
+\centering
+\caption{Validation outcomes for the 48 expressible findings. The semantic
+judgments are reported separately from analysis or validation failures, which
+are execution outcomes rather than judgments.}
+\label{tab:eval:rq3:validation}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r r @{}}
+\toprule
+\textbf{Outcome} & \textbf{Findings} & \textbf{Percentage} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Semantic judgment}} \\
+\texttt{Satisfied}   & -- & -- \\
+\texttt{Violated}    & -- & -- \\
+\texttt{Warning}     & -- & -- \\
+\texttt{Unreachable} & -- & -- \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Analysis or validation failure}} \\
+Result not produced  & -- & -- \\
+Exception raised     & -- & -- \\
+\midrule
+\textbf{Total} & \textbf{48} & \textbf{100\%} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+% === PARKED (2026-10-20) ======================================================
+% The EthereumGod case study below is commented out, not deleted.  It opens with
+% "The single \texttt{Satisfied} finding is EthereumGod", which asserts that
+% exactly one finding is Satisfied -- a pre-fix result that must not appear in
+% the manuscript before the final re-run.  Restore the block verbatim once the
+% re-run confirms a Satisfied finding; if more than one turns up, only the
+% opening clause and the figure caption need adjusting.
+% =============================================================================
+% \begin{figure}[t]
+% \begin{lstlisting}[language=Solidity]
+% uint256 initialBalance = address(this).balance;
+% swapTokensForEth(toSwapForEth);
+% uint256 fromSwap =
+%     address(this).balance.sub(initialBalance);
+%
+% uint256 newBalance =
+%     fromSwap.mul(half).div(toSwapForEth);
+% \end{lstlisting}
+% \caption{Simplified EthereumGod computation for the single
+% \texttt{Satisfied} finding.}
+% \label{fig:eval:rq3:ethereumgod}
+% \end{figure}
+%
+% The single \texttt{Satisfied} finding is EthereumGod.
+% Figure~\ref{fig:eval:rq3:ethereumgod} shows the relevant computation, where
+% \texttt{fromSwap} is derived from the change in the contract's ETH balance
+% across an external token-to-ETH swap and used to compute
+% \texttt{newBalance}. The reported error is that this computation uses
+% truncating integer division instead of the intended ceiling-rounded
+% proportional allocation.
+%
+% The current abstract execution model does not propagate the change in
+% \texttt{address(this).balance} caused by the external swap. Even when an
+% initial abstract value for \texttt{address(this).balance} is supplied through
+% a \texttt{@GlobalVar} debugging annotation, the external call does not update
+% that value in the abstract state. Consequently, the pre- and post-call
+% balances remain identical, causing \texttt{fromSwap} to evaluate to zero.
+% This zero value then propagates to \texttt{newBalance} and to the supplied
+% numeric relation, leading IQDebug to report \texttt{Satisfied}.
+% We treat this result as a missed violation with respect to the reconstructed
+% intent. The case exposes a limitation of the current execution model:
+% IQDebug does not model changes to the contract's native-currency balance
+% caused by external interactions. As a result,
+% \texttt{address(this).balance} remains unchanged across the swap in the
+% abstract state, causing \texttt{fromSwap} to evaluate to zero.
+% With \texttt{fromSwap} fixed at zero, the implementation and the reconstructed
+% ceiling-rounded intent evaluate to the same value, preventing IQDebug
+% from distinguishing the reported rounding error.
+% === END PARKED ==============================================================
+
+[TODO(result): after the final re-run, restore the EthereumGod case study
+parked in the comments above, which attributes a \texttt{Satisfied} judgment to
+an unmodeled change of the contract's native-currency balance across an
+external call.]
+
+Overall, RQ3 distinguishes intent expressibility from validation capability.
+IQDebug can express 48 of the 74 eligible findings.
+
+[TODO(result): state the distribution of semantic judgments over those 48
+findings once the final re-run is complete, and discuss any finding that does
+not yield a judgment separately from the judgments themselves.]
+
+% TODO(transition): 원본은 여기서 "RQ2 builds on these results by examining the
+%   contextual and specification requirements associated with expressible
+%   intents, together with the runtime cost of validation." 로 다음 절을 예고했다.
+%   그 RQ2(= Specification Requirements and Analysis Costs)는 이 논문에서
+%   RQ1 Time-to-Result 로 분리됐고 5.4.3 Specification Requirements 도 빠졌으므로
+%   원문 그대로는 맞지 않는다. RQ4 로 넘어가는 문장을 새로 써서 넣을 자리.
+
+% NOTE: 원본 RQ1 에는 없었지만 이 논문 스켈레톤에 있던 5.4.3 "Specification
+%   Requirements"(subsec:eval:rq3:specreq) 는 요청에 따라 제거했다. 되살릴 경우
+%   원본 RQ2 의 \subsubsection{Specification Requirements}(first_revision/main.tex
+%   2363-2520) 가 대응 출처다.
 
 % -----------------------------------------------------------------------------
-\section{Specification and Analysis Cost}\label{sec:eval:cost}
-% NOTE(제목 미확정): 4.2 는 "RQ1:", 4.4 는 "RQ3:" 접두가 있는데 여기만 없다.
-%   기존 IntentChecker RQ2 제목("What Are the Costs of Specifying and Validating
-%   Numeric Intent?")을 그대로 유지하는 선택지도 열려 있음 — 확정되면 헤딩만 교체.
+\section{RQ4: Comparison with Existing Numerical Logic-Error Analysis}\label{sec:eval:rq4}
+% 본문 출처: SolidityGuardian/paper/first_revision/main.tex 의 RQ3
+%   (Comparison with Existing Detection Tools, 원본 2634-2765) + 그 직전에 있던
+%   tab:rq3-model 표(원본 2588-2630). 기계적 변환만 적용: IntentChecker -> IQDebug,
+%   산문의 "RQ3" -> "RQ4", 표 머리 약어 IC -> IQD, 라벨 개명,
+%   Fig9.pdf -> Fig7.pdf(Guardian 에서 복사), \small -> \footnotesize.
 
-\subsection{Specification Cost}\label{subsec:eval:speccost}
-% plan: intent specification effort; debug input requirement;
-%       annotation/input size; 필요한 값/범위 수.
+We compare IQDebug with ScType~\citep{sctype},
+GPTScan~\citep{gptscan}, and NumScout~\citep{numscout}.
+Because these tools use different analysis inputs and validation criteria,
+RQ4 does not treat them as interchangeable detectors competing on a common
+bug oracle. Instead, we compare their analysis models and characterize the
+runtime behavior of their released workflows over the applicable portion of
+the revised benchmark.
 
-\subsection{Validation and Interactive Analysis Cost}\label{subsec:eval:analysiscost}
-% plan: initial source analysis latency; abstract interpretation latency;
-%       intent validation latency;
-%       debug input 변경 후 evaluate latency / intent 변경 후 verify latency /
-%       code edit 후 incremental analyze latency;
-%       cached CFG/state reuse 효과;
-%       navigation 이 analysis engine 재호출 없이 수행되는 구조
-%       (+ 필요 시 local navigation computation cost);
-%       benchmark 별 latency; (필요 시) function size / CFG size 와 latency 관계.
-% * 재는 대상 = "사람이 step 을 몇 초 만에 눌렀는가" 가 아니라
-%   interactive debugging action 을 지원하기 위해 *시스템이 부담하는* computational cost.
+\begin{table}[t]
+\centering
+\caption{Comparison of the analysis models of IQDebug and the three
+existing tools. IQD\,=\,IQDebug; Interp.\,=\,interpretation;
+Dev.\,=\,developer.}
+\label{tab:eval:rq4:model}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{} l >{\raggedright\arraybackslash}X
+                                >{\raggedright\arraybackslash}X
+                                >{\raggedright\arraybackslash}X
+                                >{\raggedright\arraybackslash}X @{}}
+\toprule
+& \textbf{IQD} & \textbf{ScType} & \textbf{GPTScan} & \textbf{NumScout} \\
+\midrule
+Technique
+& Abstract interp.
+& Extended-type inference
+& LLM + static
+& LLM + symbolic \\
 
-% -----------------------------------------------------------------------------
-\section{Comparison with Existing Detection Tools}\label{sec:eval:rq3}
-% plan: 기존 IntentChecker 비교 구조 유지 —
-%       detection/analysis model; predefined criteria vs developer-authored intent;
-%       supported bug/intent scope; coverage; runtime/latency;
-%       baseline = ScType / GPTScan / NumScout 등.
-% * step/breakpoint 를 detector 와 억지로 비교하지 않는다. 비교 대상이 debugger 가
-%   아니라 detector 이므로 IntentChecker 에서 비교했던 공통 분석 능력만 비교한다.
+Criterion
+& Dev.-specified relation
+& Extended-type consistency
+& DeFi rules
+& Numeric patterns \\
+
+Spec.
+& \texttt{@During}/\texttt{@Post}
+& Partial type annotations
+& None
+& None \\
+
+Target
+& Intent violation
+& Accounting type error
+& DeFi patterns
+& Bug patterns \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Comparison of Analysis Models}\label{subsec:eval:rq4:model}
+
+Table~\ref{tab:eval:rq4:model} compares the four tools along four aspects of their
+analysis models: analysis technique, validation criterion, required
+specification, and analysis target.
+The tools first differ in how program behavior is analyzed. IQDebug uses
+abstract interpretation, ScType relies on type inference, GPTScan combines
+LLM-based reasoning with static analysis, and NumScout combines LLM-based
+reasoning with symbolic execution.
+
+A more fundamental difference lies in what each tool treats as evidence of a
+problem. GPTScan and NumScout apply tool-defined criteria corresponding to
+predefined DeFi rules or numeric bug patterns and aim to identify occurrences
+of those supported classes. ScType uses an extended type system that captures
+information including financial meaning, token unit, and scaling factor, with
+user annotations supplying type information that cannot be inferred from the
+code; it then reports inconsistencies under that type system. IQDebug
+instead evaluates developer-specified numeric relationships expressed through
+\texttt{@During} or \texttt{@Post} and reports whether the implementation
+satisfies the supplied intent. Thus, ScType and IQDebug both incorporate
+developer-provided information, but ScType uses it to support type inference
+and consistency checking, whereas IQDebug uses the specified relationship
+itself as the validation criterion.
+
+Overall, the four tools occupy different points in the analysis design space.
+GPTScan and NumScout emphasize automated identification of predefined bug
+classes, ScType checks domain-specific type consistency using partially
+supplied type information, and IQDebug validates developer-specified
+numeric relationships at explicit observation points. These differences suggest
+complementary roles in the development and auditing workflow: IQDebug is
+designed to support explicit validation of intended numeric behavior during
+development, whereas the other tools provide automated checks based on
+predefined rules, patterns, or type constraints. The approaches are therefore
+better viewed as complementary rather than as competing substitutes.
+
+\begin{table}[t]
+\centering
+\caption{Execution coverage over the applicable portion of the benchmark.
+IQDebug: 10 runs/finding; GPTScan/ScType/NumScout: 3 runs/finding.
+Appl.\,=\,applicable; Compl.\,=\,completed; Unsup.\,=\,unsupported.}
+\label{tab:eval:rq4:runtime}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}} l r r r r @{}}
+\toprule
+\textbf{Tool} &
+\textbf{Appl.} &
+\textbf{Compl.} &
+\textbf{Timeout} &
+\textbf{Unsup.} \\
+\midrule
+IQDebug  & 48 & 48 & 0 & 0 \\
+GPTScan  & 74 & 74 & 0 & 0 \\
+ScType   & 10 & 10 & 0 & 0 \\
+NumScout & 74 & 63 & 0 & 11 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Runtime Characteristics}\label{subsec:eval:rq4:runtime}
+
+We next examine the runtime behavior of each tool on the applicable subset of
+the benchmark. GPTScan and NumScout are evaluated on all 74 eligible findings,
+ScType on the independently determined subset of 10 findings for which the
+required type information can be supplied, and IQDebug on all 48
+expressible findings identified in Section~\ref{subsec:eval:rq3:expressiveness}.
+
+For GPTScan, ScType, and NumScout, each applicable finding is executed three
+times and assigned a case-level execution status. A finding is classified as
+\texttt{Completed} if at least one run finishes successfully,
+\texttt{Timeout} if all three runs exceed the configured time limit, and
+\texttt{Unsupported} if the workflow cannot analyze the case because of
+structural or workflow-level limitations, such as uncompilable abstract
+contracts, unresolved external-library linking, or missing source files.
+For findings classified as \texttt{Completed}, the representative runtime is
+computed as the mean of the successful runs only. Thus, an individual run
+that times out does not make the finding a \texttt{Timeout} case if another
+run completes successfully. Latency statistics are computed only from these
+\texttt{Completed} findings.
+% TODO(xref): 원본은 "IntentChecker follows the 10-run measurement procedure
+%   described in RQ2." 였다. 그 RQ2 는 이 논문에 없으므로 Experimental Setup 을
+%   가리키게 바꿨는데, 5.1 의 측정 프로토콜 TODO("number of warm-up runs,
+%   measurement repetitions, ...")가 채워져 10-run 이 거기에 명시돼야 이 참조가
+%   실제로 성립한다.
+IQDebug follows the 10-run measurement
+procedure described in Section~\ref{sec:eval:setup}.
+
+Table~\ref{tab:eval:rq4:runtime} summarizes execution coverage. IQDebug,
+GPTScan, and ScType completed all findings in their respective applicable
+sets, whereas NumScout completed 63 of 74 findings (85.1\%); the remaining
+11 were classified as \texttt{Unsupported}. No finding was classified as
+\texttt{Timeout} at the case level, although individual runs could still
+exceed the configured time limit when another run for the same finding
+completed successfully.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{Fig7.pdf}
+\caption{Runtime distributions of the completed findings for IQDebug
+and the three baseline tools, log scale (box: IQR with median; whiskers:
+min--max; dots: individual findings).}
+\label{fig:eval:rq4:latency}
+\end{figure}
+
+Figure~\ref{fig:eval:rq4:latency} compares the runtime distributions of the
+completed findings. IQDebug has a median runtime of 2.25\,s, compared
+with 20.9\,s for ScType, 272.3\,s for GPTScan, and 313.7\,s for NumScout.
+GPTScan and NumScout also exhibit substantially wider runtime distributions,
+whereas ScType shows a narrower distribution over its smaller applicable
+subset. The very short NumScout runtimes occur in library cases with little
+bytecode available for symbolic execution and therefore correspond to a
+limited analysis surface rather than a comparable analysis of the target
+logic.
+
+These measurements should not be interpreted as a controlled performance or
+detection-effectiveness ranking among the tools. The systems perform different
+analyses, require different forms of input, and are evaluated over different
+applicable sets. The results therefore characterize the runtime profiles of the
+respective workflows rather than the computational cost of performing an
+equivalent analysis task.
+
+\smallskip
+\noindent\textbf{Synthesis.}
+Taken together, the model and runtime comparisons suggest a complementary role
+for IQDebug as a development-time awareness tool for numeric-intent
+validation alongside pattern- and type-based analyses. The
+observed runtime profile is consistent with this intended use once the intent
+and required analysis inputs have been supplied.
 
 % -----------------------------------------------------------------------------
 \section{Threats to Validity}\label{sec:eval:threats}
@@ -3145,7 +4556,29 @@ Through these navigation rules, IQDebug preserves the abstract semantics of bran
 %       Manual classification bias (Value/Algorithm, Usable/Unusable 판단에 연구자 개입);
 %       Benchmark representativeness;
 %       Baseline configuration/version 의존성;
-%       (필요 시) performance environment dependence.
+%       (필요 시) performance environment dependence;
+%       Remix 는 정량 실험에서만 빠지고 qualitative workflow comparison
+%       (subsec:eval:rq1:workflow) 에는 포함된다 -- 아래 Remix coverage 항목.
+% 아래 두 항목은 이 절에 처음 들어가는 산문이다 (그 전까지는 계획 주석만 있었다).
+%   첫 항목은 RQ1 의 target-level input boundary 수정에 따라 생긴 비대칭을 적은 것.
+
+\noindent\textbf{Input-specification asymmetry.}
+IQDebug derives its debugging inputs from the target function, so a state
+location read only inside a callee is never specified and remains
+conservatively abstracted, whereas the execution-based workflows run with
+whatever concrete value that location happens to hold. The compared workflows
+therefore agree on the explicitly specified target-level inputs but not
+necessarily on the surrounding state. IQDebug may consequently analyze a
+broader state than the single concrete state executed by Forge and Hardhat,
+which also bears on the precision characteristics reported in
+Section~\ref{sec:eval:rq2}.
+
+\smallskip
+\noindent\textbf{Remix coverage.}
+Remix is compared qualitatively in Section~\ref{subsec:eval:rq1:workflow} but
+is not part of the quantitative experiments. The reported preparation,
+Time-to-Result, scaling, and source-edit measurements therefore do not
+characterize its workflow.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

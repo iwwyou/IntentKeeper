@@ -1,0 +1,386 @@
+[
+ {
+  "code": "pragma solidity ^0.8.0;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "struct CrossMarginAccount {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "uint256 lastDepositBlock;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "address[] borrowTokens;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) borrowed;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) borrowedYieldQuotientsFP;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "address[] holdingTokens;",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) holdings;",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => bool) holdsToken;",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "abstract contract CrossMarginAccounts is RoleAware, PriceAware {\n}",
+  "startLine": 13,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public leveragePercent;",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public liquidationThresholdPercent;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => CrossMarginAccount) internal marginAccounts;",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) public tokenCaps;",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) public totalShort;",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) public totalLong;",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public coolingOffPeriod;",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "function loanInPeg(CrossMarginAccount storage account, bool forceCurBlock) internal returns (uint256) {\n}",
+  "startLine": 24,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "return sumTokensInPegWithYield(account.borrowTokens, account.borrowed, account.borrowedYieldQuotientsFP, forceCurBlock);",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "function holdingsInPeg(CrossMarginAccount storage account, bool forceCurBlock) internal returns (uint256) {\n}",
+  "startLine": 28,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "return sumTokensInPeg(account.holdingTokens, account.holdings, forceCurBlock);",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "function belowMaintenanceThreshold(CrossMarginAccount storage account) internal returns (bool) {\n}",
+  "startLine": 32,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "uint256 loan = loanInPeg(account, true);",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "uint256 holdings = holdingsInPeg(account, true);",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "return 100 * holdings >= liquidationThresholdPercent * loan;",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "function sumTokensInPeg(address[] storage tokens, mapping(address => uint256) storage amounts, bool forceCurBlock) internal returns (uint256 totalPeg) {\n}",
+  "startLine": 38,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "uint256 len = tokens.length;",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "for (uint256 tokenId; tokenId < len; tokenId++) {\n}",
+  "startLine": 40,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "address token = tokens[tokenId];",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "totalPeg += PriceAware.getCurrentPriceInPeg(token, amounts[token], forceCurBlock);",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "function sumTokensInPegWithYield(address[] storage tokens, mapping(address => uint256) storage amounts, mapping(address => uint256) storage yieldQuotientsFP, bool forceCurBlock) internal returns (uint256 totalPeg) {\n}",
+  "startLine": 46,
+  "endLine": 47,
+  "event": "add"
+ },
+ {
+  "code": "uint256 len = tokens.length;",
+  "startLine": 47,
+  "endLine": 47,
+  "event": "add"
+ },
+ {
+  "code": "for (uint256 tokenId; tokenId < len; tokenId++) {\n}",
+  "startLine": 48,
+  "endLine": 49,
+  "event": "add"
+ },
+ {
+  "code": "address token = tokens[tokenId];",
+  "startLine": 49,
+  "endLine": 49,
+  "event": "add"
+ },
+ {
+  "code": "totalPeg += yieldTokenInPeg(token, amounts[token], yieldQuotientsFP, forceCurBlock);",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 53,
+  "endLine": 53,
+  "event": "add"
+ },
+ {
+  "code": "function yieldTokenInPeg(address token, uint256 amount, mapping(address => uint256) storage yieldQuotientsFP, bool forceCurBlock) internal returns (uint256) {\n}",
+  "startLine": 54,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "uint256 yieldFP = Lending(lending()).viewBorrowingYieldFP(token);",
+  "startLine": 55,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "uint256 amountInToken = (amount * yieldFP) / yieldQuotientsFP[token];",
+  "startLine": 56,
+  "endLine": 56,
+  "event": "add"
+ },
+ {
+  "code": "return PriceAware.getCurrentPriceInPeg(token, amountInToken, forceCurBlock);",
+  "startLine": 57,
+  "endLine": 57,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 59,
+  "endLine": 59,
+  "event": "add"
+ },
+ {
+  "code": "// @Post returnExpression == 0",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar liquidationThresholdPercent = [110, 110]",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.borrowTokens[0] = symbolicAddress 1",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.borrowed[1] = [1000, 1000]",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.borrowedYieldQuotientsFP[1] = [1000000000000000000, 1000000000000000000]",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.borrowTokens[1] = symbolicAddress 3",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.borrowed[3] = [500, 500]",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.borrowedYieldQuotientsFP[3] = [1000000000000000000, 1000000000000000000]",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.holdingTokens[0] = symbolicAddress 2",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.holdings[2] = [2000, 2000]",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.holdingTokens[1] = symbolicAddress 4",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar account.holdings[4] = [1000, 1000]",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ }
+]

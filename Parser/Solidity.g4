@@ -265,7 +265,7 @@ intentUnit
 debugInput
     : debugGlobalVar
     | debugStateVar
-    | debugLocalVar
+    | debugParam
     | debugIReturn
     ;
 
@@ -278,8 +278,8 @@ debugStateVar
     : '@StateVar' varRef '=' debugValue
     ;
 
-debugLocalVar
-    : '@LocalVar' varRef '=' debugValue
+debugParam
+    : '@Param' varRef '=' debugValue
     ;
 
 debugIReturn

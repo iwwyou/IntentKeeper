@@ -3,7 +3,7 @@ import type { AnalysisResult, DebugKind, DebugSlot, RangeValue } from '../types/
 import { emptyValue, slotToAnnotation } from './serialize'
 
 // ★ 슬롯-주도: 분석이 슬롯(상태변수/파라미터/글로벌/IReturn)을 주고, 사용자는 값만 채움.
-//   StateVar=상태변수 선언 시, LocalVar=함수 파라미터, GlobalVar=static 화이트리스트,
+//   StateVar=상태변수 선언 시, Param=함수 파라미터, GlobalVar=static 화이트리스트,
 //   IReturn=인터페이스 호출 statement 등장 시 자동 생성. (전부 함수-스코프)
 export default function DebugInputPanel({ result }: { result: AnalysisResult }) {
   const activeContract = useStore((s) => s.activeContract)
@@ -20,7 +20,7 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
   const fkey = keyOf(activeContract, activeFunction)
   const values = debugInputs[fkey] ?? {}
 
-  const groups: DebugKind[] = ['StateVar', 'LocalVar', 'GlobalVar', 'IReturn']
+  const groups: DebugKind[] = ['StateVar', 'Param', 'GlobalVar', 'IReturn']
   const bySlot = (k: DebugKind) => result.debugSlots.filter((s) => s.kind === k)
 
   const valueOf = (slot: DebugSlot): RangeValue => values[slot.key] ?? emptyValue(slot)

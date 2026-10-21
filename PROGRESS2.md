@@ -1100,6 +1100,10 @@ range 는 원하는 verdict 와 무관하게 생성하고, 못 찾은 경우(§9
 
 ## B.1 도구 비교 평가 — 설계 확정 + 컴파일 게이트 (2026-10-05)
 
+> ⚠ **2026-10-20 갱신으로 일부 대체됨** — RQ 구조(RQ1–RQ4), 데이터셋 계층(89→74→48, RQ1 은 48→**74** 로 확대),
+> 디버깅 입력 정의, 열린 쟁점은 **`PROGRESS.md` §1** 이 현행이다. 아래 "데이터셋 = expressible 48" 과
+> "지표 미확정" 서술은 2026-10-05 시점 기록이다.
+
 위 §B 는 "기존 benchmark 재사용이 그대로는 안 된다" 까지였다. 그에 대한 **구체적 답**이 이것이다.
 전체 경위·근거는 `PROGRESS.md` decision **(51)**.
 
@@ -1207,7 +1211,7 @@ StateVar==0  8      pure/view  12          가시성: public 22 / external 9 / i
 
 | 문서 | 역할 | 상태 |
 |---|---|---|
-| `PROGRESS.md` | 엔진·구현 시간순 로그, decisions #1–#41 | 계속 append |
+| `PROGRESS.md` | §0–§5 = 현재 상태(평가 설계·쟁점·할 일), 부록 = 시간순 로그 decisions #1–#51 | 2026-10-20 재정리 |
 | **`PROGRESS2.md`** (이 문서) | 논문 방향 정본 handoff | 방향 바뀔 때 갱신 |
 | `paper/Phd_thesis/main.tex` | 학위논문 LaTeX 골격 (KU B5 양식, 결함 7종 수정본). 확정 텍스트 삽입 대상 | 챕터 미정 |
 | `temp/solqdebug-extension-direction.md` | 2026-06-12 방향 원문. **§7.4–7.7(LLM originality 헤드라인)은 §13 으로 폐기** | 참고용 동결 |

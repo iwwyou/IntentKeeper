@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex 2026.9.5)  30 SEP 2026 20:44
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.5) (preloaded format=pdflatex 2026.9.5)  20 OCT 2026 22:33
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1227,7 +1227,7 @@ Package hyperref Info: Option `pageanchor' set `false' on input line 251.
 
 {C:/Users/isjeon/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/isj
 eon/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc}] [2] [3]
-Package hyperref Info: Option `pageanchor' set `true' on input line 340.
+Package hyperref Info: Option `pageanchor' set `true' on input line 354.
 *geometry* verbose mode - [ newgeometry ] result:
 * driver: pdftex
 * paper: b5paper
@@ -1264,64 +1264,64 @@ Package hyperref Info: Option `pageanchor' set `true' on input line 340.
 
 ]
 LaTeX Font Info:    Font shape `LUC/nanummj/b/n' in size <12> not available
-(Font)              Font shape `LUC/nanummj/bx/n' tried instead on input line 3
-86.
+(Font)              Font shape `LUC/nanummj/bx/n' tried instead on input line 4
+02.
 LaTeX Font Info:    Font shape `LUC/nanummj/b/n' in size <10.95> not available
-(Font)              Font shape `LUC/nanummj/bx/n' tried instead on input line 3
-96.
+(Font)              Font shape `LUC/nanummj/bx/n' tried instead on input line 4
+12.
  [2] [3]
 LaTeX Font Info:    Trying to load font information for OT1+ztmcm on input line
- 422.
+ 438.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ot1ztmcm.fd
 File: ot1ztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OT1/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OML+ztmcm on input line
- 422.
+ 438.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\omlztmcm.fd
 File: omlztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OML/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OMS+ztmcm on input line
- 422.
+ 438.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\omsztmcm.fd
 File: omsztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OMS/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OMX+ztmcm on input line
- 422.
+ 438.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\omxztmcm.fd
 File: omxztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OMX/ztmcm.
 )
 LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 4
-22.
+38.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ot1ptm.fd
 File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
 )
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10.95> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 422.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 438.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <8> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 422.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 438.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <6> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 422.
-LaTeX Font Info:    Trying to load font information for U+rsfs on input line 42
-2.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 438.
+LaTeX Font Info:    Trying to load font information for U+rsfs on input line 43
+8.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/jknappen\ursfs.fd
 File: ursfs.fd 1998/03/24 rsfs font definition file (jk)
 )
 LaTeX Font Info:    Trying to load font information for U+stmry on input line 4
-22.
+38.
 
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/stmaryrd\ustmry.fd)
-Underfull \hbox (badness 1881) in paragraph at lines 422--425
+Underfull \hbox (badness 1881) in paragraph at lines 438--441
 []\T1/ptm/m/n/10.95 which con-tents have been $[]$, and the con-
  []
 
 
-Underfull \hbox (badness 1701) in paragraph at lines 422--425
+Underfull \hbox (badness 1701) in paragraph at lines 438--441
 \T1/ptm/m/n/10.95 tri-bu-tions of ev-ery au-thor of those multi-authored works 
 (\T1/ptm/m/sc/10.95 SolQDebug\T1/ptm/m/n/10.95 , \T1/ptm/m/sc/10.95 In-
  []
@@ -1336,74 +1336,85 @@ Underfull \hbox (badness 1701) in paragraph at lines 422--425
 \tf@toc=\write6
 \openout6 = `main.toc'.
 
- [8] (main.lot)
+ [8] (main.lot
+Underfull \hbox (badness 1117) in paragraph at lines 15--15
+ [][] [][][]\T1/ptm/m/n/10.95 Debugging-state prepa-ra-tion re-quire-ments for 
+IQDe-bug, Forge, and 
+ []
+
+[9
+
+]
+Underfull \hbox (badness 1077) in paragraph at lines 26--26
+ [][] [][][]\T1/ptm/m/n/10.95 Execution cov-er-age over the ap-pli-ca-ble por-t
+ion of the bench-mark. 
+ []
+
+)
 \tf@lot=\write7
 \openout7 = `main.lot'.
 
- [9
-
-] (main.lof [10
+ [10] (main.lof [11
 
 ])
 \tf@lof=\write8
 \openout8 = `main.lof'.
 
- [11] (main.lol)
+ [12] (main.lol)
 \tf@lol=\write9
 \openout9 = `main.lol'.
 
+ [13
 
-[12
-
-] [13
+] [14
 
 ]
 Chapter 1.
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <9> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 521.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 537.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <9> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 521.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 537.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 521.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 537.
 [1
 
 
 ] [2] [3]
-Underfull \hbox (badness 1552) in paragraph at lines 581--585
+Underfull \hbox (badness 1552) in paragraph at lines 597--601
 []\T1/ptm/m/n/10.95 These two so-lu-tions di-rectly ad-dress the prob-lems iden
 -ti-fied in Sec-tion [][]1.1[][].
  []
 
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 5
-90.
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
+06.
 (C:\Users\isjeon\AppData\Local\Programs\MiKTeX\tex/latex/psnfss\ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
 [4] [5]
 Chapter 2.
-<Fig2.pdf, id=526, 660.50401pt x 429.23999pt>
+<Fig2.pdf, id=671, 660.50401pt x 429.23999pt>
 File: Fig2.pdf Graphic file (type pdf)
 <use Fig2.pdf>
-Package pdftex.def Info: Fig2.pdf  used on input line 633.
+Package pdftex.def Info: Fig2.pdf  used on input line 649.
 (pdftex.def)             Requested size: 291.15681pt x 189.2133pt.
 [6
 
 ]
-<Fig3.pdf, id=532, 607.287pt x 429.021pt>
+<Fig3.pdf, id=677, 607.287pt x 429.021pt>
 File: Fig3.pdf Graphic file (type pdf)
 <use Fig3.pdf>
-Package pdftex.def Info: Fig3.pdf  used on input line 647.
+Package pdftex.def Info: Fig3.pdf  used on input line 663.
 (pdftex.def)             Requested size: 229.56682pt x 162.17865pt.
  [7 <./Fig2.pdf> <./Fig3.pdf>]
-<Fig4.pdf, id=544, 571.37103pt x 303.315pt>
+<Fig4.pdf, id=689, 571.37103pt x 303.315pt>
 File: Fig4.pdf Graphic file (type pdf)
 <use Fig4.pdf>
-Package pdftex.def Info: Fig4.pdf  used on input line 662.
+Package pdftex.def Info: Fig4.pdf  used on input line 678.
 (pdftex.def)             Requested size: 348.25937pt x 184.88303pt.
-<Fig5.pdf, id=546, 928.99802pt x 437.34299pt>
+<Fig5.pdf, id=691, 928.99802pt x 437.34299pt>
 File: Fig5.pdf Graphic file (type pdf)
 <use Fig5.pdf>
-Package pdftex.def Info: Fig5.pdf  used on input line 676.
+Package pdftex.def Info: Fig5.pdf  used on input line 692.
 (pdftex.def)             Requested size: 386.95749pt x 182.16795pt.
  [8 <./Fig4.pdf>] [9 <./Fig5.pdf>] [10]
 [11] [12]
@@ -1412,37 +1423,37 @@ Chapter 3.
 
 ] [14] [15] [16]
 Chapter 4.
-<Fig6.pdf, id=681, 730.22812pt x 465.99094pt>
+<Fig6.pdf, id=826, 730.22812pt x 465.99094pt>
 File: Fig6.pdf Graphic file (type pdf)
 <use Fig6.pdf>
-Package pdftex.def Info: Fig6.pdf  used on input line 866.
+Package pdftex.def Info: Fig6.pdf  used on input line 882.
 (pdftex.def)             Requested size: 386.95749pt x 246.93135pt.
 [17
 
 ] [18 <./Fig6.pdf>] [19]
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 942.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 958.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7.4> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 942.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 958.
 
-Underfull \hbox (badness 1552) in paragraph at lines 950--951
+Underfull \hbox (badness 1552) in paragraph at lines 966--967
 []|\T1/ptm/m/n/10 Struct mem-ber dec-la-ra-tions added af-ter the
  []
 
 [20] [21] [22] [23] [24]
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 1095.
+put line 1111.
  [25] [26] [27] [28] [29]
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <10.95> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 1336.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 1352.
  [30] [31]
-Underfull \hbox (badness 1859) in paragraph at lines 1345--1349
+Underfull \hbox (badness 1859) in paragraph at lines 1361--1365
 \T1/ptm/m/n/10.95 pa-ram-e-ters, re-spec-tively. \T1/cmtt/m/n/10.95 @IReturn \T
 1/ptm/m/n/10.95 iden-ti-fies an ex-ter-nal func-tion call and may
  []
 
 [32] [33] [34]
-Underfull \hbox (badness 1509) in paragraph at lines 1425--1429
+Underfull \hbox (badness 1509) in paragraph at lines 1441--1445
 \T1/ptm/m/n/10.95 through developer-provided de-bug-ging in-puts, the an-a-lyze
 r es-ti-mates an it-er-a-tion
  []
@@ -1451,29 +1462,21 @@ r es-ti-mates an it-er-a-tion
 
 LaTeX Warning: Text page 40 contains only floats.
 
-[40] [41] [42] [43] [44] [45] [46] [47] [48] [49] [50] [51] [52] [53]
-
-LaTeX Warning: Reference `...' on page 54 undefined on input line 2947.
-
-[54] [55]
-Underfull \hbox (badness 1137) in paragraph at lines 2994--3008
+[40] [41] [42] [43] [44] [45] [46] [47] [48] [49] [50] [51] [52] [53] [54]
+[55]
+Underfull \hbox (badness 1137) in paragraph at lines 3010--3024
 \T1/ptm/m/n/10.95 into the cor-re-spond-ing callee func-tion. In con-trast, add
 ress-based or dy-nam-i-cally
  []
 
 [56]
-
-LaTeX Warning: Reference `subsec:design:representation:mapping' on page 57 unde
-fined on input line 3025.
-
-
-Underfull \hbox (badness 2735) in paragraph at lines 3048--3049
+Underfull \hbox (badness 2735) in paragraph at lines 3064--3065
 []\T1/ptm/m/n/10.95 Consequently, breakpoint-based nav-i-ga-tion pro-vides coar
 se-grained move-ment
  []
 
 [57] [58]
-Underfull \hbox (badness 1178) in paragraph at lines 3082--3083
+Underfull \hbox (badness 1178) in paragraph at lines 3098--3099
 []\T1/ptm/m/n/10.95 Through these nav-i-ga-tion rules, IQDe-bug pre-serves the 
 ab-stract se-man-tics of
  []
@@ -1482,31 +1485,43 @@ ab-stract se-man-tics of
 Chapter 5.
 [60
 
-]
+] [61] [62] [63] [64]
+Underfull \hbox (badness 3701) in paragraph at lines 3280--3280
+|[]\T1/ptm/b/n/14.4 RQ1: Com-par-i-son with Ex-ist-ing So-lid-ity De-bug-ging
+ []
+
+[65] [66] [67] [68] [69] [70] [71] [72] [73] [74] [75] [76] [77] [78] [79]
+[80] [81] [82] [83] [84] [85] [86] [87] [88] [89] [90] [91]
+<Fig7.pdf, id=1385, 498.58678pt x 294.66649pt>
+File: Fig7.pdf Graphic file (type pdf)
+<use Fig7.pdf>
+Package pdftex.def Info: Fig7.pdf  used on input line 4519.
+(pdftex.def)             Requested size: 386.95749pt x 228.70137pt.
+ [92] [93 <./Fig7.pdf>] [94]
 Chapter 6.
-[61
+[95
 
 ]
 Chapter 7.
-[62
+[96
 
-] (main.bbl [63
+] (main.bbl [97
 
-] [64] [65]) [66]
+] [98] [99]) [100]
 Appendix A.
-[67
+[101
 
-] [68] [69] [70] [71] [72] [73]
+] [102] [103] [104] [105] [106] [107]
 Appendix B.
 
-Underfull \hbox (badness 1400) in paragraph at lines 3561--3561
+Underfull \hbox (badness 1400) in paragraph at lines 4994--4994
 |[]\T1/ptm/b/n/20.74 Abstract Do-main and For-
  []
 
-[74
+[108
 
-] [75] [76]
-Underfull \hbox (badness 10000) in paragraph at lines 3825--3825
+] [109] [110]
+Underfull \hbox (badness 10000) in paragraph at lines 5258--5258
 []|$\OML/ztmcm/m/it/10 F\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 H\OT1/ztmcm/m/n/1
 0 )(\OML/ztmcm/m/it/10 ^^[\OT1/ztmcm/m/n/10 ) = \U/stmry/m/n/10 J\OML/ztmcm/m/i
 t/10 s\U/stmry/m/n/10 K\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 ^^[\OT1/ztmcm/m/n/
@@ -1515,14 +1530,14 @@ t/10 s\U/stmry/m/n/10 K\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 ^^[\OT1/ztmcm/m/n/
  []
 
 
-Underfull \hbox (badness 3525) in paragraph at lines 3825--3825
+Underfull \hbox (badness 3525) in paragraph at lines 5258--5258
 []|\T1/cmss/m/n/10 try $\OML/ztmcm/m/it/10 e$ \T1/ptm/m/n/10 (\T1/cmss/m/n/10 r
 eturns $\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 x\OT1/ztmcm/m/n/10 )$\T1/ptm/m/n/
 10 ) $\OML/ztmcm/m/it/10 s[]$
  []
 
-[77]
-Underfull \hbox (badness 10000) in paragraph at lines 3960--3960
+[111]
+Underfull \hbox (badness 10000) in paragraph at lines 5393--5393
 []|$[] \OT1/ztmcm/m/n/10 = []([]\OML/ztmcm/m/it/10 ; p; []\OT1/ztmcm/m/n/10 )$\
 T1/ptm/m/n/10 , $[] \OT1/ztmcm/m/n/10 = []([]\OML/ztmcm/m/it/10 ; p; []\OT1/ztm
 cm/m/n/10 )$\T1/ptm/m/n/10 ; $\U/stmry/m/n/10 J\OMS/ztmcm/m/n/10 ^^A\U/stmry/m/
@@ -1530,7 +1545,7 @@ n/10 K[]\OT1/ztmcm/m/n/10 ([]) =
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 3960--3960
+Underfull \hbox (badness 10000) in paragraph at lines 5393--5393
 []|$\OML/ztmcm/m/it/10 G[]\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 H\OT1/ztmcm/m/n
 /10 )([]) = [][]\U/stmry/m/n/10 J\OML/ztmcm/m/it/10 s\U/stmry/m/n/10 K[]\OT1/zt
 mcm/m/n/10 ([]([]\OML/ztmcm/m/it/10 ; p; []\OT1/ztmcm/m/n/10 ))  \OML/ztmcm/m/i
@@ -1538,7 +1553,7 @@ t/10 .[]
  []
 
 
-Underfull \hbox (badness 3525) in paragraph at lines 3960--3960
+Underfull \hbox (badness 3525) in paragraph at lines 5393--5393
 []|\T1/cmss/m/n/10 try $\OML/ztmcm/m/it/10 e$ \T1/ptm/m/n/10 (\T1/cmss/m/n/10 r
 eturns $\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 x\OT1/ztmcm/m/n/10 )$\T1/ptm/m/n/
 10 ) $\OML/ztmcm/m/it/10 s[]$
@@ -1547,26 +1562,22 @@ eturns $\OT1/ztmcm/m/n/10 (\OML/ztmcm/m/it/10 x\OT1/ztmcm/m/n/10 )$\T1/ptm/m/n/
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[78] [79] [80] [81] (main.aux)
+[112] [113] [114] [115] (main.aux)
  ***********
 LaTeX2e <2026-06-01>
 L3 programming layer <2026-08-10>
  ***********
-
-
-LaTeX Warning: There were undefined references.
-
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: BF7AF85D1A80CD8EAB577A4F2978025B;4636.
+(rerunfilecheck)             Checksum: 25BE00A0A620077BC8AA93CF567139DC;6164.
  ) 
 Here is how much of TeX's memory you used:
- 34349 strings out of 467441
- 647853 string characters out of 5407106
- 1113478 words of memory out of 5000000
- 62582 multiletter control sequences out of 15000+600000
- 772433 words of font info for 275 fonts, out of 8000000 for 9000
+ 34518 strings out of 467441
+ 651094 string characters out of 5407106
+ 1115478 words of memory out of 5000000
+ 62679 multiletter control sequences out of 15000+600000
+ 773161 words of font info for 277 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 92i,21n,104p,948b,2254s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 92i,21n,104p,1326b,2254s stack positions out of 10000i,1000n,20000p,200000b,200000s
  <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi525\ect
 t0800.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi
 600\ecss1000.pk> <C:\Users\isjeon\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen
@@ -1630,9 +1641,9 @@ imes/utmb8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/urw/
 times/utmbi8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/ur
 w/times/utmr8a.pfb><C:/Users/isjeon/AppData/Local/Programs/MiKTeX/fonts/type1/u
 rw/times/utmri8a.pfb>
-Output written on main.pdf (97 pages, 6631201 bytes).
+Output written on main.pdf (132 pages, 6771272 bytes).
 PDF statistics:
- 1685 PDF objects out of 1728 (max. 8388607)
- 387 named destinations out of 1000 (max. 500000)
- 494 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 2111 PDF objects out of 2487 (max. 8388607)
+ 457 named destinations out of 1000 (max. 500000)
+ 627 words of extra memory for PDF output out of 10000 (max. 10000000)
 

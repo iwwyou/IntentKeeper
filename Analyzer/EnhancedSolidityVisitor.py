@@ -912,10 +912,10 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         self.contract_analyzer.process_state_var_for_debug(lhs, rhs)
         return None
 
-    def visitDebugLocalVar(self, ctx: SolidityParser.DebugLocalVarContext):
+    def visitDebugParam(self, ctx: SolidityParser.DebugParamContext):
         lhs = self.visitVarRef(ctx.varRef())
         rhs = self._parse_debug_value(ctx.debugValue())
-        self.contract_analyzer.process_local_var_for_debug(lhs, rhs)
+        self.contract_analyzer.process_param_for_debug(lhs, rhs)
         return None
 
     def _parse_ireturn_access_chain(self, chain_ctx) -> tuple:
@@ -2459,7 +2459,23 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         result_expr = Expression(literal=literal_value,
                                  context='LiteralExpContext')
 
-        # 리터럴 값이 숫자인 경우
+        # ★ (2026-10-21) 10진 숫자 리터럴은 **문법 규칙(numberLiteral)으로** 판정하고 값을 정확히 계산한다.
+        #   예전엔 `isdigit()` 로만 숫자를 골라 `0.0005e16`·`1e18`·`1_000` 이 'string' 으로 분류됐고, 그 문자열이
+        #   그대로 상수 값이 되어 비교식이 불가능 판정 → 경로 ⊥ (web3bugs_45_H_01 BORROW_RATE_MAX_MANTISSA).
+        #   Solidity 는 숫자 리터럴을 임의정밀도 유리수로 평가하고, 정수가 아니면 정수 타입에 쓸 수 없다(컴파일 에러)
+        #   → 정수로 떨어지지 않으면 예외. 단위 리터럴(`365.25 days`)은 visitLiteralSubDenomination 이 같은 방식으로 처리.
+        lit_ctx = ctx.literal()
+        num_ctx = lit_ctx.numberLiteral() if lit_ctx is not None else None
+        if num_ctx is not None and num_ctx.DecimalNumber() is not None:
+            exact = Fraction(literal_value.replace("_", ""))
+            if exact.denominator != 1:
+                raise ValueError(f"numeric literal “{literal_value}” does not evaluate to an integer")
+            result_expr.literal = str(exact.numerator)
+            result_expr.expr_type = 'uint'
+            result_expr.type_length = 256
+            return result_expr
+
+        # 리터럴 값이 숫자인 경우 (16진)
         if literal_value.isdigit() or literal_value.startswith(('0x', '0X')):
             # ★ Solidity 숫자 리터럴은 10진·16진 모두 **부호 없는 값**이다.
             #   음수는 단항 '-' 로 표현되지 리터럴 자체가 음수가 되지 않는다.

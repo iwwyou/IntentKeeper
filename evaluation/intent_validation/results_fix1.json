@@ -1,0 +1,87 @@
+{
+ "web3bugs_16_H_04": {
+  "results": [
+   {
+    "line": 48,
+    "type": "during_intent",
+    "status": "warning",
+    "risk": 5.0,
+    "message": "newQuote <= position.quote - quoteChange  →  warning (risk=5.0)  | violation lower=None upper=[1020000000000000000002, 1020200000000000000002] overlap=[980199999999999999999, 1020000000000000000001]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.764,
+  "antlr_errors": 1,
+  "log_tail": "000000000002]\n  RHS = [979999999999999999999, 1020000000000000000001]\n  Risk: Type 2 (one-side)\n\n=======  ANALYSIS  =======\n  46 │ varDeclaration │ {'signedAmount': '[10000000000000000000,10000000000000000000]'}\n  47 │ varDeclaration │ {'signedPrice': '[2000000000000000000,2000000000000000000]'}\n  48 │ varDeclaration │ {'quoteChange': '[-20000000000000000001,20000000000000000001]'}\n  49 │ varDeclaration │ {'fee': '[200000000000000000,200000000000000001]'}\n  51 │ varDeclaration │ {'newQuote': '[0,0]'}\n  52 │ varDeclaration │ {'newBase': '[0,0]'}\n  55 │ assignment     │ {'newBase': '[10000000000000000000,10000000000000000000]'}\n  56 │ assignment     │ {'newQuote': '[980199999999999999999,1020200000000000000002]'}\n  58 │ assignment     │ {'newBase': '[None,None]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_16_H_06": {
+  "results": [
+   {
+    "line": 13,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "result == gasPrice * 10 ** 9 * ethPrice * 10 ** 12 / 10 ** 18 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 0.64,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 13: result == gasPrice * 10 ** 9 * ethPrice * 10 ** 12 / 10 ** 18 → violated (risk=10.0) [risk=10.0]\n  LHS = [15, 16]\n  RHS = [15000000000000000000000, 15000000000000000000000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  12 │ varDeclaration │ {'gasPrice': '[5000000000,5000000000]'}\n  13 │ varDeclaration │ {'ethPrice': '[3000000000,3000000000]'}\n  15 │ varDeclaration │ {'result': '[15,16]'}\n  16 │ return         │ {'result': '[15,16]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Warning"
+ },
+ "web3bugs_5_H_07": {
+  "results": [
+   {
+    "line": 24,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "returnExpression == u * A * 2 * U * U - 2 * U * u + u * u / U * U * U → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 0.565,
+  "antlr_errors": 0,
+  "log_tail": "ases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 24: returnExpression == u * A * 2 * U * U - 2 * U * u + u * u / U * U * U → violated (risk=10.0) [risk=10.0]\n  Analysis = [999, 999]\n  Intent   = [905, 905]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  23 │ varDeclaration │ {'part1': '[500000,500000]'}\n  24 │ varDeclaration │ {'part2': '[2000000,2000000]'}\n  25 │ varDeclaration │ {'part3': '[200000,200000]'}\n  26 │ varDeclaration │ {'part4': '[10000,10000]'}\n  27 │ varDeclaration │ {'numerator': '[999999810000,999999810000]'}\n  28 │ varDeclaration │ {'part5': '[1000000000,1000000000]'}\n  29 │ return         │ {'None': '[999,999]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_45_H_01": {
+  "results": [
+   {
+    "line": 236,
+    "type": "post_intent",
+    "status": "unreachable",
+    "risk": null,
+    "message": "intent 위치 도달 불가 (정상 경로로 함수가 종료되지 않음)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 14.796,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT UNREACHABLE] Line 236: 경로 조건상 함수 정상 종료 불가\n\n=======  ANALYSIS  =======\n 215 │ varDeclaration │ {'assetManagerContract': 'address(⊤)'}\n 220 │ varDeclaration │ {'fee': '[1000000000000001,1000000000000001]'}\n==========================\n\n",
+  "verdict": "Unreachable",
+  "expected": "Violated"
+ },
+ "web3bugs_5_H_12": {
+  "results": [
+   {
+    "line": 34,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "returnExpression == _balance - mapToken_tokenAmount[_token] → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.334,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 34: returnExpression == _balance - mapToken_tokenAmount[_token] → violated (risk=10.0) [risk=10.0]\n  Analysis = [150, 150]\n  Intent   = [100, 100]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  33 │ varDeclaration │ {'_balance': '[200,200]'}\n  41 │ assignment     │ {'addedAmount': '[150,150]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ }
+}

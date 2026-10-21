@@ -1,0 +1,152 @@
+[
+  {
+    "code": "pragma solidity 0.8.4;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract RebaseProxy is ERC20, TokenProxyLike {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "function redeemRate() public view returns (uint256) {\n}",
+    "startLine": 5,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "uint256 balanceOfBase = IERC20(baseToken).balanceOf(address(this));",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "if (totalSupply() == 0 || balanceOfBase == 0) {\n}",
+    "startLine": 7,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "return ONE;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "return (balanceOfBase * ONE) / totalSupply();",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "function mint(address to, uint256 amount) public override returns (uint256) {\n}",
+    "startLine": 14,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "uint256 _redeemRate = redeemRate();",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "require(IERC20(baseToken).transferFrom(msg.sender, address(this), amount));",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "uint256 baseBalance = IERC20(baseToken).balanceOf(address(this));",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "uint256 proxy = (baseBalance * ONE) / _redeemRate;",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "_mint(to, proxy);",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "// @Post _balances[to] <= amount",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _totalSupply = [1000000000000000000000, 1000000000000000000000]",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar to = symbolicAddress 10",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _balances[to] = [0, 0]",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn IERC20(baseToken).balanceOf() = [1500000000000000000000, 1500000000000000000000]",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar amount = [500000000000000000000, 500000000000000000000]",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  }
+]

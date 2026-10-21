@@ -1,0 +1,326 @@
+[
+  {
+    "code": "pragma solidity =0.8.9;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "import \"../external/interfaces/AggregatorV3Interface.sol\";",
+    "startLine": 3,
+    "endLine": 3,
+    "event": "add"
+  },
+  {
+    "code": "import \"../external/libraries/FixedPoint.sol\";",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "contract TwapOracle {\n}",
+    "startLine": 6,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "using FixedPoint for *;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "struct PairData {\n}",
+    "startLine": 9,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "address pair;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "address token0;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "address token1;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint256 price0CumulativeLast;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint256 price1CumulativeLast;",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint32 blockTimestampLast;",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "FixedPoint.uq112x112 price0Average;",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "FixedPoint.uq112x112 price1Average;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => address) private _aggregators;",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "PairData[] private _pairs;",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 22,
+    "endLine": 22,
+    "event": "add"
+  },
+  {
+    "code": "function consult(address token) public view returns (uint256 result) {\n}",
+    "startLine": 23,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "uint256 pairCount = _pairs.length;",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "uint256 sumNative = 0;",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "uint256 sumUSD = 0;",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "for (uint256 i = 0; i < pairCount; i++) {\n}",
+    "startLine": 28,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "PairData memory pairData = _pairs[i];",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "if (token == pairData.token0) {\n}",
+    "startLine": 31,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "sumNative += pairData.price1Average.mul(1).decode144();",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "if (pairData.price1Average._x != 0) {\n}",
+    "startLine": 33,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "require(sumNative != 0);",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "( uint80 roundID, int256 price, , , uint80 answeredInRound ) = AggregatorV3Interface(_aggregators[pairData.token1]) .latestRoundData();",
+    "startLine": 37,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "require( answeredInRound >= roundID, \"TwapOracle::consult: stale chainlink price\" );",
+    "startLine": 46,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "require( price != 0, \"TwapOracle::consult: chainlink malfunction\" );",
+    "startLine": 50,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "sumUSD += uint256(price) * (10**10);",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "require(sumNative != 0, \"TwapOracle::consult: Sum of native is zero\");",
+    "startLine": 58,
+    "endLine": 58,
+    "event": "add"
+  },
+  {
+    "code": "result = ((sumUSD * IERC20Metadata(token).decimals()) / sumNative);",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "// @Post result == (sumUSD * (10 ** 18)) / sumNative",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar token = symbolicAddress 1",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _pairs[0].token0 = symbolicAddress 1",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _pairs[0].token1 = symbolicAddress 2",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _pairs[0].price1Average._x = [5192296858534827628530496329220096000, 5192296858534827628530496329220096000]",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _pairs[1].token0 = symbolicAddress 3",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn AggregatorV3Interface(chainlinkFeed).latestRoundData()[0] = [1, 1]",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn AggregatorV3Interface(chainlinkFeed).latestRoundData()[1] = [200000000, 200000000]",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn AggregatorV3Interface(chainlinkFeed).latestRoundData()[4] = [1, 1]",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn IERC20Metadata(token).decimals() = [18, 18]",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  }
+]

@@ -12,19 +12,23 @@
 \contentsline {figure}{\numberline {4.3}{\ignorespaces Grammar of developer-authored intent. }}{40}{figure.caption.30}%
 \contentsline {figure}{\numberline {4.4}{\ignorespaces Spectrum of $L$ vs $R$ configurations for $op = \text {``$>$''}$.}}{50}{figure.caption.33}%
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Computational cost as the number of concrete input combinations represented by the debugging state increases.}}{73}{figure.caption.40}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Evolution of the abstract and concrete output ranges as the debugging state is expanded.}}{80}{figure.caption.43}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Relationship between state-specification expansion, branch feasibility, and the resulting abstract-state precision.}}{82}{figure.caption.45}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Runtime distributions of the completed findings for IQDebug and the three baseline tools, log scale (box: IQR with median; whiskers: min--max; dots: individual findings).}}{93}{figure.caption.53}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {A.1}{\ignorespaces Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions.}}{68}{figure.caption.37}%
-\contentsline {figure}{\numberline {A.2}{\ignorespaces Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt {\_}) back to the function body, eventually reaching the function exit.}}{69}{figure.caption.38}%
-\contentsline {figure}{\numberline {A.3}{\ignorespaces Simple statement insertion: single node spliced between current node and successors}}{69}{figure.caption.39}%
-\contentsline {figure}{\numberline {A.4}{\ignorespaces If statement insertion. The builder creates a \texttt {condition node}, two nodes for true/false arms, and an \texttt {if join}}}{70}{figure.caption.40}%
-\contentsline {figure}{\numberline {A.5}{\ignorespaces Else-if statement insertion. The builder replaces the false arm with a new \texttt {condition node}, two nodes, and an \texttt {else-if join}}}{70}{figure.caption.41}%
-\contentsline {figure}{\numberline {A.6}{\ignorespaces Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt {if join}}}{71}{figure.caption.42}%
-\contentsline {figure}{\numberline {A.7}{\ignorespaces While loop insertion. The builder creates a \texttt {fixpoint evaluation node} $\phi $, a \texttt {condition node}, a loop body node, and a \texttt {loop exit node}}}{71}{figure.caption.43}%
-\contentsline {figure}{\numberline {A.8}{\ignorespaces Break statement insertion. The \texttt {break} node's outgoing edge is redirected to the \texttt {loop exit node}}}{72}{figure.caption.44}%
-\contentsline {figure}{\numberline {A.9}{\ignorespaces Continue statement insertion. The \texttt {continue} node's outgoing edge is redirected to the loop's \texttt {fixpoint evaluation node} $\phi $}}{72}{figure.caption.45}%
-\contentsline {figure}{\numberline {A.10}{\ignorespaces Return statement insertion. The containing node's edge is rewired to the function's unique \texttt {return exit node}}}{73}{figure.caption.46}%
-\contentsline {figure}{\numberline {A.11}{\ignorespaces Require/assert statement insertion. The builder creates a \texttt {condition node} with true edge to a node and false edge to the \texttt {error exit node}}}{73}{figure.caption.47}%
-\contentsline {figure}{\numberline {A.12}{\ignorespaces Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt {error exit node}}}{73}{figure.caption.48}%
+\contentsline {figure}{\numberline {A.1}{\ignorespaces Structure of ContractCFG. The contract-level CFG sequences state variable initialization, constructor execution, and all function definitions.}}{102}{figure.caption.56}%
+\contentsline {figure}{\numberline {A.2}{\ignorespaces Structure of FunctionCFG. Each function maintains its own control-flow graph. When modifiers are present, control flows from the function entry to the modifier, and returns from the modifier's placeholder (\texttt {\_}) back to the function body, eventually reaching the function exit.}}{103}{figure.caption.57}%
+\contentsline {figure}{\numberline {A.3}{\ignorespaces Simple statement insertion: single node spliced between current node and successors}}{103}{figure.caption.58}%
+\contentsline {figure}{\numberline {A.4}{\ignorespaces If statement insertion. The builder creates a \texttt {condition node}, two nodes for true/false arms, and an \texttt {if join}}}{104}{figure.caption.59}%
+\contentsline {figure}{\numberline {A.5}{\ignorespaces Else-if statement insertion. The builder replaces the false arm with a new \texttt {condition node}, two nodes, and an \texttt {else-if join}}}{104}{figure.caption.60}%
+\contentsline {figure}{\numberline {A.6}{\ignorespaces Else statement insertion. The builder replaces the false branch node with a new else node, connecting to the \texttt {if join}}}{105}{figure.caption.61}%
+\contentsline {figure}{\numberline {A.7}{\ignorespaces While loop insertion. The builder creates a \texttt {fixpoint evaluation node} $\phi $, a \texttt {condition node}, a loop body node, and a \texttt {loop exit node}}}{105}{figure.caption.62}%
+\contentsline {figure}{\numberline {A.8}{\ignorespaces Break statement insertion. The \texttt {break} node's outgoing edge is redirected to the \texttt {loop exit node}}}{106}{figure.caption.63}%
+\contentsline {figure}{\numberline {A.9}{\ignorespaces Continue statement insertion. The \texttt {continue} node's outgoing edge is redirected to the loop's \texttt {fixpoint evaluation node} $\phi $}}{106}{figure.caption.64}%
+\contentsline {figure}{\numberline {A.10}{\ignorespaces Return statement insertion. The containing node's edge is rewired to the function's unique \texttt {return exit node}}}{107}{figure.caption.65}%
+\contentsline {figure}{\numberline {A.11}{\ignorespaces Require/assert statement insertion. The builder creates a \texttt {condition node} with true edge to a node and false edge to the \texttt {error exit node}}}{107}{figure.caption.66}%
+\contentsline {figure}{\numberline {A.12}{\ignorespaces Revert statement insertion. The containing node's edge is rewired to the function's unique \texttt {error exit node}}}{107}{figure.caption.67}%
 \addvspace {10\p@ }

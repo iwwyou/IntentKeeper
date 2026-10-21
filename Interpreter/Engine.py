@@ -1413,12 +1413,47 @@ class Engine:
             v.value = bot; return
         v.value = None
 
+    @staticmethod
+    def normal_completion_preds(fcfg: FunctionCFG) -> list:
+        """함수의 **정상 종료** 경로의 마지막 노드들 = EXIT 의 선행 ∪ RETURN 의 선행 (2026-10-21).
+
+        Solidity 에서 `return` 문 실행과 본문 끝 도달은 똑같이 정상 종료다(호출자는 둘을 구분할 수 없다).
+        빌더는 `return` 을 RETURN sink 로 보내고 EXIT 로 잇지 않으므로, EXIT 만 보면 `return` 경로가 빠진다.
+        한쪽 종료 방식이 없는 함수(예: return 문이 없는 함수)는 그쪽 선행이 0개라 자연히 빠진다.
+        (revert/require 실패는 ERROR sink 로 가므로 여기에 들어오지 않는다.)"""
+        g = fcfg.graph
+        preds = []
+        for sink in (fcfg.get_exit_node(), fcfg.get_return_exit_node()):
+            if sink is not None and sink in g:
+                preds.extend(p for p in g.predecessors(sink) if p not in preds)
+        return preds
+
     def _force_join_before_exit(self, fcfg: FunctionCFG) -> None:
-        g = fcfg.graph; exit_node = fcfg.get_exit_node()
-        joined_env: dict[str, Variables] = {}
-        for p in list(g.predecessors(exit_node)):
-            joined_env = VariableEnv.join_variables_simple(joined_env, getattr(p, "variables", {}) or {})
-        exit_node.variables = joined_env
+        """EXIT 노드의 환경 = 정상 종료 상태 (2026-10-21, 사용자 승인).
+
+        - 정상 종료 선행(EXIT ∪ RETURN, `normal_completion_preds`) 중 **도달 가능한(⊥ 아닌)** 것만 join 한다.
+          예전엔 EXIT 선행만, 그것도 ⊥ 환경까지 join 해서 (1) `return` 으로 끝나는 callee 의 상태 변경이 호출자에
+          전달되지 않았고, (2) 조기 return 만 실제로 가능한 callee(PRBMath.mulDivFixedPoint)는 EXIT 가 ⊥ 가 되어
+          호출자 경로를 죽였다(16_H_04·16_H_06).
+        - 도달 가능한 정상 종료가 하나도 없으면 **명시적으로 ⊥ 환경**을 둔다. 빈 `{}` 를 두면 호출자 되쓰기가
+          아무것도 하지 않아, 절대 돌아오지 않는 호출 뒤를 호출 전 상태로 계속 해석하게 된다.
+        - RETURN/EXIT 노드 자체는 그래프에서 분리된 채 둔다(디버거 표시·출처 추적용). 합치기는 계산으로만 한다."""
+        exit_node = fcfg.get_exit_node()
+        preds = self.normal_completion_preds(fcfg)
+        live = [p for p in preds
+                if (getattr(p, "variables", None) or {}) and not self._is_bottom_env(p.variables)]
+        if live:
+            joined_env = None
+            for p in live:
+                joined_env = VariableEnv.join_variables_simple(joined_env, p.variables)
+            exit_node.variables = joined_env
+            return
+        # 정상 종료 불가 → ⊥ 환경 (선행의 변수 구성이 있으면 그걸, 없으면 함수의 관련 변수를 바탕으로)
+        base = next((p.variables for p in preds if getattr(p, "variables", None)), None) \
+            or getattr(fcfg, "related_variables", {}) or {}
+        bottom = VariableEnv.copy_variables(base)
+        self._set_bottom_env(bottom)
+        exit_node.variables = bottom
 
     def _sync_named_return_vars(self, fcfg: FunctionCFG) -> None:
         exit_env = fcfg.get_exit_node().variables

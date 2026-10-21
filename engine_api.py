@@ -66,7 +66,7 @@ NodeFlag = Literal[
 ]
 EdgeKind = Literal["normal", "true", "false", "back_edge"]
 VerdictStatus = Literal["Satisfied", "Warning", "Violated", "Unreachable"]
-DebugKind = Literal["StateVar", "LocalVar", "GlobalVar", "IReturn"]
+DebugKind = Literal["StateVar", "Param", "GlobalVar", "IReturn"]
 ValueKind = Literal["interval", "bool", "address", "array", "bytes", "enum"]
 Backend = Literal["llm", "solver", "hybrid"]
 
@@ -618,7 +618,7 @@ def _serialize_cfg(fcfg, recorder, with_states: bool, states_override=None,
     )
 
 
-_KIND_KW = {"StateVar": "@StateVar", "LocalVar": "@LocalVar",
+_KIND_KW = {"StateVar": "@StateVar", "Param": "@Param",
             "GlobalVar": "@GlobalVar", "IReturn": "@IReturn"}
 
 
@@ -883,7 +883,7 @@ def _ap_node_exprs(n):
 def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
                         interface_names=None, contract_cfgs=None) -> list[DebugSlot]:
     """구조적 debug 슬롯 도출(값 이전). *이 함수와 관련된* 변수만, 타입별 valueKind로.
-      LocalVar = 함수 파라미터 / StateVar = 이 함수가 참조하는 상태변수(func_src 매치)
+      Param = 함수 파라미터 / StateVar = 이 함수가 참조하는 상태변수(func_src 매치)
       GlobalVar = 이 함수가 쓰는 글로벌 / IReturn = 인터페이스 호출.
     compound(mapping/struct/array 접근 경로)·IReturn 은 통합 접근-경로 스캐너(_ap_*, decision #34)로
     node.statements AST 에서 도출: 슬롯 key = 경로 문자열(`_balances[u]`·`accountBorrows[k].principal`·
@@ -997,9 +997,9 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
         for e in _ap_node_exprs(n):
             scan(e)
 
-    # 1) 파라미터 (LocalVar, 스칼라)
+    # 1) 파라미터 (Param, 스칼라)
     for p in getattr(fcfg, "parameters", []) or []:
-        slots.append(DebugSlot(kind="LocalVar", key=p, label=p,
+        slots.append(DebugSlot(kind="Param", key=p, label=p,
                                valueKind="interval", signed=False, bits=256))
 
     # 2) 상태변수 — compound root 는 경로 슬롯이, 인터페이스 핸들은 IReturn 이 대체하므로 스킵, 나머지는 스칼라
@@ -1277,7 +1277,7 @@ class EngineSession:
                 continue
             if text is None:
                 continue
-            kw = _KIND_KW.get(slot.kind if slot else "LocalVar", "@LocalVar")
+            kw = _KIND_KW.get(slot.kind if slot else "Param", "@Param")
             self._batch.add(f"{kw} {key} = {text}")
             applied += 1
         self._last_value_errors = errors
@@ -1329,7 +1329,7 @@ class EngineSession:
           * records 를 update_code(SolidityAnalyzer.py:40) 경로로 적용해 visitor 가 CFG 구성.
           * CFG 구조 추출: line_info[ln]["cfg_nodes"], CFGNode flags/cond_type/edges(Utils/CFG.py).
           * debug_slots 도출(값 이전, 구조적):
-              StateVar = 상태변수 선언, LocalVar = 함수 파라미터/로컬,
+              StateVar = 상태변수 선언, Param = 함수 파라미터,
               GlobalVar = static 화이트리스트, IReturn = 인터페이스 호출 statement 등장.
           * 이 단계 nodes.state 는 빈 dict (값은 evaluate 가 채움).
         주의: 어노테이션 라인은 records 에 없음. 슬롯 line 부착점은 CFGNode.src_line 으로 프론트가 유도.

@@ -138,6 +138,29 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w110": {
+    "cases": [
+      "web3bugs_110_H_01"
+    ],
+    "contest": "110",
+    "files": 7,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "openzeppelin-contracts-upgradeable/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool-pref": 4,
+      "pool": 2
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w112": {
     "cases": [
       "web3bugs_112_H_01"
@@ -212,6 +235,30 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w17": {
+    "cases": [
+      "web3bugs_17_H_02"
+    ],
+    "contest": "17",
+    "files": 13,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@chainlink/contracts/",
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "flat": 11,
+      "reconstructed": 1
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w192": {
     "cases": [
       "web3bugs_192_H_01"
@@ -235,10 +282,32 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w25": {
+    "cases": [
+      "web3bugs_25_H_01",
+      "web3bugs_25_H_05"
+    ],
+    "contest": "25",
+    "files": 7,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "flat": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w29": {
     "cases": [
       "web3bugs_29_H_08",
-      "web3bugs_29_H_11"
+      "web3bugs_29_H_11",
+      "web3bugs_29_H_05"
     ],
     "contest": "29",
     "files": 10,
@@ -305,6 +374,30 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w34": {
+    "cases": [
+      "web3bugs_34_H_01"
+    ],
+    "contest": "34",
+    "files": 16,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/",
+      "@pooltogether/owner-manager-contracts/",
+      "@pooltogether/pooltogether-rng-contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 15
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w35": {
     "cases": [
       "web3bugs_35_H_08",
@@ -358,6 +451,26 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w39": {
+    "cases": [
+      "web3bugs_39_H_02"
+    ],
+    "contest": "39",
+    "files": 4,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 3
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w42": {
     "cases": [
       "web3bugs_42_H_01"
@@ -384,23 +497,47 @@
     "build_errors": [],
     "solc": "0.8.4"
   },
-  "w45": {
+  "w44": {
     "cases": [
-      "web3bugs_45_H_01"
+      "web3bugs_44_H_02"
     ],
-    "contest": "45",
-    "files": 6,
+    "contest": "44",
+    "files": 4,
     "depth": 0,
     "vpath_override": {},
     "oz_generation": "4",
     "npm": [
-      "@openzeppelin/contracts-upgradeable/"
+      "@openzeppelin/contracts/"
     ],
     "missing": [],
     "conflicts": [],
     "origin_counts": {
       "target": 1,
-      "flat": 5
+      "flat": 3
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w45": {
+    "cases": [
+      "web3bugs_45_H_01",
+      "web3bugs_45_H_02"
+    ],
+    "contest": "45",
+    "files": 8,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 2,
+      "flat": 6
     },
     "build_ok": true,
     "build_errors": [],
@@ -431,10 +568,11 @@
     "cases": [
       "web3bugs_5_H_07",
       "web3bugs_5_H_08",
-      "web3bugs_5_H_12"
+      "web3bugs_5_H_12",
+      "web3bugs_5_H_15"
     ],
     "contest": "5",
-    "files": 9,
+    "files": 10,
     "depth": 0,
     "vpath_override": {},
     "oz_generation": "4",
@@ -444,7 +582,7 @@
     "missing": [],
     "conflicts": [],
     "origin_counts": {
-      "target": 2,
+      "target": 3,
       "pool": 6,
       "pool-pref": 1
     },
@@ -454,7 +592,9 @@
   },
   "w51": {
     "cases": [
-      "web3bugs_51_H_02"
+      "web3bugs_51_H_02",
+      "web3bugs_51_H_04",
+      "web3bugs_51_H_06"
     ],
     "contest": "51",
     "files": 5,
@@ -479,10 +619,12 @@
     "cases": [
       "web3bugs_52_H_04",
       "web3bugs_52_H_23",
-      "web3bugs_52_H_34"
+      "web3bugs_52_H_34",
+      "web3bugs_52_H_15",
+      "web3bugs_52_H_16"
     ],
     "contest": "52",
-    "files": 24,
+    "files": 30,
     "depth": 0,
     "vpath_override": {},
     "oz_generation": "4",
@@ -492,8 +634,8 @@
     "missing": [],
     "conflicts": [],
     "origin_counts": {
-      "target": 2,
-      "flat": 22
+      "target": 3,
+      "flat": 27
     },
     "build_ok": true,
     "build_errors": [],
@@ -524,10 +666,11 @@
   },
   "w58": {
     "cases": [
-      "web3bugs_58_H_02"
+      "web3bugs_58_H_02",
+      "web3bugs_58_H_04"
     ],
     "contest": "58",
-    "files": 14,
+    "files": 21,
     "depth": 0,
     "vpath_override": {},
     "oz_generation": "4",
@@ -537,8 +680,8 @@
     "missing": [],
     "conflicts": [],
     "origin_counts": {
-      "target": 1,
-      "pool": 12,
+      "target": 2,
+      "pool": 18,
       "pool-pref": 1
     },
     "build_ok": true,
@@ -547,10 +690,11 @@
   },
   "w59": {
     "cases": [
-      "web3bugs_59_H_04"
+      "web3bugs_59_H_04",
+      "web3bugs_59_H_05"
     ],
     "contest": "59",
-    "files": 12,
+    "files": 13,
     "depth": 0,
     "vpath_override": {},
     "oz_generation": "3",
@@ -561,7 +705,7 @@
     "missing": [],
     "conflicts": [],
     "origin_counts": {
-      "target": 1,
+      "target": 2,
       "pool": 10,
       "pool-pref": 1
     },
@@ -589,11 +733,37 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w61": {
+    "cases": [
+      "web3bugs_61_H_01",
+      "web3bugs_61_H_02",
+      "web3bugs_61_H_04"
+    ],
+    "contest": "61",
+    "files": 8,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "@openzeppelin/contracts-upgradeable/",
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 3,
+      "flat": 5
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w62": {
     "cases": [
       "web3bugs_62_H_03",
       "web3bugs_62_H_08",
-      "web3bugs_62_H_10"
+      "web3bugs_62_H_10",
+      "web3bugs_62_H_01"
     ],
     "contest": "62",
     "files": 2,
@@ -642,10 +812,35 @@
     "cases": [
       "web3bugs_70_H_04",
       "web3bugs_70_H_05",
-      "web3bugs_70_H_10"
+      "web3bugs_70_H_10",
+      "web3bugs_70_H_03",
+      "web3bugs_70_H_08",
+      "web3bugs_70_H_09"
     ],
     "contest": "70",
-    "files": 12,
+    "files": 18,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "4",
+    "npm": [
+      "@openzeppelin/contracts/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 3,
+      "flat": 15
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
+  "w71": {
+    "cases": [
+      "web3bugs_71_H_11"
+    ],
+    "contest": "71",
+    "files": 8,
     "depth": 0,
     "vpath_override": {},
     "oz_generation": "4",
@@ -656,7 +851,7 @@
     "conflicts": [],
     "origin_counts": {
       "target": 1,
-      "flat": 11
+      "flat": 7
     },
     "build_ok": true,
     "build_errors": [],
@@ -730,9 +925,33 @@
     "build_errors": [],
     "solc": "auto"
   },
+  "w8": {
+    "cases": [
+      "web3bugs_8_H_03"
+    ],
+    "contest": "8",
+    "files": 28,
+    "depth": 0,
+    "vpath_override": {},
+    "oz_generation": "3",
+    "npm": [
+      "hardhat/"
+    ],
+    "missing": [],
+    "conflicts": [],
+    "origin_counts": {
+      "target": 1,
+      "pool": 21,
+      "pool-pref": 6
+    },
+    "build_ok": true,
+    "build_errors": [],
+    "solc": "auto"
+  },
   "w83": {
     "cases": [
-      "web3bugs_83_H_01"
+      "web3bugs_83_H_01",
+      "web3bugs_83_H_02"
     ],
     "contest": "83",
     "files": 1,

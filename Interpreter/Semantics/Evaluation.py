@@ -258,10 +258,10 @@ class Evaluation :
                     elif cast_ifc and not is_last:
                         # 중간 chained call: 반환 타입으로 top 생성하여 다음 step 진행
                         ret_val = self._lookup_interface_return(cast_ifc, call_name)
-                        if ret_val is not None:
-                            target = ret_val
-                        else:
-                            break
+                        if ret_val is None:
+                            raise ValueError(f"@IReturn chain: {cast_ifc}.{call_name}() returns nothing "
+                                             f"but the chain continues")
+                        target = ret_val
                     else:
                         break
 
@@ -287,42 +287,67 @@ class Evaluation :
             return None
         return self._assemble_ireturn_value(interface_name, func_name, entries, callerObject)
 
+    def _top_of_type(self, sol_type, owner_cfg, ident):
+        """선언 타입의 ⊤ 값 (값 타입이면 .value, 복합 타입이면 변수 객체)."""
+        # ★ file-level struct 병합 — _assemble_ireturn_value와 동일 이유
+        # (web3bugs_42_H_01, `'denominator' not in struct 'lf'`)
+        struct_defs = dict(getattr(self.an.sa, 'file_level_structs', {}) or {})
+        struct_defs.update(getattr(owner_cfg, 'structDefs', {}) or {})
+        enum_defs = getattr(owner_cfg, 'enumDefs', {}) or {}
+        top_val = VariableEnv.top_from_soltype(sol_type, struct_defs, enum_defs, identifier=ident)
+        if isinstance(top_val, Variables) and \
+           not isinstance(top_val, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
+            return top_val.value
+        return top_val
+
     def _lookup_interface_return(self, interface_name, func_name):
-        """interface pkl에서 함수 return type 조회 (parent chain 포함) → top domain value"""
+        """외부 호출 `T(addr).f()` / `t.f()` 의 반환값 = 선언 반환 타입의 ⊤ (2026-10-21 재작성, 사용자 승인).
+
+        조회 순서 (각각 부모 체인 포함):
+          1. interface pkl (`Dependencies/objectfile/ifc_<T>.pkl`)
+          2. 이미 로드된 contract/library CFG (`self.an.contract_cfgs`) — T 가 interface 가 아니라 **contract** 인 경우
+             (예: `Ownable(address(factory)).owner()`, web3bugs_36_H_02)
+          3. public 상태변수의 자동 getter (`factory.ownerSplit()` 처럼 함수가 아니라 상태변수인 경우)
+        함수를 찾았는데 반환 타입이 없으면(void) **None** = 값 없음(정상).
+        끝내 못 찾으면 **예외** — 컴파일되는 코드라면 선언이 반드시 있으므로 의존성 누락이다.
+        예전엔 못 찾으면 호출부가 `UnsignedIntegerInterval.top()` 으로 대체했고, 그 숫자가 address 자리에 들어가
+        `require(account != address(0))` 를 불가능으로 만들었다(36_H_02 Unreachable)."""
         import pickle, pathlib
         visited = set()
         queue = [interface_name]
         while queue:
-            ifc_name = queue.pop(0)
-            if ifc_name in visited:
+            name = queue.pop(0)
+            if name in visited or not name:
                 continue
-            visited.add(ifc_name)
-            pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{ifc_name}.pkl')
-            if not pkl_path.exists():
+            visited.add(name)
+            cfg = None
+            pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{name}.pkl')
+            if pkl_path.exists():
+                with open(pkl_path, 'rb') as f:
+                    raw = pickle.load(f)
+                cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
+            if cfg is None:
+                cfg = (getattr(self.an, 'contract_cfgs', {}) or {}).get(name)
+            if cfg is None:
                 continue
-            with open(pkl_path, 'rb') as f:
-                raw = pickle.load(f)
-            ifc_cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
-            ifc_fcfg = ifc_cfg.get_function_cfg(func_name)
-            if ifc_fcfg and ifc_fcfg.return_types:
-                rt = ifc_fcfg.return_types[0]
-                # ★ file-level struct 병합 — _assemble_ireturn_value와 동일 이유
-                # (web3bugs_42_H_01, `'denominator' not in struct 'lf'`)
-                struct_defs = dict(getattr(self.an.sa, 'file_level_structs', {}) or {})
-                struct_defs.update(getattr(ifc_cfg, 'structDefs', {}) or {})
-                enum_defs = getattr(ifc_cfg, 'enumDefs', {})
-                top_val = VariableEnv.top_from_soltype(
-                    rt, struct_defs, enum_defs,
-                    identifier=f"{ifc_name}.{func_name}_ret")
-                if isinstance(top_val, Variables) and \
-                   not isinstance(top_val, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
-                    return top_val.value
-                return top_val
+            fcfg = cfg.get_function_cfg(func_name)
+            if fcfg is not None:
+                if not fcfg.return_types:
+                    return None                                   # void 함수: 값 없음
+                return self._top_of_type(fcfg.return_types[0], cfg, f"{name}.{func_name}_ret")
+            svn = getattr(cfg, 'state_variable_node', None)
+            sv = (getattr(svn, 'variables', {}) or {}).get(func_name) if svn is not None else None
+            if sv is not None and getattr(sv, 'typeInfo', None) is not None \
+                    and not isinstance(sv, (MappingVariable, ArrayVariable)):
+                return self._top_of_type(sv.typeInfo, cfg, f"{name}.{func_name}_getter")
             # parent chain 추가
-            for pname in getattr(ifc_cfg, 'parent_contracts', []):
+            for pname in list(getattr(cfg, 'parent_contracts', []) or []) + \
+                         list((getattr(cfg, 'parent_cfgs', {}) or {}).keys()):
                 if pname not in visited:
                     queue.append(pname)
-        return None
+        raise ValueError(
+            f"external call return type unresolved: {interface_name}.{func_name}() — "
+            f"'{interface_name}' 의 선언(interface pkl / 로드된 contract / public getter)을 찾지 못함 (의존성 누락)")
 
     def _find_interface_struct_def(self, interface_name, struct_name):
         """interface pkl에서 struct 정의 조회 (parent chain 포함) — qualified
@@ -1456,7 +1481,7 @@ class Evaluation :
                 if alias_type:
                     base_type = alias_type
                 else:
-                    bits = getattr(baseVal, 'bits', 256)
+                    bits = baseVal.type_length   # interval 은 비트폭을 type_length 에 둔다('bits' 속성은 없음 → 늘 256 이던 잠복 버그)
                     if isinstance(baseVal, UnsignedIntegerInterval):
                         base_type = f"uint{bits}"
                     else:
@@ -1512,7 +1537,9 @@ class Evaluation :
             if sv_node and member in getattr(sv_node, 'variables', {}):
                 sv = sv_node.variables[member]
                 return sv.value if hasattr(sv, 'value') else sv
-            return f"symbolic({lib_name}.{member})"
+            # ★ (2026-10-21) 예전엔 `"symbolic(Lib.member)"` 문자열을 돌려줘 이후 산술에서 엉뚱하게 터지거나 조용히 틀렸다.
+            raise ValueError(f"unresolved library member '{lib_name}.{member}' "
+                             f"(함수·enum·상수 어디에도 없음 — 라이브러리 정의 누락)")
 
         # ──────────────────────────────────────────────────────────────
         # 0-1. super 키워드 처리 (super.foo() → 부모 컨트랙트 함수 호출)
@@ -1910,9 +1937,13 @@ class Evaluation :
             raise ValueError(f"type() with unsupported base '{T}'")
 
         # ──────────────────────────────────────────────────────────────
-        # 6. 기타 – 심볼릭 보수적 값
+        # 6. 해석 불가 멤버 → 예외 (2026-10-21)
+        #   예전엔 `"symbolic(<값>.<멤버>)"` 문자열을 돌려줬다. 그 문자열이 `uint256(...)` 을 거쳐 산술에 들어가
+        #   `'str' object has no attribute 'multiply'` 로 엉뚱한 곳에서 터졌다(web3bugs_52_H_23: `using UQ112x112 for
+        #   uint224` 누락으로 `.uqdiv` 미해결). 근본 원인(using-for·정의 누락)이 드러나도록 여기서 멈춘다.
         # ──────────────────────────────────────────────────────────────
-        return f"symbolic({baseVal}.{member})"
+        raise ValueError(f"unresolved member '.{member}' on {type(baseVal).__name__} value {str(baseVal)[:60]} "
+                         f"(using-for 지시자 또는 정의 누락)")
 
     def _get_variable_type_string(self, var: Variables) -> str:
         """Variables 객체에서 타입 문자열 추출"""
@@ -2536,10 +2567,9 @@ class Evaluation :
                     # 폴백을 여기도 적용. 이게 없으면 일반 member-access 평가 경로로
                     # 흘러가서 호출 결과가 아니라 호출 대상 자체(함수 참조)가 반환돼
                     # raw 문자열로 바텀아웃함(web3bugs_113_H_05에서 발견).
+                    # 반환 타입 ⊤ (못 찾으면 _lookup_interface_return 이 예외, void 면 None)
                     result = self._lookup_interface_return(interface_name, member_name)
-                    if result is not None:
-                        return self._mapping_lookup_if_needed(result, callerObject)
-                    return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+                    return self._mapping_lookup_if_needed(result, callerObject) if result is not None else None
 
             # ★ @IReturn Pattern B: explicit cast — IERC20(want).balanceOf() 등
             if (hasattr(base_expr, 'context') and base_expr.context == 'FunctionCallContext'
@@ -2620,14 +2650,9 @@ class Evaluation :
                                         return ret
                                 break
 
-                # pkl에서 interface return type 조회 → top_from_soltype으로 반환
-                import pickle, pathlib
+                # 반환 타입 ⊤ (못 찾으면 _lookup_interface_return 이 예외, void 면 None)
                 result = self._lookup_interface_return(cast_ifc, func_name)
-                if result is not None:
-                    return self._mapping_lookup_if_needed(result, callerObject)
-
-                # fallback: uint256 top
-                return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+                return self._mapping_lookup_if_needed(result, callerObject) if result is not None else None
 
             # super 함수 호출인 경우 (super.foo())
             if (isinstance(function_result, Expression) and

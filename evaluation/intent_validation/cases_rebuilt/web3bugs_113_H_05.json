@@ -1,0 +1,843 @@
+[
+ {
+  "code": "pragma solidity 0.6.12;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "pragma experimental ABIEncoderV2;",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 3,
+  "endLine": 3,
+  "event": "add"
+ },
+ {
+  "code": "struct TokenLoanParams {\n}",
+  "startLine": 4,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint128 valuation;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint64 duration;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "uint16 annualInterestBPS;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "uint16 ltvBPS;",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "INFTOracle oracle;",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "struct SignatureParams {\n}",
+  "startLine": 12,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "uint256 deadline;",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "uint8 v;",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 r;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 s;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "interface ILendingClub {\n}",
+  "startLine": 19,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "function willLend(uint256 tokenId, TokenLoanParams memory params) external view returns (bool);",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "function lendingConditions(address nftPair, uint256 tokenId) external view returns (TokenLoanParams memory);",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 24,
+  "endLine": 24,
+  "event": "add"
+ },
+ {
+  "code": "interface INFTPair {\n}",
+  "startLine": 25,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "function collateral() external view returns (IERC721);",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "function asset() external view returns (IERC20);",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "function masterContract() external view returns (address);",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "function bentoBox() external view returns (IBentoBoxV1);",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "function removeCollateral(uint256 tokenId, address to) external;",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "contract NFTPairWithOracle is BoringOwnable, Domain, IMasterContract {\n}",
+  "startLine": 37,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "using BoringMath for uint256;",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "using BoringMath128 for uint128;",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "using RebaseLibrary for Rebase;",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "using BoringERC20 for IERC20;",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "event LogLend(address indexed lender, uint256 indexed tokenId);",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "IBentoBoxV1 public immutable bentoBox;",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "NFTPairWithOracle public immutable masterContract;",
+  "startLine": 46,
+  "endLine": 46,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 47,
+  "endLine": 47,
+  "event": "add"
+ },
+ {
+  "code": "address public feeTo;",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 49,
+  "endLine": 49,
+  "event": "add"
+ },
+ {
+  "code": "IERC721 public collateral;",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "IERC20 public asset;",
+  "startLine": 51,
+  "endLine": 51,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 52,
+  "endLine": 52,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public feesEarnedShare;",
+  "startLine": 53,
+  "endLine": 53,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 54,
+  "endLine": 54,
+  "event": "add"
+ },
+ {
+  "code": "mapping(uint256 => TokenLoanParams) public tokenLoanParams;",
+  "startLine": 55,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 56,
+  "endLine": 56,
+  "event": "add"
+ },
+ {
+  "code": "uint8 private constant LOAN_INITIAL = 0;",
+  "startLine": 57,
+  "endLine": 57,
+  "event": "add"
+ },
+ {
+  "code": "uint8 private constant LOAN_REQUESTED = 1;",
+  "startLine": 58,
+  "endLine": 58,
+  "event": "add"
+ },
+ {
+  "code": "uint8 private constant LOAN_OUTSTANDING = 2;",
+  "startLine": 59,
+  "endLine": 59,
+  "event": "add"
+ },
+ {
+  "code": "struct TokenLoan {\n}",
+  "startLine": 60,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "address borrower;",
+  "startLine": 61,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "address lender;",
+  "startLine": 62,
+  "endLine": 62,
+  "event": "add"
+ },
+ {
+  "code": "uint64 startTime;",
+  "startLine": 63,
+  "endLine": 63,
+  "event": "add"
+ },
+ {
+  "code": "uint8 status;",
+  "startLine": 64,
+  "endLine": 64,
+  "event": "add"
+ },
+ {
+  "code": "mapping(uint256 => TokenLoan) public tokenLoan;",
+  "startLine": 66,
+  "endLine": 66,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 67,
+  "endLine": 67,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant PROTOCOL_FEE_BPS = 1000;",
+  "startLine": 68,
+  "endLine": 68,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant OPEN_FEE_BPS = 100;",
+  "startLine": 69,
+  "endLine": 69,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant BPS = 10_000;",
+  "startLine": 70,
+  "endLine": 70,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private constant YEAR_BPS = 3600 * 24 * 365 * 10_000;",
+  "startLine": 71,
+  "endLine": 71,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 72,
+  "endLine": 72,
+  "event": "add"
+ },
+ {
+  "code": "uint8 private constant COMPOUND_INTEREST_TERMS = 6;",
+  "startLine": 73,
+  "endLine": 73,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 74,
+  "endLine": 74,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) public nonces;",
+  "startLine": 75,
+  "endLine": 75,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 76,
+  "endLine": 76,
+  "event": "add"
+ },
+ {
+  "code": "function _lend(address lender, uint256 tokenId, TokenLoanParams memory accepted, bool skim) internal {\n}",
+  "startLine": 77,
+  "endLine": 78,
+  "event": "add"
+ },
+ {
+  "code": "TokenLoan memory loan = tokenLoan[tokenId];",
+  "startLine": 78,
+  "endLine": 78,
+  "event": "add"
+ },
+ {
+  "code": "require(loan.status == LOAN_REQUESTED, \"NFTPair: not available\");",
+  "startLine": 79,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "TokenLoanParams memory params = tokenLoanParams[tokenId];",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 81,
+  "endLine": 81,
+  "event": "add"
+ },
+ {
+  "code": "require(params.valuation == accepted.valuation && params.duration <= accepted.duration && params.annualInterestBPS >= accepted.annualInterestBPS && params.ltvBPS >= accepted.ltvBPS, \"NFTPair: bad params\");",
+  "startLine": 82,
+  "endLine": 82,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 83,
+  "endLine": 83,
+  "event": "add"
+ },
+ {
+  "code": "if (params.oracle != INFTOracle(0)) {\n}",
+  "startLine": 84,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "(, uint256 rate) = params.oracle.get(address(this), tokenId);",
+  "startLine": 85,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "require(rate.mul(uint256(params.ltvBPS)) / BPS >= params.valuation, \"Oracle: price too low.\");",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "uint256 totalShare = bentoBox.toShare(asset, params.valuation, false);",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "uint256 openFeeShare = (totalShare * OPEN_FEE_BPS) / BPS;",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "uint256 protocolFeeShare = (openFeeShare * PROTOCOL_FEE_BPS) / BPS;",
+  "startLine": 91,
+  "endLine": 91,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "if (skim) {\n}",
+  "startLine": 93,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "require(bentoBox.balanceOf(asset, address(this)) >= (totalShare - openFeeShare + protocolFeeShare + feesEarnedShare), \"NFTPair: skim too much\");",
+  "startLine": 94,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "else {\n}",
+  "startLine": 95,
+  "endLine": 96,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "bentoBox.transfer(asset, lender, address(this), totalShare - openFeeShare + protocolFeeShare);",
+  "startLine": 96,
+  "endLine": 96,
+  "event": "add"
+ },
+ {
+  "code": "uint256 borrowerShare = totalShare - openFeeShare;",
+  "startLine": 98,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "bentoBox.transfer(asset, address(this), loan.borrower, borrowerShare);",
+  "startLine": 99,
+  "endLine": 99,
+  "event": "add"
+ },
+ {
+  "code": "feesEarnedShare += protocolFeeShare;",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 101,
+  "endLine": 101,
+  "event": "add"
+ },
+ {
+  "code": "loan.lender = lender;",
+  "startLine": 102,
+  "endLine": 102,
+  "event": "add"
+ },
+ {
+  "code": "loan.status = LOAN_OUTSTANDING;",
+  "startLine": 103,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "loan.startTime = uint64(block.timestamp);",
+  "startLine": 104,
+  "endLine": 104,
+  "event": "add"
+ },
+ {
+  "code": "tokenLoan[tokenId] = loan;",
+  "startLine": 105,
+  "endLine": 105,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 106,
+  "endLine": 106,
+  "event": "add"
+ },
+ {
+  "code": "emit LogLend(lender, tokenId);",
+  "startLine": 107,
+  "endLine": 107,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 109,
+  "endLine": 109,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 private constant LEND_SIGNATURE_HASH = 0x4bfd5d24664945f4bb81f6061bd624907d74ba338190bdd6aa37f65838a8a533;",
+  "startLine": 110,
+  "endLine": 110,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 111,
+  "endLine": 111,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 private constant BORROW_SIGNATURE_HASH = 0xfc58c7a8ea6a96e25d218e36759058a704bbf0bebb53a109a44ca82f025cb769;",
+  "startLine": 112,
+  "endLine": 112,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 113,
+  "endLine": 113,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_REPAY = 2;",
+  "startLine": 114,
+  "endLine": 114,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_REMOVE_COLLATERAL = 4;",
+  "startLine": 115,
+  "endLine": 115,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 116,
+  "endLine": 116,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_REQUEST_LOAN = 12;",
+  "startLine": 117,
+  "endLine": 117,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_LEND = 13;",
+  "startLine": 118,
+  "endLine": 118,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 119,
+  "endLine": 119,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_BENTO_DEPOSIT = 20;",
+  "startLine": 120,
+  "endLine": 120,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_BENTO_WITHDRAW = 21;",
+  "startLine": 121,
+  "endLine": 121,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_BENTO_TRANSFER = 22;",
+  "startLine": 122,
+  "endLine": 122,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_BENTO_TRANSFER_MULTIPLE = 23;",
+  "startLine": 123,
+  "endLine": 123,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_BENTO_SETAPPROVAL = 24;",
+  "startLine": 124,
+  "endLine": 124,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 125,
+  "endLine": 125,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_CALL = 30;",
+  "startLine": 126,
+  "endLine": 126,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 127,
+  "endLine": 127,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_REQUEST_AND_BORROW = 40;",
+  "startLine": 128,
+  "endLine": 128,
+  "event": "add"
+ },
+ {
+  "code": "uint8 internal constant ACTION_TAKE_COLLATERAL_AND_LEND = 41;",
+  "startLine": 129,
+  "endLine": 129,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 130,
+  "endLine": 130,
+  "event": "add"
+ },
+ {
+  "code": "int256 internal constant USE_VALUE1 = -1;",
+  "startLine": 131,
+  "endLine": 131,
+  "event": "add"
+ },
+ {
+  "code": "int256 internal constant USE_VALUE2 = -2;",
+  "startLine": 132,
+  "endLine": 132,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 133,
+  "endLine": 133,
+  "event": "add"
+ },
+ {
+  "code": "// @During params.ltvBPS <= accepted.ltvBPS",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 78,
+  "endLine": 78,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar lender = symbolicAddress 1",
+  "startLine": 79,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar tokenId = [1, 1]",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar skim = false",
+  "startLine": 81,
+  "endLine": 81,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar accepted.valuation = [1000, 1000]",
+  "startLine": 82,
+  "endLine": 82,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar accepted.duration = [604800, 604800]",
+  "startLine": 83,
+  "endLine": 83,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar accepted.annualInterestBPS = [500, 500]",
+  "startLine": 84,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar accepted.ltvBPS = [8000, 8000]",
+  "startLine": 85,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokenLoan[tokenId].status = [1, 1]",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokenLoanParams[tokenId].valuation = [1000, 1000]",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokenLoanParams[tokenId].duration = [604800, 604800]",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokenLoanParams[tokenId].annualInterestBPS = [500, 500]",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokenLoanParams[tokenId].ltvBPS = [8600, 8600]",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 91,
+  "endLine": 91,
+  "event": "add"
+ }
+]

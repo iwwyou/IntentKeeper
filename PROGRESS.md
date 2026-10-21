@@ -1,12 +1,305 @@
 # IQDebug — 진행상황 (handoff)
 
-> 최종 수정 기준 스냅샷. compact 후 이 문서로 바로 이어가기 위함.
-> 관련 문서: `temp/solqdebug-extension-direction.md`(채택 방향·§8 task), `temp/direction-analysis.md`(미채택 방향),
-> memory: `project-direction`, `engine-sync-and-run`.
+> **2026-10-20 재정리.** 위쪽 §0–§6 = **현재 유효한 상태**(최근 결정·논의 중 쟁점·할 일).
+> 아래 **부록** = 2026-10-05 이전의 시간순 기록 원문(decisions #1–#51, 참고용·수정하지 않음).
+> 논문 방향 정본 = `PROGRESS2.md`. 엔진 수정 이력(Guardian 반영용) = `(to_solidityguardian)_engine_fixes.md`.
 
 ---
 
-## 0. 한 줄 요약
+## 0. 지금 어디인가
+
+- **IQDebug** = SolQDebug(게재) + IntentChecker(심사중) 엔진을 확장한 intent-aware quick debugger (박사학위 3번째 컴포넌트).
+- **구현(Plan A)**: 엔진 통합·직렬화·Debug View·step forward/backward·breakpoint·intent/verdict 패널·
+  증분 편집(B1)·Unreachable(#42)·루프/중첩루프 정상화(#48·#49)·외부 호출 정리(#50) 까지 완료.
+  남은 구현 = Step Into/Out, 루프 fold, DependencyStore 등 → `PROGRESS2.md §A.2`.
+- **현재 단계 = 학위논문 Evaluation 재설계** (2026-10-05 ~). RQ 구조와 데이터셋은 **대체로 합의, 세부 쟁점 논의 중**(§1).
+  다른 LLM(ChatGPT)과 framing 을 병행 논의 중이며, 추가 논의는 다음 세션에서 이어간다.
+- ⚠ 제목: `PROGRESS2.md`·`main.tex` 에는 "An Intent-Aware Quick Debugging Assistant for Solidity"(2026-09-17)로
+  남아 있으나, 최근 논의에서 "State-Specified", "Interpretation-Driven Debugging" 이 제목 키워드로 언급됨.
+  **현행 제목 미기록 → 사용자 확인 필요.**
+
+---
+
+## 1. Evaluation 설계 (2026-10-20 기준, ⚠ 미확정 포함)
+
+### 1.1 데이터셋 계층
+
+```
+89 수집 ──(E1–E8 제외 15건)──▶ 74 effective benchmark ──(intent 표현 가능)──▶ 48 expressible
+```
+
+- 74 = Guardian `evaluation/RQ2/rq2a_specification_profile.xlsx` 의 `raw_profile` 시트(헤더 포함 75행 → **74 케이스**).
+  expressible 48 / inexpressible 26. **26개는 `case_built = No`** — intent 어노테이션 케이스 파일이 없고 IntentChecker 로 돌린 적 없음.
+  26개 `blocker_tags`: alpha 12 · alpha_and_beta 5 · beta 5 · delta 2 · alpha_and_gamma 1 · beta_and_epsilon 1 (태그 정의 미확인).
+- 48 = `RQ3/rq3_comparison_table.csv` 48행(web3bugs 41 + numscout 7) = 74의 부분집합. **IntentChecker 의 NumScout/GPTScan/SCType 비교는 이 48에서만 수행됨.**
+- 89 → 74 제외 사유 E1–E8: 다른 LLM 논의에서 전달받음(E1/E3/E4/E7/E8 = benchmark validity, E5 = 재현 불가 dependency,
+  E6 = multi-tx scope 밖). **⚠ 원문 미확인 — Guardian 자료로 사실 확인 필요(할 일 A5).**
+
+### 1.2 RQ 구조
+
+| RQ | 질문(초안) | 집합 | 상태 |
+|---|---|---|---|
+| **RQ1** | How does IQDebug's state-specified debugging compare with existing Solidity debugging workflows? | **74** | 대체로 합의 |
+| **RQ2** | To what extent can IQDebug's intent-aware model express and validate numerical developer intent? | 표현력 **74** / 검증 **48** | 합의 |
+| **RQ3** | How does state specification affect the precision of IQDebug's abstract debugging results? | **74 후보** (판정 S/V/W/U 변화는 48) | 대체로 합의 |
+| **RQ4** | How does IQDebug's intent-aware validation compare with existing NLE analysis techniques? | **74** (IQDebug 행은 표현 가능한 48) | 확정 2026-10-20 |
+
+**RQ1 — 디버깅 workflow 비교 (intent 와 무관)**
+- 비교 대상: **Hardhat 2.29.1 + Foundry 1.8.4** (정량). Remix = 보류(시간 되면 정성/가능 케이스 정량). Solidity Debugger Pro = 제외.
+- 공통 목표: *각 케이스의 타깃 함수에 디버깅 초기 상태를 주고, **normal function exit** 의 상태를 얻는다.* (SolQDebug 의 jump_to_end 계승)
+- 질문의 초점은 "누가 빠른가"가 아니라 **같은 목표를 달성하는 workflow·계산 비용의 차이**. Forge 가 더 빨라도 결론이 흔들리지 않게 설계.
+- 두 관점 분리(합의): **singleton**(IQDebug `[42,42]` vs Forge/Hardhat `42` — 직접 latency/workflow 비교) /
+  **range**(IQDebug `[0,100]` vs 열거·fuzz — 상태공간 탐색 방식 차이).
+- 보고 항목: 74개 분석 완료 여부, 필요한 디버깅 입력 수·종류, Forge/Hardhat 의 setup(상태 주입·mock·harness LOC·artifact 수),
+  결과까지 latency, **소스 수정 후 재측정 latency**. 기존 analysis-cost RQ 는 폐지하고 IQDebug 자체 latency 를 여기서 보고.
+- **정밀도(⊤ 비율 등)는 RQ1 에서 보고하지 않고 RQ3 로 보낸다.**
+- **Failed = 0 원칙** (사용자 확정): parser crash / CFG 실패 / interpreter 예외 / 지원 construct 오처리는 결과가 아니라
+  평가 전에 고칠 engineering defect. 고치기 전 반드시 보고(폴백 금지). Failed 0 은 "평가 전제"로 쓰고 범용성 증거로는 쓰지 않는다.
+
+**RQ2 — intent 표현·검증**: 표현력 74(48/74 + 26개 탈락 사유), 검증 48(판정 vs 기대). 기존 specification requirement 실험은
+보조 분석(intent 형태 분포, 케이스별 state spec·intent spec 종류/수)으로 흡수. Unreachable(U) 사례는 48 안 자연 발생 여부 먼저 확인,
+없으면 constructed case study 로 명시.
+
+**RQ3 — 정밀도**
+- 3.1 range sensitivity = **루프 없는 케이스**, 3.2 loop = **루프 있는 케이스** (사용자 제안, 합의). 두 실험 모두 같은 범위 확대 절차 적용.
+- 구성: 74개 aggregate characteristics + 선정 사례의 range-sensitivity 상세 + loop subset 전체.
+- 선정 기준은 **결과를 보기 전 정할 수 있는 구조적 조건만** (결과 기반 기준 "exhibits measurable change" 는 제외).
+- 측정 원칙(합의):
+  - 항상 수행: **empirical soundness check** — 모든 구체 관측값 ∈ 추상 구간? (위반 = 엔진 버그, 즉시 보고)
+  - **전수 열거 가능한 케이스에서만** `width(A)/width(C)` 를 over-approximation ratio 로 보고.
+  - fuzz 기반 비율은 "precision ratio" 라 부르지 않는다 → "empirical interval expansion relative to observed executions". 관측 폭 0 이면 비정의.
+- 원인 분류(초안): I/N(미지정 입력) · E(opaque 외부 동작) · L(loop fixpoint/widening) · J(control-flow join) · O(기타 보수적 추상/미지원 연산).
+  "assembly" 는 원인 범주로 쓰지 않는다(지원 assembly 는 정상 해석). 판별 방법 후보 = 반사실 재실행(코어 수정 불필요).
+
+**RQ4 — NLE 도구 비교**: NumScout/GPTScan/SCType vs IQDebug intent-aware validation. **집합 = 74 (사용자 확정 2026-10-20)**.
+⚠ 정정: 앞서 "IntentChecker 비교는 48 에서만" 이라 했으나 틀렸다 — `rq3_comparison_table.csv` 는 48행이지만 IntentChecker 원고의
+coverage 표는 GPTScan·NumScout 를 74 전부, ScType 은 적용 가능한 10, IQDebug 는 표현 가능한 48 에서 실행했다.
+타 도구 결과는 IntentChecker 것을 출처 명시 재사용, IQDebug 쪽은 현재 엔진 재실행 결과로 교체.
+RQ2(절대: 기대 판정 일치)와 RQ4(상대: 타 기법 비교)의 경계를 분명히.
+
+### 1.3 디버깅 입력의 정의 (합의 방향)
+
+- 개념적 정의: *values that may be read by the target function or its statically resolved callees before being determined by the analyzed execution*
+  → 파라미터 / overwrite 전에 읽는 상태변수 / global·환경 변수 / 관련 interface 반환값.
+- `_derive_debug_slots`(`engine_api.py:883`)는 **정의가 아니라 정의를 근사하는 구현**. 현재 한계:
+  스칼라 상태변수를 **타깃 함수 소스 텍스트 매치**로만 판정 → internal callee 에서만 읽는 상태변수 누락 가능(48 중 internal call 34건) /
+  이름만 나오면 포함 → 과다 포함 / non-view 외부 호출은 슬롯 없음.
+- Forge `-vvvv` 의 SLOAD trace 는 **sanity check(observed read set)** 로만. 실행 1회는 경로 1개라 ground truth 아님.
+
+### 1.4 ⚠ 열린 쟁점 (다음 세션)
+
+1. ✅ **`@LocalVar` → `@Param` 대체 완료 (2026-10-20, 사용자 결정: 별칭이 아니라 대체)**.
+   g4 `debugParam : '@Param' varRef '=' debugValue` + 파서 재생성(4.13.2) / visitor `visitDebugParam` / ContractAnalyzer
+   `process_param_for_debug` / engine_api `DebugKind="Param"`·`_KIND_KW` / 프론트 `result.ts`·`DebugInputPanel`·`serialize.ts`·mock.
+   회귀: temp 16종 전부 통과(test_http·test_vault 는 서버 필요라 미실행), `tsc --noEmit` 0. 파서 백업 = scratchpad `parser_bak/`.
+   기존 데이터(`// @LocalVar` 98건)·`tools/generate_case_jsons.py` 는 그대로 — 새 드라이버가 `//` 제거 + `@LocalVar→@Param` 변환.
+   전제(사용자): 디버깅 입력 = **타깃 함수의 param / statevar / globalvar / ireturn 만**. 진짜 로컬(192_H_01 `_asset` 1건)은 입력 아님.
+   ⚠ 별건 결함: `frontend/src/debug/serialize.ts` 가 4종 모두 아직 `// @…` 형태를 만든다(#37 이후 문법과 불일치). 미수정.
+2. 원인 분류 글자 **"U" 가 판정 U(Unreachable)와 충돌** → I 또는 N 등으로. (사용자 고민 중)
+3. **singleton 값 선택 규칙** — 고른 점이 `require` 에 걸리면 Forge revert → 비교 불성립. range 안에서 고르고 forge 로 정상 종료 확인 등.
+   range 가 모든 경로를 revert 로 보내는 경우(함수 끝 도달 불가) 허용 여부. (사용자 고민 중)
+4. **관찰 대상** — 반환값 + 타깃 함수가 변경한 상태변수로 고정 제안(callee 가 쓴 것 포함 여부 결정 필요).
+   "NLE 관련 중간값" 은 작성자 선택이 들어가므로 비권장. 끝 시점 모든 local 은 제외. (사용자 고민 중)
+5. **48개의 기존 IntentChecker 어노테이션을 RQ1 입력으로 재사용할지** — 사용자: "새로 안 써도 그 값으로 끝까지 돌지 않나".
+   구현 담당 의견(미전달): 끝까지 도는지보다 문제는 (a) 기존 값은 **버그를 드러내도록 intent 기준으로** 고른 것이라 RQ1 의
+   intent 독립 정의와 어긋나고, (b) intent 에 필요 없던 입력은 비어 있을 수 있으며, (c) 26개는 새 규칙으로 써야 해 **48/26 간 프로토콜이 섞인다**.
+   절충안 = 기존 값은 유지하고 빠진 슬롯만 같은 규칙으로 보강.
+6. 전수 열거 가능 케이스 수 — 사용자 추가 논의 후 회신 예정.
+7. 89→74 제외 사유 원문 확인 (A5).
+9. **(A2 결과) 미지정 상태변수·global 이 0/고정값으로 시작** — 사용자: **상태변수 0 은 맞다**(Solidity 기본값). 영향은 사용자 검토 중.
+   **callee 의 상태변수는 채우지 않는다**(사용자 확정): 분석 전제가 타깃 함수이고, callee 상태변수를 주면 sound 하지 않을 수 있다.
+10. **(B4) contraction 방식** — 사용자: contraction 은 한다(주석 등 제거 필요). ⚠ 그런데 기존 contraction 은 도구 출력이 아니다:
+    `tools/preprocess_contraction.py` 로 원본을 처리해도 기존 16개 .sol 이 **하나도 재현되지 않는다**(타깃과 무관한 함수·modifier·
+    event 삭제, 여러 줄 require 를 한 줄로, `from→_from` 등 수동 편집). 26개를 (a) 도구만으로 / (b) 48 처럼 수동 축약 — 결정 필요.
+8. RQ1 범위 입력의 범위값 규칙(기준값 ±k% / RQ3 단계 `[10,10]→[5,15]→[0,100]→⊤` 등), harness 작성 규칙, 기대 결과의 사전 명시.
+
+---
+
+## 2. 평가 자산 현황
+
+| 경로 | 내용 | 상태 |
+|---|---|---|
+| `evaluation/Dataset/cases48.csv` | Guardian RQ3 표 사본(RQ4 용 원본 보존, 수정 안 함) | |
+| **`evaluation/Dataset/cases74.csv`** (2026-10-20) | 74 = 48 + 26. 열: case_id/source/contract/function/function_alt/target_file/pattern/expressible/group/blocker_tags/note. w77 contract→`MathLib`, w16 target_file=`lib/LibBalances.sol` 정정 | ⚠ 4건 function 복수 지정 → primary 결정 필요(25_H_01 `_peek`/`_get`, 58_H_04 `tvl`/`_push`/`_pull`, 70_H_03 `_calculateUSDVPrice`/`_calculateVaderPrice`, 70_H_09 `mint`/`burn`) |
+| `evaluation/Dataset/target_original/` | **74개** (26개 = Guardian `evaluation/RQ1/target_contracts_original/` 에서 복사, 2026-10-20) | |
+| `evaluation/Dataset/target_contraction/` | IQDebug 용 contraction | **26개 없음** — 생성 방식 결정 대기(§3 B4) |
+| `evaluation/Dataset/Dependencies/` | pool·reconstructed(3)·fetched(4)·Guardian tree 사본 | |
+| `evaluation/Dataset/reassemble.py` | 원본 → forge 프로젝트 재조립 + `forge build`. 소스 내용 불변. 2026-10-20 부터 `cases74.csv` 입력 | **74/74 통과**(프로젝트 42; hardhat 도 74/74 — `hardhat_gate.py`) |
+| `evaluation/forge/` · `evaluation/hardhat/` | Foundry 1.8.4(`install.ps1`) / Hardhat 2.29.1 | hardhat 게이트 미실시. `hardhat/package.json` 이름 HH412 수정함 |
+| `evaluation/playground/` | 두 도구 실습(`Vault.sol`, forge test·cheatcode·fuzz, hardhat JSON-RPC 스크립트) + `README.md` | 검증 완료, 사용자 실습 예정 |
+| `main.py:111-112` | interface 스캔 경로 → `evaluation/Dataset/...` | |
+
+자산 결함·경위 상세 = 부록 decision **(51)**. 논문에 적을 것 ★: numscout 원본 교체 + SwordCrowdsale "simplified reproduction".
+⚠ 기존 결함: `tools/generate_case_jsons.py`·`tools/preprocess_contraction.py` 가 없는 경로(`tools/target_contracts_contraction`)를 가리킴.
+⚠ `Dependencies/main.py` 의 `_con_order` 하드코딩 — 26개 신규 의존성 pkl 생성 시 걸림돌.
+
+---
+
+## 3. 할 일 목록
+
+표시: 🔍 읽기만 · ✏ 생성/수정(승인) · ⚙ 코어 수정(별도 승인) · ⏸ 사용자 결정 대기
+
+**A. 사전 조사** (2026-10-20 결과)
+- A1 ✅ 26개 원본 = Guardian `target_contracts_original/` 전부 존재(타깃 컨트랙트·함수 확인). 타깃 함수 출처 =
+  `evaluation/RQ1/annotation_plans.md` 의 Contract/Function. ⚠ 사용자: annotation_plans·l4_l5 는 옛 자료, **기준은 Guardian
+  `evaluation/RQ2/`**. 그 폴더에는 `rq2a_specification_profile.xlsx`·`rq2b_latency.csv` 뿐이고 xlsx 에 contract/function 열이 없다.
+  xlsx `source_file` 이 가리키는 최신 근거 `First Revision/phase_reviews/NN_<case>/analysis.md`(26개 중 8개)는 **로컬 어디에도 없다**.
+  xlsx `finding_level_note` 의 Member A/B = 한 finding 에 함수·의도가 여러 개인 경우(48 쪽 선례 35_H_08 `mint;burn`). `blocker_tags` α/β/γ 정의 = `evaluation/RQ2/l4_l5_case_review.md:42-44`
+  (α 관계에 함수 호출 필요 / β 관련 변수 자체가 scope 에 없음 / γ 다지점 회계). **전부 intent 표현 문제 → 엔진 분석을 막지 않음.**
+  단 annotation_plans status 상 L3 unsupported-construct-top(44_H_02, 8_H_03)·L1 loop(34_H_01, 45_H_02, 70_H_03, 71_H_11) 존재.
+- A2 ✅ ★ **미지정 상태변수 = ⊤ 가 아니라 Solidity 0 기본값**(uint/int/bool [0,0], initializer 있으면 그 값, address ⊤,
+  동적 배열 len 0, mapping entry ⊤). 파라미터 ⊤, **global 은 고정값**(timestamp/msg.value/block.number [0,0], msg.sender {101}).
+  근거: ContractAnalyzer.py:946-993, Evaluation.py:3631-3653, StaticCFGFactory.py:23-104, 331-338.
+  → 미지정 입력이 ⊤ 로 드러나지 않고 **정밀해 보이는 0** 으로 나온다(쟁점 9).
+  ★ **callee 에서만 읽는 상태변수는 슬롯에서 빠진다** 확인(engine_api.py:991-993, 1010-1011). 엔진은 callee 로 하강하며 caller 의
+  entry 값(=미지정 시 0)을 쓴다. 실케이스: EthereumGod·HIT·29_H_08·62_H_03·62_H_08 에서 누락, 기존 수동 어노테이션이 그 대부분을 직접 채웠었음.
+- A3 ✅ 48 JSON 전부 구문(`// @…`). **`//` 접두어만 떼면 443/443 파싱**(#41 문법 변경 불필요). 그대로 돌리면 조용히 실패.
+  접두어 제거 후 5_H_07·5_H_08·45_H_01 = Violated(옛 게이트와 일치). 단 `"// @"` 분기가 main.py:142-156·SolidityAnalyzer.py·
+  ContractAnalyzer.py:131 에 있어 **파일을 고치면 코어 수정** → **드라이버에서 접두어 제거(사용자 승인)**. engine_api 경로는 새 드라이버 필요
+  (debug 값 dict / IntentItem 변환) + **DepSpec 없이 32/48 실패**(interface/library 미해결).
+  중복 JSON 7개: **정본 = `cases/<id>/<id>.json`**(Guardian run_all.py 가 쓰는 경로, `@Debugging BEGIN/END`·수정된 intent 포함).
+  상위 `cases/<id>.json` 7개는 옛 초안(BEGIN/END 없음, 예: 56_H_02 `totalCredit(entry <= exit)`, 58_H_02 다른 값).
+- A4 ⏸ 루프 분류 — 74 확보 후
+- A5 ✅ E1–E8 = IntentChecker 리비전 원고 `paper/first_revision/main.tex:2113-2125` 와 일치(E1 패치된 소스 3, E2 overflow 2, E3 중복 2,
+  E4 버그 아님 1, E5 의존성 없음 2, E6 multi-tx 3, E7 언어 의미 1, E8 타깃 오인 1).
+- A6 ✅ `@Param` 은 **별칭 추가로 가능**(`debugLocalVar` 에 `| '@Param' varRef '=' debugValue`, intent 규칙 무관, 파서 재생성 후
+  `temp/test_snapshot_grammar.py` 재확인). `@LocalVar` 의 진짜 로컬 사용은 1건(192_H_01 `_asset`). 의미상 @StateVar 와 동일 처리.
+  영향: g4·생성파서·visitor:915·ContractAnalyzer:3068·engine_api 4곳·프론트 3파일(serialize.ts 는 아직 `// @LocalVar` 생성 — 별도 결함)·
+  데이터 98건·tools 2·문서. ⚠ CLAUDE.md 의 "`_con_order` 하드코딩" 서술은 낡음 — 이미 topo-sort(Dependencies/main.py:412+).
+
+**B. 데이터**
+- B1 ✅ 26개 원본 복사(Guardian → `target_original/`). 의존성은 기존 pool/flat 힌트로 대부분 해결.
+- B2 🟡 forge 게이트 **73/74** (2026-10-20 수정 승인 후). w110 = `NPM_MAP` 에 `openzeppelin-contracts-upgradeable/`→ozu 추가 ✅ /
+  w34 = v4-core@35b00f7 package.json 고정 버전 `@pooltogether/owner-manager-contracts@1.1.0`·`pooltogether-rng-contracts@1.4.0`
+  npm 설치 + `NPM_MAP` ✅ / w17 = `ROOT_IMPORT_PREFIX={"w17":"contracts/"}`(+ remapping `contracts/=src/`)로 루트 기준 import 해결했으나
+  **upstream contest 저장소(code-423n4/2021-06-gro) 자체에 `contracts/interfaces/IChainlinkAggregator.sol` 이 없다**(타깃은 upstream 과
+  바이트 동일) + `@chainlink/contracts@0.0.11` 미설치 → 복원 여부 결정 대기.
+- B3 ✅ hardhat 게이트 **73/74** (실패 w17 = forge 와 같은 데이터 결함). `evaluation/Dataset/hardhat_gate.py`(신규):
+  remappings.txt → `projects/<p>/node_modules/<prefix>` **junction**(사용자 승인 방식). 대상이 패키지 하위 폴더면(solmate/src,
+  복원 bentobox-sdk) package.json 래퍼 + 하위 폴더 junction. 생성물은 manifest(`.hh_gate_manifest.json`)대로만 삭제(대상 내용 불가침).
+  컴파일러 = 2021~22 시대 solc 목록(forge 에서 핀한 프로젝트는 그 버전만). 보고서 `hardhat_gate_report.json`.
+  부수 수정: `reassemble.py --only` 가 보고서 전체를 덮어쓰던 기존 결함 → 해당 항목만 갱신.
+- B4 ⏸ contraction 은 import·주석·**constructor 제거**, 한 줄 블록 전개 등 소스 변형 전처리. 26개를 같은 방식으로 만들지,
+  RQ1 에서 원본을 직접 분석할지 결정 필요(쟁점 10). 의존성 pkl 은 contest 5·45·47·51·112 분만 있음 → 26개 의존성 추가 필요.
+- B5 ✅ `cases74.csv` (위 §2)
+
+**C. IQDebug 실행**
+- C1 ⏸ 입력 정의 세부·singleton 규칙·관찰 대상 확정 (§1.4)
+- C1' ✏ 74개 RQ1 입력 명세 작성(정의 기반 규칙, `_derive_debug_slots` + callee 보강) — 쟁점 5 결과에 따라 범위 변동
+- C2 ✏ 함수 끝 관찰 runner (`engine_api` analyze→evaluate)
+- C3 🔍 74개 실행 → **Failed 목록 보고(고치기 전)**
+- C4 ⚙ 승인된 수정 적용 + engine_fixes 기록
+- C5 ✏ 필요 시 `_derive_debug_slots` callee 보강
+
+**D. Forge/Hardhat harness**
+- D1 ✏ storageLayout → `vm.store`/`setStorageAt` 생성기
+- D2 ✏ GlobalVar(warp)·IReturn mock·internal harness·private→internal 패치 + 바이트코드 diff 0
+- D3 ✏ forge runner: singleton / 열거·fuzz / SLOAD trace(sanity check)
+- D4 ✏ hardhat runner (Python JSON-RPC)
+
+**E. 측정**
+- E1 ⏸✏ latency (IQDebug 연산별 / forge·hardhat compile·deploy·seed·run 분리)
+- E2 ⏸✏ 증분 재측정 프로토콜(편집 스크립트)
+- E3 ✏ 정밀도 원인 분류(반사실 재실행)
+- E4 ✏ soundness check(항상) + over-approx ratio(전수 열거 가능 케이스만)
+
+**F. RQ2/RQ4**
+- F1 🔍✏ 현재 엔진으로 48 재검증 → IntentChecker 판정과 비교, 차이 보고
+- F2 🔍 U(Unreachable) 사례 집계
+
+**G. 문서** — G1 ✏ 단계마다 이 문서 §0–§3 갱신
+
+제안 순서: A → B → C2–C3 → D → E → F.
+
+### 3.1 2026-10-20 실행 결과 (요약)
+
+- **main.tex Evaluation 장 ↔ 실험 대조 (사용자 요청: 글 검토가 아니라 실험 정합성)**. 원고 수정은 ChatGPT 담당, 사용자가 전달.
+  충돌 → 처리: ① RQ1 "callee 전용 상태변수도 필요 입력" → **결정과 반대**(타깃만, callee 상태 미지정) — 원고 수정 예정,
+  "concrete 결과는 IQDebug 범위 안의 한 점" 서술로 / ② RQ4 집합 → **74** 확정 / ③ RQ3 검증 수치(33/14/1)는 엔진 오류 수정 후
+  재실행 값으로 교체, Unreachable 행 추가 / ④ OS = Windows 11 Pro, Python 3.10.11 / ⑤ Remix 제외 근거 — 사용자·ChatGPT 논의.
+  추가로 원고에 "IQDebug 입력 = contraction(원본 아님)" 명시 필요.
+  표·그림별 결과 생성 준비도(✓ RQ3 표현력·검증 형식 / △ RQ1 준비표 IQDebug 쪽, edit 표(update 경로 표시 없음 + engine_api.py:1486
+  surgical 실패 시 예외 삼키고 rebuild 폴백), RQ2 분기(B_C = forge coverage 로 가능), 루프(반복 횟수·widening 계측 = 코어),
+  RQ4 IQDebug 10회 반복 / ✗ Forge·Hardhat runner, harness 생성기, 프로젝트 단위 pkl, 제외 15건 출처별 내역) — **엔진 오류 수정 후 재논의**.
+
+- **게이트**: forge **74/74**, hardhat **74/74**. w17 = 복원 `Dependencies/reconstructed/IChainlinkAggregator.sol`(upstream 누락,
+  MockAggregator·호출부에서 복원) + `@chainlink/contracts@0.0.11`(gro package.json 고정) + `ROOT_IMPORT_PREFIX` / hardhat 은 프로젝트
+  루트 `contracts` junction 을 sources 로(HH415 회피).
+- **cases74.csv 타깃 정정**: Guardian `evaluation/RQ1/cases` 어노테이션 위치 기준 — 35_H_08 `mint;burn`→**burn**, 35_H_12 `mint`→**burn**,
+  62_H_03 `recoverTokens`→**claimReward**, 62_H_10 `recoverTokens`→**creatorClaimSoldTokens** (RQ3 표 값이 틀렸음). 70_H_09 = burn(사용자).
+  25_H_01·58_H_04 는 케이스 파일·phase_reviews 모두 없음 → primary 미정.
+- **★ 상태변수·글로벌 기본값 코어 수정 (사용자 승인)**: 상태변수(initializer 유무 무관, constant/immutable 제외) = 타입 ⊤,
+  고정 길이 numeric 배열 원소 ⊤, `block.*`·`tx.gasprice`·`msg.value` = ⊤, **non-payable 함수의 msg.value = [0,0]**
+  (`ContractAnalyzer._narrow_msg_value_for_nonpayable`). 로컬·named return 0 유지. 근거 = IntentChecker 원고 main.tex:468-470,993-997.
+  변경: `ContractAnalyzer.process_state_variable`, `StaticCFGFactory._create_global_variables`. 백업 scratchpad `core_bak_default/`.
+  temp 회귀 16종 통과. ⚠ 미해결: 동적 배열은 여전히 len 0 / `_sync_constructor_state` 가 생성자 결과를 상태변수 노드에 반영(배포 직후 가정) /
+  `immutable` 무초기화식 처리 미확인 / engine_api `top_vars` 가 numeric ⊤ 는 보고하지 않음(AddressSet 만).
+- **새 RQ3(검증) 48 재실행** — 드라이버 `evaluation/intent_validation/run_cases.py`(케이스 파일 불변, `//` 제거 + `@LocalVar→@Param`,
+  케이스별 새 프로세스), 결과 `results_before.json`(수정 전) / `results_after.json`(수정 후).
+  IntentChecker 판정 일치: **수정 전 41/48 → 수정 후 38/48**.
+  - 수정 전부터 다름: EthereumGod Satisfied(기대 A:Violated/B:Unsupported) / 16_H_04 결과 없음(ANTLR 파싱 오류 1) /
+    16_H_06·36_H_02 **Unreachable**(기대 Warning/공란) / 35_H_10 Warning(기대 공란) / 58_H_02 Warning(기대 Violated) /
+    **78_H_02 엔진 예외** `NoneType.is_bottom` (Interval.divide) — **Failed**.
+  - 수정으로 바뀐 것: **Nokon V→W** (payable `buy` 의 msg.value 미지정 → 이제 ⊤; 기존 어노테이션이 0 기본값에 기대고 있었음) /
+    **3_H_05 V→W** (미지정 상태값 의존) / **52_H_23 W→엔진 예외** `'str' object has no attribute 'multiply'`
+    (Evaluation.evaluate_binary_operator:2303, ⊤ 화로 드러난 결함 — 원인 미조사) — **Failed**.
+  - 엔진 판정 용어 불일치: 만족이 경로에 따라 `satisfied`/`success`(Engine._combine_logic_results). 드라이버는 둘 다 Satisfied 로 집계.
+  - 총 해석 시간 435s → 551s.
+- **엔진 오류 원인 조사 (2026-10-20, 수정 전 — 승인 대기)**: 스크래치 monkeypatch 로 재현·해소 검증(`scratchpad/agentErr/`).
+  - **A. `_force_join_before_exit`(Engine.py:1416-1421) 가 EXIT 의 선행만 join 하고 RETURN 노드 쪽 선행을 빠뜨린다** → 조기 `return` 만
+    있는 함수(PRBMath.mulDivFixedPoint)의 EXIT 가 ⊥ → 호출자에 ⊥ 상태가 역기록되어 경로 전체가 죽음. 16_H_04(결과 없음)·16_H_06(Unreachable)
+    원인. 패치 후 16_H_04 Warning(일치), 16_H_06 **Violated**(IntentChecker Warning). ★ 조기 return 이 있는 모든 함수의 @Post 에 영향.
+  - **78_H_02**: 의존성 pkl 이름 충돌 — OZ `ERC20` 과 solmate `ERC20` 이 모두 `con_ERC20.pkl` 로 저장(나중 것이 덮어씀, 무경고,
+    Dependencies/main.py:814) + load_dependencies 가 숫자 접두어를 떼서 `con_51_ERC20` 도 가림 → 본문 없는 interface 선언으로 해석되어 None.
+  - **52_H_23**: 케이스 레코드에 `using UQ112x112 for uint224;` 누락(케이스 구성 결함) → 미해결 멤버가 `"symbolic(...)"` 문자열로 새어
+    나감(Evaluation.py:1915). ⊤ 화로 `timeElapsed>0` 분기가 열리면서 드러남. 관련 잠복 버그 Evaluation.py:1459 `bits`→`type_length`.
+  - **16_H_04 레코드**: 옛 슬라이서 형식(`} else if` 에 closeBefore 없음) — 케이스 재생성 필요.
+  - **36_H_02**: contract 타입(Ownable) 외부 호출 반환형을 `ifc_` pkl 에서만 찾아 실패 → "uint256 top" 폴백(Evaluation.py:2629)이 address
+    자리에 들어가 `require(account != address(0))` 가 불가능 → Unreachable. 로드된 contract_cfgs 에서 반환형 조회로 수정 시 Violated.
+  - 부가: `@During` 이 ⊥ 노드면 아무것도 안 냄(unreachable 로 보고해야), public 상태변수 getter 미지원, `TokenProxyLike.parent_cfgs['IERC20']`
+    가 `iERC20` CFG 를 가리킴(이름 충돌 의심).
+- **contraction 수동 규칙 역추적 (48)**: 텍스트 callee 폐포로 남긴 함수 집합 일치 **33/48**. 불일치 15건은 수동 작업 자체가 비일관
+  (numscout 류는 생성자·onlyOwner·무관 함수까지 유지하고 일부 callee 는 삭제, 42_H_01 은 callee 6개 삭제, JSON 케이스는 다른 파일의
+  interface 를 인라인). 수동 편집 = 다줄 문장 합치기(다수) + 식별자 rename. 문법 토큰과 충돌하는 식별자(74 원본):
+  `from` 8케이스, `array` 3(45_H_02·5_H_07·5_H_08), `Exit` 1(39_H_02). 현 도구는 `from` 을 **파라미터일 때만** 바꾼다.
+- **RQ1 시간 모델 (논의 중, 사용자·ChatGPT)**: 단일 지표 T_result, 시나리오 base/edit/scaling. base 는 타깃 처리 포함(IQDebug analyze ↔
+  타깃 증분 컴파일+배포), 의존성 준비·도구 기동 제외. scaling = T_fixed + N·T_per-state (+ (N−1)·restore), IQDebug = T'_fixed + T_analysis(S_N).
+  N = 범위 상자의 상태 수(전수 열거). ⚠ forge 는 CLI 라 기동 제외 불가 → no-op build 시간을 별도 측정해 보정 제안. edit 프로토콜은 논의 중.
+
+---
+
+## 4. 실행/환경 메모
+
+- 엔진 실행: **반드시 `.venv\Scripts\python.exe`** (글로벌 Python310 networkx 2.5.1 깨짐).
+- ⚠ `evaluation\RQ1\run_all.py` → 20/20 VIOLATED 는 **더 이상 유효하지 않다**(#37 로 의도된 0/20 회귀).
+  **버그-탐지 e2e 회귀 스위트는 없다.** `temp/` 의 구조 회귀 스크립트만 있음(CFG·states·문법 무결성용).
+- ANTLR: CLI 4.13.2 / 런타임 `antlr4-python3-runtime==4.13.2`. 재생성 = `Parser/` 에서 `antlr4 -Dlanguage=Python3 -visitor Solidity.g4`.
+- `load_dependencies` interface 스캔 3개 디렉토리: `evaluation/Dataset/target_contraction`, `evaluation/Dataset/Dependencies/pool`,
+  `Dataset/Numscout/contraction`. 없으면 interface 호출 해석이 조용히 실패.
+- forge: `evaluation\forge\bin\forge.exe` (gitignored, `install.ps1` 로 재설치). hardhat: `evaluation\hardhat` 의 `npx hardhat`.
+- 프론트: `cd frontend; npm install`(1회), `npm run dev`, 타입체크 `npx tsc --noEmit`.
+- 서버 세션은 `contract.func` 키로 메모리 영속 → 테스트 컨트랙트가 프론트 세션을 오염시킬 수 있음(재시작으로 클리어).
+
+## 5. 작업 규칙 (요약 — 원문은 CLAUDE.md / memory)
+
+- 객관적·비판적 검토 / 수정·생성·삭제는 승인 후 / 모호하면 질의 / 코어 수정은 별도 승인.
+- **오류는 고치기 전에 보고 + 수정 방안 제시. 폴백 금지, 근본 원인 수정.**
+- **SolidityGuardian 디렉토리 수정 금지**(복사는 Guardian→IntentKeeper 단방향). 동기화는 2026-07-18 부로 중단.
+- intent 문법(@During/@Post, `Parser/Solidity.g4`)은 논문 제출본이라 변경 금지.
+- 엔진 수정 내역은 `(to_solidityguardian)_engine_fixes.md` 에 별도 기록.
+- 논문 문장·framing 은 ChatGPT 담당, 구현 담당은 구현·실험·데이터·확정 LaTeX 삽입·PROGRESS 유지.
+
+---
+---
+
+# 부록 — 이전 기록 (2026-10-05 이전, 참고용)
+
+> 아래는 재정리 전 PROGRESS.md 원문이다. 섹션 번호 앞에 `부록-` 을 붙인 것 외에는 수정하지 않았다.
+> 내용 중 "현재/다음 할 일" 류 서술은 작성 시점 기준이며, **현재 상태는 위 §0–§3 이 우선한다.**
+
+---
+
+## 부록-0. 한 줄 요약
 
 **제목 (2026-09-17 선정, 변경 가능):**
 > **An Intent-Aware Quick Debugging Assistant for Solidity**
@@ -39,7 +332,7 @@
 
 ---
 
-## 1. 확정된 설계 결정 (decisions log)
+## 부록-1. 확정된 설계 결정 (decisions log)
 
 1. **UI = 두 화면 분리** (옵션 2): Workspace(편집+deps 등록) ↔ Debug view(함수 focused). 상단 탭 전환.
 2. **분석은 백엔드 live(edit-time), 표시만 화면 전환**: 분석 트리거 = 코드편집/디버그입력/intent/deps 변경. 화면전환·step navigation은 트리거 아님(표시일 뿐).
@@ -63,7 +356,7 @@
 10. **프론트 = 로컬 웹앱**(Vite+React+TS+Monaco), VSCode 아님(DAP 임피던스·커스텀 패널 자유도·엔진 editor-event 정합). localStorage 영속.
 11. **코어 수정은 승인 후에만**. 지금까지 엔진 코드 미수정(읽기만). 기존 출력 경로 보존(run_all.py 20/20 = 회귀 가드).
 
-### 1.1 추가 확정 (2026-06-19 세션)
+### 부록-1.1 추가 확정 (2026-06-19 세션)
 
 12. **두 레이어로 분리**:
     - **결정론 코어**(abstract interpreter, edit-time, 빠름) = `analyze`/`evaluate`/`verify`.
@@ -84,7 +377,7 @@
 21. **출력층 `send_report_to_front`(print만, ContractAnalyzer.py:2934) 교체 허용** → `engine_api.to_analysis_result`가 구조화 Result로 대체.
     - **(2026-06-20 정정)** `send_report_to_front`는 **CFG/risk/region을 만들지 않음** — `recorder.ledger`(라인별 텍스트 record)를 콘솔에 print할 뿐. CFG/states = `FunctionCFG.graph`, verdict = Engine 해석 중 `combined_result`. → "교체"가 아니라 **신규 뷰 직렬화기** 필요. (risk/region 출처는 §2.1 참조.)
 
-### 1.2 추가 확정 (2026-06-20 세션) — 최적화 아키텍처
+### 부록-1.2 추가 확정 (2026-06-20 세션) — 최적화 아키텍처
 
 22. **intent ↔ debug 게이트 = 소프트 + auto-fill**: intent는 항상 허용. debug 슬롯이 비면 `reach`/`suggest_value`로 값을 **auto-fill 제안**(witness 생성과 연결). 막지 않고 채움. **auto-fill = 값 변경 이벤트** → 일반 `evaluate`(P1)→`verify`(P2) 캐스케이드를 탐(= intent 제스처가 값 변경으로 번질 수 있음). debug 없는 의미상 하드 의존은 아님(전부 ⊤면 대부분 warning이라 무의미할 뿐).
 23. **분석 3-페이즈 분해**: **P0 structure**(code→CFG 골격) / **P1 fixpoint**(code+debug값→per-node states: `variables`/`before_envs`/`return_vals`) / **P2 judge**(states+intents→verdict, **P1 출력의 순수함수**). 현재 엔진은 **P2가 P1에 용접**(해석 walk 중 인라인 검증, `Engine.py:1396+`) → 분리가 목표. 근거: `guardian_verifier.verify_*`는 이미 `cfg_node.before_envs`/`variables`만 읽음 → 루프 밖 사후 호출 가능.
@@ -100,9 +393,9 @@
 
 ---
 
-## 2. 엔진 확인 결과 (코드 근거, file:line)
+## 부록-2. 엔진 확인 결과 (코드 근거, file:line)
 
-### 2.1 program-point 상태 / CFG / loop
+### 부록-2.1 program-point 상태 / CFG / loop
 - per-node 상태: `CFGNode.variables`, `before_envs` (`Utils/CFG.py:47-48`). 라인↔노드: `SolidityAnalyzer.line_info[ln]["cfg_nodes"]`.
 - 직렬화(interval→str): `Analyzer/RecordManager.py:292-325` (`"[lo,hi]"`, `"address(⊤)"` 등).
 - **loop fixpoint 조회 핸들 = YES**: `CFGNode.fixpoint_evaluation_node`(플래그), `fixpoint_evaluation_node_vars`(`Utils/CFG.py:15,33`), `loop_exit_node`, `cond_type`. fixpoint 계산 `Interpreter/Engine.py:409`.
@@ -114,13 +407,13 @@
   - `region [n,n]` = **소스 라인 스팬** `[report_line, report_line]` (값-interval 아님). `false_regions`(lower/upper violation 값구간)는 별개 도메인 → 프론트 현재 미모델(추후 확장 후보).
   - **transient**: `combined_result`는 `analysis_per_line[report_line]`에 기록되나 states와 같은 해석 패스 산물 → restore로 소거. Stage 1에서 states와 함께 freeze.
 
-### 2.2 annotation 바인딩 (삽입 없는 적용 근거)
+### 부록-2.2 annotation 바인딩 (삽입 없는 적용 근거)
 - 라인 밀림: `SolidityAnalyzer.update_code`(`SolidityAnalyzer.py:40-106`) → `_insert_lines`(108-170) → `ContractAnalyzer._shift_cfg_meta`(92-118).
 - **구조화 등록 메서드 이미 존재**(텍스트 아님): `process_during(clauses, logic_ops)`(`ContractAnalyzer.py:1748`), `process_post`(1866). 등록 키 = `current_start_line`, 노드 부착 `_cfg_node_at(line_no)`(1734)/`_find_prev_cfg_node`. @Post는 exit_node.
 - **삽입 없이 등록 패턴 이미 있음**: `_is_during_inline`(`SolidityAnalyzer.py:219`)이 inline @During이면 `_insert_lines` 스킵.
 - → 결론: `update_code`를 어노테이션에 호출 안 하고 텍스트만 파싱+visit하면 밀림 없음. 침습도 낮음~중간.
 
-### 2.3 debug annotation 문법/시그니처 (`Parser/Solidity.g4`)
+### 부록-2.3 debug annotation 문법/시그니처 (`Parser/Solidity.g4`)
 - **⚠ 2026-07-18(#37) 이후 어노테이션 규칙에 `'//'` 가 없다** — `@During x > 0` 처럼 접두어 없이 파싱한다
   (소스 주석이 아니라 API 입력이므로). `'//'` 는 이제 일반 `LINE_COMMENT`(HIDDEN) 전용.
 - `debugInput`(g4 268-294), `debugValue`(329-338).
@@ -130,13 +423,13 @@
 - debugValue: `[lo,hi]` | `symbolicAddress N` | `true/false/any` | `array[...]` | `arrayAddress[...]` | `symbolicBytes/String hex` | enum.
 - 등록: `process_state_var_for_debug(lhs_expr, value)`(`ContractAnalyzer.py:2756`), `process_local_var_for_debug`(2782), `process_global_var_for_debug`(2710), `process_ireturn(contract_var, func_name, access_chain, value)`(2830), `process_ireturn_cast`(2876). lhs resolve = `Interpreter/Semantics/DebugInitializer.py`. snapshot/restore = `DebugBatchManager.flush`(`Analyzer/DebugUnitAnalyzer.py:33-48`) + snapman.
 
-### 2.4 dependency pkl 빌더 (이미 존재)
+### 부록-2.4 dependency pkl 빌더 (이미 존재)
 - `Dependencies/main.py`: `slice_solidity(source)`(.sol→records), `analyze_file(sol, mode)`(→ `ifc_/lib_/con_*.pkl` 저장, `{cfg, file_level_structs, type_aliases}`). 부모 해석 `_load_parent_pkls`. **순서 하드코딩**(`_con_order`) → 임의 첨부엔 자동 topo-sort 필요(미구현).
 - 로드: `main.py:load_dependencies()` (pkl 읽기 + 3개 .sol 디렉토리 interface 이름 스캔).
 
 ---
 
-## 3. 프론트 구조 (`frontend/`)
+## 부록-3. 프론트 구조 (`frontend/`)
 
 스택: Vite + React + TS + `@monaco-editor/react`. 실행: `cd frontend && npm run dev` (포트 5173, 점유 시 5174).
 
@@ -170,19 +463,19 @@ src/
     useNavigation.ts          ★ CFG 위 로컬 navigation(step/back/into/out/continue/bp)
 ```
 
-### 동작 vs mock
+### 부록-동작 vs mock
 - **동작**: 두 화면 전환, 다중 파일(new/open/delete, localStorage 영속), deps 첨부(stub), Solidity 하이라이트, 함수 verdict 마커, **navigation 로컬(엔진 0)**, merge backward 양쪽 하이라이트, verdict→점프, breakpoint(gutter 토글/continue/prev/next), slot-주도 debug 입력(값만), ghost 제안 Tab수락, intent 편집+라인 마커.
 - **mock/stub**: 분석 자체(Result 고정, `analyzeClient`가 seam), deps pkl 빌드, ghost 제안 내용, LLM chat 없음, step-into=forward stub, advanced value types(array/bytes/enum) 스텁.
 
 ---
 
-## 4. 다음 할 일
+## 부록-4. 다음 할 일
 
-### 완료 (2026-06-19)
+### 부록-완료 (2026-06-19)
 - ✅ `engine_api.py` 계약 스켈레톤(타입·시그니처·docstring, 내부 `NotImplementedError`).
 - ✅ 프론트 seam 3콜 배선: `analyzeClient.ts`(3콜+analyzeOnce) + `store.ts`(tier 라우팅) + `engine_api`에 `Diagnostic`/`analyze_once`.
 
-### 즉시 후보
+### 부록-즉시 후보
 - **(T2) Monaco delta 어댑터**: `onChange` → `(startLine,endLine,code,event)` records (decision 19). 현재 `updateActiveContent`는 전체 content를 넘김 → delta로 교체.
 - **(T1) 결정론 경로 실배선 = Stage 1**(§1.2 decision 24-26): `EngineSession.analyze/evaluate/verify`.
   - **(1) deepcopy-into-working + 후크**: `DebugBatchManager.flush` restore 직전에 해석된 `fcfg`를 복사/freeze해 `states_cache[values_ver]`에 보존. 기존 snapshot/restore는 폴백 병행. 코어 변경은 flush 경로로 한정(작은 diff).
@@ -192,25 +485,25 @@ src/
   - **이후 Stage 2**: standalone P2 == 인라인 등가 확인 후 인라인 verify 제거.
 - **(a) @During 라인-클릭 부착**(intent 전용): 디버그뷰 라인 클릭→커서 라인 기본값+override. (현재 라인넘버 수동입력.)
 
-### T1 끝나야 풀리는 것
+### 부록-T1 끝나야 풀리는 것
 - ⊤ provenance 태깅(why-⊤ 라벨), `to_analysis_result` 출력층(send_report_to_front 대체).
 - websocket 배선: `analyzeClient` seam → 실제 `engine_api` 호출(현재 mock).
 - Root B 의존성 빌드(slice→analyze_file→pkl) + 자동 topo-sort(임의 .sol 첨부 순서).
 - 라인 anchor(워크스페이스 편집 시 @During lineRef 따라 이동 — Monaco sticky). 현재 디버그뷰 read-only라 안정적.
 
-### 생성 보조 (L2 originality, 후순위)
+### 부록-생성 보조 (L2 originality, 후순위)
 - `suggest_value`/`reach`/`cover`/`suggest_intent` 구현 + solver/LLM backend seam. derivable→solver / opaque→LLM 매핑 실험.
 
-### 폴리시/후순위
+### 부록-폴리시/후순위
 - Solidity 함수목록 동적 파싱(현재 mock 고정), advanced value types UI, precompute&inject(P1), intent-repair.
 
 ---
 
-## 5. `engine_api.py` (스켈레톤 작성 완료 — 내부 `NotImplementedError`)
+## 부록-5. `engine_api.py` (스켈레톤 작성 완료 — 내부 `NotImplementedError`)
 
 **파일 = 프로젝트 root `engine_api.py`**. 계약(타입·시그니처)만 확정, 본문 미구현. 각 스텁 docstring에 실배선 hook이 `file:line`으로 박혀 있음.
 
-### 5.1 Root A — `EngineSession` (결정론 코어)
+### 부록-5.1 Root A — `EngineSession` (결정론 코어)
 - `__init__(deps)` / `close()` — SolidityAnalyzer 1개 + deps 1회 로드(load_dependencies를 인스턴스 받는 형태로 신규). DebugBatchManager로 snapshot/restore.
 - `analyze(records) → Structure` — delta 누적 적용 → CFG 구조 + 빈 debugSlots + `diagnostics`. nodes.state={}. [코드 편집]
 - `evaluate(debug_values) → CfgWithStates` — fixpoint → states. **restore 전 스냅샷 직렬화**(불변 사본). top_vars(provenance=None). [값 변경]
@@ -218,19 +511,19 @@ src/
 - `to_analysis_result(structure, states, verdict, intents) → AnalysisResultDict` — 3산출 합성(= 프론트 `AnalysisResult`). **`send_report_to_front` 대체 출력층**.
 - `analyze_once(records, debug_values, intents, deps)` — 세션 없이 1회(L2 실험). 내부서 세션 만들어 analyze→evaluate→verify→to_analysis_result.
 
-### 5.2 생성 보조 (모듈 함수, solver/LLM, 표면 분리·generator 공유)
+### 부록-5.2 생성 보조 (모듈 함수, solver/LLM, 표면 분리·generator 공유)
 - `suggest_value(session, slot) → Suggestion` — opaque 슬롯 채우기.
 - `reach(session, target) → dict[SlotKey, RangeValue]` — 특정 path/intent 도달 입력 합성(witness).
 - `cover(session, scope) → list[dict]` — 전 분기 커버(reach 반복, 후순위).
 - `suggest_intent(source, comments, patterns) → list[IntentItem]` — 주석·취약점패턴 → intent 제안.
 
-### 5.3 Root B — `DependencyStore`
+### 부록-5.3 Root B — `DependencyStore`
 - `build(name, source) → DepInfo` (slice_solidity → analyze_file → ifc_/lib_/con_*.pkl) / `list()` / `remove(name)`. 자동 topo-sort 미구현.
 
-### 5.4 값 모델 (frontend/src/types/result.ts와 1:1)
+### 부록-5.4 값 모델 (frontend/src/types/result.ts와 1:1)
 `Record`(code/startLine/endLine/event), `CFGNode/Edge/CFG`, `VerdictItem`, `TopVar`, `Suggestion`, `DebugSlot`, `IntentItem`, `RangeValue`(interval/bool/address/none), `Diagnostic`, 단계 산출 `Structure`/`CfgWithStates`, `Scope`, `DepSpec`/`DepInfo`.
 
-### 5.5 실배선 = Stage 1 (★ 구현·스모크 검증 완료, 2026-06-20)
+### 부록-5.5 실배선 = Stage 1 (★ 구현·스모크 검증 완료, 2026-06-20)
 
 **구현 완료(`engine_api.py` + 코어 3곳, `temp/smoke_engine_api.py` 로 검증):**
 - `EngineSession.analyze(records)` — slice_solidity record → `update_code`+visit 누적 → CFG 구조 직렬화 + `LocalVar` 슬롯 도출. ✅ (flags/cond_type/edge true·false/entry·exit·return·error 정확, state={}).
@@ -287,7 +580,7 @@ src/
 - **불변 유지**: `Domain/`, `Utils/CFG.py`(구조), `GuardianVerificationEngine.py`(P2 로직 그대로 사후 호출), 파서·visitor, fixpoint 핵심 로직(`Engine.py`는 P2 분리만, P1 계산 불변).
 - 회귀 가드: `run_all.py` 20/20 VIOLATED 매 단계 확인.
 
-### 5.6 증분 편집 아키텍처 (B1 + T-stmt, 2026-06-22 결정)
+### 부록-5.6 증분 편집 아키텍처 (B1 + T-stmt, 2026-06-22 결정)
 
 **배경 / 모순**: 현 `engine_server`는 매 호출 풀소스를 받아 fresh 세션으로 `slice_solidity` 전체를 add 재적용
 (= 매번 통째 재구성). SolQDebug 의 핵심 주장인 *edit-time 증분 분석*을 살리지 못함.
@@ -384,7 +677,7 @@ test_safety_net.py` 6/6(do-while add/delete, break 삭제 == fresh). ② try/do-
 `b > <Expression object at 0x..>` → `b > 0`(의미론 불변, display만). `_serialize_node_state` 가
 `[None,None]`(bottom) → `⊥` 가독화(우리 레이어).
 
-### 5.7 현재 상태 / 다음 후보 (handoff, 2026-06-22)
+### 부록-5.7 현재 상태 / 다음 후보 (handoff, 2026-06-22)
 
 **동작하는 것 (테스트 67개 통과)**: B1 증분 편집 end-to-end.
 - 편집: statement add/delete/value-modify, if-block add/delete, 조건 modify(in-place), if/else·else-if·
@@ -415,7 +708,7 @@ dev`) ② @IReturn 호출 AST 스캔 ③ 매핑 시딩 access-chain ④ diagnost
 test_delete_2c / test_update / test_update_block / test_session_flow / test_safety_net. inspect_cfg{,2,3}.py 는
 구조 관찰용.
 
-### 5.8 디버그 입력 UX 세션 (2026-07-03) — 슬롯 정합·값 입력·시딩 버그
+### 부록-5.8 디버그 입력 UX 세션 (2026-07-03) — 슬롯 정합·값 입력·시딩 버그
 
 브라우저 실동작 확인 중 디버그 입력 경로에서 다수 버그 발견. 백엔드는 대체로 정상, **슬롯 도출·값 표시·다중
 시딩·라인 좌표**에서 문제. 아래 ✅=수정완료(검증), 🔧=원인규명·수정방안 확정(미적용), ☐=미해결.
@@ -2099,7 +2392,7 @@ test_delete_2c / test_update / test_update_block / test_session_flow / test_safe
 
 ---
 
-## 6. 실행/환경 메모
+## 부록-6. 실행/환경 메모
 
 - 엔진 실행: **반드시 `.venv\Scripts\python.exe`** (글로벌 Python310 networkx 2.5.1 깨짐).
   ⚠ **과거 검증 커맨드였던 `evaluation\RQ1\run_all.py` → 20/20 VIOLATED 는 더 이상 유효하지 않다**

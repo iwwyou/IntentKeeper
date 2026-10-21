@@ -1,0 +1,332 @@
+[
+ {
+  "code": "pragma solidity ^0.8.0;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "struct HourlyBond {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "uint256 amount;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "uint256 yieldQuotientFP;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint256 moduloHour;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "abstract contract HourlyBondSubscriptionLending is BaseLending {\n}",
+  "startLine": 9,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "struct HourlyBondMetadata {\n}",
+  "startLine": 10,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "YieldAccumulator yieldAccumulator;",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "uint256 buyingSpeed;",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "uint256 withdrawingSpeed;",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "uint256 lastBought;",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "uint256 lastWithdrawn;",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => HourlyBondMetadata) hourlyBondMetadata;",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public withdrawalWindow = 10 minutes;",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => mapping(address => HourlyBond)) public hourlyBondAccounts;",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public borrowingFactorPercent = 200;",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 24,
+  "endLine": 24,
+  "event": "add"
+ },
+ {
+  "code": "function viewHourlyBondAmount(address issuer, address holder) public view returns (uint256) {\n}",
+  "startLine": 25,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "HourlyBond storage bond = hourlyBondAccounts[issuer][holder];",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "uint256 yieldQuotientFP = bond.yieldQuotientFP;",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "uint256 cumulativeYield = viewCumulativeYieldFP(hourlyBondMetadata[issuer].yieldAccumulator, block.timestamp);",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "if (yieldQuotientFP > 0) {\n}",
+  "startLine": 31,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "return bond.amount + applyInterest(bond.amount, cumulativeYield, yieldQuotientFP);",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "return bond.amount + 0;",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "function calcCumulativeYieldFP(YieldAccumulator storage yieldAccumulator, uint256 timeDelta) internal view returns (uint256 accumulatorFP) {\n}",
+  "startLine": 37,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "uint256 secondsDelta = timeDelta % (1 hours);",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "accumulatorFP = (yieldAccumulator.accumulatorFP * yieldAccumulator.hourlyYieldFP * secondsDelta) / (FP32 * 1 hours);",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "uint256 hoursDelta = timeDelta / (1 hours);",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "if (hoursDelta > 0) {\n}",
+  "startLine": 42,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "for (uint256 i = 0; hoursDelta > i; i++) {\n}",
+  "startLine": 43,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "accumulatorFP = (accumulatorFP * yieldAccumulator.hourlyYieldFP) / FP32;",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "function viewCumulativeYieldFP(YieldAccumulator storage yA, uint256 timestamp) internal view returns (uint256) {\n}",
+  "startLine": 49,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "uint256 timeDelta = (timestamp - yA.lastUpdated);",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "return calcCumulativeYieldFP(yA, timeDelta);",
+  "startLine": 51,
+  "endLine": 51,
+  "event": "add"
+ },
+ {
+  "code": "// @Post returnExpression == (bond.amount * cumulativeYield) / yieldQuotientFP",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar issuer = symbolicAddress 1",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar holder = symbolicAddress 2",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar block.timestamp = [1800, 1800]",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar hourlyBondAccounts[issuer][holder].amount = [1000, 1000]",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar hourlyBondAccounts[issuer][holder].yieldQuotientFP = [4294967296, 4294967296]",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar hourlyBondMetadata[issuer].yieldAccumulator.accumulatorFP = [4294967296, 4294967296]",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar hourlyBondMetadata[issuer].yieldAccumulator.hourlyYieldFP = [17179869184, 17179869184]",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar hourlyBondMetadata[issuer].yieldAccumulator.lastUpdated = [0, 0]",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ }
+]

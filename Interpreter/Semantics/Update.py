@@ -1176,7 +1176,7 @@ class Update :
             self._apply_new_value_to_variable(var_obj, new_val)
 
 # ---------------------------------------------------------------------------
-#  디버그 주석(@GlobalVar / @StateVar / @LocalVar) 전용 헬퍼
+#  디버그 주석(@GlobalVar / @StateVar / @Param) 전용 헬퍼
 # ---------------------------------------------------------------------------
     def _snapshot_once(self, var_obj):
         """처음 보는 객체면 스냅샷 매니저에 등록."""

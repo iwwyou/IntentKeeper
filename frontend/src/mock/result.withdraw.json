@@ -42,7 +42,7 @@
   "top_vars": [],
   "intents": [],
   "debugSlots": [
-    { "kind": "LocalVar", "key": "a", "label": "a", "valueKind": "interval" },
+    { "kind": "Param", "key": "a", "label": "a", "valueKind": "interval" },
     { "kind": "StateVar", "key": "balance", "label": "balance", "valueKind": "interval" },
     { "kind": "StateVar", "key": "fee", "label": "fee", "valueKind": "interval" },
     { "kind": "GlobalVar", "key": "msg.sender", "label": "msg.sender", "valueKind": "address" },

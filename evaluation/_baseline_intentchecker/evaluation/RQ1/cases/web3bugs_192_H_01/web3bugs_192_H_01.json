@@ -1,0 +1,224 @@
+[
+  {
+    "code": "pragma solidity ^0.8.0;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract Lock {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "IBondNFT public immutable bondNFT;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "IGovNFT public immutable govNFT;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => uint) public totalLocked;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "function claimGovFees() public {\n}",
+    "startLine": 9,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "address[] memory assets = bondNFT.getAssets();",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "for (uint i=0; i < assets.length; i++) {\n}",
+    "startLine": 12,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "uint balanceBefore = IERC20(assets[i]).balanceOf(address(this));",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "IGovNFT(govNFT).claim(assets[i]);",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "uint balanceAfter = IERC20(assets[i]).balanceOf(address(this));",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "IERC20(assets[i]).approve(address(bondNFT), type(uint256).max);",
+    "startLine": 16,
+    "endLine": 16,
+    "event": "add"
+  },
+  {
+    "code": "bondNFT.distribute(assets[i], balanceAfter - balanceBefore);",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 20,
+    "endLine": 20,
+    "event": "add"
+  },
+  {
+    "code": "function claim( uint256 _id ) public returns (address) {\n}",
+    "startLine": 21,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "claimGovFees();",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "(uint _amount, address _tigAsset) = bondNFT.claim(_id, msg.sender);",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "IERC20(_tigAsset).transfer(msg.sender, _amount);",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "return _tigAsset;",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "function extendLock( uint _id, uint _amount, uint _period ) public {\n}",
+    "startLine": 30,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "address _asset = claim(_id);",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "IERC20(_asset).transferFrom(msg.sender, address(this), _amount);",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "bondNFT.extendLock(_id, _asset, _amount, _period, msg.sender);",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "// @Post totalLocked[_asset] == totalLocked[_asset](Entry) + _amount",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _id = [1, 1]",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _amount = [10, 10]",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _period = [0, 0]",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar _asset = symbolicAddress 1",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar totalLocked[_asset] = [100, 100]",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "// @GlobalVar msg.sender = symbolicAddress 2",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  }
+]

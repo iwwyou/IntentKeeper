@@ -1,0 +1,710 @@
+[
+ {
+  "code": "pragma solidity ^0.4.24;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "library SafeMath {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "function mul(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 4,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a * b;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "assert(a == 0 || c / a == b);",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "function div(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 10,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a / b;",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "function sub(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 15,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "assert(b <= a);",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "return a - b;",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "function add(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 20,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a + b;",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "assert(c >= a);",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "contract ForeignToken {\n}",
+  "startLine": 27,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address _owner) constant public returns (uint256);",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "contract ERC20Basic {\n}",
+  "startLine": 32,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public totalSupply;",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address who) public constant returns (uint256);",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "event Transfer(address indexed _from, address indexed to, uint256 value);",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "contract ERC20 is ERC20Basic {\n}",
+  "startLine": 39,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "interface Token {\n}",
+  "startLine": 43,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "function distr(address _to, uint256 _value) external returns (bool);",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "function totalSupply() constant external returns (uint256 supply);",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address _owner) constant external returns (uint256 balance);",
+  "startLine": 46,
+  "endLine": 46,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "contract HIT is ERC20 {\n}",
+  "startLine": 49,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "using SafeMath for uint256;",
+  "startLine": 51,
+  "endLine": 51,
+  "event": "add"
+ },
+ {
+  "code": "address owner = msg.sender;",
+  "startLine": 52,
+  "endLine": 52,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 53,
+  "endLine": 53,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => uint256) balances;",
+  "startLine": 54,
+  "endLine": 54,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => mapping (address => uint256)) allowed;",
+  "startLine": 55,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => bool) public blacklist;",
+  "startLine": 56,
+  "endLine": 56,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 57,
+  "endLine": 57,
+  "event": "add"
+ },
+ {
+  "code": "string public constant name = \"Hi Token\";",
+  "startLine": 58,
+  "endLine": 58,
+  "event": "add"
+ },
+ {
+  "code": "string public constant symbol = \"HIT\";",
+  "startLine": 59,
+  "endLine": 59,
+  "event": "add"
+ },
+ {
+  "code": "uint public constant decimals = 18;",
+  "startLine": 60,
+  "endLine": 60,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 61,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public totalSupply = 1000000000e18;",
+  "startLine": 62,
+  "endLine": 62,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public totalDistributed = 200000000e18;",
+  "startLine": 63,
+  "endLine": 63,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public totalRemaining = totalSupply.sub(totalDistributed);",
+  "startLine": 64,
+  "endLine": 64,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public value = 5000e18;",
+  "startLine": 65,
+  "endLine": 65,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 66,
+  "endLine": 66,
+  "event": "add"
+ },
+ {
+  "code": "event Transfer(address indexed _from, address indexed _to, uint256 _value);",
+  "startLine": 67,
+  "endLine": 67,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 68,
+  "endLine": 68,
+  "event": "add"
+ },
+ {
+  "code": "event Distr(address indexed to, uint256 amount);",
+  "startLine": 69,
+  "endLine": 69,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 70,
+  "endLine": 70,
+  "event": "add"
+ },
+ {
+  "code": "bool public distributionFinished = false;",
+  "startLine": 71,
+  "endLine": 71,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 72,
+  "endLine": 72,
+  "event": "add"
+ },
+ {
+  "code": "modifier canDistr() {\n}",
+  "startLine": 73,
+  "endLine": 74,
+  "event": "add"
+ },
+ {
+  "code": "require(!distributionFinished);",
+  "startLine": 74,
+  "endLine": 74,
+  "event": "add"
+ },
+ {
+  "code": "_;",
+  "startLine": 75,
+  "endLine": 75,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 77,
+  "endLine": 77,
+  "event": "add"
+ },
+ {
+  "code": "modifier onlyWhitelist() {\n}",
+  "startLine": 78,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "require(blacklist[msg.sender] == false);",
+  "startLine": 79,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "_;",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 82,
+  "endLine": 82,
+  "event": "add"
+ },
+ {
+  "code": "function distr(address _to, uint256 _amount) canDistr private returns (bool) {\n}",
+  "startLine": 83,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "totalDistributed = totalDistributed.add(_amount);",
+  "startLine": 84,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "totalRemaining = totalRemaining.sub(_amount);",
+  "startLine": 85,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "balances[_to] = balances[_to].add(_amount);",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "emit Distr(_to, _amount);",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "emit Transfer(address(0), _to, _amount);",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "return true;",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "if (totalDistributed >= totalSupply) {\n}",
+  "startLine": 91,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "distributionFinished = true;",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 95,
+  "endLine": 95,
+  "event": "add"
+ },
+ {
+  "code": "function getTokens() payable canDistr onlyWhitelist public {\n}",
+  "startLine": 96,
+  "endLine": 97,
+  "event": "add"
+ },
+ {
+  "code": "if (value > totalRemaining) {\n}",
+  "startLine": 97,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "value = totalRemaining;",
+  "startLine": 98,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "require(value <= totalRemaining);",
+  "startLine": 101,
+  "endLine": 101,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 102,
+  "endLine": 102,
+  "event": "add"
+ },
+ {
+  "code": "address investor = msg.sender;",
+  "startLine": 103,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 104,
+  "endLine": 104,
+  "event": "add"
+ },
+ {
+  "code": "uint256 toGive = value + msg.value * 10000000;",
+  "startLine": 105,
+  "endLine": 105,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 106,
+  "endLine": 106,
+  "event": "add"
+ },
+ {
+  "code": "if (totalRemaining<=200000000e18){\n}",
+  "startLine": 107,
+  "endLine": 108,
+  "event": "add"
+ },
+ {
+  "code": "toGive = value + 10000e18;",
+  "startLine": 108,
+  "endLine": 108,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 110,
+  "endLine": 110,
+  "event": "add"
+ },
+ {
+  "code": "distr(investor, toGive);",
+  "startLine": 111,
+  "endLine": 111,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 112,
+  "endLine": 112,
+  "event": "add"
+ },
+ {
+  "code": "if (toGive > 0 && balanceOf(investor)>=100000e18) {\n}",
+  "startLine": 113,
+  "endLine": 114,
+  "event": "add"
+ },
+ {
+  "code": "blacklist[investor] = true;",
+  "startLine": 114,
+  "endLine": 114,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 116,
+  "endLine": 116,
+  "event": "add"
+ },
+ {
+  "code": "if (totalDistributed >= totalSupply) {\n}",
+  "startLine": 117,
+  "endLine": 118,
+  "event": "add"
+ },
+ {
+  "code": "distributionFinished = true;",
+  "startLine": 118,
+  "endLine": 118,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 120,
+  "endLine": 120,
+  "event": "add"
+ },
+ {
+  "code": "value = value.div(100000).mul(99999);",
+  "startLine": 121,
+  "endLine": 121,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 123,
+  "endLine": 123,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address _owner) constant public returns (uint256) {\n}",
+  "startLine": 124,
+  "endLine": 125,
+  "event": "add"
+ },
+ {
+  "code": "return balances[_owner];",
+  "startLine": 125,
+  "endLine": 125,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 127,
+  "endLine": 127,
+  "event": "add"
+ },
+ {
+  "code": "// @During toGive => msg.value",
+  "startLine": 111,
+  "endLine": 111,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 97,
+  "endLine": 97,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar msg.value = [0, 0]",
+  "startLine": 98,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar value = [5000000000000000000000, 5000000000000000000000]",
+  "startLine": 99,
+  "endLine": 99,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar totalRemaining = [800000000000000000000000000, 800000000000000000000000000]",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar totalDistributed = [200000000000000000000000000, 200000000000000000000000000]",
+  "startLine": 101,
+  "endLine": 101,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar totalSupply = [1000000000000000000000000000, 1000000000000000000000000000]",
+  "startLine": 102,
+  "endLine": 102,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar distributionFinished = false",
+  "startLine": 103,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar blacklist[msg.sender] = false",
+  "startLine": 104,
+  "endLine": 104,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 105,
+  "endLine": 105,
+  "event": "add"
+ }
+]

@@ -539,12 +539,12 @@ class SolidityListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by SolidityParser#debugLocalVar.
-    def enterDebugLocalVar(self, ctx:SolidityParser.DebugLocalVarContext):
+    # Enter a parse tree produced by SolidityParser#debugParam.
+    def enterDebugParam(self, ctx:SolidityParser.DebugParamContext):
         pass
 
-    # Exit a parse tree produced by SolidityParser#debugLocalVar.
-    def exitDebugLocalVar(self, ctx:SolidityParser.DebugLocalVarContext):
+    # Exit a parse tree produced by SolidityParser#debugParam.
+    def exitDebugParam(self, ctx:SolidityParser.DebugParamContext):
         pass
 
 

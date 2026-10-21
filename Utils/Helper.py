@@ -43,7 +43,7 @@ class ParserHelpers:
 
         'doWhileWhile':'interactiveDoWhileUnit',
 
-        'intentUnit':'intentUnit',  # @LocalVar, @During, @Post etc.
+        'intentUnit':'intentUnit',  # @Param, @During, @Post etc.
         'catch':'interactiveCatchClauseUnit',
         'else_if':'interactiveIfElseUnit', 'else':'interactiveIfElseUnit',
 

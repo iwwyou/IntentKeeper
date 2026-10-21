@@ -222,10 +222,11 @@
     "event": "add"
   },
   {
-    "code": "} else if (trade.side == Perpetuals.Side.Short) {\n}",
+    "code": "else if (trade.side == Perpetuals.Side.Short) {\n}",
     "startLine": 49,
     "endLine": 50,
-    "event": "add"
+    "event": "add",
+    "closeBefore": true
   },
   {
     "code": "newBase = position.base - signedAmount;",

@@ -23,8 +23,8 @@ export function slotToAnnotation(slot: DebugSlot, value: RangeValue): string {
   switch (slot.kind) {
     case 'StateVar':
       return `// @StateVar ${slot.key} = ${val}`
-    case 'LocalVar':
-      return `// @LocalVar ${slot.key} = ${val}`
+    case 'Param':
+      return `// @Param ${slot.key} = ${val}`
     case 'GlobalVar':
       return `// @GlobalVar ${slot.key} = ${val}`
     case 'IReturn':

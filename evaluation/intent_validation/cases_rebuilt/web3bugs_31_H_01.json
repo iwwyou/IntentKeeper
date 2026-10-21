@@ -1,0 +1,765 @@
+[
+ {
+  "code": "pragma solidity ^0.6.11;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "pragma experimental ABIEncoderV2;",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 3,
+  "endLine": 3,
+  "event": "add"
+ },
+ {
+  "code": "contract MyStrategy is BaseStrategy {\n}",
+  "startLine": 4,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "using SafeERC20Upgradeable for IERC20Upgradeable;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "using AddressUpgradeable for address;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "using SafeMathUpgradeable for uint256;",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "uint256 MAX_BPS = 10_000;",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "address public lpComponent;",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "address public reward;",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "address public constant CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "address public constant SUSHI_ROUTER = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "IDelegateRegistry public constant SNAPSHOT = IDelegateRegistry(0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446);",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "address public constant DELEGATE = 0xB65cef03b9B89f99517643226d76e286ee999e77;",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "bytes32 public constant DELEGATED_SPACE = 0x6376782e65746800000000000000000000000000000000000000000000000000;",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "ICvxLocker public LOCKER;",
+  "startLine": 24,
+  "endLine": 24,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "ISettV3 public CVX_VAULT = ISettV3(0x53C8E199eb2Cb7c01543C137078a038937a68E40);",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "bool public withdrawalSafetyCheck = true;",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "bool public harvestOnRebalance = true;",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "bool public processLocksOnReinvest = true;",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "bool public processLocksOnRebalance = true;",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "function wantToCVX(uint256 want) public view returns (uint256) {\n}",
+  "startLine": 33,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "uint256 bCVXToCVX = CVX_VAULT.getPricePerFullShare();",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "return want.mul(bCVXToCVX).div(10**18);",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "function harvest() public whenNotPaused returns (uint256 harvested) {\n}",
+  "startLine": 38,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "_onlyAuthorizedActors();",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "uint256 _before = IERC20Upgradeable(want).balanceOf(address(this));",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "uint256 _beforeCVX = IERC20Upgradeable(reward).balanceOf(address(this));",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "LOCKER.getReward(address(this), false);",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 46,
+  "endLine": 46,
+  "event": "add"
+ },
+ {
+  "code": "uint256 earnedReward = IERC20Upgradeable(reward).balanceOf(address(this)).sub(_beforeCVX);",
+  "startLine": 47,
+  "endLine": 47,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "(uint256 governancePerformanceFee, uint256 strategistPerformanceFee) = _processRewardsFees(earnedReward, reward);",
+  "startLine": 49,
+  "endLine": 49,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "_swapcvxCRVToWant();",
+  "startLine": 51,
+  "endLine": 51,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 52,
+  "endLine": 52,
+  "event": "add"
+ },
+ {
+  "code": "uint256 earned = IERC20Upgradeable(want).balanceOf(address(this)).sub(_before);",
+  "startLine": 53,
+  "endLine": 53,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 54,
+  "endLine": 54,
+  "event": "add"
+ },
+ {
+  "code": "emit Harvest(earned, block.number);",
+  "startLine": 55,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 56,
+  "endLine": 56,
+  "event": "add"
+ },
+ {
+  "code": "return earned;",
+  "startLine": 57,
+  "endLine": 57,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 59,
+  "endLine": 59,
+  "event": "add"
+ },
+ {
+  "code": "function _swapcvxCRVToWant() internal {\n}",
+  "startLine": 60,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "uint256 toSwap = IERC20Upgradeable(reward).balanceOf(address(this));",
+  "startLine": 61,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 62,
+  "endLine": 62,
+  "event": "add"
+ },
+ {
+  "code": "if (toSwap == 0) {\n}",
+  "startLine": 63,
+  "endLine": 64,
+  "event": "add"
+ },
+ {
+  "code": "return;",
+  "startLine": 64,
+  "endLine": 64,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 66,
+  "endLine": 66,
+  "event": "add"
+ },
+ {
+  "code": "address[] memory path = new address[](3);",
+  "startLine": 67,
+  "endLine": 67,
+  "event": "add"
+ },
+ {
+  "code": "path[0] = reward;",
+  "startLine": 68,
+  "endLine": 68,
+  "event": "add"
+ },
+ {
+  "code": "path[1] = WETH;",
+  "startLine": 69,
+  "endLine": 69,
+  "event": "add"
+ },
+ {
+  "code": "path[2] = CVX;",
+  "startLine": 70,
+  "endLine": 70,
+  "event": "add"
+ },
+ {
+  "code": "IUniswapRouterV2(SUSHI_ROUTER).swapExactTokensForTokens(toSwap, 0, path, address(this), now);",
+  "startLine": 71,
+  "endLine": 71,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 72,
+  "endLine": 72,
+  "event": "add"
+ },
+ {
+  "code": "uint256 toDeposit = IERC20Upgradeable(CVX).balanceOf(address(this));",
+  "startLine": 73,
+  "endLine": 73,
+  "event": "add"
+ },
+ {
+  "code": "if (toDeposit > 0) {\n}",
+  "startLine": 74,
+  "endLine": 75,
+  "event": "add"
+ },
+ {
+  "code": "CVX_VAULT.deposit(toDeposit);",
+  "startLine": 75,
+  "endLine": 75,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 78,
+  "endLine": 78,
+  "event": "add"
+ },
+ {
+  "code": "function _processRewardsFees(uint256 _amount, address _token) internal returns (uint256 governanceRewardsFee, uint256 strategistRewardsFee) {\n}",
+  "startLine": 79,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "governanceRewardsFee = _processFee(_token, _amount, performanceFeeGovernance, IController(controller).rewards());",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 81,
+  "endLine": 81,
+  "event": "add"
+ },
+ {
+  "code": "strategistRewardsFee = _processFee(_token, _amount, performanceFeeStrategist, strategist);",
+  "startLine": 82,
+  "endLine": 82,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 84,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "function manualRebalance(uint256 toLock) external whenNotPaused {\n}",
+  "startLine": 85,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "_onlyGovernance();",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "require(toLock <= MAX_BPS, \"Max is 100%\");",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "if (processLocksOnRebalance) {\n}",
+  "startLine": 89,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "LOCKER.processExpiredLocks(false);",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "if (harvestOnRebalance) {\n}",
+  "startLine": 93,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "harvest();",
+  "startLine": 94,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 96,
+  "endLine": 96,
+  "event": "add"
+ },
+ {
+  "code": "uint256 balanceOfWant = IERC20Upgradeable(want).balanceOf(address(this));",
+  "startLine": 97,
+  "endLine": 97,
+  "event": "add"
+ },
+ {
+  "code": "uint256 balanceOfCVX = IERC20Upgradeable(CVX).balanceOf(address(this));",
+  "startLine": 98,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "uint256 balanceInLock = LOCKER.balanceOf(address(this));",
+  "startLine": 99,
+  "endLine": 99,
+  "event": "add"
+ },
+ {
+  "code": "uint256 totalCVXBalance = balanceOfCVX.add(balanceInLock).add(wantToCVX(balanceOfWant));",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 101,
+  "endLine": 101,
+  "event": "add"
+ },
+ {
+  "code": "uint256 currentLockRatio = balanceInLock.mul(10**18).div(totalCVXBalance);",
+  "startLine": 102,
+  "endLine": 102,
+  "event": "add"
+ },
+ {
+  "code": "uint256 newLockRatio = totalCVXBalance.mul(toLock).div(MAX_BPS);",
+  "startLine": 103,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "uint256 toWantRatio = totalCVXBalance.mul(MAX_BPS.sub(toLock)).div(MAX_BPS);",
+  "startLine": 104,
+  "endLine": 104,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 105,
+  "endLine": 105,
+  "event": "add"
+ },
+ {
+  "code": "if (newLockRatio <= currentLockRatio) {\n}",
+  "startLine": 106,
+  "endLine": 107,
+  "event": "add"
+ },
+ {
+  "code": "uint256 toDeposit = IERC20Upgradeable(CVX).balanceOf(address(this));",
+  "startLine": 107,
+  "endLine": 107,
+  "event": "add"
+ },
+ {
+  "code": "if (toDeposit > 0) {\n}",
+  "startLine": 108,
+  "endLine": 109,
+  "event": "add"
+ },
+ {
+  "code": "CVX_VAULT.deposit(toDeposit);",
+  "startLine": 109,
+  "endLine": 109,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 111,
+  "endLine": 111,
+  "event": "add"
+ },
+ {
+  "code": "return;",
+  "startLine": 112,
+  "endLine": 112,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 114,
+  "endLine": 114,
+  "event": "add"
+ },
+ {
+  "code": "uint256 cvxToLock = newLockRatio.sub(currentLockRatio);",
+  "startLine": 115,
+  "endLine": 115,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 116,
+  "endLine": 116,
+  "event": "add"
+ },
+ {
+  "code": "uint256 maxCVX = IERC20Upgradeable(CVX).balanceOf(address(this));",
+  "startLine": 117,
+  "endLine": 117,
+  "event": "add"
+ },
+ {
+  "code": "if (cvxToLock > maxCVX) {\n}",
+  "startLine": 118,
+  "endLine": 119,
+  "event": "add"
+ },
+ {
+  "code": "LOCKER.lock(address(this), maxCVX, LOCKER.maximumBoostPayment());",
+  "startLine": 119,
+  "endLine": 119,
+  "event": "add"
+ },
+ {
+  "code": "else {\n}",
+  "startLine": 120,
+  "endLine": 121,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "LOCKER.lock(address(this), cvxToLock, LOCKER.maximumBoostPayment());",
+  "startLine": 121,
+  "endLine": 121,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 123,
+  "endLine": 123,
+  "event": "add"
+ },
+ {
+  "code": "uint256 cvxLeft = IERC20Upgradeable(CVX).balanceOf(address(this));",
+  "startLine": 124,
+  "endLine": 124,
+  "event": "add"
+ },
+ {
+  "code": "if (cvxLeft > 0) {\n}",
+  "startLine": 125,
+  "endLine": 126,
+  "event": "add"
+ },
+ {
+  "code": "CVX_VAULT.deposit(cvxLeft);",
+  "startLine": 126,
+  "endLine": 126,
+  "event": "add"
+ },
+ {
+  "code": "// @During currentLockRatio == balanceInLock",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar msg.sender = symbolicAddress 1",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar governance = symbolicAddress 1",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar want = symbolicAddress 2",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar CVX_VAULT = symbolicAddress 3",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar toLock = [8000, 8000]",
+  "startLine": 91,
+  "endLine": 91,
+  "event": "add"
+ },
+ {
+  "code": "// @IReturn IERC20Upgradeable(want).balanceOf() = [0, 0]",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "// @IReturn IERC20Upgradeable(CVX).balanceOf() = [100000000000000000000, 100000000000000000000]",
+  "startLine": 93,
+  "endLine": 93,
+  "event": "add"
+ },
+ {
+  "code": "// @IReturn LOCKER.balanceOf() = [400000000000000000000, 400000000000000000000]",
+  "startLine": 94,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "// @IReturn CVX_VAULT.getPricePerFullShare() = [1000000000000000000, 1000000000000000000]",
+  "startLine": 95,
+  "endLine": 95,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 96,
+  "endLine": 96,
+  "event": "add"
+ }
+]

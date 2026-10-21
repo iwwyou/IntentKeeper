@@ -1,0 +1,354 @@
+{
+ "flyinointment_SwordCrowdsale": {
+  "problems": [],
+  "during": 0,
+  "post": 2,
+  "batch": 4,
+  "renamed": []
+ },
+ "numscout_BoostToken_indivisible": {
+  "problems": [],
+  "during": 4,
+  "post": 0,
+  "batch": 3,
+  "renamed": [
+   "from"
+  ]
+ },
+ "numscout_BoostToken_operator": {
+  "problems": [],
+  "during": 2,
+  "post": 0,
+  "batch": 3,
+  "renamed": [
+   "from"
+  ]
+ },
+ "numscout_EthereumGod": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 6,
+  "renamed": [
+   "from"
+  ]
+ },
+ "numscout_HIT": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 9,
+  "renamed": [
+   "from"
+  ]
+ },
+ "numscout_Nokon": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 5,
+  "renamed": [
+   "from"
+  ]
+ },
+ "numscout_WANGMI": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 23,
+  "renamed": [
+   "from"
+  ]
+ },
+ "web3bugs_101_H_01": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_112_H_01": {
+  "problems": [],
+  "during": 2,
+  "post": 0,
+  "batch": 9,
+  "renamed": []
+ },
+ "web3bugs_113_H_05": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 14,
+  "renamed": []
+ },
+ "web3bugs_16_H_04": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 8,
+  "renamed": []
+ },
+ "web3bugs_16_H_06": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 4,
+  "renamed": []
+ },
+ "web3bugs_192_H_01": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 8,
+  "renamed": []
+ },
+ "web3bugs_29_H_08": {
+  "problems": [],
+  "during": 0,
+  "post": 2,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_29_H_11": {
+  "problems": [],
+  "during": 2,
+  "post": 0,
+  "batch": 12,
+  "renamed": []
+ },
+ "web3bugs_31_H_01": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 11,
+  "renamed": []
+ },
+ "web3bugs_35_H_08": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 9,
+  "renamed": []
+ },
+ "web3bugs_35_H_10": {
+  "problems": [],
+  "during": 0,
+  "post": 2,
+  "batch": 14,
+  "renamed": []
+ },
+ "web3bugs_35_H_11": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 11,
+  "renamed": []
+ },
+ "web3bugs_35_H_12": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 12,
+  "renamed": []
+ },
+ "web3bugs_36_H_02": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 11,
+  "renamed": []
+ },
+ "web3bugs_3_H_04": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 10,
+  "renamed": []
+ },
+ "web3bugs_3_H_05": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 13,
+  "renamed": []
+ },
+ "web3bugs_42_H_01": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 18,
+  "renamed": []
+ },
+ "web3bugs_45_H_01": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 18,
+  "renamed": []
+ },
+ "web3bugs_47_H_02": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 9,
+  "renamed": []
+ },
+ "web3bugs_51_H_02": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 10,
+  "renamed": []
+ },
+ "web3bugs_52_H_04": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 11,
+  "renamed": []
+ },
+ "web3bugs_52_H_23": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 10,
+  "renamed": [
+   "from"
+  ]
+ },
+ "web3bugs_52_H_34": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 13,
+  "renamed": []
+ },
+ "web3bugs_56_H_02": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_58_H_02": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 18,
+  "renamed": []
+ },
+ "web3bugs_59_H_04": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_5_H_07": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 5,
+  "renamed": []
+ },
+ "web3bugs_5_H_08": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_5_H_12": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 9,
+  "renamed": []
+ },
+ "web3bugs_60_H_01": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 5,
+  "renamed": [
+   "from"
+  ]
+ },
+ "web3bugs_62_H_03": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 15,
+  "renamed": []
+ },
+ "web3bugs_62_H_08": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 17,
+  "renamed": []
+ },
+ "web3bugs_62_H_10": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 13,
+  "renamed": []
+ },
+ "web3bugs_65_H_01": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 5,
+  "renamed": []
+ },
+ "web3bugs_70_H_04": {
+  "problems": [],
+  "during": 0,
+  "post": 2,
+  "batch": 8,
+  "renamed": []
+ },
+ "web3bugs_70_H_05": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_70_H_10": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 11,
+  "renamed": []
+ },
+ "web3bugs_77_H_01": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_78_H_02": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 7,
+  "renamed": []
+ },
+ "web3bugs_79_H_02": {
+  "problems": [],
+  "during": 1,
+  "post": 0,
+  "batch": 19,
+  "renamed": []
+ },
+ "web3bugs_83_H_01": {
+  "problems": [],
+  "during": 0,
+  "post": 1,
+  "batch": 12,
+  "renamed": []
+ }
+}

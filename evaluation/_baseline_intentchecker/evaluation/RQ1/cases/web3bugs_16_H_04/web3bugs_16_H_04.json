@@ -1,0 +1,320 @@
+[
+  {
+    "code": "pragma solidity ^0.8.0;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "library Balances {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using LibMath for int256;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using LibMath for uint256;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "using PRBMathSD59x18 for int256;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "using PRBMathUD60x18 for uint256;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public constant MAX_DECIMALS = 18;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "struct Position {\n}",
+    "startLine": 11,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "int256 quote;",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "int256 base;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 15,
+    "endLine": 15,
+    "event": "add"
+  },
+  {
+    "code": "struct Trade {\n}",
+    "startLine": 16,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "uint256 price;",
+    "startLine": 17,
+    "endLine": 17,
+    "event": "add"
+  },
+  {
+    "code": "uint256 amount;",
+    "startLine": 18,
+    "endLine": 18,
+    "event": "add"
+  },
+  {
+    "code": "Perpetuals.Side side;",
+    "startLine": 19,
+    "endLine": 19,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 21,
+    "endLine": 21,
+    "event": "add"
+  },
+  {
+    "code": "function getFee( uint256 amount, uint256 executionPrice, uint256 feeRate ) internal pure returns (int256) {\n}",
+    "startLine": 22,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "uint256 quoteChange = PRBMathUD60x18.mul(amount, executionPrice);",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "int256 fee = PRBMathUD60x18.mul(quoteChange, feeRate).toInt256();",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "return fee;",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "function applyTrade( Position memory position, Trade memory trade, uint256 feeRate ) internal pure returns (Position memory) {\n}",
+    "startLine": 33,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "int256 signedAmount = LibMath.toInt256(trade.amount);",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "int256 signedPrice = LibMath.toInt256(trade.price);",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "int256 quoteChange = PRBMathSD59x18.mul(signedAmount, signedPrice);",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "int256 fee = getFee(trade.amount, trade.price, feeRate);",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "int256 newQuote = 0;",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "int256 newBase = 0;",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "if (trade.side == Perpetuals.Side.Long) {\n}",
+    "startLine": 46,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "newBase = position.base + signedAmount;",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "newQuote = position.quote - quoteChange + fee;",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "} else if (trade.side == Perpetuals.Side.Short) {\n}",
+    "startLine": 49,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "newBase = position.base - signedAmount;",
+    "startLine": 50,
+    "endLine": 50,
+    "event": "add"
+  },
+  {
+    "code": "newQuote = position.quote + quoteChange - fee;",
+    "startLine": 51,
+    "endLine": 51,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 53,
+    "endLine": 53,
+    "event": "add"
+  },
+  {
+    "code": "Position memory newPosition = Position(newQuote, newBase);",
+    "startLine": 54,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "return newPosition;",
+    "startLine": 56,
+    "endLine": 56,
+    "event": "add"
+  },
+  {
+    "code": "// @During newQuote <= position.quote - quoteChange",
+    "startLine": 48,
+    "endLine": 48,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging BEGIN",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar feeRate = [10000000000000000, 10000000000000000]",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar trade.side = [0, 0]",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar trade.amount = [10000000000000000000, 10000000000000000000]",
+    "startLine": 41,
+    "endLine": 41,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar trade.price = [2000000000000000000, 2000000000000000000]",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar position.quote = [1000000000000000000000, 1000000000000000000000]",
+    "startLine": 43,
+    "endLine": 43,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar position.base = [0, 0]",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "// @Debugging END",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  }
+]

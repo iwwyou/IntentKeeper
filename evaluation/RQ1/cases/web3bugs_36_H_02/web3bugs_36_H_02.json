@@ -290,8 +290,8 @@
   },
   {
     "code": "// @Post ibRatio(Entry) * _totalSupply(Entry) == ibRatio * _totalSupply",
-    "startLine": 58,
-    "endLine": 58,
+    "startLine": 52,
+    "endLine": 52,
     "event": "add"
   },
   {

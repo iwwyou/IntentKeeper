@@ -1,0 +1,496 @@
+[
+  {
+    "code": "pragma solidity 0.8.9;",
+    "startLine": 1,
+    "endLine": 1,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 2,
+    "endLine": 2,
+    "event": "add"
+  },
+  {
+    "code": "contract LpIssuer is IERC721Receiver, ILpIssuer, ERC20, ReentrancyGuard {\n}",
+    "startLine": 3,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "using SafeERC20 for IERC20;",
+    "startLine": 4,
+    "endLine": 4,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private _subvaultNft;",
+    "startLine": 5,
+    "endLine": 5,
+    "event": "add"
+  },
+  {
+    "code": "IVaultGovernance internal _vaultGovernance;",
+    "startLine": 6,
+    "endLine": 6,
+    "event": "add"
+  },
+  {
+    "code": "address[] internal _vaultTokens;",
+    "startLine": 7,
+    "endLine": 7,
+    "event": "add"
+  },
+  {
+    "code": "mapping(address => bool) internal _vaultTokensIndex;",
+    "startLine": 8,
+    "endLine": 8,
+    "event": "add"
+  },
+  {
+    "code": "uint256 private _nft;",
+    "startLine": 9,
+    "endLine": 9,
+    "event": "add"
+  },
+  {
+    "code": "uint256[] private _lpPriceHighWaterMarks;",
+    "startLine": 10,
+    "endLine": 10,
+    "event": "add"
+  },
+  {
+    "code": "uint256[] private _existentials;",
+    "startLine": 11,
+    "endLine": 11,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 12,
+    "endLine": 12,
+    "event": "add"
+  },
+  {
+    "code": "uint256 public lastFeeCharge;",
+    "startLine": 13,
+    "endLine": 13,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 14,
+    "endLine": 14,
+    "event": "add"
+  },
+  {
+    "code": "function _chargeFees( uint256 thisNft, uint256[] memory tvls, uint256 supply, uint256[] memory deltaTvls, uint256 deltaSupply, bool isWithdraw ) internal {\n}",
+    "startLine": 15,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar lastFeeCharge = [0, 0]",
+    "startLine": 23,
+    "endLine": 23,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _lpPriceHighWaterMarks[0] = [1900000000000000000, 1900000000000000000]",
+    "startLine": 24,
+    "endLine": 24,
+    "event": "add"
+  },
+  {
+    "code": "// @StateVar _lpPriceHighWaterMarks[1] = [2900000000000000000, 2900000000000000000]",
+    "startLine": 25,
+    "endLine": 25,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar thisNft = [1, 1]",
+    "startLine": 26,
+    "endLine": 26,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar tvls[0] = [2000000000000000000000, 2000000000000000000000]",
+    "startLine": 27,
+    "endLine": 27,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar tvls[1] = [3000000000000000000000, 3000000000000000000000]",
+    "startLine": 28,
+    "endLine": 28,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar supply = [1000000000000000000000, 1000000000000000000000]",
+    "startLine": 29,
+    "endLine": 29,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar deltaTvls[0] = [100000000000000000000, 100000000000000000000]",
+    "startLine": 30,
+    "endLine": 30,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar deltaTvls[1] = [150000000000000000000, 150000000000000000000]",
+    "startLine": 31,
+    "endLine": 31,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar deltaSupply = [100000000000000000000, 100000000000000000000]",
+    "startLine": 32,
+    "endLine": 32,
+    "event": "add"
+  },
+  {
+    "code": "// @LocalVar isWithdraw = false",
+    "startLine": 33,
+    "endLine": 33,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn vg.delayedProtocolParams().managementFeeChargeDelay = [0, 0]",
+    "startLine": 34,
+    "endLine": 34,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn vg.delayedStrategyParams().managementFee = [0, 0]",
+    "startLine": 35,
+    "endLine": 35,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn vg.delayedStrategyParams().performanceFee = [100000000, 100000000]",
+    "startLine": 36,
+    "endLine": 36,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn vg.delayedStrategyParams().strategyPerformanceTreasury = symbolicAddress 1",
+    "startLine": 37,
+    "endLine": 37,
+    "event": "add"
+  },
+  {
+    "code": "// @IReturn vg.delayedProtocolPerVaultParams().protocolFee = [0, 0]",
+    "startLine": 38,
+    "endLine": 38,
+    "event": "add"
+  },
+  {
+    "code": "ILpIssuerGovernance vg = ILpIssuerGovernance(address(_vaultGovernance));",
+    "startLine": 39,
+    "endLine": 39,
+    "event": "add"
+  },
+  {
+    "code": "uint256 elapsed = block.timestamp - lastFeeCharge;",
+    "startLine": 40,
+    "endLine": 40,
+    "event": "add"
+  },
+  {
+    "code": "if (elapsed < vg.delayedProtocolParams().managementFeeChargeDelay) {\n}",
+    "startLine": 41,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "return;",
+    "startLine": 42,
+    "endLine": 42,
+    "event": "add"
+  },
+  {
+    "code": "lastFeeCharge = block.timestamp;",
+    "startLine": 44,
+    "endLine": 44,
+    "event": "add"
+  },
+  {
+    "code": "uint256 baseSupply = supply;",
+    "startLine": 45,
+    "endLine": 45,
+    "event": "add"
+  },
+  {
+    "code": "if (isWithdraw) {\n}",
+    "startLine": 46,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "baseSupply = 0;",
+    "startLine": 47,
+    "endLine": 47,
+    "event": "add"
+  },
+  {
+    "code": "if (supply > deltaSupply) {\n}",
+    "startLine": 48,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "baseSupply = supply - deltaSupply;",
+    "startLine": 49,
+    "endLine": 49,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 52,
+    "endLine": 52,
+    "event": "add"
+  },
+  {
+    "code": "if (baseSupply == 0) {\n}",
+    "startLine": 53,
+    "endLine": 54,
+    "event": "add"
+  },
+  {
+    "code": "for (uint256 i = 0; i < tvls.length; i++) {\n}",
+    "startLine": 54,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "_lpPriceHighWaterMarks[i] = (deltaTvls[i] * CommonLibrary.PRICE_DENOMINATOR) / deltaSupply;",
+    "startLine": 55,
+    "endLine": 55,
+    "event": "add"
+  },
+  {
+    "code": "return;",
+    "startLine": 57,
+    "endLine": 57,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 59,
+    "endLine": 59,
+    "event": "add"
+  },
+  {
+    "code": "uint256[] memory baseTvls = new uint256[](tvls.length);",
+    "startLine": 60,
+    "endLine": 60,
+    "event": "add"
+  },
+  {
+    "code": "for (uint256 i = 0; i < baseTvls.length; i++) {\n}",
+    "startLine": 61,
+    "endLine": 62,
+    "event": "add"
+  },
+  {
+    "code": "if (isWithdraw) {\n}",
+    "startLine": 62,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "baseTvls[i] = tvls[i] - deltaTvls[i];",
+    "startLine": 63,
+    "endLine": 63,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 64,
+    "endLine": 65,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "baseTvls[i] = tvls[i];",
+    "startLine": 65,
+    "endLine": 65,
+    "event": "add"
+  },
+  {
+    "code": "\n",
+    "startLine": 68,
+    "endLine": 68,
+    "event": "add"
+  },
+  {
+    "code": "ILpIssuerGovernance.DelayedStrategyParams memory strategyParams = vg.delayedStrategyParams(thisNft);",
+    "startLine": 69,
+    "endLine": 69,
+    "event": "add"
+  },
+  {
+    "code": "if (strategyParams.managementFee > 0) {\n}",
+    "startLine": 70,
+    "endLine": 71,
+    "event": "add"
+  },
+  {
+    "code": "uint256 toMint = (strategyParams.managementFee * baseSupply * elapsed) / (CommonLibrary.DENOMINATOR * CommonLibrary.YEAR);",
+    "startLine": 71,
+    "endLine": 72,
+    "event": "add"
+  },
+  {
+    "code": "_mint(strategyParams.strategyTreasury, toMint);",
+    "startLine": 73,
+    "endLine": 73,
+    "event": "add"
+  },
+  {
+    "code": "uint256 protocolFee = vg.delayedProtocolPerVaultParams(thisNft).protocolFee;",
+    "startLine": 75,
+    "endLine": 75,
+    "event": "add"
+  },
+  {
+    "code": "if (protocolFee > 0) {\n}",
+    "startLine": 76,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "address treasury = vg.internalParams().protocolGovernance.protocolTreasury();",
+    "startLine": 77,
+    "endLine": 77,
+    "event": "add"
+  },
+  {
+    "code": "uint256 toMint = (protocolFee * baseSupply * elapsed) / (CommonLibrary.DENOMINATOR * CommonLibrary.YEAR);",
+    "startLine": 78,
+    "endLine": 78,
+    "event": "add"
+  },
+  {
+    "code": "_mint(treasury, toMint);",
+    "startLine": 79,
+    "endLine": 79,
+    "event": "add"
+  },
+  {
+    "code": "uint256 performanceFee = strategyParams.performanceFee;",
+    "startLine": 81,
+    "endLine": 81,
+    "event": "add"
+  },
+  {
+    "code": "uint256[] memory hwms = _lpPriceHighWaterMarks;",
+    "startLine": 82,
+    "endLine": 82,
+    "event": "add"
+  },
+  {
+    "code": "if (performanceFee > 0) {\n}",
+    "startLine": 83,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "uint256 minLpPriceFactor = type(uint256).max;",
+    "startLine": 84,
+    "endLine": 84,
+    "event": "add"
+  },
+  {
+    "code": "for (uint256 i = 0; i < baseTvls.length; i++) {\n}",
+    "startLine": 85,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "uint256 hwm = hwms[i];",
+    "startLine": 86,
+    "endLine": 86,
+    "event": "add"
+  },
+  {
+    "code": "uint256 lpPrice = (baseTvls[i] * CommonLibrary.PRICE_DENOMINATOR) / baseSupply;",
+    "startLine": 87,
+    "endLine": 87,
+    "event": "add"
+  },
+  {
+    "code": "if (lpPrice > hwm) {\n}",
+    "startLine": 88,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "uint256 delta = (lpPrice * CommonLibrary.DENOMINATOR) / hwm;",
+    "startLine": 89,
+    "endLine": 89,
+    "event": "add"
+  },
+  {
+    "code": "if (delta < minLpPriceFactor) {\n}",
+    "startLine": 90,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "minLpPriceFactor = delta;",
+    "startLine": 91,
+    "endLine": 91,
+    "event": "add"
+  },
+  {
+    "code": "else {\n}",
+    "startLine": 93,
+    "endLine": 94,
+    "event": "add",
+    "closeBefore": true
+  },
+  {
+    "code": "return;",
+    "startLine": 94,
+    "endLine": 94,
+    "event": "add"
+  },
+  {
+    "code": "for (uint256 i = 0; i < tvls.length; i++) {\n}",
+    "startLine": 97,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "_lpPriceHighWaterMarks[i] += (hwms[i] * minLpPriceFactor) / CommonLibrary.DENOMINATOR;",
+    "startLine": 98,
+    "endLine": 98,
+    "event": "add"
+  },
+  {
+    "code": "address treasury = strategyParams.strategyPerformanceTreasury;",
+    "startLine": 100,
+    "endLine": 100,
+    "event": "add"
+  },
+  {
+    "code": "// @During toMint < baseSupply",
+    "startLine": 101,
+    "endLine": 101,
+    "event": "add"
+  },
+  {
+    "code": "uint256 toMint = (baseSupply * minLpPriceFactor) / CommonLibrary.DENOMINATOR;",
+    "startLine": 102,
+    "endLine": 102,
+    "event": "add"
+  },
+  {
+    "code": "_mint(treasury, toMint);",
+    "startLine": 103,
+    "endLine": 103,
+    "event": "add"
+  }
+]

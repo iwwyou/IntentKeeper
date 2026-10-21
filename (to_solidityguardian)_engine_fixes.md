@@ -3016,3 +3016,53 @@ PRBMath* 두 파일이 `[ANTLR]` 157건(전체 187 중)을 차지한다.
 - 배열 읽기 경로에 `.elements[idx]` 직접 접근이 아직 `Evaluation` 4곳 / `Update` 3곳 남아 있다
   (F21 에서 3곳만 정리). `DebugInitializer` 의 `isDynamicArray` 분기 패턴으로 통일 검토.
 
+
+---
+
+## F51. 미지정 상태변수·환경값 = ⊤ (2026-10-20, 사용자 승인)
+
+- **증상**: 지정하지 않은 상태변수가 Solidity 기본값 0(또는 initializer 값)으로, `block.timestamp`·`msg.value` 등이
+  [0,0] 으로 시작했다. "막 배포된 컨트랙트" 라는 특정 시나리오를 고른 것이라 임의 호출 직전 상태(pre-state)로는 틀리다.
+  IntentChecker 원고(debug 어노테이션은 "otherwise unknown" 값을 대체, 제약이 없으면 ⊤)와도 어긋났다.
+- **수정**: `ContractAnalyzer.process_state_variable` — elementary 상태변수(initializer 유무 무관) = 타입 ⊤
+  (`VariableEnv.top_from_soltype`), 고정 길이 numeric 배열 원소 ⊤(`initialize_default_by_base_type`), initializer 는
+  CFG 기록용으로만 보존. `StaticCFGFactory._create_global_variables` — `block.*`·`tx.gasprice`·`msg.value` = uint256 ⊤.
+  `ContractAnalyzer._narrow_msg_value_for_nonpayable` — non-payable 함수 진입 환경의 `msg.value` = [0,0] (EVM 강제).
+  constant/immutable·로컬·named return 은 그대로.
+- **남은 것**: 동적 배열 len 0 / `_sync_constructor_state`(생성자 결과를 상태변수 노드에 반영) / 무초기화식 immutable 미확인.
+
+## F52. 정상 종료 상태 = EXIT 선행 ∪ RETURN 선행 (2026-10-21, 사용자 승인)
+
+- **증상**: 빌더는 `return` 문을 RETURN sink 로 보내고 EXIT 로 잇지 않는다. 그런데 `Engine._force_join_before_exit` 는
+  EXIT 선행만 join 했다 → (1) `return` 으로 끝나는 callee 의 **상태 변경이 호출자에 전달되지 않음**
+  (`s = 5; return 1;` 뒤 호출자에서 `s` = 0), (2) 조기 return 만 가능한 callee(PRBMath.mulDivFixedPoint)는 EXIT 가 ⊥ →
+  호출자 경로 사망(16_H_04 결과 없음, 16_H_06 Unreachable). 검증 계층 `_get_post_exit_node` 는 RETURN·EXIT 중
+  **하나만** 골라 섞인 함수에서 @Post 가 한쪽 경로를 빠뜨렸다.
+- **수정**: `Engine.normal_completion_preds`(EXIT 선행 ∪ RETURN 선행) 신설. `_force_join_before_exit` 는 그중 ⊥ 아닌
+  선행만 join, 하나도 없으면 **명시적 ⊥ 환경**(빈 `{}` 이면 호출자가 호출 전 상태로 계속 진행하는 문제).
+  `GuardianVerificationEngine._preds`(node 미지정) = EXIT ∪ RETURN 선행, `_exit_env` 는 ⊥ 선행 제외(전부 ⊥ 면 기존대로).
+  RETURN/EXIT 노드는 그래프에서 분리 유지(표시·출처 추적용), 합치기는 계산으로만.
+- **검증**: 실험 `g()` 뒤 `s` = 5 / temp 회귀 16종 통과(test_engine_fixes 의 소스 문자열 검사 1건을 새 불변식으로 갱신) /
+  16_H_04 → Warning(IntentChecker 일치), 16_H_06 → Violated(IntentChecker 는 Warning).
+- **⚠ 드러난 결함 (미수정, 보고됨)**: 소수점 지수 리터럴 `0.0005e16` 이 정수로 평가되지 않고 문자열로 남는다 →
+  `require(x <= M)` 가 불가능 판정 → ⊥. 예전엔 위 버그가 RETURN 경로 ⊥ 를 버려서 가려졌다. 45_H_01 이 Violated → Unreachable.
+
+## F53. 10진 숫자 리터럴을 문법 규칙으로 판정하고 정확히 계산 (2026-10-21, 사용자 승인)
+
+- **증상**: `visitLiteralExp` 가 `isdigit()`(또는 `0x`)일 때만 숫자로 분류해 `0.0005e16`·`1e18`·`1_000` 이 `'string'` 이 됐다.
+  문자열이 상수 값이 되어 `require(x <= 0.0005e16)` 이 불가능 판정 → 경로 ⊥ (web3bugs_45_H_01 `BORROW_RATE_MAX_MANTISSA`).
+  F52 이전엔 RETURN 경로의 ⊥ 가 버려져서 가려져 있었다.
+- **수정**: `EnhancedSolidityVisitor.visitLiteralExp` — `ctx.literal().numberLiteral().DecimalNumber()` 이면 밑줄 제거 후
+  `Fraction` 으로 정확히 계산, 정수가 아니면 예외(Solidity 도 정수 타입에 못 씀), `literal` 을 정수 문자열로 정규화하고
+  `expr_type='uint'`. 단위 리터럴(`365.25 days`)은 기존 `visitLiteralSubDenomination` 이 같은 방식.
+
+## F54. 외부 호출 반환값·미해결 멤버 폴백 제거 (2026-10-21, 사용자 승인: "폴백 금지, 근본 원인 해결")
+
+- **증상**: (1) 외부 호출 반환 타입을 `ifc_<T>.pkl` 에서만 찾아, T 가 contract 이거나(`Ownable(...).owner()`) public 상태변수
+  getter 면 실패 → 호출부 2곳이 `UnsignedIntegerInterval.top()` 으로 대체 → address 자리에 숫자 → `require(account != address(0))`
+  불가능 → 36_H_02 Unreachable. (2) 해석 못 한 멤버를 `"symbolic(...)"` 문자열로 반환(2곳) → 산술에서 엉뚱하게 크래시(52_H_23).
+- **수정**: `Evaluation._lookup_interface_return` 재작성 — interface pkl → 로드된 contract/library CFG(부모 체인) → public 상태변수
+  getter 순으로 선언 반환 타입의 ⊤ 를 만든다(`_top_of_type`). void 면 None(값 없음), **끝내 못 찾으면 예외**(의존성 누락).
+  uint ⊤ 대체 2곳 제거, @IReturn 체인 중간 호출의 조용한 `break` 도 예외로. 미해결 멤버 2곳(library member / 일반 member)
+  → 예외. 부수: `getattr(baseVal, 'bits', 256)` → `baseVal.type_length`(interval 에 `bits` 속성이 없어 늘 256 이던 잠복 버그).
+- **영향**: 지금까지 조용히 ⊤/문자열로 넘어가던 경우가 예외로 드러난다(의도). 드러나는 것은 근본 원인(데이터·정의 누락)으로 처리.

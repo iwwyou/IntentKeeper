@@ -1,0 +1,916 @@
+[
+ {
+  "code": "pragma solidity ^0.8.0;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "contract Governed {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "address public gov;",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "address private pendingGov;",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "address public emergency_gov;",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "interface IGoverned {\n}",
+  "startLine": 10,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "function gov() external view returns (address);",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "function emergency_gov() external view returns (address);",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "abstract contract ExternallyGoverned {\n}",
+  "startLine": 15,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "IGoverned public gov;",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 19,
+  "endLine": 19,
+  "event": "add"
+ },
+ {
+  "code": "interface LockeCallee {\n}",
+  "startLine": 20,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "function lockeCall(address initiator, address token, uint256 amount, bytes calldata data) external;",
+  "startLine": 21,
+  "endLine": 21,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "contract Stream is LockeERC20, ExternallyGoverned {\n}",
+  "startLine": 24,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "using SafeTransferLib for ERC20;",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "struct TokenStream {\n}",
+  "startLine": 26,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "uint256 lastCumulativeRewardPerToken;",
+  "startLine": 27,
+  "endLine": 27,
+  "event": "add"
+ },
+ {
+  "code": "uint256 virtualBalance;",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "uint112 rewards;",
+  "startLine": 29,
+  "endLine": 29,
+  "event": "add"
+ },
+ {
+  "code": "uint112 tokens;",
+  "startLine": 30,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "uint32 lastUpdate;",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "bool merkleAccess;",
+  "startLine": 32,
+  "endLine": 32,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 34,
+  "endLine": 34,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable startTime;",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable streamDuration;",
+  "startLine": 36,
+  "endLine": 36,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable depositLockDuration;",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable rewardLockDuration;",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 39,
+  "endLine": 39,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable endStream;",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable endDepositLock;",
+  "startLine": 41,
+  "endLine": 41,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private immutable endRewardLock;",
+  "startLine": 42,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable rewardToken;",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable depositToken;",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 46,
+  "endLine": 46,
+  "event": "add"
+ },
+ {
+  "code": "uint64 public immutable streamId;",
+  "startLine": 47,
+  "endLine": 47,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "uint16 private immutable feePercent;",
+  "startLine": 49,
+  "endLine": 49,
+  "event": "add"
+ },
+ {
+  "code": "bool private immutable feeEnabled;",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 51,
+  "endLine": 51,
+  "event": "add"
+ },
+ {
+  "code": "bool public immutable isSale;",
+  "startLine": 52,
+  "endLine": 52,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 53,
+  "endLine": 53,
+  "event": "add"
+ },
+ {
+  "code": "address public immutable streamCreator;",
+  "startLine": 54,
+  "endLine": 54,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 55,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "uint112 private immutable depositDecimalsOne;",
+  "startLine": 56,
+  "endLine": 56,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 57,
+  "endLine": 57,
+  "event": "add"
+ },
+ {
+  "code": "uint112 private rewardTokenAmount;",
+  "startLine": 58,
+  "endLine": 58,
+  "event": "add"
+ },
+ {
+  "code": "uint112 private depositTokenAmount;",
+  "startLine": 59,
+  "endLine": 59,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 60,
+  "endLine": 60,
+  "event": "add"
+ },
+ {
+  "code": "uint112 private rewardTokenFeeAmount;",
+  "startLine": 61,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "uint112 private depositTokenFlashloanFeeAmount;",
+  "startLine": 62,
+  "endLine": 62,
+  "event": "add"
+ },
+ {
+  "code": "uint8 private unlocked = 1;",
+  "startLine": 63,
+  "endLine": 63,
+  "event": "add"
+ },
+ {
+  "code": "bool private claimedDepositTokens;",
+  "startLine": 64,
+  "endLine": 64,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 65,
+  "endLine": 65,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private cumulativeRewardPerToken;",
+  "startLine": 66,
+  "endLine": 66,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 67,
+  "endLine": 67,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private totalVirtualBalance;",
+  "startLine": 68,
+  "endLine": 68,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 69,
+  "endLine": 69,
+  "event": "add"
+ },
+ {
+  "code": "uint112 public unstreamed;",
+  "startLine": 70,
+  "endLine": 70,
+  "event": "add"
+ },
+ {
+  "code": "uint112 private redeemedDepositTokens;",
+  "startLine": 71,
+  "endLine": 71,
+  "event": "add"
+ },
+ {
+  "code": "uint32 private lastUpdate;",
+  "startLine": 72,
+  "endLine": 72,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 73,
+  "endLine": 73,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => TokenStream) public tokensNotYetStreamed;",
+  "startLine": 74,
+  "endLine": 74,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 75,
+  "endLine": 75,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => uint112) public incentives;",
+  "startLine": 76,
+  "endLine": 76,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 77,
+  "endLine": 77,
+  "event": "add"
+ },
+ {
+  "code": "function updateStreamInternal(address who) internal {\n}",
+  "startLine": 78,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "require(block.timestamp < endStream , \"!stream\");",
+  "startLine": 79,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "TokenStream storage ts = tokensNotYetStreamed[msg.sender];",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 81,
+  "endLine": 81,
+  "event": "add"
+ },
+ {
+  "code": "if (block.timestamp >= startTime) {\n}",
+  "startLine": 82,
+  "endLine": 83,
+  "event": "add"
+ },
+ {
+  "code": "if (ts.lastUpdate == 0) {\n}",
+  "startLine": 83,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "ts.lastUpdate = uint32(block.timestamp);",
+  "startLine": 84,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "if (lastUpdate == 0) {\n}",
+  "startLine": 86,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "lastUpdate = uint32(block.timestamp);",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "cumulativeRewardPerToken = rewardPerToken();",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 91,
+  "endLine": 91,
+  "event": "add"
+ },
+ {
+  "code": "ts.rewards = earned(ts, cumulativeRewardPerToken);",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "ts.lastCumulativeRewardPerToken = cumulativeRewardPerToken;",
+  "startLine": 93,
+  "endLine": 93,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 94,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "uint32 acctTimeDelta = uint32(block.timestamp) - ts.lastUpdate;",
+  "startLine": 95,
+  "endLine": 95,
+  "event": "add"
+ },
+ {
+  "code": "if (acctTimeDelta > 0 && ts.tokens > 0) {\n}",
+  "startLine": 96,
+  "endLine": 97,
+  "event": "add"
+ },
+ {
+  "code": "ts.tokens -= uint112(acctTimeDelta * ts.tokens / (endStream - ts.lastUpdate));",
+  "startLine": 97,
+  "endLine": 97,
+  "event": "add"
+ },
+ {
+  "code": "ts.lastUpdate = uint32(block.timestamp);",
+  "startLine": 98,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "uint32 tdelta = uint32(block.timestamp - lastUpdate);",
+  "startLine": 101,
+  "endLine": 101,
+  "event": "add"
+ },
+ {
+  "code": "if (tdelta > 0 && unstreamed > 0) {\n}",
+  "startLine": 102,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "uint256 globalStreamingSpeedPerSecond = (uint256(unstreamed) * 10**6)/ (endStream - lastUpdate);",
+  "startLine": 103,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "unstreamed -= uint112((uint256(tdelta) * globalStreamingSpeedPerSecond) / 10**6);",
+  "startLine": 104,
+  "endLine": 104,
+  "event": "add"
+ },
+ {
+  "code": "lastUpdate = uint32(block.timestamp);",
+  "startLine": 106,
+  "endLine": 106,
+  "event": "add"
+ },
+ {
+  "code": "else {\n}",
+  "startLine": 107,
+  "endLine": 108,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "if (ts.lastUpdate == 0) {\n}",
+  "startLine": 108,
+  "endLine": 109,
+  "event": "add"
+ },
+ {
+  "code": "ts.lastUpdate = startTime;",
+  "startLine": 109,
+  "endLine": 109,
+  "event": "add"
+ },
+ {
+  "code": "if (lastUpdate == 0) {\n}",
+  "startLine": 111,
+  "endLine": 112,
+  "event": "add"
+ },
+ {
+  "code": "lastUpdate = startTime;",
+  "startLine": 112,
+  "endLine": 112,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 116,
+  "endLine": 116,
+  "event": "add"
+ },
+ {
+  "code": "function lastApplicableTime() internal view returns (uint32) {\n}",
+  "startLine": 117,
+  "endLine": 118,
+  "event": "add"
+ },
+ {
+  "code": "return block.timestamp <= endStream ? uint32(block.timestamp) : endStream;",
+  "startLine": 118,
+  "endLine": 118,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 120,
+  "endLine": 120,
+  "event": "add"
+ },
+ {
+  "code": "function rewardPerToken() public view returns (uint256) {\n}",
+  "startLine": 121,
+  "endLine": 122,
+  "event": "add"
+ },
+ {
+  "code": "if (totalVirtualBalance == 0) {\n}",
+  "startLine": 122,
+  "endLine": 123,
+  "event": "add"
+ },
+ {
+  "code": "return cumulativeRewardPerToken;",
+  "startLine": 123,
+  "endLine": 123,
+  "event": "add"
+ },
+ {
+  "code": "else {\n}",
+  "startLine": 124,
+  "endLine": 125,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "return cumulativeRewardPerToken + (((uint256(lastApplicableTime()) - lastUpdate) * rewardTokenAmount * depositDecimalsOne/streamDuration) / totalVirtualBalance);",
+  "startLine": 125,
+  "endLine": 125,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 128,
+  "endLine": 128,
+  "event": "add"
+ },
+ {
+  "code": "function earned(TokenStream storage ts, uint256 currCumRewardPerToken) internal view returns (uint112) {\n}",
+  "startLine": 129,
+  "endLine": 130,
+  "event": "add"
+ },
+ {
+  "code": "return uint112(ts.virtualBalance * (currCumRewardPerToken - ts.lastCumulativeRewardPerToken) / depositDecimalsOne) + ts.rewards;",
+  "startLine": 130,
+  "endLine": 130,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 132,
+  "endLine": 132,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 134,
+  "endLine": 134,
+  "event": "add"
+ },
+ {
+  "code": "contract StreamFactory is Governed {\n}",
+  "startLine": 135,
+  "endLine": 136,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 136,
+  "endLine": 136,
+  "event": "add"
+ },
+ {
+  "code": "struct GovernableStreamParams {\n}",
+  "startLine": 137,
+  "endLine": 138,
+  "event": "add"
+ },
+ {
+  "code": "uint32 maxDepositLockDuration;",
+  "startLine": 138,
+  "endLine": 138,
+  "event": "add"
+ },
+ {
+  "code": "uint32 maxRewardLockDuration;",
+  "startLine": 139,
+  "endLine": 139,
+  "event": "add"
+ },
+ {
+  "code": "uint32 maxStreamDuration;",
+  "startLine": 140,
+  "endLine": 140,
+  "event": "add"
+ },
+ {
+  "code": "uint32 minStreamDuration;",
+  "startLine": 141,
+  "endLine": 141,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 143,
+  "endLine": 143,
+  "event": "add"
+ },
+ {
+  "code": "struct GovernableFeeParams {\n}",
+  "startLine": 144,
+  "endLine": 145,
+  "event": "add"
+ },
+ {
+  "code": "uint16 feePercent;",
+  "startLine": 145,
+  "endLine": 145,
+  "event": "add"
+ },
+ {
+  "code": "bool feeEnabled;",
+  "startLine": 146,
+  "endLine": 146,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 148,
+  "endLine": 148,
+  "event": "add"
+ },
+ {
+  "code": "GovernableStreamParams public streamParams;",
+  "startLine": 149,
+  "endLine": 149,
+  "event": "add"
+ },
+ {
+  "code": "GovernableFeeParams public feeParams;",
+  "startLine": 150,
+  "endLine": 150,
+  "event": "add"
+ },
+ {
+  "code": "uint64 public currStreamId;",
+  "startLine": 151,
+  "endLine": 151,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 152,
+  "endLine": 152,
+  "event": "add"
+ },
+ {
+  "code": "uint16 constant MAX_FEE_PERCENT = 500;",
+  "startLine": 153,
+  "endLine": 153,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 154,
+  "endLine": 154,
+  "event": "add"
+ },
+ {
+  "code": "// @Post tokensNotYetStreamed[msg.sender].lastUpdate == 1000",
+  "startLine": 115,
+  "endLine": 115,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 79,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar block.timestamp = [1000, 1000]",
+  "startLine": 80,
+  "endLine": 80,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar msg.sender = symbolicAddress 101",
+  "startLine": 81,
+  "endLine": 81,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar endStream = [2000, 2000]",
+  "startLine": 82,
+  "endLine": 82,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar startTime = [500, 500]",
+  "startLine": 83,
+  "endLine": 83,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar streamDuration = [1500, 1500]",
+  "startLine": 84,
+  "endLine": 84,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar depositDecimalsOne = [1000000000000000000, 1000000000000000000]",
+  "startLine": 85,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar lastUpdate = [1000, 1000]",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar cumulativeRewardPerToken = [100, 100]",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar totalVirtualBalance = [0, 0]",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar unstreamed = [0, 0]",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensNotYetStreamed[msg.sender].tokens = [0, 0]",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensNotYetStreamed[msg.sender].lastUpdate = [800, 800]",
+  "startLine": 91,
+  "endLine": 91,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensNotYetStreamed[msg.sender].rewards = [0, 0]",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensNotYetStreamed[msg.sender].lastCumulativeRewardPerToken = [100, 100]",
+  "startLine": 93,
+  "endLine": 93,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensNotYetStreamed[msg.sender].virtualBalance = [0, 0]",
+  "startLine": 94,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 95,
+  "endLine": 95,
+  "event": "add"
+ }
+]

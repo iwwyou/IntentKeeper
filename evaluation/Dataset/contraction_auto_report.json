@@ -1,0 +1,2248 @@
+{
+ "flyinointment_SwordCrowdsale": {
+  "kept_functions": [
+   "refundMoney"
+  ],
+  "missing_targets": [],
+  "dropped": 2,
+  "decls": [
+   [
+    "contract",
+    "SwordCrowdsale"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_msgData",
+   "_msgSender",
+   "contribute",
+   "forwardAllRaisedFunds",
+   "getUnlockTime",
+   "onlyOwner",
+   "owner",
+   "refundMoney",
+   "renounceOwnership",
+   "transferOwnership"
+  ],
+  "set_match": false,
+  "auto_only": [],
+  "manual_only": [
+   "_msgData",
+   "_msgSender",
+   "contribute",
+   "forwardAllRaisedFunds",
+   "getUnlockTime",
+   "onlyOwner",
+   "owner",
+   "renounceOwnership",
+   "transferOwnership"
+  ],
+  "lines": 21
+ },
+ "numscout_BoostToken_indivisible": {
+  "kept_functions": [
+   "_approve",
+   "_getCurrentSupply",
+   "_getRValues",
+   "_getRate",
+   "_getTValues",
+   "_getValues",
+   "_msgSender",
+   "_reflectFee",
+   "_takeTeam",
+   "_tokenTransfer",
+   "_transfer",
+   "_transferBothExcluded",
+   "_transferFromExcluded",
+   "_transferStandard",
+   "_transferToExcluded",
+   "add",
+   "balanceOf",
+   "div",
+   "lockTheSwap",
+   "mul",
+   "owner",
+   "removeAllFee",
+   "restoreAllFee",
+   "sendETHToTeam",
+   "sub",
+   "swapTokensForEth",
+   "tokenFromReflection",
+   "transfer"
+  ],
+  "missing_targets": [],
+  "dropped": 52,
+  "decls": [
+   [
+    "contract",
+    "Context"
+   ],
+   [
+    "interface",
+    "IERC20"
+   ],
+   [
+    "library",
+    "SafeMath"
+   ],
+   [
+    "library",
+    "Address"
+   ],
+   [
+    "contract",
+    "Ownable"
+   ],
+   [
+    "interface",
+    "IUniswapV2Factory"
+   ],
+   [
+    "interface",
+    "IUniswapV2Pair"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router01"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router02"
+   ],
+   [
+    "contract",
+    "BoostToken"
+   ]
+  ],
+  "renamed": {
+   "from": 3
+  },
+  "manual_functions": [
+   "_getCurrentSupply",
+   "_getRate",
+   "_msgData",
+   "_msgSender",
+   "_transfer",
+   "balanceOf",
+   "getUnlockTime",
+   "onlyOwner",
+   "owner",
+   "renounceOwnership",
+   "sendETHToTeam",
+   "swapTokensForEth",
+   "tokenFromReflection",
+   "transferFrom",
+   "transferOwnership"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "_approve",
+   "_getRValues",
+   "_getTValues",
+   "_getValues",
+   "_reflectFee",
+   "_takeTeam",
+   "_tokenTransfer",
+   "_transferBothExcluded",
+   "_transferFromExcluded",
+   "_transferStandard",
+   "_transferToExcluded",
+   "add",
+   "div",
+   "lockTheSwap",
+   "mul",
+   "removeAllFee",
+   "restoreAllFee",
+   "sub",
+   "transfer"
+  ],
+  "manual_only": [
+   "_msgData",
+   "getUnlockTime",
+   "onlyOwner",
+   "renounceOwnership",
+   "transferFrom",
+   "transferOwnership"
+  ],
+  "lines": 447
+ },
+ "numscout_BoostToken_operator": {
+  "kept_functions": [
+   "_approve",
+   "_getCurrentSupply",
+   "_getRValues",
+   "_getRate",
+   "_getTValues",
+   "_getValues",
+   "_msgSender",
+   "_reflectFee",
+   "_takeTeam",
+   "_tokenTransfer",
+   "_transfer",
+   "_transferBothExcluded",
+   "_transferFromExcluded",
+   "_transferStandard",
+   "_transferToExcluded",
+   "add",
+   "balanceOf",
+   "div",
+   "lockTheSwap",
+   "mul",
+   "owner",
+   "removeAllFee",
+   "restoreAllFee",
+   "sendETHToTeam",
+   "sub",
+   "swapTokensForEth",
+   "tokenFromReflection",
+   "transfer"
+  ],
+  "missing_targets": [],
+  "dropped": 52,
+  "decls": [
+   [
+    "contract",
+    "Context"
+   ],
+   [
+    "interface",
+    "IERC20"
+   ],
+   [
+    "library",
+    "SafeMath"
+   ],
+   [
+    "library",
+    "Address"
+   ],
+   [
+    "contract",
+    "Ownable"
+   ],
+   [
+    "interface",
+    "IUniswapV2Factory"
+   ],
+   [
+    "interface",
+    "IUniswapV2Pair"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router01"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router02"
+   ],
+   [
+    "contract",
+    "BoostToken"
+   ]
+  ],
+  "renamed": {
+   "from": 3
+  },
+  "manual_functions": [
+   "_getCurrentSupply",
+   "_getRate",
+   "_msgData",
+   "_msgSender",
+   "_transfer",
+   "balanceOf",
+   "getUnlockTime",
+   "onlyOwner",
+   "owner",
+   "renounceOwnership",
+   "sendETHToTeam",
+   "swapTokensForEth",
+   "tokenFromReflection",
+   "transferFrom",
+   "transferOwnership"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "_approve",
+   "_getRValues",
+   "_getTValues",
+   "_getValues",
+   "_reflectFee",
+   "_takeTeam",
+   "_tokenTransfer",
+   "_transferBothExcluded",
+   "_transferFromExcluded",
+   "_transferStandard",
+   "_transferToExcluded",
+   "add",
+   "div",
+   "lockTheSwap",
+   "mul",
+   "removeAllFee",
+   "restoreAllFee",
+   "sub",
+   "transfer"
+  ],
+  "manual_only": [
+   "_msgData",
+   "getUnlockTime",
+   "onlyOwner",
+   "renounceOwnership",
+   "transferFrom",
+   "transferOwnership"
+  ],
+  "lines": 447
+ },
+ "numscout_EthereumGod": {
+  "kept_functions": [
+   "_approve",
+   "_getCurrentSupply",
+   "_getRValues",
+   "_getRate",
+   "_getTValues",
+   "_getValues",
+   "_msgSender",
+   "_reflectFee",
+   "_takeMarketingLiquidity",
+   "_tokenTransfer",
+   "_transfer",
+   "_transferBothExcluded",
+   "_transferFromExcluded",
+   "_transferStandard",
+   "_transferToExcluded",
+   "add",
+   "addLiquidity",
+   "balanceOf",
+   "div",
+   "lockTheSwap",
+   "mul",
+   "owner",
+   "removeAllFee",
+   "restoreAllFee",
+   "sendETHToMarketing",
+   "sub",
+   "swapAndLiquify",
+   "swapTokensForEth",
+   "tokenFromReflection",
+   "transfer"
+  ],
+  "missing_targets": [],
+  "dropped": 48,
+  "decls": [
+   [
+    "contract",
+    "Context"
+   ],
+   [
+    "interface",
+    "IERC20"
+   ],
+   [
+    "library",
+    "SafeMath"
+   ],
+   [
+    "library",
+    "Address"
+   ],
+   [
+    "contract",
+    "Ownable"
+   ],
+   [
+    "interface",
+    "IUniswapV2Factory"
+   ],
+   [
+    "interface",
+    "IUniswapV2Pair"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router01"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router02"
+   ],
+   [
+    "contract",
+    "EthereumGod"
+   ]
+  ],
+  "renamed": {
+   "from": 3
+  },
+  "manual_functions": [
+   "_approve",
+   "_msgData",
+   "_msgSender",
+   "addLiquidity",
+   "onlyOwner",
+   "owner",
+   "renounceOwnership",
+   "sendETHToMarketing",
+   "swapAndLiquify",
+   "swapTokensForEth",
+   "transferOwnership"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "_getCurrentSupply",
+   "_getRValues",
+   "_getRate",
+   "_getTValues",
+   "_getValues",
+   "_reflectFee",
+   "_takeMarketingLiquidity",
+   "_tokenTransfer",
+   "_transfer",
+   "_transferBothExcluded",
+   "_transferFromExcluded",
+   "_transferStandard",
+   "_transferToExcluded",
+   "add",
+   "balanceOf",
+   "div",
+   "lockTheSwap",
+   "mul",
+   "removeAllFee",
+   "restoreAllFee",
+   "sub",
+   "tokenFromReflection",
+   "transfer"
+  ],
+  "manual_only": [
+   "_msgData",
+   "onlyOwner",
+   "renounceOwnership",
+   "transferOwnership"
+  ],
+  "lines": 470
+ },
+ "numscout_HIT": {
+  "kept_functions": [
+   "add",
+   "balanceOf",
+   "canDistr",
+   "distr",
+   "div",
+   "getTokens",
+   "mul",
+   "onlyWhitelist",
+   "sub"
+  ],
+  "missing_targets": [],
+  "dropped": 23,
+  "decls": [
+   [
+    "library",
+    "SafeMath"
+   ],
+   [
+    "contract",
+    "ForeignToken"
+   ],
+   [
+    "contract",
+    "ERC20Basic"
+   ],
+   [
+    "contract",
+    "ERC20"
+   ],
+   [
+    "interface",
+    "Token"
+   ],
+   [
+    "contract",
+    "HIT"
+   ]
+  ],
+  "renamed": {
+   "from": 1
+  },
+  "manual_functions": [
+   "canDistr",
+   "distr",
+   "getTokens",
+   "onlyWhitelist"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "add",
+   "balanceOf",
+   "div",
+   "mul",
+   "sub"
+  ],
+  "manual_only": [],
+  "lines": 128
+ },
+ "numscout_Nokon": {
+  "kept_functions": [
+   "balanceOf",
+   "buy",
+   "calculateRate"
+  ],
+  "missing_targets": [],
+  "dropped": 22,
+  "decls": [
+   [
+    "interface",
+    "IERC20"
+   ],
+   [
+    "contract",
+    "Nokon"
+   ],
+   [
+    "library",
+    "SafeMath"
+   ]
+  ],
+  "renamed": {
+   "from": 1
+  },
+  "manual_functions": [
+   "balanceOf",
+   "buy",
+   "calculateRate"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 75
+ },
+ "numscout_WANGMI": {
+  "kept_functions": [
+   "_addLiquidity",
+   "_beforeTokenTransfer",
+   "_msgSender",
+   "_setBlacklist",
+   "_swapTokensForETH",
+   "_transfer",
+   "add",
+   "balanceOf",
+   "div",
+   "mul",
+   "sub",
+   "swapBack",
+   "transfer"
+  ],
+  "missing_targets": [],
+  "dropped": 34,
+  "decls": [
+   [
+    "interface",
+    "IERC20"
+   ],
+   [
+    "interface",
+    "IERC20Metadata"
+   ],
+   [
+    "contract",
+    "Context"
+   ],
+   [
+    "contract",
+    "Ownable"
+   ],
+   [
+    "library",
+    "SafeMath"
+   ],
+   [
+    "interface",
+    "IUniswapV2Pair"
+   ],
+   [
+    "interface",
+    "IUniswapV2Factory"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router01"
+   ],
+   [
+    "interface",
+    "IUniswapV2Router02"
+   ],
+   [
+    "contract",
+    "ERC20"
+   ],
+   [
+    "contract",
+    "WANGMI"
+   ]
+  ],
+  "renamed": {
+   "from": 15
+  },
+  "manual_functions": [
+   "_addLiquidity",
+   "_approve",
+   "_beforeTokenTransfer",
+   "_burn",
+   "_mint",
+   "_msgData",
+   "_msgSender",
+   "_setBlacklist",
+   "_swapTokensForETH",
+   "_transfer",
+   "allowance",
+   "approve",
+   "balanceOf",
+   "decimals",
+   "decreaseAllowance",
+   "increaseAllowance",
+   "name",
+   "onlyOwner",
+   "owner",
+   "renounceOwnership",
+   "swapBack",
+   "symbol",
+   "totalSupply",
+   "transfer",
+   "transferFrom",
+   "transferOwnership"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "add",
+   "div",
+   "mul",
+   "sub"
+  ],
+  "manual_only": [
+   "_approve",
+   "_burn",
+   "_mint",
+   "_msgData",
+   "allowance",
+   "approve",
+   "decimals",
+   "decreaseAllowance",
+   "increaseAllowance",
+   "name",
+   "onlyOwner",
+   "owner",
+   "renounceOwnership",
+   "symbol",
+   "totalSupply",
+   "transferFrom",
+   "transferOwnership"
+  ],
+  "lines": 339
+ },
+ "web3bugs_101_H_01": {
+  "kept_functions": [
+   "_calculatePrincipalWithdrawable"
+  ],
+  "missing_targets": [],
+  "dropped": 30,
+  "decls": [
+   [
+    "contract",
+    "LenderPool"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_calculatePrincipalWithdrawable"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 49
+ },
+ "web3bugs_112_H_01": {
+  "kept_functions": [
+   "transfer"
+  ],
+  "missing_targets": [],
+  "dropped": 25,
+  "decls": [
+   [
+    "contract",
+    "StakerVault"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "transfer"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 44
+ },
+ "web3bugs_113_H_05": {
+  "kept_functions": [
+   "_lend"
+  ],
+  "missing_targets": [],
+  "dropped": 24,
+  "decls": [
+   [
+    "interface",
+    "ILendingClub"
+   ],
+   [
+    "interface",
+    "INFTPair"
+   ],
+   [
+    "contract",
+    "NFTPairWithOracle"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_lend"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 134
+ },
+ "web3bugs_16_H_04": {
+  "kept_functions": [
+   "applyTrade",
+   "getFee"
+  ],
+  "missing_targets": [],
+  "dropped": 8,
+  "decls": [
+   [
+    "library",
+    "Balances"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "applyTrade",
+   "getFee"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 58
+ },
+ "web3bugs_16_H_06": {
+  "kept_functions": [
+   "latestAnswer"
+  ],
+  "missing_targets": [],
+  "dropped": 4,
+  "decls": [
+   [
+    "contract",
+    "GasOracle"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "latestAnswer"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 18
+ },
+ "web3bugs_192_H_01": {
+  "kept_functions": [
+   "claim",
+   "claimGovFees",
+   "extendLock"
+  ],
+  "missing_targets": [],
+  "dropped": 5,
+  "decls": [
+   [
+    "contract",
+    "Lock"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "claim",
+   "claimGovFees",
+   "extendLock"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 39
+ },
+ "web3bugs_29_H_08": {
+  "kept_functions": [
+   "_getReserves",
+   "_toAmount"
+  ],
+  "missing_targets": [],
+  "dropped": 26,
+  "decls": [
+   [
+    "contract",
+    "HybridPool"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getReserves",
+   "_toAmount"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 45
+ },
+ "web3bugs_29_H_11": {
+  "kept_functions": [
+   "_balance",
+   "_getAmountOut",
+   "_getReserves",
+   "_mintFee",
+   "_transfer",
+   "_update",
+   "burnSingle",
+   "lock"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "ConstantProductPool"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_balance",
+   "_burn",
+   "_getAmountOut",
+   "_getReserves",
+   "_mint",
+   "_mintFee",
+   "_transfer",
+   "_update",
+   "burnSingle",
+   "lock"
+  ],
+  "set_match": false,
+  "auto_only": [],
+  "manual_only": [
+   "_burn",
+   "_mint"
+  ],
+  "lines": 142
+ },
+ "web3bugs_31_H_01": {
+  "kept_functions": [
+   "_processRewardsFees",
+   "_swapcvxCRVToWant",
+   "harvest",
+   "manualRebalance",
+   "wantToCVX"
+  ],
+  "missing_targets": [],
+  "dropped": 25,
+  "decls": [
+   [
+    "contract",
+    "MyStrategy"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_onlyGovernance",
+   "harvest",
+   "manualRebalance",
+   "wantToCVX",
+   "whenNotPaused"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "_processRewardsFees",
+   "_swapcvxCRVToWant"
+  ],
+  "manual_only": [
+   "_onlyGovernance",
+   "whenNotPaused"
+  ],
+  "lines": 129
+ },
+ "web3bugs_35_H_08": {
+  "kept_functions": [
+   "_getAmountsForLiquidity",
+   "_transferBothTokens",
+   "_updatePosition",
+   "burn",
+   "lock",
+   "rangeFeeGrowth"
+  ],
+  "missing_targets": [],
+  "dropped": 23,
+  "decls": [
+   [
+    "contract",
+    "ConcentratedLiquidityPool"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getAmountsForLiquidity",
+   "_transferBothTokens",
+   "_updatePosition",
+   "burn",
+   "lock",
+   "rangeFeeGrowth"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 195
+ },
+ "web3bugs_35_H_10": {
+  "kept_functions": [
+   "_getAmountsForLiquidity",
+   "_transferBothTokens",
+   "_updatePosition",
+   "burn",
+   "lock",
+   "rangeFeeGrowth"
+  ],
+  "missing_targets": [],
+  "dropped": 23,
+  "decls": [
+   [
+    "contract",
+    "ConcentratedLiquidityPool"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getAmountsForLiquidity",
+   "_transferBothTokens",
+   "_updatePosition",
+   "burn",
+   "lock",
+   "rangeFeeGrowth"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 195
+ },
+ "web3bugs_35_H_11": {
+  "kept_functions": [
+   "cross"
+  ],
+  "missing_targets": [],
+  "dropped": 3,
+  "decls": [
+   [
+    "library",
+    "Ticks"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "cross"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 36
+ },
+ "web3bugs_35_H_12": {
+  "kept_functions": [
+   "_getAmountsForLiquidity",
+   "_transferBothTokens",
+   "_updatePosition",
+   "burn",
+   "lock",
+   "rangeFeeGrowth"
+  ],
+  "missing_targets": [],
+  "dropped": 23,
+  "decls": [
+   [
+    "contract",
+    "ConcentratedLiquidityPool"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getAmountsForLiquidity",
+   "_transferBothTokens",
+   "_updatePosition",
+   "burn",
+   "lock",
+   "rangeFeeGrowth"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 195
+ },
+ "web3bugs_36_H_02": {
+  "kept_functions": [
+   "auctionBurn",
+   "handleFees",
+   "onlyAuction"
+  ],
+  "missing_targets": [],
+  "dropped": 16,
+  "decls": [
+   [
+    "contract",
+    "Basket"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "auctionBurn",
+   "handleFees",
+   "onlyAuction"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 61
+ },
+ "web3bugs_3_H_04": {
+  "kept_functions": [
+   "calcCumulativeYieldFP",
+   "viewCumulativeYieldFP",
+   "viewHourlyBondAmount"
+  ],
+  "missing_targets": [],
+  "dropped": 5,
+  "decls": [
+   [
+    "contract",
+    "HourlyBondSubscriptionLending"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "calcCumulativeYieldFP",
+   "viewCumulativeYieldFP",
+   "viewHourlyBondAmount"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 53
+ },
+ "web3bugs_3_H_05": {
+  "kept_functions": [
+   "belowMaintenanceThreshold",
+   "holdingsInPeg",
+   "loanInPeg",
+   "sumTokensInPeg",
+   "sumTokensInPegWithYield",
+   "yieldTokenInPeg"
+  ],
+  "missing_targets": [],
+  "dropped": 13,
+  "decls": [
+   [
+    "contract",
+    "CrossMarginAccounts"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "belowMaintenanceThreshold",
+   "holdingsInPeg",
+   "loanInPeg",
+   "sumTokensInPeg",
+   "sumTokensInPegWithYield",
+   "yieldTokenInPeg"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 60
+ },
+ "web3bugs_42_H_01": {
+  "kept_functions": [
+   "_liquidatable",
+   "accrueDebt",
+   "borrow",
+   "liveDebtIndex",
+   "mint",
+   "mintFeeToPool",
+   "updateDebt"
+  ],
+  "missing_targets": [],
+  "dropped": 15,
+  "decls": [
+   [
+    "contract",
+    "MochiVault"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "borrow"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "_liquidatable",
+   "accrueDebt",
+   "liveDebtIndex",
+   "mint",
+   "mintFeeToPool",
+   "updateDebt"
+  ],
+  "manual_only": [],
+  "lines": 99
+ },
+ "web3bugs_45_H_01": {
+  "kept_functions": [
+   "_getCreditLimit",
+   "accrueInterest",
+   "borrow",
+   "borrowBalanceStoredInternal",
+   "borrowBalanceView",
+   "borrowRatePerBlock",
+   "calculatingFee",
+   "calculatingInterest",
+   "checkIsOverdue",
+   "getBlockNumber",
+   "getBorrowed",
+   "getLastRepay",
+   "getRemainingLoanSize",
+   "onlyMember"
+  ],
+  "missing_targets": [],
+  "dropped": 38,
+  "decls": [
+   [
+    "contract",
+    "UToken"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getCreditLimit",
+   "accrueInterest",
+   "borrow",
+   "borrowBalanceStoredInternal",
+   "borrowBalanceView",
+   "borrowRatePerBlock",
+   "calculatingFee",
+   "calculatingInterest",
+   "checkIsOverdue",
+   "exchangeRateCurrent",
+   "exchangeRateStored",
+   "getBlockNumber",
+   "getBorrowed",
+   "getInterestIndex",
+   "getLastRepay",
+   "getLoan",
+   "getRemainingLoanSize",
+   "onlyMember",
+   "supplyRatePerBlock"
+  ],
+  "set_match": false,
+  "auto_only": [],
+  "manual_only": [
+   "exchangeRateCurrent",
+   "exchangeRateStored",
+   "getInterestIndex",
+   "getLoan",
+   "supplyRatePerBlock"
+  ],
+  "lines": 179
+ },
+ "web3bugs_47_H_02": {
+  "kept_functions": [
+   "balanceToShares",
+   "transferFrom"
+  ],
+  "missing_targets": [],
+  "dropped": 19,
+  "decls": [
+   [
+    "contract",
+    "WrappedIbbtcEth"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "balanceToShares",
+   "transferFrom"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 26
+ },
+ "web3bugs_51_H_02": {
+  "kept_functions": [
+   "_getTargetPricePrecise",
+   "rampTargetPrice"
+  ],
+  "missing_targets": [],
+  "dropped": 60,
+  "decls": [
+   [
+    "library",
+    "SwapUtils"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getTargetPricePrecise",
+   "rampTargetPrice"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 127
+ },
+ "web3bugs_52_H_04": {
+  "kept_functions": [
+   "consult"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "TwapOracle"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "consult"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 61
+ },
+ "web3bugs_52_H_23": {
+  "kept_functions": [
+   "mintSynth"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "VaderPoolV2"
+   ]
+  ],
+  "renamed": {
+   "from": 2
+  },
+  "manual_functions": [
+   "_supportedToken",
+   "_update",
+   "getReserves",
+   "mintSynth",
+   "supportedToken"
+  ],
+  "set_match": false,
+  "auto_only": [],
+  "manual_only": [
+   "_supportedToken",
+   "_update",
+   "getReserves",
+   "supportedToken"
+  ],
+  "lines": 31
+ },
+ "web3bugs_52_H_34": {
+  "kept_functions": [
+   "consult"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "TwapOracle"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "consult"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 61
+ },
+ "web3bugs_56_H_02": {
+  "kept_functions": [
+   "getEarnedYield",
+   "update"
+  ],
+  "missing_targets": [],
+  "dropped": 5,
+  "decls": [
+   [
+    "library",
+    "CDP"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "getEarnedYield",
+   "update"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 45
+ },
+ "web3bugs_58_H_02": {
+  "kept_functions": [
+   "_chargeFees"
+  ],
+  "missing_targets": [],
+  "dropped": 16,
+  "decls": [
+   [
+    "contract",
+    "LpIssuer"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_chargeFees"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 91
+ },
+ "web3bugs_59_H_04": {
+  "kept_functions": [
+   "_getIndexOfObservation",
+   "getPegDeltaFrequency"
+  ],
+  "missing_targets": [],
+  "dropped": 14,
+  "decls": [
+   [
+    "contract",
+    "AuctionBurnReserveSkew"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_getIndexOfObservation",
+   "getPegDeltaFrequency"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 36
+ },
+ "web3bugs_5_H_07": {
+  "kept_functions": [
+   "calcAsymmetricShare"
+  ],
+  "missing_targets": [],
+  "dropped": 30,
+  "decls": [
+   [
+    "contract",
+    "Utils"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "calcAsymmetricShare"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 27
+ },
+ "web3bugs_5_H_08": {
+  "kept_functions": [
+   "calcLiquidityUnits",
+   "getSlipAdustment"
+  ],
+  "missing_targets": [],
+  "dropped": 29,
+  "decls": [
+   [
+    "contract",
+    "Utils"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "calcLiquidityUnits",
+   "getSlipAdustment"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 45
+ },
+ "web3bugs_5_H_12": {
+  "kept_functions": [
+   "getAddedAmount"
+  ],
+  "missing_targets": [],
+  "dropped": 30,
+  "decls": [
+   [
+    "contract",
+    "Pools"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "getAddedAmount"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 36
+ },
+ "web3bugs_60_H_01": {
+  "kept_functions": [
+   "settleAccount"
+  ],
+  "missing_targets": [],
+  "dropped": 4,
+  "decls": [
+   [
+    "library",
+    "OptimisticLedgerLib"
+   ]
+  ],
+  "renamed": {
+   "from": 1
+  },
+  "manual_functions": [
+   "debit",
+   "settleAccount"
+  ],
+  "set_match": false,
+  "auto_only": [],
+  "manual_only": [
+   "debit"
+  ],
+  "lines": 27
+ },
+ "web3bugs_62_H_03": {
+  "kept_functions": [
+   "claimReward",
+   "earned",
+   "lastApplicableTime",
+   "lock",
+   "lockInternal",
+   "rewardPerToken"
+  ],
+  "missing_targets": [],
+  "dropped": 46,
+  "decls": [
+   [
+    "contract",
+    "Governed"
+   ],
+   [
+    "interface",
+    "IGoverned"
+   ],
+   [
+    "contract",
+    "ExternallyGoverned"
+   ],
+   [
+    "interface",
+    "LockeCallee"
+   ],
+   [
+    "contract",
+    "Stream"
+   ],
+   [
+    "contract",
+    "StreamFactory"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "claimReward",
+   "earned",
+   "lastApplicableTime",
+   "lockInternal",
+   "rewardPerToken"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "lock"
+  ],
+  "manual_only": [],
+  "lines": 149
+ },
+ "web3bugs_62_H_08": {
+  "kept_functions": [
+   "earned",
+   "lastApplicableTime",
+   "rewardPerToken",
+   "updateStreamInternal"
+  ],
+  "missing_targets": [],
+  "dropped": 49,
+  "decls": [
+   [
+    "contract",
+    "Governed"
+   ],
+   [
+    "interface",
+    "IGoverned"
+   ],
+   [
+    "contract",
+    "ExternallyGoverned"
+   ],
+   [
+    "interface",
+    "LockeCallee"
+   ],
+   [
+    "contract",
+    "Stream"
+   ],
+   [
+    "contract",
+    "StreamFactory"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "__abdicate",
+   "acceptGov",
+   "earned",
+   "governorship",
+   "lastApplicableTime",
+   "rewardPerToken",
+   "setEmergencyGov",
+   "setPendingGov",
+   "updateStreamInternal"
+  ],
+  "set_match": false,
+  "auto_only": [],
+  "manual_only": [
+   "__abdicate",
+   "acceptGov",
+   "governorship",
+   "setEmergencyGov",
+   "setPendingGov"
+  ],
+  "lines": 155
+ },
+ "web3bugs_62_H_10": {
+  "kept_functions": [
+   "creatorClaimSoldTokens",
+   "lock",
+   "lockInternal"
+  ],
+  "missing_targets": [],
+  "dropped": 49,
+  "decls": [
+   [
+    "contract",
+    "Governed"
+   ],
+   [
+    "interface",
+    "IGoverned"
+   ],
+   [
+    "contract",
+    "ExternallyGoverned"
+   ],
+   [
+    "interface",
+    "LockeCallee"
+   ],
+   [
+    "contract",
+    "Stream"
+   ],
+   [
+    "contract",
+    "StreamFactory"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "creatorClaimSoldTokens",
+   "lockInternal"
+  ],
+  "set_match": false,
+  "auto_only": [
+   "lock"
+  ],
+  "manual_only": [],
+  "lines": 127
+ },
+ "web3bugs_65_H_01": {
+  "kept_functions": [
+   "handleFees"
+  ],
+  "missing_targets": [],
+  "dropped": 19,
+  "decls": [
+   [
+    "contract",
+    "Basket"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "handleFees"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 53
+ },
+ "web3bugs_70_H_04": {
+  "kept_functions": [
+   "_updateVaderPrice",
+   "getChainlinkPrice",
+   "syncVaderPrice"
+  ],
+  "missing_targets": [],
+  "dropped": 14,
+  "decls": [
+   [
+    "contract",
+    "LiquidityBasedTWAP"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_updateVaderPrice",
+   "getChainlinkPrice",
+   "syncVaderPrice"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 82
+ },
+ "web3bugs_70_H_05": {
+  "kept_functions": [
+   "_calculateUSDVPrice",
+   "getChainlinkPrice"
+  ],
+  "missing_targets": [],
+  "dropped": 15,
+  "decls": [
+   [
+    "contract",
+    "LiquidityBasedTWAP"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_calculateUSDVPrice",
+   "getChainlinkPrice"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 51
+ },
+ "web3bugs_70_H_10": {
+  "kept_functions": [
+   "_updateVaderPrice",
+   "getChainlinkPrice",
+   "syncVaderPrice"
+  ],
+  "missing_targets": [],
+  "dropped": 14,
+  "decls": [
+   [
+    "contract",
+    "LiquidityBasedTWAP"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_updateVaderPrice",
+   "getChainlinkPrice",
+   "syncVaderPrice"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 82
+ },
+ "web3bugs_77_H_01": {
+  "kept_functions": [
+   "calculateLiquidityTokenQtyForSingleAssetEntry",
+   "wDiv",
+   "wMul"
+  ],
+  "missing_targets": [],
+  "dropped": 14,
+  "decls": [
+   [
+    "library",
+    "MathLib"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "calculateLiquidityTokenQtyForSingleAssetEntry",
+   "wDiv",
+   "wMul"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 34
+ },
+ "web3bugs_78_H_02": {
+  "kept_functions": [
+   "mint",
+   "redeemRate"
+  ],
+  "missing_targets": [],
+  "dropped": 1,
+  "decls": [
+   [
+    "contract",
+    "RebaseProxy"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "mint",
+   "redeemRate"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 22
+ },
+ "web3bugs_79_H_02": {
+  "kept_functions": [
+   "_atPhase",
+   "atPhase",
+   "createPair",
+   "currentPhase",
+   "isStopped"
+  ],
+  "missing_targets": [],
+  "dropped": 23,
+  "decls": [
+   [
+    "contract",
+    "LaunchEvent"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "_atPhase",
+   "atPhase",
+   "createPair",
+   "currentPhase",
+   "isStopped"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 133
+ },
+ "web3bugs_83_H_01": {
+  "kept_functions": [
+   "add"
+  ],
+  "missing_targets": [],
+  "dropped": 14,
+  "decls": [
+   [
+    "contract",
+    "MasterChef"
+   ]
+  ],
+  "renamed": {},
+  "manual_functions": [
+   "add"
+  ],
+  "set_match": true,
+  "auto_only": [],
+  "manual_only": [],
+  "lines": 44
+ },
+ "web3bugs_110_H_01": {
+  "kept_functions": [
+   "balance"
+  ],
+  "missing_targets": [],
+  "dropped": 62,
+  "decls": [
+   [
+    "contract",
+    "StakedCitadel"
+   ]
+  ],
+  "renamed": {},
+  "lines": 54
+ },
+ "web3bugs_17_H_02": {
+  "kept_functions": [
+   "abs",
+   "safetyCheck"
+  ],
+  "missing_targets": [],
+  "dropped": 22,
+  "decls": [
+   [
+    "contract",
+    "Buoy3Pool"
+   ]
+  ],
+  "renamed": {},
+  "lines": 37
+ },
+ "web3bugs_25_H_01": {
+  "kept_functions": [
+   "_peek",
+   "peek"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "CompositeMultiOracle"
+   ]
+  ],
+  "renamed": {},
+  "lines": 37
+ },
+ "web3bugs_25_H_05": {
+  "kept_functions": [
+   "_setSource"
+  ],
+  "missing_targets": [],
+  "dropped": 6,
+  "decls": [
+   [
+    "contract",
+    "CTokenMultiOracle"
+   ]
+  ],
+  "renamed": {},
+  "lines": 30
+ },
+ "web3bugs_29_H_05": {
+  "kept_functions": [
+   "_nonOptimalMintFee"
+  ],
+  "missing_targets": [],
+  "dropped": 27,
+  "decls": [
+   [
+    "contract",
+    "HybridPool"
+   ]
+  ],
+  "renamed": {},
+  "lines": 48
+ },
+ "web3bugs_34_H_01": {
+  "kept_functions": [
+   "_numberOfPrizesForIndex"
+  ],
+  "missing_targets": [],
+  "dropped": 12,
+  "decls": [
+   [
+    "contract",
+    "DrawCalculator"
+   ]
+  ],
+  "renamed": {},
+  "lines": 24
+ },
+ "web3bugs_39_H_02": {
+  "kept_functions": [
+   "exitVaultFillingVaultInitiate",
+   "validOrderHash"
+  ],
+  "missing_targets": [],
+  "dropped": 22,
+  "decls": [
+   [
+    "contract",
+    "Swivel"
+   ]
+  ],
+  "renamed": {
+   "Exit": 2
+  },
+  "lines": 48
+ },
+ "web3bugs_44_H_02": {
+  "kept_functions": [
+   "fillZrxQuote",
+   "signifiesETHOrZero"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "Swap"
+   ]
+  ],
+  "renamed": {},
+  "lines": 38
+ },
+ "web3bugs_45_H_02": {
+  "kept_functions": [
+   "getLockedAmount"
+  ],
+  "missing_targets": [],
+  "dropped": 4,
+  "decls": [
+   [
+    "contract",
+    "CreditLimitByMedian"
+   ]
+  ],
+  "renamed": {
+   "array": 19
+  },
+  "lines": 59
+ },
+ "web3bugs_51_H_04": {
+  "kept_functions": [
+   "_getA2Precise",
+   "_getAPrecise",
+   "_xp",
+   "_xpCalc",
+   "determineA",
+   "getD",
+   "getY",
+   "getYC"
+  ],
+  "missing_targets": [],
+  "dropped": 52,
+  "decls": [
+   [
+    "library",
+    "SwapUtils"
+   ]
+  ],
+  "renamed": {},
+  "lines": 252
+ },
+ "web3bugs_51_H_06": {
+  "kept_functions": [
+   "_feePerToken",
+   "_getA2Precise",
+   "_getAPrecise",
+   "_xp",
+   "addLiquidity",
+   "determineA",
+   "getD"
+  ],
+  "missing_targets": [],
+  "dropped": 52,
+  "decls": [
+   [
+    "library",
+    "SwapUtils"
+   ]
+  ],
+  "renamed": {},
+  "lines": 241
+ },
+ "web3bugs_52_H_15": {
+  "kept_functions": [
+   "_swap"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "VaderRouter"
+   ]
+  ],
+  "renamed": {},
+  "lines": 37
+ },
+ "web3bugs_52_H_16": {
+  "kept_functions": [
+   "calculateOutGivenIn"
+  ],
+  "missing_targets": [],
+  "dropped": 10,
+  "decls": [
+   [
+    "contract",
+    "VaderRouter"
+   ]
+  ],
+  "renamed": {},
+  "lines": 31
+ },
+ "web3bugs_58_H_04": {
+  "kept_functions": [
+   "tvl"
+  ],
+  "missing_targets": [],
+  "dropped": 6,
+  "decls": [
+   [
+    "contract",
+    "AaveVault"
+   ]
+  ],
+  "renamed": {},
+  "lines": 11
+ },
+ "web3bugs_59_H_05": {
+  "kept_functions": [
+   "_calculateMaltRequiredForExit",
+   "exitEarly"
+  ],
+  "missing_targets": [],
+  "dropped": 7,
+  "decls": [
+   [
+    "contract",
+    "AuctionEscapeHatch"
+   ]
+  ],
+  "renamed": {},
+  "lines": 88
+ },
+ "web3bugs_5_H_15": {
+  "kept_functions": [
+   "UTILS",
+   "_handleAnchorPriceUpdate",
+   "_handlePoolReward",
+   "isBase",
+   "moveTokenToPools",
+   "swap",
+   "swapWithSynthsWithLimit",
+   "updateAnchorPrice"
+  ],
+  "missing_targets": [],
+  "dropped": 50,
+  "decls": [
+   [
+    "contract",
+    "Router"
+   ]
+  ],
+  "renamed": {},
+  "lines": 147
+ },
+ "web3bugs_61_H_01": {
+  "kept_functions": [
+   "_borrowTokensToLiquidate"
+  ],
+  "missing_targets": [],
+  "dropped": 61,
+  "decls": [
+   [
+    "contract",
+    "CreditLine"
+   ]
+  ],
+  "renamed": {},
+  "lines": 61
+ },
+ "web3bugs_61_H_02": {
+  "kept_functions": [
+   "savingsAccountTransfer"
+  ],
+  "missing_targets": [],
+  "dropped": 5,
+  "decls": [
+   [
+    "library",
+    "SavingsAccountUtil"
+   ]
+  ],
+  "renamed": {},
+  "lines": 15
+ },
+ "web3bugs_61_H_04": {
+  "kept_functions": [
+   "getTokensForShares"
+  ],
+  "missing_targets": [],
+  "dropped": 16,
+  "decls": [
+   [
+    "contract",
+    "YearnYield"
+   ]
+  ],
+  "renamed": {},
+  "lines": 18
+ },
+ "web3bugs_62_H_01": {
+  "kept_functions": [
+   "lock",
+   "lockInternal",
+   "recoverTokens"
+  ],
+  "missing_targets": [],
+  "dropped": 49,
+  "decls": [
+   [
+    "contract",
+    "Governed"
+   ],
+   [
+    "interface",
+    "IGoverned"
+   ],
+   [
+    "contract",
+    "ExternallyGoverned"
+   ],
+   [
+    "interface",
+    "LockeCallee"
+   ],
+   [
+    "contract",
+    "Stream"
+   ],
+   [
+    "contract",
+    "StreamFactory"
+   ]
+  ],
+  "renamed": {},
+  "lines": 146
+ },
+ "web3bugs_70_H_03": {
+  "kept_functions": [
+   "_calculateUSDVPrice",
+   "getChainlinkPrice"
+  ],
+  "missing_targets": [],
+  "dropped": 15,
+  "decls": [
+   [
+    "contract",
+    "LiquidityBasedTWAP"
+   ]
+  ],
+  "renamed": {},
+  "lines": 51
+ },
+ "web3bugs_70_H_08": {
+  "kept_functions": [
+   "_min",
+   "reimburseImpermanentLoss",
+   "reserve"
+  ],
+  "missing_targets": [],
+  "dropped": 3,
+  "decls": [
+   [
+    "contract",
+    "VaderReserve"
+   ]
+  ],
+  "renamed": {},
+  "lines": 43
+ },
+ "web3bugs_70_H_09": {
+  "kept_functions": [
+   "_createLock",
+   "burn",
+   "mint",
+   "onlyWhenNotLocked"
+  ],
+  "missing_targets": [],
+  "dropped": 7,
+  "decls": [
+   [
+    "contract",
+    "USDV"
+   ]
+  ],
+  "renamed": {},
+  "lines": 82
+ },
+ "web3bugs_71_H_11": {
+  "kept_functions": [
+   "_divCeil",
+   "originalLiquidity",
+   "resume",
+   "totalLiquidity"
+  ],
+  "missing_targets": [],
+  "dropped": 38,
+  "decls": [
+   [
+    "contract",
+    "PoolTemplate"
+   ]
+  ],
+  "renamed": {},
+  "lines": 110
+ },
+ "web3bugs_83_H_02": {
+  "kept_functions": [
+   "add",
+   "deposit",
+   "getMultiplier",
+   "onlyDepositor",
+   "safeConcurTransfer",
+   "updatePool"
+  ],
+  "missing_targets": [],
+  "dropped": 8,
+  "decls": [
+   [
+    "contract",
+    "MasterChef"
+   ]
+  ],
+  "renamed": {},
+  "lines": 111
+ },
+ "web3bugs_8_H_03": {
+  "kept_functions": [
+   "getPseudoRand",
+   "getRandomTokenIdFromFund"
+  ],
+  "missing_targets": [],
+  "dropped": 34,
+  "decls": [
+   [
+    "contract",
+    "NFTXVaultUpgradeable"
+   ]
+  ],
+  "renamed": {},
+  "lines": 45
+ }
+}

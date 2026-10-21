@@ -1,0 +1,46 @@
+{
+  "id": "Nokon",
+  "name": "Nokon exchange_problem",
+  "description": "buy() 함수에서 msg.value / ethRateFix * calculateRate() 나눗셈 우선 연산으로 인한 precision loss - truncation된 remainder만큼 amountToBuy가 줄어듦",
+  "source": "Dataset/Numscout/contraction/exchange_problem/Nokon_contraction.json",
+  "target_contract": "Nokon",
+  "target_function": "buy",
+  "bug_lines": [51],
+  "debug_annotations": [
+    {
+      "type": "GlobalVar",
+      "var": "msg.value",
+      "value": [50000000000500000, 50000000000500000],
+      "line": 49,
+      "comment": "0.05 ETH + 500000 wei 여분 → truncation 유발"
+    },
+    {
+      "type": "StateVar",
+      "var": "presell",
+      "value": "true",
+      "line": 50,
+      "comment": "require(presell) 통과용"
+    },
+    {
+      "type": "StateVar",
+      "var": "balances[1]",
+      "value": [2000000000000, 2000000000000],
+      "line": 49,
+      "comment": "balances[address(this)] = 2e12 → calculateRate()가 250000 리턴 + require(amountToBuy < dexBalance) 통과"
+    }
+  ],
+  "intent_annotations": [
+    {
+      "type": "During",
+      "line": 51,
+      "expr": "amountToBuy * ethRateFix >= msg.value * 250000",
+      "expected": "violated",
+      "comment": "mul-first면 등호 성립하지만 div-first로 amountToBuy=1250000000000 → 1.25e22 < 1.25e22+1.25e11 → violated"
+    }
+  ],
+  "expected_results": {
+    "total_intents": 1,
+    "expected_violations": 1,
+    "expected_satisfied": 0
+  }
+}

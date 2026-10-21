@@ -1,0 +1,879 @@
+{
+ "flyinointment_SwordCrowdsale": {
+  "results": [
+   {
+    "line": 81,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "weiRaised(Entry) > weiRaised(Exit) → violated (risk=10.0)"
+   },
+   {
+    "line": 81,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "weiRaised(Entry) > weiRaised(Exit) → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.02,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 81: weiRaised(Entry) > weiRaised(Exit) → violated (risk=10.0) [risk=10.0]\n  LHS = [1000, 1000]\n  RHS = [1000, 1000]\n  Risk: Type 3 (both-side)\n[POST INTENT VIOLATION] Line 81: weiRaised(Entry) > weiRaised(Exit) → violated (risk=10.0) [risk=10.0]\n  LHS = [1000, 1000]\n  RHS = [1000, 1000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  80 │ varDeclaration │ {'amount': '[100,100]'}\n  82 │ assignment     │ {'contributorList[_address].contributionAmount': '[0,0]'}\n  83 │ assignment     │ {'contributorList[_address].tokensIssued': '[0,0]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "numscout_BoostToken_indivisible": {
+  "results": [
+   {
+    "line": 140,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "transfer.arg[0] > 0 → violated (risk=10.0)"
+   },
+   {
+    "line": 141,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "transfer.arg[0] > 0 → violated (risk=10.0)"
+   },
+   {
+    "line": 142,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "transfer.arg[0] > 0 → violated (risk=10.0)"
+   },
+   {
+    "line": 143,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "transfer.arg[0] > 0 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 7.593,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 140: transfer.arg[0] > 0 → violated (risk=10.0) [risk=10.0]\n  Analysis = [0, 0]\n  Intent   = [0, 0]\n  Risk: Type 3 (both-side)\n[INTENT VIOLATION] Line 141: transfer.arg[0] > 0 → violated (risk=10.0) [risk=10.0]\n  Analysis = [0, 0]\n  Intent   = [0, 0]\n  Risk: Type 3 (both-side)\n[INTENT VIOLATION] Line 142: transfer.arg[0] > 0 → violated (risk=10.0) [risk=10.0]\n  Analysis = [0, 0]\n  Intent   = [0, 0]\n  Risk: Type 3 (both-side)\n[INTENT VIOLATION] Line 143: transfer.arg[0] > 0 → violated (risk=10.0) [risk=10.0]\n  Analysis = [0, 0]\n  Intent   = [0, 0]\n  Risk: Type 3 (both-side)\n※ 분석 결과가 없습니다.\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "numscout_BoostToken_operator": {
+  "results": [
+   {
+    "line": 141,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "transfer.arg[0] >= amount * 5 / 12 → violated (risk=10.0)"
+   },
+   {
+    "line": 142,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "transfer.arg[0] >= amount * 2 / 9 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 7.459,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 141: transfer.arg[0] >= amount * 5 / 12 → violated (risk=10.0) [risk=10.0]\n  Analysis = [25, 25]\n  Intent   = [28, 28]\n  Risk: Type 3 (both-side)\n[INTENT VIOLATION] Line 142: transfer.arg[0] >= amount * 2 / 9 → violated (risk=10.0) [risk=10.0]\n  Analysis = [14, 14]\n  Intent   = [15, 15]\n  Risk: Type 3 (both-side)\n※ 분석 결과가 없습니다.\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "numscout_EthereumGod": {
+  "results": [
+   {
+    "line": 151,
+    "type": "during_intent",
+    "status": "success",
+    "risk": 0.0,
+    "message": "newBalance == fromSwap * half + toSwapForEth - 1 / toSwapForEth  →  satisfied (risk=0.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.999,
+  "antlr_errors": 0,
+  "log_tail": "registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT SUCCESS] Line 151: newBalance == fromSwap * half + toSwapForEth - 1 / toSwapForEth  →  satisfied (risk=0.0)  [risk=0.0]\n  LHS = [0, 0]\n  RHS = [0, 0]\n  Risk: Type 1 (safe)\n\n=======  ANALYSIS  =======\n 145 │ varDeclaration │ {'toMarketing': '[5,5]'}\n 146 │ varDeclaration │ {'toLiquify': '[12,12]'}\n 148 │ varDeclaration │ {'half': '[6,6]'}\n 149 │ varDeclaration │ {'otherHalf': '[6,6]'}\n 151 │ varDeclaration │ {'initialBalance': '[1000000000000000000,1000000000000000000]'}\n 153 │ varDeclaration │ {'toSwapForEth': '[11,11]'}\n 156 │ varDeclaration │ {'fromSwap': '[0,0]'}\n 157 │ varDeclaration │ {'newBalance': '[0,0]'}\n==========================\n\n",
+  "verdict": "Other:success",
+  "expected": "A: Violated; B: Unsupported (unmodeled external-call state transition)"
+ },
+ "numscout_HIT": {
+  "results": [
+   {
+    "line": 69,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": null,
+    "message": "A ⇒ B with A=true → B is violated."
+   }
+  ],
+  "error": null,
+  "elapsed_s": 3.415,
+  "antlr_errors": 6,
+  "log_tail": "tes', 'override', Int, Uint, Byte, Fixed, Ufixed, 'external', 'internal', 'payable', 'private', 'public', 'virtual', 'pure', 'type', 'view', 'constructor', 'fallback', 'receive', Identifier}\n[ANTLR] 1:30 mismatched input 'from' expecting ')'\n[ANTLR] 1:46 mismatched input ',' expecting {';', '='}\n[ANTLR] 1:61 mismatched input ')' expecting {';', '='}\n[INTENT VIOLATION] Line 69: A ⇒ B with A=true → B is violated.\n  Antecedent = success\n  Consequent = failure\n\n=======  ANALYSIS  =======\n  70 │ varDeclaration │ {'investor': 'address({101})'}\n  72 │ varDeclaration │ {'toGive': '[5000000000000000000000,5000000000000000000000]'}\n  81 │ assignment     │ {'blacklist[investor]': '[1,1]'}\n  88 │ assignment     │ {'value': '[4999950000000000000000,4999950000000000000000]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "numscout_Nokon": {
+  "results": [
+   {
+    "line": 51,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "amountToBuy * ethRateFix >= msg.value * 250000  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.322,
+  "antlr_errors": 0,
+  "log_tail": "'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 51: amountToBuy * ethRateFix >= msg.value * 250000  →  violated (risk=10.0)  [risk=10.0]\n  LHS = [12500000000000000000000, 12500000000000000000000]\n  RHS = [12500000000125000000000, 12500000000125000000000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  55 │ varDeclaration │ {'minBuy': '[50000000000000000,50000000000000000]'}\n  56 │ varDeclaration │ {'amountToBuy': '[1250000000000,1250000000000]'}\n  57 │ varDeclaration │ {'dexBalance': '[2000000000000,2000000000000]'}\n  63 │ assignment     │ {'balances[msg.sender]': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "numscout_WANGMI": {
+  "results": [
+   {
+    "line": 428,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "tokensForLiquidity(Before) < tokensForLiquidity(After)  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 23.334,
+  "antlr_errors": 0,
+  "log_tail": "type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 428: tokensForLiquidity(Before) < tokensForLiquidity(After)  →  violated (risk=10.0)  [risk=10.0]\n  LHS = [100, 100]\n  RHS = [100, 100]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n 419 │ varDeclaration │ {'totalTokensForFee': '[150,150]'}\n 420 │ varDeclaration │ {'canSwap': '[0,0]'}\n 439 │ varDeclaration │ {'takeFee': '[1,1]'}\n 449 │ varDeclaration │ {'sellTotalFees': '[12,12]'}\n 450 │ assignment     │ {'fees': '[3,3]'}\n 451 │ assignment     │ {'tokensForLiquidity': '[100,100]'}\n 452 │ assignment     │ {'tokensForTax': '[52,52]'}\n 463 │ assignment     │ {'amount': '[0,32]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_101_H_01": {
+  "results": [
+   {
+    "line": 45,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "_principalWithdrawable <= _totalLiquidityWithdrawable  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.39,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 45: _principalWithdrawable <= _totalLiquidityWithdrawable  →  violated (risk=10.0)  [risk=10.0]\n  LHS = [100000, 100000]\n  RHS = [99000, 99000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  50 │ varDeclaration │ {'_borrowedTokens': '[99000,99000]'}\n  51 │ varDeclaration │ {'_totalLiquidityWithdrawable': '[99000,99000]'}\n  52 │ varDeclaration │ {'_principalWithdrawable': '[100000,100000]'}\n  53 │ return         │ {'_principalWithdrawable': '[100000,100000]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_112_H_01": {
+  "results": [
+   {
+    "line": 24,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "changed(balances[msg.sender], false) → unchanged: violated (risk=10.0)"
+   },
+   {
+    "line": 24,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "changed(balances[account], false) → unchanged: violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.492,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 24: changed(balances[msg.sender], false) → unchanged: violated (risk=10.0) [risk=10.0]\n  Risk: Type 3 (both-side)\n[INTENT VIOLATION] Line 24: changed(balances[account], false) → unchanged: violated (risk=10.0) [risk=10.0]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  25 │ varDeclaration │ {'pool': 'address(⊤)'}\n  28 │ assignment     │ {'balances[msg.sender]': '[0,0]'}\n  29 │ assignment     │ {'balances[account]': '[1000,1000]'}\n  31 │ varDeclaration │ {'lpGauge': 'address({3})'}\n  38 │ return         │ {'true': '[1,1]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_113_H_05": {
+  "results": [
+   {
+    "line": 52,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "params.ltvBPS <= accepted.ltvBPS  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 4.219,
+  "antlr_errors": 0,
+  "log_tail": "85326998466564056403945758400791312963]'}\n  81 │ varDeclaration │ {'protocolFeeShare': '[0,1157920892373161954235709850086879078532699846656405640394575840079131296]'}\n  91 │ varDeclaration │ {'borrowerShare': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  93 │ assignment     │ {'feesEarnedShare': '[0,1157920892373161954235709850086879078532699846656405640394575840079131296]'}\n  95 │ assignment     │ {'loan.lender': 'address({1})'}\n  96 │ assignment     │ {'loan.status': '[2,2]'}\n  97 │ assignment     │ {'loan.startTime': '[0,0]'}\n  98 │ assignment     │ {'tokenLoan[tokenId].borrower': 'address(⊤)', 'tokenLoan[tokenId].status': '[2,2]', 'tokenLoan[tokenId].startTime': '[0,0]', 'tokenLoan[tokenId].lender': 'address({1})'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_16_H_04": {
+  "results": [],
+  "error": null,
+  "elapsed_s": 2.46,
+  "antlr_errors": 1,
+  "log_tail": "gistered\n[Dependencies] 179 interfaces registered\n[ANTLR] 1:0 mismatched input '}' expecting {<EOF>, 'pragma', 'import', 'abstract', 'contract', 'interface', 'library', 'error', 'using', 'struct', 'modifier', 'function', 'event', 'enum', 'mapping', 'address', 'address payable', 'bool', 'string', 'var', 'bytes', Int, Uint, Byte, Fixed, Ufixed, 'type', 'constructor', 'fallback', 'receive', Identifier}\n\n=======  ANALYSIS  =======\n  46 │ varDeclaration │ {'signedAmount': '[10000000000000000000,10000000000000000000]'}\n  47 │ varDeclaration │ {'signedPrice': '[2000000000000000000,2000000000000000000]'}\n  48 │ varDeclaration │ {'quoteChange': '[-115792089237316195423570985008687907853269984665640564039458,115792089237316195423570985008687907853269984665640564039458]'}\n==========================\n\n",
+  "verdict": "None",
+  "expected": "Warning"
+ },
+ "web3bugs_16_H_06": {
+  "results": [
+   {
+    "line": 13,
+    "type": "post_intent",
+    "status": "unreachable",
+    "risk": null,
+    "message": "intent 위치 도달 불가 (정상 경로로 함수가 종료되지 않음)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 0.5,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT UNREACHABLE] Line 13: 경로 조건상 함수 정상 종료 불가\n\n=======  ANALYSIS  =======\n  12 │ varDeclaration │ {'gasPrice': '[5000000000,5000000000]'}\n  13 │ varDeclaration │ {'ethPrice': '[3000000000,3000000000]'}\n  15 │ varDeclaration │ {'result': '[15,16]'}\n==========================\n\n",
+  "verdict": "Unreachable",
+  "expected": "Warning"
+ },
+ "web3bugs_192_H_01": {
+  "results": [
+   {
+    "line": 34,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "totalLocked[_asset] == totalLocked[_asset](Entry) + _amount → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 13.458,
+  "antlr_errors": 0,
+  "log_tail": " file-level enums registered\n[Dependencies] 179 interfaces registered\n[WARNING] Cannot resolve LHS expression: VarRefBase (identifier: _asset) (scope: local)\n[WARNING] Available variables: ['_id', '_amount', '_period', 'bondNFT', 'govNFT', 'totalLocked', 'block.basefee', 'block.blobbasefee', 'block.chainid', 'block.coinbase', 'block.difficulty', 'block.gaslimit', 'block.number', 'block.prevrandao', 'block.timestamp', 'msg.sender', 'msg.value', 'msg.data', 'msg.sig', 'tx.gasprice', 'tx.origin']...\n[POST INTENT VIOLATION] Line 34: totalLocked[_asset] == totalLocked[_asset](Entry) + _amount → violated (risk=10.0) [risk=10.0]\n  LHS = [100, 100]\n  RHS = [110, 110]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  39 │ varDeclaration │ {'_asset': 'address(⊤)'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_29_H_08": {
+  "results": [
+   {
+    "line": 21,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "_reserve0 == reserve0 → warning (risk=9.9) | violation lower=[0, 1499] upper=[1501, 115792089237316195423570985008687907853269984665640564039457584007913129639935] overlap=[1500, 1500]"
+   },
+   {
+    "line": 21,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "_reserve1 == reserve1 → warning (risk=9.9) | violation lower=[0, 899] upper=[901, 115792089237316195423570985008687907853269984665640564039457584007913129639935] overlap=[900, 900]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 0.592,
+  "antlr_errors": 0,
+  "log_tail": "570985008687907853269984665640564039457584007913129639935] overlap=[900, 900] [risk=9.9]\n  LHS = [0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]\n  RHS = [900, 900]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  25 │ assignment     │ {'None': '[900,900]'}\n  26 │ assignment     │ {'_reserve0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  27 │ assignment     │ {'_reserve1': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  27 │ implicitReturn │ {'_reserve0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', '_reserve1': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_29_H_11": {
+  "results": [
+   {
+    "line": 161,
+    "type": "during_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "amount1 == amount1(Before) + amount0 * MAX_FEE_MINUS_SWAP_FEE * balance1 - amount1(Before) / balance0 - amount0 * MAX_FEE + amount0 * MAX_FEE_MINUS_SWAP_FEE  →  warning (risk=9.9)  | violation lower=N"
+   },
+   {
+    "line": 168,
+    "type": "during_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "amount0 == amount0(Before) + amount1 * MAX_FEE_MINUS_SWAP_FEE * balance0 - amount0(Before) / balance1 - amount1 * MAX_FEE + amount1 * MAX_FEE_MINUS_SWAP_FEE  →  warning (risk=9.9)  | violation lower=N"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 9.405,
+  "antlr_errors": 1,
+  "log_tail": "92089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 176 │ assignment     │ {'amountOut': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639]'}\n 177 │ assignment     │ {'amount0': '[0,0]'}\n 180 │ assignment     │ {'amount0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639]'}\n 182 │ assignment     │ {'balance0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 183 │ assignment     │ {'amountOut': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639]'}\n 184 │ assignment     │ {'amount1': '[0,0]'}\n 188 │ assignment     │ {'kLast': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_31_H_01": {
+  "results": [
+   {
+    "line": 83,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "currentLockRatio == balanceInLock  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 5.546,
+  "antlr_errors": 0,
+  "log_tail": "e 3 (both-side)\n\n=======  ANALYSIS  =======\n  87 │ varDeclaration │ {'balanceOfWant': '[0,0]'}\n  89 │ varDeclaration │ {'balanceOfCVX': '[0,0]'}\n  90 │ varDeclaration │ {'balanceInLock': '[400000000000000000000,400000000000000000000]'}\n  91 │ varDeclaration │ {'totalCVXBalance': '[400000000000000000000,400000000000000000000]'}\n  94 │ varDeclaration │ {'currentLockRatio': '[1000000000000000000,1000000000000000000]'}\n  96 │ varDeclaration │ {'newLockRatio': '[320000000000000000000,320000000000000000000]'}\n  97 │ varDeclaration │ {'toWantRatio': '[80000000000000000000,80000000000000000000]'}\n 109 │ varDeclaration │ {'cvxToLock': '[319000000000000000000,319000000000000000000]'}\n 111 │ varDeclaration │ {'maxCVX': '[0,0]'}\n 118 │ varDeclaration │ {'cvxLeft': '[0,0]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_35_H_08": {
+  "results": [
+   {
+    "line": 150,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "liquidity == liquidity(Entry) - amount → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 6000000]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 10.584,
+  "antlr_errors": 3,
+  "log_tail": "│ {'liquidity': '[0,6000000]'}\n 171 │ assignment     │ {'amount0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 172 │ assignment     │ {'amount1': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 175 │ assignment     │ {'withdrawnAmounts[0].token': 'address(⊤)', 'withdrawnAmounts[0].amount': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'withdrawnAmounts[1].token': 'address(⊤)', 'withdrawnAmounts[1].amount': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 180 │ assignment     │ {'reserve0': '[0,0]'}\n 181 │ assignment     │ {'reserve1': '[0,0]'}\n 186 │ assignment     │ {'nearestTick': '[-8388608,8388607]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_35_H_10": {
+  "results": [
+   {
+    "line": 182,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "reserve0(Entry) - reserve0(Exit) == amount0 → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 5000]"
+   },
+   {
+    "line": 182,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "reserve1(Entry) - reserve1(Exit) == amount1 → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 3000]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 13.981,
+  "antlr_errors": 3,
+  "log_tail": "'liquidity': '[0,1000]'}\n 179 │ assignment     │ {'amount0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 180 │ assignment     │ {'amount1': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 183 │ assignment     │ {'withdrawnAmounts[0].token': 'address(⊤)', 'withdrawnAmounts[0].amount': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'withdrawnAmounts[1].token': 'address(⊤)', 'withdrawnAmounts[1].amount': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 188 │ assignment     │ {'reserve0': '[0,5000]'}\n 189 │ assignment     │ {'reserve1': '[0,3000]'}\n 194 │ assignment     │ {'nearestTick': '[-8388608,8388607]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": ""
+ },
+ "web3bugs_35_H_11": {
+  "results": [
+   {
+    "line": 29,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "ticks[nextTickToCross].feeGrowthOutside1 == feeGrowthGlobal - ticks[nextTickToCross].feeGrowthOutside1(Before)  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.86,
+  "antlr_errors": 0,
+  "log_tail": "6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 29: ticks[nextTickToCross].feeGrowthOutside1 == feeGrowthGlobal - ticks[nextTickToCross].feeGrowthOutside1(Before)  →  violated (risk=10.0)  [risk=10.0]\n  LHS = [30, 30]\n  RHS = [70, 70]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  32 │ assignment     │ {'ticks[nextTickToCross].secondsPerLiquidityOutside': '[500,500]'}\n  35 │ assignment     │ {'currentLiquidity': '[9900,9900]'}\n  37 │ assignment     │ {'currentLiquidity': '[10100,10100]'}\n  39 │ assignment     │ {'nextTickToCross': '[4,4]'}\n  40 │ assignment     │ {'ticks[nextTickToCross].feeGrowthOutside0': '[0,100]'}\n  52 │ return         │ {'currentLiquidity': '[9900,10100]', 'nextTickToCross': '[4,4]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_35_H_12": {
+  "results": [
+   {
+    "line": 181,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "secondsPerLiquidity == secondsPerLiquidity(Entry) + block.timestamp - lastObservation(Entry) << 128 / liquidity(Entry) → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 19.417,
+  "antlr_errors": 3,
+  "log_tail": "   │ {'liquidity': '[0,1000]'}\n 176 │ assignment     │ {'amount0': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 177 │ assignment     │ {'amount1': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 180 │ assignment     │ {'withdrawnAmounts[0].token': 'address(⊤)', 'withdrawnAmounts[0].amount': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'withdrawnAmounts[1].token': 'address(⊤)', 'withdrawnAmounts[1].amount': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 185 │ assignment     │ {'reserve0': '[0,0]'}\n 186 │ assignment     │ {'reserve1': '[0,0]'}\n 191 │ assignment     │ {'nearestTick': '[-8388608,8388607]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_36_H_02": {
+  "results": [
+   {
+    "line": 58,
+    "type": "post_intent",
+    "status": "unreachable",
+    "risk": null,
+    "message": "intent 위치 도달 불가 (정상 경로로 함수가 종료되지 않음)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 3.312,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT UNREACHABLE] Line 58: 경로 조건상 함수 정상 종료 불가\n※ 분석 결과가 없습니다.\n",
+  "verdict": "Unreachable",
+  "expected": ""
+ },
+ "web3bugs_3_H_04": {
+  "results": [
+   {
+    "line": 71,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "returnExpression == bond.amount * cumulativeYield / yieldQuotientFP → warning (risk=9.9) | violation lower=[0, 1999] upper=[2001, 1157920892373161954235709850086879078532699846656405640394575840079131"
+   },
+   {
+    "line": 81,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "returnExpression == bond.amount * cumulativeYield / yieldQuotientFP → warning (risk=9.9) | violation lower=None upper=[1, 115792089237316195423570985008687907853269984665640564039457584007913129639935"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 3.246,
+  "antlr_errors": 0,
+  "log_tail": "[0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]\n  Intent   = [0, 0]\n  Risk: Type 3 (both-side)\n[POST INTENT WARNING] Line 71: returnExpression == bond.amount * cumulativeYield / yieldQuotientFP → warning (risk=9.9) | violation lower=[0, 1999] upper=[2001, 115792089237316195423570985008687907853269984665640564039457584007913129639935] overlap=[2000, 2000] [risk=9.9]\n  Analysis = [0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]\n  Intent   = [2000, 2000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  69 │ varDeclaration │ {'yieldQuotientFP': '[4294967296,4294967296]'}\n  71 │ varDeclaration │ {'cumulativeYield': '[8589934592,8589934592]'}\n  78 │ return         │ {'None': '[3000,3000]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_3_H_05": {
+  "results": [
+   {
+    "line": 104,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "returnExpression == 0 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 66.691,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 104: returnExpression == 0 → violated (risk=10.0) [risk=10.0]\n  Analysis = [1, 1]\n  Intent   = [0, 0]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n 114 │ varDeclaration │ {'loan': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 115 │ varDeclaration │ {'holdings': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 116 │ return         │ {'None': '[0,1]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_42_H_01": {
+  "results": [
+   {
+    "line": 104,
+    "type": "during_intent",
+    "status": "warning",
+    "risk": 3.4,
+    "message": "debts >= increasingDebt + 800  →  warning (risk=3.4)  | violation lower=None upper=None overlap=[800, 115792089237316195423570985008687907853269984665640564039457584007913130439]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 3.648,
+  "antlr_errors": 0,
+  "log_tail": "5792089237316195423570985008687907853269984665640564039457584007913129639135]'}\n 114 │ varDeclaration │ {'increasingDebt': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639]'}\n 115 │ varDeclaration │ {'totalDebt': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639]'}\n 119 │ assignment     │ {'details[_id].debtIndex': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 120 │ assignment     │ {'details[_id].debt': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639]'}\n 121 │ assignment     │ {'details[_id].status': '[3,3]'}\n 122 │ assignment     │ {'debts': '[800,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_45_H_01": {
+  "results": [
+   {
+    "line": 236,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "borrowIndex(Entry) < borrowIndex(Exit) → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 14.735,
+  "antlr_errors": 0,
+  "log_tail": ": '[2001000000000000004,2001000000000000004]'}\n 240 │ varDeclaration │ {'totalBorrowsNew': '[1001000000000000002,1001000000000000002]'}\n 241 │ varDeclaration │ {'oldPrincipal': '[1000000000000000001,1000000000000000001]'}\n 243 │ assignment     │ {'accountBorrows[msg.sender].principal': '[2001000000000000003,2001000000000000003]'}\n 244 │ varDeclaration │ {'newPrincipal': '[2001000000000000003,2001000000000000003]'}\n 246 │ assignment     │ {'accountBorrows[msg.sender].interest': '[1,1]'}\n 247 │ assignment     │ {'accountBorrows[msg.sender].interestIndex': '[1000000000000000001,1000000000000000001]'}\n 248 │ assignment     │ {'totalBorrows': '[1001000000000000002,1001000000000000002]'}\n 249 │ assignment     │ {'totalReserves': '[1000000000000001,1000000000000001]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_47_H_02": {
+  "results": [
+   {
+    "line": 32,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "_allowances[sender][msg.sender] == 900 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 3.8,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 32: _allowances[sender][msg.sender] == 900 → violated (risk=10.0) [risk=10.0]\n  Analysis = [950, 950]\n  Intent   = [900, 900]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  32 │ varDeclaration │ {'amountInShares': '[50,50]'}\n  36 │ return         │ {'true': '[1,1]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_51_H_02": {
+  "results": [
+   {
+    "line": 113,
+    "type": "during_intent",
+    "status": "violated",
+    "risk": null,
+    "message": "require condition is always false — never passable"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 5.252,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATED] Line 113: require condition is always false — never passable\n\n=======  ANALYSIS  =======\n 119 │ varDeclaration │ {'initialTargetPricePrecise': '[1000000000000000000,1000000000000000000]'}\n 120 │ varDeclaration │ {'futureTargetPricePrecise': '[990000000000000000,990000000000000000]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_52_H_04": {
+  "results": [
+   {
+    "line": 60,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "result == sumUSD * 10 ** 18 / sumNative → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 44.823,
+  "antlr_errors": 0,
+  "log_tail": "95423570985008687907853269984665640564039457584007913129639935]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  35 │ varDeclaration │ {'pairCount': '[2,2]'}\n  36 │ varDeclaration │ {'sumNative': '[0,0]'}\n  37 │ varDeclaration │ {'sumUSD': '[0,0]'}\n  39 │ varDeclaration │ {'i': '[0,0]'}\n  39 │ loopDelta      │ {'sumNative': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'sumUSD': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'i': '[0,2]'}\n  70 │ assignment     │ {'result': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  70 │ return         │ {'result': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_52_H_23": {
+  "results": [
+   {
+    "line": 114,
+    "type": "during_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "_update.arg[2] == reserveForeign - amountSynth → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 5192296858534827628530496329220095]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.47,
+  "antlr_errors": 0,
+  "log_tail": "Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT WARNING] Line 114: _update.arg[2] == reserveForeign - amountSynth → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 5192296858534827628530496329220095] [risk=9.9]\n  Analysis = [0, 5192296858534827628530496329220095]\n  Intent   = [0, 5192296858534827628530496329220095]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n 108 │ varDeclaration │ {'synth': 'address(⊤)'}\n 111 │ assignment     │ {'synth': 'address(⊤)'}\n 118 │ assignment     │ {'amountSynth': '[0,2695994666715063979466701508701962028904342735288531542011095180902500000]'}\n 132 │ return         │ {'amountSynth': '[0,2695994666715063979466701508701962028904342735288531542011095180902500000]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_52_H_34": {
+  "results": [
+   {
+    "line": 60,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "result == 450000000000000000000000 → warning (risk=9.9) | violation lower=[0, 449999999999999999999999] upper=[450000000000000000000001, 115792089237316195423570985008687907853269984665640564039457584"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 34.539,
+  "antlr_errors": 0,
+  "log_tail": "Intent   = [450000000000000000000000, 450000000000000000000000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  37 │ varDeclaration │ {'pairCount': '[2,2]'}\n  38 │ varDeclaration │ {'sumNative': '[0,0]'}\n  39 │ varDeclaration │ {'sumUSD': '[0,0]'}\n  41 │ varDeclaration │ {'i': '[0,0]'}\n  41 │ loopDelta      │ {'sumNative': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'sumUSD': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'i': '[0,2]'}\n  72 │ assignment     │ {'result': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  72 │ return         │ {'result': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_56_H_02": {
+  "results": [
+   {
+    "line": 46,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "_self.totalCredit(Entry) <= _self.totalCredit(Exit) → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.374,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 46: _self.totalCredit(Entry) <= _self.totalCredit(Exit) → violated (risk=10.0) [risk=10.0]\n  LHS = [1000, 1000]\n  RHS = [200, 200]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  44 │ varDeclaration │ {'_earnedYield': '[200,200]'}\n  46 │ varDeclaration │ {'_currentTotalDebt': '[0,0]'}\n  47 │ assignment     │ {'_self.totalDebt': '[0,0]'}\n  48 │ assignment     │ {'_self.totalCredit': '[200,200]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_58_H_02": {
+  "results": [
+   {
+    "line": 85,
+    "type": "during_intent",
+    "status": "warning",
+    "risk": 6.6,
+    "message": "toMint < baseSupply  →  warning (risk=6.6)  | violation lower=None upper=[1000000000000000000000, 115792089237316195423570985008687907853269984665640564039457584007913] overlap=None"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 25.754,
+  "antlr_errors": 0,
+  "log_tail": "claration │ {'protocolFee': '[0,0]'}\n  83 │ varDeclaration │ {'performanceFee': '[100000000,100000000]'}\n  86 │ varDeclaration │ {'minLpPriceFactor': '[115792089237316195423570985008687907853269984665640564039457584007913129639935,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  87 │ varDeclaration │ {'i': '[0,0]'}\n  87 │ loopDelta      │ {'i': '[0,2]', 'minLpPriceFactor': '[1000000000,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n  99 │ varDeclaration │ {'i': '[0,0]'}\n  99 │ loopDelta      │ {'isWithdraw': '[0,1]', 'i': '[0,2]'}\n 102 │ varDeclaration │ {'treasury': 'address({1})'}\n 103 │ varDeclaration │ {'toMint': '[0,115792089237316195423570985008687907853269984665640564039457584007913]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Violated"
+ },
+ "web3bugs_59_H_04": {
+  "results": [
+   {
+    "line": 28,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "returnExpression == total * 10000 / count - initialIndex → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 0]"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.155,
+  "antlr_errors": 0,
+  "log_tail": "stered\n[Dependencies] 179 interfaces registered\n[POST INTENT WARNING] Line 28: returnExpression == total * 10000 / count - initialIndex → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 0] [risk=9.9]\n  Analysis = [0, 0]\n  Intent   = [0, 38597363079105398474523661669562635951089994888546854679819194669304376546645]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  20 │ varDeclaration │ {'initialIndex': '[0,0]'}\n  27 │ varDeclaration │ {'total': '[0,0]'}\n  29 │ varDeclaration │ {'i': '[0,0]'}\n  29 │ loopDelta      │ {'total': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]', 'i': '[0,3]'}\n  34 │ return         │ {'None': '[0,11579208923731619542357098500868790785326998466564056403945758400791312963993]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_5_H_07": {
+  "results": [
+   {
+    "line": 24,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "returnExpression == u * A * 2 * U * U - 2 * U * u + u * u / U * U * U → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 0.425,
+  "antlr_errors": 0,
+  "log_tail": "ases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 24: returnExpression == u * A * 2 * U * U - 2 * U * u + u * u / U * U * U → violated (risk=10.0) [risk=10.0]\n  Analysis = [999, 999]\n  Intent   = [905, 905]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  23 │ varDeclaration │ {'part1': '[500000,500000]'}\n  24 │ varDeclaration │ {'part2': '[2000000,2000000]'}\n  25 │ varDeclaration │ {'part3': '[200000,200000]'}\n  26 │ varDeclaration │ {'part4': '[10000,10000]'}\n  27 │ varDeclaration │ {'numerator': '[999999810000,999999810000]'}\n  28 │ varDeclaration │ {'part5': '[1000000000,1000000000]'}\n  29 │ return         │ {'None': '[999,999]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_5_H_08": {
+  "results": [
+   {
+    "line": 40,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "_units == P * t * B + T * b / T * B * 2  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.031,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 40: _units == P * t * B + T * b / T * B * 2  →  violated (risk=10.0)  [risk=10.0]\n  LHS = [25, 25]\n  RHS = [50, 50]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  43 │ varDeclaration │ {'slipAdjustment': '[1000000000000000000,1000000000000000000]'}\n  44 │ varDeclaration │ {'part1': '[100000,100000]'}\n  45 │ varDeclaration │ {'part2': '[100000,100000]'}\n  46 │ varDeclaration │ {'part3': '[2000000,2000000]'}\n  47 │ varDeclaration │ {'_units': '[25,25]'}\n  48 │ return         │ {'None': '[25,25]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_5_H_12": {
+  "results": [
+   {
+    "line": 34,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "returnExpression == _balance - mapToken_tokenAmount[_token] → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 0.959,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 34: returnExpression == _balance - mapToken_tokenAmount[_token] → violated (risk=10.0) [risk=10.0]\n  Analysis = [150, 150]\n  Intent   = [100, 100]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  33 │ varDeclaration │ {'_balance': '[200,200]'}\n  41 │ assignment     │ {'addedAmount': '[150,150]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_60_H_01": {
+  "results": [
+   {
+    "line": 23,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "self.shortfall == 150  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.203,
+  "antlr_errors": 0,
+  "log_tail": "ependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 23: self.shortfall == 150  →  violated (risk=10.0)  [risk=10.0]\n  Analysis = [200, 57896044618658097711785492504343953926634992332820282019928]\n  Intent   = [150, 150]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  20 │ varDeclaration │ {'newBalance': '[-50,-50]'}\n  23 │ assignment     │ {'shortfall': '[100,57896044618658097711785492504343953926634992332820282019828]'}\n  24 │ assignment     │ {'newBalance': '[0,0]'}\n  27 │ assignment     │ {'self.balances[account]': '[0,0]'}\n  28 │ assignment     │ {'self.shortfall': '[200,57896044618658097711785492504343953926634992332820282019928]'}\n  28 │ return         │ {'shortfall': '[100,57896044618658097711785492504343953926634992332820282019828]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_62_H_03": {
+  "results": [
+   {
+    "line": 85,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "rewardTokenAmount == rewardTokenAmount(Entry) - rewardAmt → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.797,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 85: rewardTokenAmount == rewardTokenAmount(Entry) - rewardAmt → violated (risk=10.0) [risk=10.0]\n  LHS = [1000, 1000]\n  RHS = [0, 0]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  85 │ assignment     │ {'cumulativeRewardPerToken': '[0,0]'}\n  87 │ assignment     │ {'ts.rewards': '[1000,1000]'}\n  88 │ assignment     │ {'ts.lastCumulativeRewardPerToken': '[0,0]'}\n  90 │ assignment     │ {'lastUpdate': '[2000000,2000000]'}\n  92 │ varDeclaration │ {'rewardAmt': '[1000,1000]'}\n  93 │ assignment     │ {'ts.rewards': '[0,0]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_62_H_08": {
+  "results": [
+   {
+    "line": 182,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "tokensNotYetStreamed[msg.sender].lastUpdate == 1000 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 6.332,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 182: tokensNotYetStreamed[msg.sender].lastUpdate == 1000 → violated (risk=10.0) [risk=10.0]\n  Analysis = [800, 800]\n  Intent   = [1000, 1000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n 174 │ assignment     │ {'cumulativeRewardPerToken': '[100,100]'}\n 176 │ assignment     │ {'ts.rewards': '[0,0]'}\n 177 │ assignment     │ {'ts.lastCumulativeRewardPerToken': '[100,100]'}\n 179 │ varDeclaration │ {'acctTimeDelta': '[200,200]'}\n 185 │ varDeclaration │ {'tdelta': '[0,0]'}\n 190 │ assignment     │ {'lastUpdate': '[1000,1000]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_62_H_10": {
+  "results": [
+   {
+    "line": 46,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "depositTokenAmount - redeemedDepositTokens == depositTokenAmount(Entry) - redeemedDepositTokens(Entry) - amount → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.299,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 46: depositTokenAmount - redeemedDepositTokens == depositTokenAmount(Entry) - redeemedDepositTokens(Entry) - amount → violated (risk=10.0) [risk=10.0]\n  LHS = [1000, 1000]\n  RHS = [0, 0]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  53 │ varDeclaration │ {'amount': '[1000,1000]'}\n  54 │ assignment     │ {'claimedDepositTokens': '[1,1]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_65_H_01": {
+  "results": [
+   {
+    "line": 23,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "lastFee == block.timestamp → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 2.244,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 23: lastFee == block.timestamp → violated (risk=10.0) [risk=10.0]\n  LHS = [1000000, 1000000]\n  RHS = [1086400, 1086400]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  27 │ return         │ {'<value>': 'None'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_70_H_04": {
+  "results": [
+   {
+    "line": 114,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "totalLiquidityWeight[0] == totalLiquidityWeight[0](Entry) → warning (risk=9.9) | violation lower=[0, 499] upper=[501, 115792089237316195423570985008687907853269984665640564039457584007913129639935] ov"
+   },
+   {
+    "line": 115,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "pastLiquidityWeights[0] == twapData[address(vaderPairs[0])].pastLiquidityEvaluation → warning (risk=9.9) | violation lower=[0, 499] upper=[501, 11579208923731619542357098500868790785326998466564056403"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 17.624,
+  "antlr_errors": 0,
+  "log_tail": "uidityEvaluation → warning (risk=9.9) | violation lower=[0, 499] upper=[501, 115792089237316195423570985008687907853269984665640564039457584007913129639935] overlap=[500, 500] [risk=9.9]\n  LHS = [0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]\n  RHS = [500, 500]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  94 │ varDeclaration │ {'totalPairs': '[1,1]'}\n  95 │ assignment     │ {'pastLiquidityWeights[0]': '[0,0]'}\n  96 │ assignment     │ {'pastTotalLiquidityWeight': '[500,500]'}\n  98 │ loopDelta      │ {'pastLiquidityWeights[0]': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 121 │ implicitReturn │ {'pastLiquidityWeights': 'array(len=0)', 'pastTotalLiquidityWeight': '[500,500]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_70_H_05": {
+  "results": [
+   {
+    "line": 56,
+    "type": "post_intent",
+    "status": "warning",
+    "risk": 9.9,
+    "message": "returnExpression == totalUSD * 10 ** 10 * 10 ** 18 / totalUSDV → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 1157920892373161954235709850086879078532699846656405640394575840079131"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 19.81,
+  "antlr_errors": 0,
+  "log_tail": "ed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT WARNING] Line 56: returnExpression == totalUSD * 10 ** 10 * 10 ** 18 / totalUSDV → warning (risk=9.9) | violation lower=None upper=None overlap=[0, 115792089237316195423570985008687907853269984665640564039457584007913129639935] [risk=9.9]\n  Analysis = [0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]\n  Intent   = [0, 115792089237316195423570985008687907853269984665640564039457584007913129639935]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  42 │ varDeclaration │ {'totalPairs': '[1,1]'}\n  62 │ return         │ {'None': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n==========================\n\n",
+  "verdict": "Warning",
+  "expected": "Warning"
+ },
+ "web3bugs_70_H_10": {
+  "results": [
+   {
+    "line": 114,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "changed(previousPrices[0], true) → changed: violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 26.749,
+  "antlr_errors": 0,
+  "log_tail": "8': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 114: changed(previousPrices[0], true) → changed: violated (risk=10.0) [risk=10.0]\n  Entry = [1000000000000000, 1000000000000000]\n  Exit  = [1000000000000000, 1000000000000000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  97 │ varDeclaration │ {'totalPairs': '[1,1]'}\n  98 │ assignment     │ {'pastLiquidityWeights[0]': '[0,0]'}\n  99 │ assignment     │ {'pastTotalLiquidityWeight': '[1,1]'}\n 101 │ loopDelta      │ {'pastLiquidityWeights[0]': '[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]'}\n 124 │ implicitReturn │ {'pastLiquidityWeights': 'array(len=0)', 'pastTotalLiquidityWeight': '[1,1]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_77_H_01": {
+  "results": [
+   {
+    "line": 38,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "returnExpression >= 363 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.029,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 38: returnExpression >= 363 → violated (risk=10.0) [risk=10.0]\n  Analysis = [216, 216]\n  Intent   = [363, 363]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  42 │ varDeclaration │ {'wGamma': '[177777777777777777,177777777777777777]'}\n  44 │ assignment     │ {'liquidityTokenQty': '[216,216]'}\n  44 │ return         │ {'liquidityTokenQty': '[216,216]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_78_H_02": {
+  "results": [],
+  "error": "AttributeError: 'NoneType' object has no attribute 'is_bottom'\nr\\Parser\\SolidityParser.py\", line 11713, in accept\n    return visitor.visitInteractiveStatement(self)\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Analyzer\\EnhancedSolidityVisitor.py\", line 1914, in visitInteractiveStatement\n    return self.visitReturnStatement(ctx.returnStatement())\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Analyzer\\EnhancedSolidityVisitor.py\", line 1813, in visitReturnStatement\n    self.contract_analyzer.process_return_statement(return_expr)\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Analyzer\\ContractAnalyzer.py\", line 2648, in process_return_statement\n    r_val = self.evaluator.evaluate_expression(\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Interpreter\\Semantics\\Evaluation.py\", line 898, in evaluate_expression\n    return self.evaluate_binary_operator(expr, variables, callerObject, callerContext)\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Interpreter\\Semantics\\Evaluation.py\", line 2305, in evaluate_binary_operator\n    result = leftInterval.divide(rightInterval)\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Domain\\Interval.py\", line 766, in divide\n    return Interval._bottom_propagate(self, other, _impl)\n  File \"C:\\Users\\isjeon\\PycharmProjects\\pythonProject\\IntentKeeper\\Domain\\Interval.py\", line 30, in _bottom_propagate\n    if a.is_bottom() or b.is_bottom():\nAttributeError: 'NoneType' object has no attribute 'is_bottom'\n",
+  "elapsed_s": 0.281,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n",
+  "verdict": "None",
+  "expected": "Violated"
+ },
+ "web3bugs_79_H_02": {
+  "results": [
+   {
+    "line": 137,
+    "type": "during_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "tokenAllocated == wavaxReserve * 1e18 / floorPrice  →  violated (risk=10.0) "
+   }
+  ],
+  "error": null,
+  "elapsed_s": 7.709,
+  "antlr_errors": 0,
+  "log_tail": " registered\n[Dependencies] 179 interfaces registered\n[INTENT VIOLATION] Line 137: tokenAllocated == wavaxReserve * 1e18 / floorPrice  →  violated (risk=10.0)  [risk=10.0]\n  LHS = [0, 0]\n  RHS = [50000000, 50000000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n 153 │ varDeclaration │ {'tokenAllocated': '[100000000,100000000]'}\n 156 │ assignment     │ {'tokenAllocated': '[0,0]'}\n 157 │ assignment     │ {'tokenIncentivesForUsers': '[0,0]'}\n 158 │ assignment     │ {'tokenIncentiveIssuerRefund': '[0,0]'}\n 166 │ assignment     │ {'pair': 'address(⊤)'}\n 167 │ assignment     │ {'wavaxAllocated': '[1000000000000000000000,1000000000000000000000]'}\n 168 │ assignment     │ {'wavaxReserve': '[0,0]'}\n 170 │ assignment     │ {'tokenReserve': '[100000000,100000000]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ },
+ "web3bugs_83_H_01": {
+  "results": [
+   {
+    "line": 28,
+    "type": "post_intent",
+    "status": "violation",
+    "risk": 10.0,
+    "message": "poolInfo[1].accConcurPerShare(Exit) == poolInfo[1].accConcurPerShare(Entry) + 20000000000000 → violated (risk=10.0)"
+   }
+  ],
+  "error": null,
+  "elapsed_s": 1.089,
+  "antlr_errors": 0,
+  "log_tail": "[Dependencies] 2 type aliases registered: {'Fixed18': 'int256', 'UFixed18': 'uint256'}\n[Dependencies] 6 file-level enums registered\n[Dependencies] 179 interfaces registered\n[POST INTENT VIOLATION] Line 28: poolInfo[1].accConcurPerShare(Exit) == poolInfo[1].accConcurPerShare(Entry) + 20000000000000 → violated (risk=10.0) [risk=10.0]\n  LHS = [0, 0]\n  RHS = [20000000000000, 20000000000000]\n  Risk: Type 3 (both-side)\n\n=======  ANALYSIS  =======\n  35 │ varDeclaration │ {'lastRewardBlock': '[200,200]'}\n  36 │ assignment     │ {'totalAllocPoint': '[150,150]'}\n  39 │ assignment     │ {'pid[_token]': '[2,2]'}\n==========================\n\n",
+  "verdict": "Violated",
+  "expected": "Violated"
+ }
+}

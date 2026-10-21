@@ -1,0 +1,1971 @@
+[
+ {
+  "code": "pragma solidity ^0.6.12;",
+  "startLine": 1,
+  "endLine": 1,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 2,
+  "endLine": 2,
+  "event": "add"
+ },
+ {
+  "code": "interface IERC20 {\n}",
+  "startLine": 3,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "function totalSupply() external view returns (uint256);",
+  "startLine": 4,
+  "endLine": 4,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 5,
+  "endLine": 5,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address account) external view returns (uint256);",
+  "startLine": 6,
+  "endLine": 6,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 7,
+  "endLine": 7,
+  "event": "add"
+ },
+ {
+  "code": "function transfer(address recipient, uint256 amount) external returns (bool);",
+  "startLine": 8,
+  "endLine": 8,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 9,
+  "endLine": 9,
+  "event": "add"
+ },
+ {
+  "code": "function allowance(address owner, address spender) external view returns (uint256);",
+  "startLine": 10,
+  "endLine": 10,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 11,
+  "endLine": 11,
+  "event": "add"
+ },
+ {
+  "code": "function approve(address spender, uint256 amount) external returns (bool);",
+  "startLine": 12,
+  "endLine": 12,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 13,
+  "endLine": 13,
+  "event": "add"
+ },
+ {
+  "code": "function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);",
+  "startLine": 14,
+  "endLine": 14,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 15,
+  "endLine": 15,
+  "event": "add"
+ },
+ {
+  "code": "event Transfer(address indexed _from, address indexed to, uint256 value);",
+  "startLine": 16,
+  "endLine": 16,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 17,
+  "endLine": 17,
+  "event": "add"
+ },
+ {
+  "code": "event Approval(address indexed owner, address indexed spender, uint256 value);",
+  "startLine": 18,
+  "endLine": 18,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 20,
+  "endLine": 20,
+  "event": "add"
+ },
+ {
+  "code": "interface IERC20Metadata is IERC20 {\n}",
+  "startLine": 21,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "function name() external view returns (string memory);",
+  "startLine": 22,
+  "endLine": 22,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 23,
+  "endLine": 23,
+  "event": "add"
+ },
+ {
+  "code": "function symbol() external view returns (string memory);",
+  "startLine": 24,
+  "endLine": 24,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 25,
+  "endLine": 25,
+  "event": "add"
+ },
+ {
+  "code": "function decimals() external view returns (uint8);",
+  "startLine": 26,
+  "endLine": 26,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 28,
+  "endLine": 28,
+  "event": "add"
+ },
+ {
+  "code": "abstract contract Context {\n}",
+  "startLine": 29,
+  "endLine": 30,
+  "event": "add"
+ },
+ {
+  "code": "function _msgSender() internal view virtual returns (address) {\n}",
+  "startLine": 30,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "return msg.sender;",
+  "startLine": 31,
+  "endLine": 31,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 33,
+  "endLine": 33,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 35,
+  "endLine": 35,
+  "event": "add"
+ },
+ {
+  "code": "contract Ownable is Context {\n}",
+  "startLine": 36,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "address private _owner;",
+  "startLine": 37,
+  "endLine": 37,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 38,
+  "endLine": 38,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 40,
+  "endLine": 40,
+  "event": "add"
+ },
+ {
+  "code": "library SafeMath {\n}",
+  "startLine": 41,
+  "endLine": 42,
+  "event": "add"
+ },
+ {
+  "code": "function add(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 42,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a + b;",
+  "startLine": 43,
+  "endLine": 43,
+  "event": "add"
+ },
+ {
+  "code": "require(c >= a, \"SafeMath: addition overflow\");",
+  "startLine": 44,
+  "endLine": 44,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 45,
+  "endLine": 45,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 46,
+  "endLine": 46,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 48,
+  "endLine": 48,
+  "event": "add"
+ },
+ {
+  "code": "function sub(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 49,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "return sub(a, b, \"SafeMath: subtraction overflow\");",
+  "startLine": 50,
+  "endLine": 50,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 52,
+  "endLine": 52,
+  "event": "add"
+ },
+ {
+  "code": "function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {\n}",
+  "startLine": 53,
+  "endLine": 54,
+  "event": "add"
+ },
+ {
+  "code": "require(b <= a, errorMessage);",
+  "startLine": 54,
+  "endLine": 54,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a - b;",
+  "startLine": 55,
+  "endLine": 55,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 56,
+  "endLine": 56,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 57,
+  "endLine": 57,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 59,
+  "endLine": 59,
+  "event": "add"
+ },
+ {
+  "code": "function mul(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 60,
+  "endLine": 61,
+  "event": "add"
+ },
+ {
+  "code": "if (a == 0) {\n}",
+  "startLine": 61,
+  "endLine": 62,
+  "event": "add"
+ },
+ {
+  "code": "return 0;",
+  "startLine": 62,
+  "endLine": 62,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 64,
+  "endLine": 64,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a * b;",
+  "startLine": 65,
+  "endLine": 65,
+  "event": "add"
+ },
+ {
+  "code": "require(c / a == b, \"SafeMath: multiplication overflow\");",
+  "startLine": 66,
+  "endLine": 66,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 67,
+  "endLine": 67,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 68,
+  "endLine": 68,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 70,
+  "endLine": 70,
+  "event": "add"
+ },
+ {
+  "code": "function div(uint256 a, uint256 b) internal pure returns (uint256) {\n}",
+  "startLine": 71,
+  "endLine": 72,
+  "event": "add"
+ },
+ {
+  "code": "return div(a, b, \"SafeMath: division by zero\");",
+  "startLine": 72,
+  "endLine": 72,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 74,
+  "endLine": 74,
+  "event": "add"
+ },
+ {
+  "code": "function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {\n}",
+  "startLine": 75,
+  "endLine": 76,
+  "event": "add"
+ },
+ {
+  "code": "require(b > 0, errorMessage);",
+  "startLine": 76,
+  "endLine": 76,
+  "event": "add"
+ },
+ {
+  "code": "uint256 c = a / b;",
+  "startLine": 77,
+  "endLine": 77,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 78,
+  "endLine": 78,
+  "event": "add"
+ },
+ {
+  "code": "return c;",
+  "startLine": 79,
+  "endLine": 79,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 81,
+  "endLine": 81,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 83,
+  "endLine": 83,
+  "event": "add"
+ },
+ {
+  "code": "interface IUniswapV2Pair {\n}",
+  "startLine": 84,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "event Approval(address indexed owner, address indexed spender, uint value);",
+  "startLine": 85,
+  "endLine": 85,
+  "event": "add"
+ },
+ {
+  "code": "event Transfer(address indexed _from, address indexed to, uint value);",
+  "startLine": 86,
+  "endLine": 86,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 87,
+  "endLine": 87,
+  "event": "add"
+ },
+ {
+  "code": "function name() external pure returns (string memory);",
+  "startLine": 88,
+  "endLine": 88,
+  "event": "add"
+ },
+ {
+  "code": "function symbol() external pure returns (string memory);",
+  "startLine": 89,
+  "endLine": 89,
+  "event": "add"
+ },
+ {
+  "code": "function decimals() external pure returns (uint8);",
+  "startLine": 90,
+  "endLine": 90,
+  "event": "add"
+ },
+ {
+  "code": "function totalSupply() external view returns (uint);",
+  "startLine": 91,
+  "endLine": 91,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address owner) external view returns (uint);",
+  "startLine": 92,
+  "endLine": 92,
+  "event": "add"
+ },
+ {
+  "code": "function allowance(address owner, address spender) external view returns (uint);",
+  "startLine": 93,
+  "endLine": 93,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 94,
+  "endLine": 94,
+  "event": "add"
+ },
+ {
+  "code": "function approve(address spender, uint value) external returns (bool);",
+  "startLine": 95,
+  "endLine": 95,
+  "event": "add"
+ },
+ {
+  "code": "function transfer(address to, uint value) external returns (bool);",
+  "startLine": 96,
+  "endLine": 96,
+  "event": "add"
+ },
+ {
+  "code": "function transferFrom(address _from, address to, uint value) external returns (bool);",
+  "startLine": 97,
+  "endLine": 97,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 98,
+  "endLine": 98,
+  "event": "add"
+ },
+ {
+  "code": "function DOMAIN_SEPARATOR() external view returns (bytes32);",
+  "startLine": 99,
+  "endLine": 99,
+  "event": "add"
+ },
+ {
+  "code": "function PERMIT_TYPEHASH() external pure returns (bytes32);",
+  "startLine": 100,
+  "endLine": 100,
+  "event": "add"
+ },
+ {
+  "code": "function nonces(address owner) external view returns (uint);",
+  "startLine": 101,
+  "endLine": 101,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 102,
+  "endLine": 102,
+  "event": "add"
+ },
+ {
+  "code": "function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;",
+  "startLine": 103,
+  "endLine": 103,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 104,
+  "endLine": 104,
+  "event": "add"
+ },
+ {
+  "code": "event Mint(address indexed sender, uint amount0, uint amount1);",
+  "startLine": 105,
+  "endLine": 105,
+  "event": "add"
+ },
+ {
+  "code": "event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);",
+  "startLine": 106,
+  "endLine": 106,
+  "event": "add"
+ },
+ {
+  "code": "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to);",
+  "startLine": 107,
+  "endLine": 107,
+  "event": "add"
+ },
+ {
+  "code": "event Sync(uint112 reserve0, uint112 reserve1);",
+  "startLine": 108,
+  "endLine": 108,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 109,
+  "endLine": 109,
+  "event": "add"
+ },
+ {
+  "code": "function MINIMUM_LIQUIDITY() external pure returns (uint);",
+  "startLine": 110,
+  "endLine": 110,
+  "event": "add"
+ },
+ {
+  "code": "function factory() external view returns (address);",
+  "startLine": 111,
+  "endLine": 111,
+  "event": "add"
+ },
+ {
+  "code": "function token0() external view returns (address);",
+  "startLine": 112,
+  "endLine": 112,
+  "event": "add"
+ },
+ {
+  "code": "function token1() external view returns (address);",
+  "startLine": 113,
+  "endLine": 113,
+  "event": "add"
+ },
+ {
+  "code": "function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);",
+  "startLine": 114,
+  "endLine": 114,
+  "event": "add"
+ },
+ {
+  "code": "function price0CumulativeLast() external view returns (uint);",
+  "startLine": 115,
+  "endLine": 115,
+  "event": "add"
+ },
+ {
+  "code": "function price1CumulativeLast() external view returns (uint);",
+  "startLine": 116,
+  "endLine": 116,
+  "event": "add"
+ },
+ {
+  "code": "function kLast() external view returns (uint);",
+  "startLine": 117,
+  "endLine": 117,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 118,
+  "endLine": 118,
+  "event": "add"
+ },
+ {
+  "code": "function mint(address to) external returns (uint liquidity);",
+  "startLine": 119,
+  "endLine": 119,
+  "event": "add"
+ },
+ {
+  "code": "function burn(address to) external returns (uint amount0, uint amount1);",
+  "startLine": 120,
+  "endLine": 120,
+  "event": "add"
+ },
+ {
+  "code": "function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;",
+  "startLine": 121,
+  "endLine": 121,
+  "event": "add"
+ },
+ {
+  "code": "function skim(address to) external;",
+  "startLine": 122,
+  "endLine": 122,
+  "event": "add"
+ },
+ {
+  "code": "function sync() external;",
+  "startLine": 123,
+  "endLine": 123,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 124,
+  "endLine": 124,
+  "event": "add"
+ },
+ {
+  "code": "function initialize(address, address) external;",
+  "startLine": 125,
+  "endLine": 125,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 127,
+  "endLine": 127,
+  "event": "add"
+ },
+ {
+  "code": "interface IUniswapV2Factory {\n}",
+  "startLine": 128,
+  "endLine": 129,
+  "event": "add"
+ },
+ {
+  "code": "event PairCreated(address indexed token0, address indexed token1, address pair, uint);",
+  "startLine": 129,
+  "endLine": 129,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 130,
+  "endLine": 130,
+  "event": "add"
+ },
+ {
+  "code": "function feeTo() external view returns (address);",
+  "startLine": 131,
+  "endLine": 131,
+  "event": "add"
+ },
+ {
+  "code": "function feeToSetter() external view returns (address);",
+  "startLine": 132,
+  "endLine": 132,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 133,
+  "endLine": 133,
+  "event": "add"
+ },
+ {
+  "code": "function getPair(address tokenA, address tokenB) external view returns (address pair);",
+  "startLine": 134,
+  "endLine": 134,
+  "event": "add"
+ },
+ {
+  "code": "function allPairs(uint) external view returns (address pair);",
+  "startLine": 135,
+  "endLine": 135,
+  "event": "add"
+ },
+ {
+  "code": "function allPairsLength() external view returns (uint);",
+  "startLine": 136,
+  "endLine": 136,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 137,
+  "endLine": 137,
+  "event": "add"
+ },
+ {
+  "code": "function createPair(address tokenA, address tokenB) external returns (address pair);",
+  "startLine": 138,
+  "endLine": 138,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 139,
+  "endLine": 139,
+  "event": "add"
+ },
+ {
+  "code": "function setFeeTo(address) external;",
+  "startLine": 140,
+  "endLine": 140,
+  "event": "add"
+ },
+ {
+  "code": "function setFeeToSetter(address) external;",
+  "startLine": 141,
+  "endLine": 141,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 143,
+  "endLine": 143,
+  "event": "add"
+ },
+ {
+  "code": "interface IUniswapV2Router01 {\n}",
+  "startLine": 144,
+  "endLine": 145,
+  "event": "add"
+ },
+ {
+  "code": "function factory() external pure returns (address);",
+  "startLine": 145,
+  "endLine": 145,
+  "event": "add"
+ },
+ {
+  "code": "function WETH() external pure returns (address);",
+  "startLine": 146,
+  "endLine": 146,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 147,
+  "endLine": 147,
+  "event": "add"
+ },
+ {
+  "code": "function addLiquidity(address tokenA, address tokenB, uint amountADesired, uint amountBDesired, uint amountAMin, uint amountBMin, address to, uint deadline) external returns (uint amountA, uint amountB, uint liquidity);",
+  "startLine": 148,
+  "endLine": 148,
+  "event": "add"
+ },
+ {
+  "code": "function addLiquidityETH(address token, uint amountTokenDesired, uint amountTokenMin, uint amountETHMin, address to, uint deadline) external payable returns (uint amountToken, uint amountETH, uint liquidity);",
+  "startLine": 149,
+  "endLine": 149,
+  "event": "add"
+ },
+ {
+  "code": "function removeLiquidity(address tokenA, address tokenB, uint liquidity, uint amountAMin, uint amountBMin, address to, uint deadline) external returns (uint amountA, uint amountB);",
+  "startLine": 150,
+  "endLine": 150,
+  "event": "add"
+ },
+ {
+  "code": "function removeLiquidityETH(address token, uint liquidity, uint amountTokenMin, uint amountETHMin, address to, uint deadline) external returns (uint amountToken, uint amountETH);",
+  "startLine": 151,
+  "endLine": 151,
+  "event": "add"
+ },
+ {
+  "code": "function removeLiquidityWithPermit(address tokenA, address tokenB, uint liquidity, uint amountAMin, uint amountBMin, address to, uint deadline, bool approveMax, uint8 v, bytes32 r, bytes32 s) external returns (uint amountA, uint amountB);",
+  "startLine": 152,
+  "endLine": 152,
+  "event": "add"
+ },
+ {
+  "code": "function removeLiquidityETHWithPermit(address token, uint liquidity, uint amountTokenMin, uint amountETHMin, address to, uint deadline, bool approveMax, uint8 v, bytes32 r, bytes32 s) external returns (uint amountToken, uint amountETH);",
+  "startLine": 153,
+  "endLine": 153,
+  "event": "add"
+ },
+ {
+  "code": "function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts);",
+  "startLine": 154,
+  "endLine": 154,
+  "event": "add"
+ },
+ {
+  "code": "function swapTokensForExactTokens(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts);",
+  "startLine": 155,
+  "endLine": 155,
+  "event": "add"
+ },
+ {
+  "code": "function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts);",
+  "startLine": 156,
+  "endLine": 156,
+  "event": "add"
+ },
+ {
+  "code": "function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts);",
+  "startLine": 157,
+  "endLine": 157,
+  "event": "add"
+ },
+ {
+  "code": "function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts);",
+  "startLine": 158,
+  "endLine": 158,
+  "event": "add"
+ },
+ {
+  "code": "function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts);",
+  "startLine": 159,
+  "endLine": 159,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 160,
+  "endLine": 160,
+  "event": "add"
+ },
+ {
+  "code": "function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);",
+  "startLine": 161,
+  "endLine": 161,
+  "event": "add"
+ },
+ {
+  "code": "function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);",
+  "startLine": 162,
+  "endLine": 162,
+  "event": "add"
+ },
+ {
+  "code": "function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);",
+  "startLine": 163,
+  "endLine": 163,
+  "event": "add"
+ },
+ {
+  "code": "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);",
+  "startLine": 164,
+  "endLine": 164,
+  "event": "add"
+ },
+ {
+  "code": "function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);",
+  "startLine": 165,
+  "endLine": 165,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 167,
+  "endLine": 167,
+  "event": "add"
+ },
+ {
+  "code": "interface IUniswapV2Router02 is IUniswapV2Router01 {\n}",
+  "startLine": 168,
+  "endLine": 169,
+  "event": "add"
+ },
+ {
+  "code": "function removeLiquidityETHSupportingFeeOnTransferTokens(address token, uint liquidity, uint amountTokenMin, uint amountETHMin, address to, uint deadline) external returns (uint amountETH);",
+  "startLine": 169,
+  "endLine": 169,
+  "event": "add"
+ },
+ {
+  "code": "function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(address token, uint liquidity, uint amountTokenMin, uint amountETHMin, address to, uint deadline, bool approveMax, uint8 v, bytes32 r, bytes32 s) external returns (uint amountETH);",
+  "startLine": 170,
+  "endLine": 170,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 171,
+  "endLine": 171,
+  "event": "add"
+ },
+ {
+  "code": "function swapExactTokensForTokensSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external;",
+  "startLine": 172,
+  "endLine": 172,
+  "event": "add"
+ },
+ {
+  "code": "function swapExactETHForTokensSupportingFeeOnTransferTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable;",
+  "startLine": 173,
+  "endLine": 173,
+  "event": "add"
+ },
+ {
+  "code": "function swapExactTokensForETHSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external;",
+  "startLine": 174,
+  "endLine": 174,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 176,
+  "endLine": 176,
+  "event": "add"
+ },
+ {
+  "code": "contract ERC20 is Context, IERC20, IERC20Metadata {\n}",
+  "startLine": 177,
+  "endLine": 178,
+  "event": "add"
+ },
+ {
+  "code": "using SafeMath for uint256;",
+  "startLine": 178,
+  "endLine": 178,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 179,
+  "endLine": 179,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => uint256) private _balances;",
+  "startLine": 180,
+  "endLine": 180,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 181,
+  "endLine": 181,
+  "event": "add"
+ },
+ {
+  "code": "mapping(address => mapping(address => uint256)) private _allowances;",
+  "startLine": 182,
+  "endLine": 182,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 183,
+  "endLine": 183,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private _totalSupply;",
+  "startLine": 184,
+  "endLine": 184,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 185,
+  "endLine": 185,
+  "event": "add"
+ },
+ {
+  "code": "string private _name;",
+  "startLine": 186,
+  "endLine": 186,
+  "event": "add"
+ },
+ {
+  "code": "string private _symbol;",
+  "startLine": 187,
+  "endLine": 187,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 188,
+  "endLine": 188,
+  "event": "add"
+ },
+ {
+  "code": "function balanceOf(address account) public view virtual override returns (uint256) {\n}",
+  "startLine": 189,
+  "endLine": 190,
+  "event": "add"
+ },
+ {
+  "code": "return _balances[account];",
+  "startLine": 190,
+  "endLine": 190,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 192,
+  "endLine": 192,
+  "event": "add"
+ },
+ {
+  "code": "function transfer(address recipient, uint256 amount) public virtual override returns (bool) {\n}",
+  "startLine": 193,
+  "endLine": 194,
+  "event": "add"
+ },
+ {
+  "code": "_transfer(_msgSender(), recipient, amount);",
+  "startLine": 194,
+  "endLine": 194,
+  "event": "add"
+ },
+ {
+  "code": "return true;",
+  "startLine": 195,
+  "endLine": 195,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 197,
+  "endLine": 197,
+  "event": "add"
+ },
+ {
+  "code": "function _transfer(address sender, address recipient, uint256 amount) internal virtual {\n}",
+  "startLine": 198,
+  "endLine": 199,
+  "event": "add"
+ },
+ {
+  "code": "require(sender != address(0), \"ERC20: transfer from the zero address\");",
+  "startLine": 199,
+  "endLine": 199,
+  "event": "add"
+ },
+ {
+  "code": "require(recipient != address(0), \"ERC20: transfer to the zero address\");",
+  "startLine": 200,
+  "endLine": 200,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 201,
+  "endLine": 201,
+  "event": "add"
+ },
+ {
+  "code": "_beforeTokenTransfer(sender, recipient, amount);",
+  "startLine": 202,
+  "endLine": 202,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 203,
+  "endLine": 203,
+  "event": "add"
+ },
+ {
+  "code": "_balances[sender] = _balances[sender].sub(amount, \"ERC20: transfer amount exceeds balance\");",
+  "startLine": 204,
+  "endLine": 204,
+  "event": "add"
+ },
+ {
+  "code": "_balances[recipient] = _balances[recipient].add(amount);",
+  "startLine": 205,
+  "endLine": 205,
+  "event": "add"
+ },
+ {
+  "code": "emit Transfer(sender, recipient, amount);",
+  "startLine": 206,
+  "endLine": 206,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 208,
+  "endLine": 208,
+  "event": "add"
+ },
+ {
+  "code": "function _beforeTokenTransfer(address _from, address to, uint256 amount) internal virtual {\n}",
+  "startLine": 209,
+  "endLine": 210,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 212,
+  "endLine": 212,
+  "event": "add"
+ },
+ {
+  "code": "contract WANGMI is ERC20, Ownable {\n}",
+  "startLine": 213,
+  "endLine": 214,
+  "event": "add"
+ },
+ {
+  "code": "using SafeMath for uint256;",
+  "startLine": 214,
+  "endLine": 214,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 215,
+  "endLine": 215,
+  "event": "add"
+ },
+ {
+  "code": "address public constant DEAD_ADDRESS = address(0xdead);",
+  "startLine": 216,
+  "endLine": 216,
+  "event": "add"
+ },
+ {
+  "code": "IUniswapV2Router02 public constant uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);",
+  "startLine": 217,
+  "endLine": 217,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 218,
+  "endLine": 218,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public buyLiquidityFee = 3;",
+  "startLine": 219,
+  "endLine": 219,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public sellLiquidityFee = 3;",
+  "startLine": 220,
+  "endLine": 220,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public buyTxFee = 9;",
+  "startLine": 221,
+  "endLine": 221,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public sellTxFee = 9;",
+  "startLine": 222,
+  "endLine": 222,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public tokensForLiquidity;",
+  "startLine": 223,
+  "endLine": 223,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public tokensForTax;",
+  "startLine": 224,
+  "endLine": 224,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 225,
+  "endLine": 225,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public _tTotal = 10**9 * 10**9;",
+  "startLine": 226,
+  "endLine": 226,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public swapAtAmount = _tTotal.mul(10).div(10000);",
+  "startLine": 227,
+  "endLine": 227,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public maxTxLimit = _tTotal.mul(75).div(10000);",
+  "startLine": 228,
+  "endLine": 228,
+  "event": "add"
+ },
+ {
+  "code": "uint256 public maxWalletLimit = _tTotal.mul(150).div(10000);",
+  "startLine": 229,
+  "endLine": 229,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 230,
+  "endLine": 230,
+  "event": "add"
+ },
+ {
+  "code": "address public dev;",
+  "startLine": 231,
+  "endLine": 231,
+  "event": "add"
+ },
+ {
+  "code": "address public deployer;",
+  "startLine": 232,
+  "endLine": 232,
+  "event": "add"
+ },
+ {
+  "code": "address public uniswapV2Pair;",
+  "startLine": 233,
+  "endLine": 233,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 234,
+  "endLine": 234,
+  "event": "add"
+ },
+ {
+  "code": "uint256 private launchBlock;",
+  "startLine": 235,
+  "endLine": 235,
+  "event": "add"
+ },
+ {
+  "code": "bool private swapping;",
+  "startLine": 236,
+  "endLine": 236,
+  "event": "add"
+ },
+ {
+  "code": "bool public isLaunched;",
+  "startLine": 237,
+  "endLine": 237,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 238,
+  "endLine": 238,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => bool) public isExcludedFromFees;",
+  "startLine": 239,
+  "endLine": 239,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 240,
+  "endLine": 240,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => bool) public isExcludedFromTxLimit;",
+  "startLine": 241,
+  "endLine": 241,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 242,
+  "endLine": 242,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => bool) public isExcludedFromWalletLimit;",
+  "startLine": 243,
+  "endLine": 243,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 244,
+  "endLine": 244,
+  "event": "add"
+ },
+ {
+  "code": "mapping (address => bool) public isBlacklisted;",
+  "startLine": 245,
+  "endLine": 245,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 246,
+  "endLine": 246,
+  "event": "add"
+ },
+ {
+  "code": "function _transfer(address _from, address to, uint256 amount) internal override {\n}",
+  "startLine": 247,
+  "endLine": 248,
+  "event": "add"
+ },
+ {
+  "code": "require(_from != address(0), \"transfer from the zero address\");",
+  "startLine": 248,
+  "endLine": 248,
+  "event": "add"
+ },
+ {
+  "code": "require(to != address(0), \"transfer to the zero address\");",
+  "startLine": 249,
+  "endLine": 249,
+  "event": "add"
+ },
+ {
+  "code": "require(amount <= maxTxLimit || isExcludedFromTxLimit[_from] || isExcludedFromTxLimit[to], \"Tx Amount too large\");",
+  "startLine": 250,
+  "endLine": 250,
+  "event": "add"
+ },
+ {
+  "code": "require(balanceOf(to).add(amount) <= maxWalletLimit || isExcludedFromWalletLimit[to], \"Transfer will exceed wallet limit\");",
+  "startLine": 251,
+  "endLine": 251,
+  "event": "add"
+ },
+ {
+  "code": "require(isLaunched || isExcludedFromFees[_from] || isExcludedFromFees[to], \"Waiting to go live\");",
+  "startLine": 252,
+  "endLine": 252,
+  "event": "add"
+ },
+ {
+  "code": "require(!isBlacklisted[_from], \"Sender is blacklisted\");",
+  "startLine": 253,
+  "endLine": 253,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 254,
+  "endLine": 254,
+  "event": "add"
+ },
+ {
+  "code": "if(amount == 0) {\n}",
+  "startLine": 255,
+  "endLine": 256,
+  "event": "add"
+ },
+ {
+  "code": "super._transfer(_from, to, 0);",
+  "startLine": 256,
+  "endLine": 256,
+  "event": "add"
+ },
+ {
+  "code": "return;",
+  "startLine": 257,
+  "endLine": 257,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 259,
+  "endLine": 259,
+  "event": "add"
+ },
+ {
+  "code": "uint256 totalTokensForFee = tokensForLiquidity + tokensForTax;",
+  "startLine": 260,
+  "endLine": 260,
+  "event": "add"
+ },
+ {
+  "code": "bool canSwap = totalTokensForFee >= swapAtAmount;",
+  "startLine": 261,
+  "endLine": 261,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 262,
+  "endLine": 262,
+  "event": "add"
+ },
+ {
+  "code": "if(_from != uniswapV2Pair && canSwap && !swapping) {\n}",
+  "startLine": 263,
+  "endLine": 264,
+  "event": "add"
+ },
+ {
+  "code": "swapping = true;",
+  "startLine": 264,
+  "endLine": 264,
+  "event": "add"
+ },
+ {
+  "code": "swapBack(totalTokensForFee);",
+  "startLine": 265,
+  "endLine": 265,
+  "event": "add"
+ },
+ {
+  "code": "swapping = false;",
+  "startLine": 266,
+  "endLine": 266,
+  "event": "add"
+ },
+ {
+  "code": "else if(_from == uniswapV2Pair && to != uniswapV2Pair && block.number < launchBlock + 2 && !isExcludedFromFees[to]) {\n}",
+  "startLine": 267,
+  "endLine": 268,
+  "event": "add",
+  "closeBefore": true
+ },
+ {
+  "code": "_setBlacklist(to, true);",
+  "startLine": 268,
+  "endLine": 268,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 270,
+  "endLine": 270,
+  "event": "add"
+ },
+ {
+  "code": "bool takeFee = !swapping;",
+  "startLine": 271,
+  "endLine": 271,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 272,
+  "endLine": 272,
+  "event": "add"
+ },
+ {
+  "code": "if(isExcludedFromFees[_from] || isExcludedFromFees[to]) {\n}",
+  "startLine": 273,
+  "endLine": 274,
+  "event": "add"
+ },
+ {
+  "code": "takeFee = false;",
+  "startLine": 274,
+  "endLine": 274,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 276,
+  "endLine": 276,
+  "event": "add"
+ },
+ {
+  "code": "if(takeFee) {\n}",
+  "startLine": 277,
+  "endLine": 278,
+  "event": "add"
+ },
+ {
+  "code": "uint256 fees;",
+  "startLine": 278,
+  "endLine": 278,
+  "event": "add"
+ },
+ {
+  "code": "if (to == uniswapV2Pair) {\n}",
+  "startLine": 279,
+  "endLine": 280,
+  "event": "add"
+ },
+ {
+  "code": "uint256 sellTotalFees = sellLiquidityFee.add(sellTxFee);",
+  "startLine": 280,
+  "endLine": 280,
+  "event": "add"
+ },
+ {
+  "code": "fees = amount.mul(sellTotalFees).div(100);",
+  "startLine": 281,
+  "endLine": 281,
+  "event": "add"
+ },
+ {
+  "code": "tokensForLiquidity = tokensForLiquidity.add(fees.mul(sellLiquidityFee).div(sellTotalFees));",
+  "startLine": 282,
+  "endLine": 282,
+  "event": "add"
+ },
+ {
+  "code": "tokensForTax = tokensForTax.add(fees.mul(sellTxFee).div(sellTotalFees));",
+  "startLine": 283,
+  "endLine": 283,
+  "event": "add"
+ },
+ {
+  "code": "else {\n}",
+  "startLine": 285,
+  "endLine": 286,
+  "event": "add"
+ },
+ {
+  "code": "uint256 buyTotalFees = buyLiquidityFee.add(buyTxFee);",
+  "startLine": 286,
+  "endLine": 286,
+  "event": "add"
+ },
+ {
+  "code": "fees = amount.mul(buyTotalFees).div(100);",
+  "startLine": 287,
+  "endLine": 287,
+  "event": "add"
+ },
+ {
+  "code": "tokensForLiquidity = tokensForLiquidity.add(fees.mul(buyLiquidityFee).div(buyTotalFees));",
+  "startLine": 288,
+  "endLine": 288,
+  "event": "add"
+ },
+ {
+  "code": "tokensForTax = tokensForTax.add(fees.mul(buyTxFee).div(buyTotalFees));",
+  "startLine": 289,
+  "endLine": 289,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 291,
+  "endLine": 291,
+  "event": "add"
+ },
+ {
+  "code": "if(fees > 0){\n}",
+  "startLine": 292,
+  "endLine": 293,
+  "event": "add"
+ },
+ {
+  "code": "super._transfer(_from, address(this), fees);",
+  "startLine": 293,
+  "endLine": 293,
+  "event": "add"
+ },
+ {
+  "code": "amount = amount.sub(fees);",
+  "startLine": 294,
+  "endLine": 294,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 297,
+  "endLine": 297,
+  "event": "add"
+ },
+ {
+  "code": "super._transfer(_from, to, amount);",
+  "startLine": 298,
+  "endLine": 298,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 300,
+  "endLine": 300,
+  "event": "add"
+ },
+ {
+  "code": "function swapBack(uint256 totalTokensForFee) private {\n}",
+  "startLine": 301,
+  "endLine": 302,
+  "event": "add"
+ },
+ {
+  "code": "uint256 toSwap = swapAtAmount;",
+  "startLine": 302,
+  "endLine": 302,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 303,
+  "endLine": 303,
+  "event": "add"
+ },
+ {
+  "code": "uint256 liquidityTokens = toSwap.mul(tokensForLiquidity).div(totalTokensForFee).div(2);",
+  "startLine": 304,
+  "endLine": 304,
+  "event": "add"
+ },
+ {
+  "code": "uint256 taxTokens = toSwap.sub(liquidityTokens).sub(liquidityTokens);",
+  "startLine": 305,
+  "endLine": 305,
+  "event": "add"
+ },
+ {
+  "code": "uint256 amountToSwapForETH = toSwap.sub(liquidityTokens);",
+  "startLine": 306,
+  "endLine": 306,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 307,
+  "endLine": 307,
+  "event": "add"
+ },
+ {
+  "code": "_swapTokensForETH(amountToSwapForETH);",
+  "startLine": 308,
+  "endLine": 308,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 309,
+  "endLine": 309,
+  "event": "add"
+ },
+ {
+  "code": "uint256 ethBalance = address(this).balance;",
+  "startLine": 310,
+  "endLine": 310,
+  "event": "add"
+ },
+ {
+  "code": "uint256 ethForTax = ethBalance.mul(taxTokens).div(amountToSwapForETH);",
+  "startLine": 311,
+  "endLine": 311,
+  "event": "add"
+ },
+ {
+  "code": "uint256 ethForLiquidity = ethBalance.sub(ethForTax);",
+  "startLine": 312,
+  "endLine": 312,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 313,
+  "endLine": 313,
+  "event": "add"
+ },
+ {
+  "code": "tokensForLiquidity = tokensForLiquidity.sub(liquidityTokens.mul(2));",
+  "startLine": 314,
+  "endLine": 314,
+  "event": "add"
+ },
+ {
+  "code": "tokensForTax = tokensForTax.sub(toSwap.sub(liquidityTokens.mul(2)));",
+  "startLine": 315,
+  "endLine": 315,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 316,
+  "endLine": 316,
+  "event": "add"
+ },
+ {
+  "code": "payable(address(dev)).transfer(ethForTax);",
+  "startLine": 317,
+  "endLine": 317,
+  "event": "add"
+ },
+ {
+  "code": "_addLiquidity(liquidityTokens, ethForLiquidity);",
+  "startLine": 318,
+  "endLine": 318,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 320,
+  "endLine": 320,
+  "event": "add"
+ },
+ {
+  "code": "function _addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {\n}",
+  "startLine": 321,
+  "endLine": 322,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 322,
+  "endLine": 322,
+  "event": "add"
+ },
+ {
+  "code": "uniswapV2Router.addLiquidityETH{value: ethAmount}(address(this), tokenAmount, 0, 0, deployer, block.timestamp);",
+  "startLine": 323,
+  "endLine": 323,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 325,
+  "endLine": 325,
+  "event": "add"
+ },
+ {
+  "code": "function _swapTokensForETH(uint256 tokenAmount) private {\n}",
+  "startLine": 326,
+  "endLine": 327,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 327,
+  "endLine": 327,
+  "event": "add"
+ },
+ {
+  "code": "address[] memory path = new address[](2);",
+  "startLine": 328,
+  "endLine": 328,
+  "event": "add"
+ },
+ {
+  "code": "path[0] = address(this);",
+  "startLine": 329,
+  "endLine": 329,
+  "event": "add"
+ },
+ {
+  "code": "path[1] = uniswapV2Router.WETH();",
+  "startLine": 330,
+  "endLine": 330,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 331,
+  "endLine": 331,
+  "event": "add"
+ },
+ {
+  "code": "uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount, 0, path, address(this), block.timestamp);",
+  "startLine": 332,
+  "endLine": 332,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 334,
+  "endLine": 334,
+  "event": "add"
+ },
+ {
+  "code": "function _setBlacklist(address account, bool value) internal {\n}",
+  "startLine": 335,
+  "endLine": 336,
+  "event": "add"
+ },
+ {
+  "code": "isBlacklisted[account] = value;",
+  "startLine": 336,
+  "endLine": 336,
+  "event": "add"
+ },
+ {
+  "code": "\n",
+  "startLine": 338,
+  "endLine": 338,
+  "event": "add"
+ },
+ {
+  "code": "// @During tokensForLiquidity(Before) < tokensForLiquidity(After)",
+  "startLine": 282,
+  "endLine": 282,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging BEGIN",
+  "startLine": 248,
+  "endLine": 248,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar _from = symbolicAddress 1",
+  "startLine": 249,
+  "endLine": 249,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar to = symbolicAddress 2",
+  "startLine": 250,
+  "endLine": 250,
+  "event": "add"
+ },
+ {
+  "code": "// @LocalVar amount = [33, 33]",
+  "startLine": 251,
+  "endLine": 251,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar uniswapV2Pair = symbolicAddress 2",
+  "startLine": 252,
+  "endLine": 252,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar sellLiquidityFee = [3, 3]",
+  "startLine": 253,
+  "endLine": 253,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar sellTxFee = [9, 9]",
+  "startLine": 254,
+  "endLine": 254,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensForLiquidity = [100, 100]",
+  "startLine": 255,
+  "endLine": 255,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar tokensForTax = [50, 50]",
+  "startLine": 256,
+  "endLine": 256,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isLaunched = true",
+  "startLine": 257,
+  "endLine": 257,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar maxTxLimit = [1000, 1000]",
+  "startLine": 258,
+  "endLine": 258,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar maxWalletLimit = [10000, 10000]",
+  "startLine": 259,
+  "endLine": 259,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar swapAtAmount = [10000, 10000]",
+  "startLine": 260,
+  "endLine": 260,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar swapping = false",
+  "startLine": 261,
+  "endLine": 261,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isExcludedFromTxLimit[_from] = true",
+  "startLine": 262,
+  "endLine": 262,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isExcludedFromTxLimit[to] = true",
+  "startLine": 263,
+  "endLine": 263,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isExcludedFromFees[_from] = false",
+  "startLine": 264,
+  "endLine": 264,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isExcludedFromFees[to] = false",
+  "startLine": 265,
+  "endLine": 265,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isBlacklisted[_from] = false",
+  "startLine": 266,
+  "endLine": 266,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar isExcludedFromWalletLimit[to] = true",
+  "startLine": 267,
+  "endLine": 267,
+  "event": "add"
+ },
+ {
+  "code": "// @GlobalVar block.number = [10, 10]",
+  "startLine": 268,
+  "endLine": 268,
+  "event": "add"
+ },
+ {
+  "code": "// @StateVar launchBlock = [5, 5]",
+  "startLine": 269,
+  "endLine": 269,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 270,
+  "endLine": 270,
+  "event": "add"
+ }
+]

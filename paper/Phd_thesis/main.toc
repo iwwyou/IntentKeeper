@@ -4,9 +4,9 @@
 \contentsline {chapter}{Acknowledgment}{v}{chapter*.4}%
 \contentsline {chapter}{Table of Contents}{vi}{section*.5}%
 \contentsline {chapter}{List of Tables}{ix}{section*.7}%
-\contentsline {chapter}{List of Figures}{x}{section*.9}%
-\contentsline {chapter}{List of Listings}{xii}{section*.11}%
-\contentsline {chapter}{Nomenclature}{xiii}{chapter*.13}%
+\contentsline {chapter}{List of Figures}{xi}{section*.9}%
+\contentsline {chapter}{List of Listings}{xiii}{section*.11}%
+\contentsline {chapter}{Nomenclature}{xiv}{chapter*.13}%
 \contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
 \contentsline {section}{\numberline {1.1}Motivation}{1}{section.1.1}%
 \contentsline {section}{\numberline {1.2}Proposed Techniques}{3}{section.1.2}%
@@ -40,24 +40,40 @@
 \contentsline {subsection}{\numberline {4.4.4}Navigation over Control-Flow Structures}{58}{subsection.4.4.4}%
 \contentsline {chapter}{\numberline {5}Evaluation}{60}{chapter.5}%
 \contentsline {section}{\numberline {5.1}Experimental Setup}{60}{section.5.1}%
-\contentsline {section}{\numberline {5.2}Intent Validation Capability}{60}{section.5.2}%
-\contentsline {section}{\numberline {5.3}Specification and Analysis Cost}{60}{section.5.3}%
-\contentsline {subsection}{\numberline {5.3.1}Specification Cost}{60}{subsection.5.3.1}%
-\contentsline {subsection}{\numberline {5.3.2}Validation and Interactive Analysis Cost}{60}{subsection.5.3.2}%
-\contentsline {section}{\numberline {5.4}Comparison with Existing Detection Tools}{60}{section.5.4}%
-\contentsline {section}{\numberline {5.5}Threats to Validity}{60}{section.5.5}%
-\contentsline {chapter}{\numberline {6}Discussion}{61}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Design Trade-offs of Source-Level Debugging}{61}{section.6.1}%
-\contentsline {section}{\numberline {6.2}Practical Guidelines for Debug Inputs and Intent Specification}{61}{section.6.2}%
-\contentsline {section}{\numberline {6.3}Current Limitations}{61}{section.6.3}%
-\contentsline {chapter}{\numberline {7}Conclusion}{62}{chapter.7}%
-\contentsline {chapter}{Bibliography}{63}{section*.35}%
-\contentsline {chapter}{\numberline {A}Incremental CFG Construction Patterns}{67}{appendix.A}%
-\contentsline {section}{\numberline {A.1}CFG Hierarchy}{68}{appendix.A.1}%
-\contentsline {section}{\numberline {A.2}Statement-Level Construction Patterns}{69}{appendix.A.2}%
-\contentsline {chapter}{\numberline {B}Abstract Domain and Formal Semantics}{74}{appendix.B}%
-\contentsline {section}{\numberline {B.1}Language Syntax}{74}{appendix.B.1}%
-\contentsline {section}{\numberline {B.2}Abstract Domain}{75}{appendix.B.2}%
-\contentsline {section}{\numberline {B.3}Concrete Semantics}{77}{appendix.B.3}%
-\contentsline {section}{\numberline {B.4}Collecting Semantics}{77}{appendix.B.4}%
-\contentsline {subsection}{\numberline {B.4.1}Abstract Semantics}{78}{subsection.B.4.1}%
+\contentsline {section}{\numberline {5.2}RQ1: Comparison with Existing Solidity Debugging Workflows}{65}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Evaluation Protocol}{66}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Debugging Workflow Comparison}{68}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}Debugging Preparation Requirements}{68}{subsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.2.4}Time-to-Result}{69}{subsection.5.2.4}%
+\contentsline {subsection}{\numberline {5.2.5}State-Space Scaling}{71}{subsection.5.2.5}%
+\contentsline {subsection}{\numberline {5.2.6}Source-Edit Responsiveness}{73}{subsection.5.2.6}%
+\contentsline {subsection}{\numberline {5.2.7}RQ1 Summary}{75}{subsection.5.2.7}%
+\contentsline {section}{\numberline {5.3}RQ2: Precision of Interpretation-Driven Debugging}{75}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Evaluation Protocol}{76}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Precision under State-Specification Expansion}{78}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Control-Flow Precision}{80}{subsection.5.3.3}%
+\contentsline {subsection}{\numberline {5.3.4}Loop Analysis}{82}{subsection.5.3.4}%
+\contentsline {subsection}{\numberline {5.3.5}Relationship to Intent Validation}{84}{subsection.5.3.5}%
+\contentsline {subsection}{\numberline {5.3.6}RQ2 Summary}{84}{subsection.5.3.6}%
+\contentsline {section}{\numberline {5.4}RQ3: Evaluation of the Intent-Aware Model}{84}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Intent Expressiveness}{85}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Intent Validation}{89}{subsection.5.4.2}%
+\contentsline {section}{\numberline {5.5}RQ4: Comparison with Existing Numerical Logic-Error Analysis}{90}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Comparison of Analysis Models}{90}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Runtime Characteristics}{91}{subsection.5.5.2}%
+\contentsline {section}{\numberline {5.6}Threats to Validity}{93}{section.5.6}%
+\contentsline {chapter}{\numberline {6}Discussion}{95}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Design Trade-offs of Source-Level Debugging}{95}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Practical Guidelines for Debug Inputs and Intent Specification}{95}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Current Limitations}{95}{section.6.3}%
+\contentsline {chapter}{\numberline {7}Conclusion}{96}{chapter.7}%
+\contentsline {chapter}{Bibliography}{97}{section*.54}%
+\contentsline {chapter}{\numberline {A}Incremental CFG Construction Patterns}{101}{appendix.A}%
+\contentsline {section}{\numberline {A.1}CFG Hierarchy}{102}{appendix.A.1}%
+\contentsline {section}{\numberline {A.2}Statement-Level Construction Patterns}{103}{appendix.A.2}%
+\contentsline {chapter}{\numberline {B}Abstract Domain and Formal Semantics}{108}{appendix.B}%
+\contentsline {section}{\numberline {B.1}Language Syntax}{108}{appendix.B.1}%
+\contentsline {section}{\numberline {B.2}Abstract Domain}{109}{appendix.B.2}%
+\contentsline {section}{\numberline {B.3}Concrete Semantics}{111}{appendix.B.3}%
+\contentsline {section}{\numberline {B.4}Collecting Semantics}{111}{appendix.B.4}%
+\contentsline {subsection}{\numberline {B.4.1}Abstract Semantics}{112}{subsection.B.4.1}%

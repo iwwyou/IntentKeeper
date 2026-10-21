@@ -553,6 +553,7 @@ _typedecl_re = re.compile(
     r'(?m)^\s*([A-Z]\w*)\s+(?:public\s+|private\s+|internal\s+|external\s+|'
     r'immutable\s+|constant\s+|override\s+|memory\s+|storage\s+|calldata\s+)*\w+\s*[;=]')
 _typeret_re = re.compile(r'returns\s*\(\s*([A-Z]\w*)\s*[\),]')
+_typeparam_re = re.compile(r'[(,]\s*([A-Z]\w*)\s+(?:memory\s+|storage\s+|calldata\s+|indexed\s+)?[A-Za-z_]\w*\s*[,)]')
 
 
 def _type_refs_in(src: str) -> set[str]:
@@ -572,6 +573,10 @@ def _type_refs_in(src: str) -> set[str]:
     t = _strip_comments(src)
     out = {m.group(1) for m in _typedecl_re.finditer(t)}
     out |= {m.group(1) for m in _typeret_re.finditer(t)}
+    # ★ (2026-10-21) **파라미터 위치** 타입도: `function safeTransferFrom(ERC20 token, …)` (solmate SafeTransferLib).
+    #   빠져 있으면 library 분석 시 contract 타입 pkl 이 안 올라와 `Type 'ERC20' is not defined` → 함수 헤더 실패 →
+    #   본문 문장 전체가 "active FunctionCFG not found" 로 연쇄 실패했다(기존 트리는 같은 파일 스텁으로 피했음).
+    out |= {m.group(1) for m in _typeparam_re.finditer(t)}
     # 엘리멘터리/키워드 오탐 제거
     out -= {'SPDX', 'True', 'False'}
     return {n for n in out if not n[0].islower()}
@@ -669,6 +674,23 @@ def _load_parent_pkls(source: str, ca) -> None:
             pending.extend(getattr(ca.contract_cfgs[pname], 'parent_contracts', []) or [])
 
 
+_written_pkls: dict[str, str] = {}   # 이번 실행에서 쓴 pkl 이름 → 원본 파일 (중복 이름 덮어쓰기 금지)
+
+
+def _write_pkl(pkl_name: str, payload: dict, sol_path: pathlib.Path) -> pathlib.Path:
+    """★ (2026-10-21) 같은 pkl 이름을 한 실행 안에서 두 번 쓰면 예외.
+    예전엔 `78_OZ_ERC20.sol` 과 `solmate_ERC20.sol` 이 둘 다 `con_ERC20.pkl` 로 저장되어 나중 것이 **경고 없이** 덮어썼고,
+    web3bugs_78_H_02 가 OZ 대신 solmate ERC20 으로 해석됐다."""
+    prev = _written_pkls.get(pkl_name)
+    if prev is not None and prev != str(sol_path):
+        raise ValueError(f"pkl name collision: {pkl_name} ← {sol_path} (already written from {prev})")
+    _written_pkls[pkl_name] = str(sol_path)
+    out = OBJ_DIR / pkl_name
+    with open(out, 'wb') as f:
+        pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+    return out
+
+
 def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
     """
     .sol 파일 사전분석.
@@ -756,12 +778,9 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
                 pkl_name = f"lib_{parent}_{name}.pkl"
             else:
                 pkl_name = f"lib_{name}.pkl"
-            out = OBJ_DIR / pkl_name
-            with open(out, 'wb') as f:
-                pickle.dump({"cfg": cfg,
-                             "file_level_structs": dict(sa.file_level_structs),
-                             "type_aliases": dict(sa.type_aliases)},
-                            f, protocol=pickle.HIGHEST_PROTOCOL)
+            _write_pkl(pkl_name, {"cfg": cfg,
+                                  "file_level_structs": dict(sa.file_level_structs),
+                                  "type_aliases": dict(sa.type_aliases)}, sol_path)
             funcs = list(cfg.functions.keys())
             print(f"  → {pkl_name} ({len(funcs)} functions: {funcs})")
             # cross-library 호출용: 분석 결과를 전역에 누적
@@ -787,12 +806,9 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
                 pkl_name = f"ifc_{parent}_{name}.pkl"
             else:
                 pkl_name = f"ifc_{name}.pkl"
-            out = OBJ_DIR / pkl_name
-            with open(out, 'wb') as f:
-                pickle.dump({"cfg": cfg,
-                             "file_level_structs": dict(sa.file_level_structs),
-                             "type_aliases": dict(sa.type_aliases)},
-                            f, protocol=pickle.HIGHEST_PROTOCOL)
+            _write_pkl(pkl_name, {"cfg": cfg,
+                                  "file_level_structs": dict(sa.file_level_structs),
+                                  "type_aliases": dict(sa.type_aliases)}, sol_path)
             funcs = list(cfg.functions.keys())
             print(f"  → {pkl_name} ({len(funcs)} functions: {funcs})")
             return name
@@ -816,12 +832,9 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
                 pkl_name = f"con_{parent}_{name}.pkl"
             else:
                 pkl_name = f"con_{name}.pkl"
-            out = OBJ_DIR / pkl_name
-            with open(out, 'wb') as f:
-                pickle.dump({"cfg": cfg,
-                             "file_level_structs": dict(sa.file_level_structs),
-                             "type_aliases": dict(sa.type_aliases)},
-                            f, protocol=pickle.HIGHEST_PROTOCOL)
+            _write_pkl(pkl_name, {"cfg": cfg,
+                                  "file_level_structs": dict(sa.file_level_structs),
+                                  "type_aliases": dict(sa.type_aliases)}, sol_path)
             funcs = list(cfg.functions.keys())
             print(f"  → {pkl_name} ({len(funcs)} functions: {funcs})")
             return name
@@ -835,7 +848,17 @@ def main():
     parser.add_argument("--type", choices=["interfaces", "libraries", "contracts", "all"],
                         default="all", help="분석 대상 타입")
     parser.add_argument("--file", type=str, help="특정 파일만 분석")
+    parser.add_argument("--root", type=str,
+                        help="(2026-10-21) 프로젝트 단위 의존성 트리 루트. <root>/{interfaces,libraries,contracts} 를 분석해 "
+                             "<root>/objectfile 에 pkl 저장 (evaluation/Dataset/build_project_deps.py 가 만든다)")
     args = parser.parse_args()
+
+    if args.root:
+        global LIB_DIR, IFC_DIR, CON_DIR, OBJ_DIR
+        root = pathlib.Path(args.root).resolve()
+        LIB_DIR, IFC_DIR, CON_DIR, OBJ_DIR = (root / "libraries", root / "interfaces",
+                                              root / "contracts", root / "objectfile")
+        OBJ_DIR.mkdir(parents=True, exist_ok=True)
 
     results = {"interfaces": [], "libraries": [], "contracts": []}
 
@@ -872,6 +895,26 @@ def main():
         print(f"[Phase 0] File-level structs: {list(_global_file_level_structs.keys())}")
     if _global_file_level_enums:
         print(f"[Phase 0] File-level enums: {list(_global_file_level_enums.keys())}")
+
+    # ── --root 모드: 세 종류를 **하나로 합쳐** 의존 순서로 정렬 (2026-10-21) ──
+    #    종류별 Phase(interface→library→contract)를 고정하면 library 가 contract 타입을 쓰는 경우
+    #    (solmate SafeTransferLib 이 `ERC20` 을 파라미터 타입으로 씀) library 가 먼저 분석돼 타입을 못 찾는다.
+    #    기존 Dependencies/ 트리는 같은 파일에 `contract ERC20` 스텁을 함께 넣어 피했지만, 프로젝트 트리는
+    #    원본 그대로라 선언별로 나뉘어 있다. _topo_order 는 상속·라이브러리 호출·using·타입 참조를 모두 의존으로
+    #    세고, 파일별 주 선언 종류로 모드를 정하므로 섞인 목록을 그대로 처리한다.
+    if args.root:
+        all_files = []
+        for d in (IFC_DIR, LIB_DIR, CON_DIR):
+            all_files += sorted(d.glob("*.sol")) if d.exists() else []
+        ordered = _topo_order(all_files, "project")
+        print(f"\n[--root] {len(ordered)}개 (종류 통합 위상정렬)")
+        for f, mode in ordered:
+            name = analyze_file(f, mode)
+            if name:
+                results[{"interface": "interfaces", "library": "libraries", "contract": "contracts"}[mode]].append(name)
+        print(f"\n  Interfaces: {len(results['interfaces'])}  Libraries: {len(results['libraries'])}  "
+              f"Contracts: {len(results['contracts'])}")
+        return
 
     # ── 분석 순서: interfaces → libraries → contracts ──
 
