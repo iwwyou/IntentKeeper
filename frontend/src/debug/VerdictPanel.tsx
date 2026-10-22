@@ -25,7 +25,7 @@ export default function VerdictPanel({ result, nav }: { result: AnalysisResult; 
         <div
           key={i}
           className={`verdict-item ${v.status}`}
-          onClick={() => nav.jumpToNode(v.node)}
+          onClick={() => nav.jumpToLine(v.line)}
           title="클릭 → 위반 지점으로 점프"
         >
           <span className="risk">{v.risk}/10</span>

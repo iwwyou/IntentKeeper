@@ -58,7 +58,7 @@ export default function WorkspacePanel() {
         {/* squiggle 이 화면 밖일 수 있으므로 배너로도 알린다 — "편집이 반영 안 됨"이 핵심 정보 */}
         {syntaxErrors.length > 0 && (
           <div className="analyze-error" title={syntaxErrors.map((e) => `L${e.line}: ${e.message}`).join('\n')}>
-            ⚠ 문법 오류 {syntaxErrors.length}건 — 이 편집은 분석에 반영되지 않았습니다 (직전 상태 유지)
+            ⚠ 코드 오류 {syntaxErrors.length}건 — 이 편집은 분석에 반영되지 않았습니다 (직전 정상 상태 유지)
           </div>
         )}
         {activeFile ? (

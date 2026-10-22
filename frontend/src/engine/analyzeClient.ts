@@ -46,6 +46,8 @@ export interface StructureResult {
 export interface EvaluateResult {
   scope: { contract: string; function: string }
   cfg: CFG // nodes.state 채워짐
+  /** Step Into 대상 callee CFG (키 = CalleeRef.key) */
+  callees?: Record<string, CFG>
   top_vars: TopVar[]
   diagnostics?: Diagnostic[] // debug 값 입력 오류(잘못된 interval 등) — 슬롯 옆 표시
 }

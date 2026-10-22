@@ -34,6 +34,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Literal, Optional, TypedDict, Union
 
+from Utils.Errors import SourceError
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 입력 record (slice_solidity 산출 형태와 동일: Dependencies/main.py:53)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -113,12 +115,19 @@ class CalleeRef:
 
 @dataclass
 class CFGNode:
-    id: str
+    id: str            # 노드 uid (2026-10-22) — 식별자. 줄 이동에도 불변
     src_line: int
+    # (2026-10-22, U3) 화면 표시·breakpoint 줄. if/else-if join 은 체인을 닫는 `}` 줄, 그 외는 src_line.
+    display_line: int = -1
     flags: list[NodeFlag] = field(default_factory=list)
     cond_type: Optional[str] = None  # if | else_if | require | while | for | do_while
     # 변수명 → 직렬화된 추상값 ("[lo,hi]" | "address(⊤)" | "top" | ...). 구조 단계엔 빈 dict.
+    #   state = 이 노드 실행 **후**(OUT). intent 검증·변화량 표시용.
     state: dict[str, str] = field(default_factory=dict)
+    # (2026-10-22) 이 노드 실행 **전**(IN) — 프론트 커서 기본 표시("이 줄 실행 직전").
+    #   문장 없는 join/분기 노드는 IN == OUT 이라 state 와 같다. 루프 헤더는 루프 밖에서 들어오는 상태.
+    #   구조 단계엔 빈 dict.
+    in_state: dict[str, str] = field(default_factory=dict)
     # merge 노드면 join 기여 predecessor id들 (backward 양쪽 하이라이트용)
     join_from: Optional[list[str]] = None
     # 루프 헤더 노드면 "루프 진입 전 ↔ 고정점 수렴 후 값이 바뀐 변수" (N3).
@@ -128,6 +137,8 @@ class CFGNode:
     # N4: 이 노드에서 일어나는 호출들. enterable 한 것은 `CfgWithStates.callees[key]` 에
     #     callee CFG(상태 포함)가 들어 있다.
     callees: Optional[list[CalleeRef]] = None
+    # 엔진 노드 이름(`Assign_4`, `while_join_5` …) — 사람이 읽는 라벨일 뿐 식별자가 아니다(줄 이동 시 중복 가능).
+    name: str = ""
 
 
 @dataclass
@@ -232,6 +243,8 @@ class Diagnostic:
     line: int
     message: str
     severity: Literal["error", "warning"] = "error"
+    # (2026-10-22) syntax = 문법(SyntaxValid 게이트), semantic = 사용자 소스 의미 오류(SourceError)
+    category: Literal["syntax", "semantic"] = "syntax"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -310,11 +323,11 @@ def _node_flags(n) -> list[NodeFlag]:
     return flags
 
 
-def _serialize_node_state(n, recorder) -> dict[str, str]:
-    """CFGNode.variables(name→Variables) → {name: "[lo,hi]"/"address(⊤)"/...}.
+def _serialize_node_state(n, recorder, env=None) -> dict[str, str]:
+    """CFGNode.variables(name→Variables) → {name: "[lo,hi]"/"address(⊤)"/...}. env 를 주면 그 환경(IN 상태 등).
     RecordManager._flatten_var 는 인스턴스 상태에 의존하지 않는 순수 평탄화라 재사용 가능."""
     flat: dict[str, str] = {}
-    for name, var in getattr(n, "variables", {}).items():
+    for name, var in (getattr(n, "variables", {}) if env is None else env).items():
         if "" in name:      # (Phase 3b) shadowing 으로 보관된 바깥 binding — 내부용 키
             continue
         recorder._flatten_var(var, name, flat)  # fail-loud: 직렬화 구멍은 그대로 터뜨림
@@ -508,7 +521,7 @@ def _external_call_nodes(fcfg, ext_roots) -> dict:
         for e in _ap_node_exprs(n):
             scan(e, acc)
         if acc:
-            out[n.name] = sorted(set(acc))
+            out[n.uid] = sorted(set(acc))
     return out
 
 
@@ -530,14 +543,16 @@ def _build_callees(fcfg, ca, ext_roots):
     pending = []
     captured = getattr(ca, "_frozen_callee_states", None) or {}
     # ── 1차: CalleeRef 를 전부 만든다 (직렬화는 2차에서) ──────────────
-    for (site, cname, cfunc), states in captured.items():
+    for (site, ordinal, cname, cfunc), states in captured.items():
         ccf = (getattr(ca, "contract_cfgs", None) or {}).get(cname)
         callee_fcfg = ccf.get_function_cfg(cfunc) if ccf is not None else None
         if callee_fcfg is None or isinstance(callee_fcfg, dict):
             continue        # 못 찾음 / 오버로드 모호 → 들어갈 대상에서 제외
-        key = "%s#%s.%s" % (site, cname or "?", cfunc)
+        key = "%s#%d#%s.%s" % (site, ordinal, cname or "?", cfunc)
         lo, hi = _node_line_span(callee_fcfg)
-        pending.append((key, callee_fcfg, states))
+        # 의존성 callee 는 소스가 세션에 없다 → 빌드 시점 display_line 만 쓴다(세션 줄로 계산하면 다른 파일 줄이 섞인다)
+        pending.append((key, callee_fcfg, states, None if getattr(ccf, "from_dependency", False)
+                        else ca.sa.full_code_lines))
         per_node.setdefault(site, []).append(CalleeRef(
             key=key, label="%s.%s" % (cname or "?", cfunc), enterable=True,
             contract=cname, name=cfunc, start_line=lo, end_line=hi))
@@ -547,31 +562,41 @@ def _build_callees(fcfg, ca, ext_roots):
                 key="", label=lb, enterable=False, reason=_OPAQUE_REASON))
     # ── 2차: 직렬화. callee CFG **에도** `per_node` 를 넘겨 중첩 Step Into 를 가능하게 한다
     #   (`_pct` 안의 `Math.mulDiv` 호출 지점이 `_pct` 의 CFG 에서도 보여야 한다).
-    #   ⚠ `per_node` 는 **노드명** 키다. 노드명에 라인번호가 박혀 있어 한 파일 안에서는
-    #     충돌하지 않지만, pkl callee 가 **다른 파일의 같은 라인번호** 노드명을 가지면
-    #     이론상 겹칠 수 있다. 실무상 희박해 지금은 허용하고 기록만 둔다.
+    #   `per_node` 는 노드 **uid** 키다(2026-10-22 — 예전 노드명 키는 줄 이동·다른 파일 같은 줄에서 겹쳤다).
     # ⚠ callee 에는 loop_delta 를 붙이지 않는다 — ledger 는 **라인 번호** 키라서
     #   pkl callee 의 라인이 사용자 파일의 라인과 겹치면 엉뚱한 delta 가 붙는다.
-    for key, callee_fcfg, states in pending:
+    for key, callee_fcfg, states, code_lines in pending:
         cfgs[key] = _serialize_cfg(callee_fcfg, ca.recorder, with_states=True,
-                                   states_override=states, node_callees=per_node,
-                                   with_loop_delta=False)
+                                   states_override=states["state"],
+                                   in_states_override=states["in_state"], node_callees=per_node,
+                                   with_loop_delta=False, code_lines=code_lines)
     return cfgs, per_node
 
 
 def _serialize_cfg(fcfg, recorder, with_states: bool, states_override=None,
-                   node_callees=None, with_loop_delta: bool = True) -> CFG:
+                   node_callees=None, with_loop_delta: bool = True, in_states_override=None,
+                   code_lines=None) -> CFG:
     """엔진 FunctionCFG(graph=networkx DiGraph, 노드=CFGNode) → 프론트 CFG.
     with_states=False 면 state={} (analyze 구조 단계). True 면 추상상태 채움(evaluate)."""
     nodes: list[CFGNode] = []
     # 루프당 한 번만 계산 (노드 루프 안에서 부르면 O(루프²×노드)가 된다)
     nested_heads = _nested_loop_heads(fcfg) if (with_states and with_loop_delta) else set()
     node_callees = node_callees or {}
+    from Utils.DisplayLines import join_display_lines
+    disp = join_display_lines(fcfg, code_lines)
+
+    def _in_of(n, st, ist_given):
+        # IN 이 없는 노드: 문장이 없으면 IN == OUT(join·분기), 문장이 있으면 worklist 를 거치지 않은
+        # 루프 본문(fixpoint 가 처리) — 실행 전 상태를 따로 갖지 않으므로 비워 둔다(프론트는 루프에 들어가지 않는다).
+        if ist_given is not None:
+            return ist_given
+        return st if not getattr(n, "statements", None) else {}
+
     for n in fcfg.graph.nodes():
         join_from = None
         if getattr(n, "join_point_node", False):
-            join_from = [p.name for p in fcfg.graph.predecessors(n)]
-        refs = node_callees.get(n.name) or None
+            join_from = [p.uid for p in fcfg.graph.predecessors(n)]
+        refs = node_callees.get(n.uid) or None
         flags = _node_flags(n)
         if refs:                                    # N4
             flags.append("call")
@@ -580,16 +605,25 @@ def _serialize_cfg(fcfg, recorder, with_states: bool, states_override=None,
         # states_override = callee 직렬화용. callee 의 live `.variables` 는 restore 로
         #   baseline 이 복원돼 있으므로, S1 이 복귀 직전에 떠낸 dict 를 써야 한다.
         if with_states:
-            st = (states_override.get(n.name, {}) if states_override is not None
-                  else _serialize_node_state(n, recorder))
+            if states_override is not None:
+                st = states_override.get(n.uid, {})
+                ist = _in_of(n, st, (in_states_override or {}).get(n.uid))
+            else:
+                st = _serialize_node_state(n, recorder)
+                inn = getattr(n, "in_variables", None)
+                ist = _in_of(n, st, None if inn is None else _serialize_node_state(n, recorder, inn))
         else:
-            st = {}
+            st = ist = {}
+        src = n.src_line if getattr(n, "src_line", None) is not None else -1
         nodes.append(CFGNode(
-            id=n.name,
-            src_line=n.src_line if getattr(n, "src_line", None) is not None else -1,
+            id=n.uid,
+            name=n.name,
+            src_line=src,
+            display_line=disp.get(n.uid, src),
             flags=flags,
             cond_type=getattr(n, "condition_node_type", None),
             state=st,
+            in_state=ist,
             join_from=join_from,
             callees=refs,
             # 구조 단계(analyze)엔 값이 없다 → delta 도 내보내지 않는다. ledger 에 이전
@@ -607,16 +641,16 @@ def _serialize_cfg(fcfg, recorder, with_states: bool, states_override=None,
             kind: EdgeKind = "back_edge"
         else:
             kind = "true" if cond is True else "false" if cond is False else "normal"
-        edges.append(CFGEdge(from_=u.name, to=v.name, kind=kind))
+        edges.append(CFGEdge(from_=u.uid, to=v.uid, kind=kind))
     ret = getattr(fcfg, "return_exit", None)
     err = getattr(fcfg, "error_exit", None)
     return CFG(
-        entry=fcfg.entry_node.name,
-        exit=fcfg.exit_node.name,
+        entry=fcfg.entry_node.uid,
+        exit=fcfg.exit_node.uid,
         nodes=nodes,
         edges=edges,
-        return_exit=ret.name if ret is not None else None,
-        error_exit=err.name if err is not None else None,
+        return_exit=ret.uid if ret is not None else None,
+        error_exit=err.uid if err is not None else None,
     )
 
 
@@ -680,7 +714,7 @@ def _collect_top_vars(fcfg, scope: str) -> list[TopVar]:
             #   strict True 비교로 오탐 방지(interval-top 판별은 후속).
             if getattr(val, "is_top", None) is True and name not in seen:
                 seen.add(name)
-                out.append(TopVar(var=name, kind=type(val).__name__, node=n.name,
+                out.append(TopVar(var=name, kind=type(val).__name__, node=n.uid,
                                   src_line=n.src_line if getattr(n, "src_line", None) is not None else -1,
                                   scope=scope, provenance=None))
     return out
@@ -1047,83 +1081,6 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
     return slots
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 의존성 로딩 — DepSpec 이름으로 objectfile pkl 선별 로드(전부 로드 시 버전 충돌).
-#   topo-sort(임의 첨부 순서)는 미구현(PROGRESS §2.4) — 1차는 명시 deps 만.
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def _find_dep_pkl(name: str):
-    import pathlib
-    base = pathlib.Path(__file__).parent
-    for d in (base / "Dependencies" / "objectfile", base / "Libraries" / "objectfile"):
-        if not d.exists():
-            continue
-        exact = d / f"{name}.pkl"
-        if exact.exists():
-            return exact
-        for pkl in sorted(d.glob(f"*_{name}.pkl")):  # ifc_N_/lib_N_/con_N_ 접두사 형태
-            return pkl
-    return None
-
-
-def _scan_file_level_defs_into(sa) -> None:
-    """의존성 .sol 을 regex 스캔해 type alias + file-level enum 을 sa 에 채운다.
-
-    file-level enum(컨트랙트/인터페이스 밖 최상위 enum)은 pkl 에 구워져 있지 않다 —
-    오프라인 빌드(`EnhancedSolidityVisitor.visitEnumDefinition`)가 file-level 케이스를
-    추적하지 않기 때문. main.py 의 load_dependencies() 가 CLI 경로에서 하는 것과 같은
-    보완을 서버 경로(EngineSession)에도 적용해 두 경로의 동작을 일치시킨다.
-    """
-    import pathlib as _pl, re as _re
-    base = _pl.Path(__file__).parent
-    _type_re = _re.compile(r'type\s+(\w+)\s+is\s+(\w+)\s*;')
-    _enum_re = _re.compile(r'enum\s+(\w+)\s*\{([^}]*)\}', _re.DOTALL)
-    for d in (base / "Dependencies" / "libraries",
-              base / "Dependencies" / "contracts",
-              base / "Dependencies" / "interfaces",
-              base / "Libraries"):
-        if not d.exists():
-            continue
-        for sol in d.rglob("*.sol"):
-            text = sol.read_text(encoding="utf-8", errors="ignore")
-            for alias, underlying in _type_re.findall(text):
-                sa.type_aliases.setdefault(alias, underlying)
-            for enum_name, body in _enum_re.findall(text):
-                members = [m.strip() for m in body.split(",") if m.strip()]
-                if members:
-                    sa.file_level_enums.setdefault(enum_name, members)
-
-
-def _load_dependencies_into(sa, ca, deps: list[DepSpec]) -> None:
-    """명시된 deps 를 objectfile pkl 에서 로드 → ca.contract_cfgs/library_cfgs/interface_names.
-    fail-loud: pkl 없으면 FileNotFoundError(조용한 스킵 없음)."""
-    import pickle
-    _scan_file_level_defs_into(sa)
-    for spec in deps:
-        pkl = _find_dep_pkl(spec.name)
-        if pkl is None:
-            raise FileNotFoundError(f"dependency pkl not found for '{spec.name}' "
-                                    f"(objectfile 에 빌드됐는지 확인)")
-        with open(pkl, "rb") as f:
-            raw = pickle.load(f)
-        if isinstance(raw, dict) and "cfg" in raw:
-            cfg = raw["cfg"]
-            sa.file_level_structs.update(raw.get("file_level_structs", {}))
-            sa.type_aliases.update(raw.get("type_aliases", {}))
-        else:
-            cfg = raw
-        stem = pkl.stem
-        if stem.startswith("ifc_") or spec.kind == "interface":
-            ca.interface_names.add(spec.name)
-            ca.contract_cfgs[spec.name] = cfg
-        elif stem.startswith("lib_") or spec.kind == "library":
-            ca.library_cfgs[spec.name] = cfg
-            ca.contract_cfgs[spec.name] = cfg
-        else:
-            ca.contract_cfgs[spec.name] = cfg
-
-
 def _is_condition_header(code: str) -> bool:
     """body 를 가진 조건 헤더(if/while/for/else-if) — modify 시 in-place(body 보존) 대상.
     require/assert(body 없음)·단순 statement 는 delete+add 로 처리하므로 제외."""
@@ -1132,9 +1089,28 @@ def _is_condition_header(code: str) -> bool:
         ("if ", "if(", "while ", "while(", "for ", "for(", "else if", "} else if"))
 
 
+def _op_line(op) -> int:
+    if op is None:
+        return -1
+    return op["startLine"] if isinstance(op, dict) else op.start
+
+
+def _op_where(op) -> str:
+    if op is None:
+        return "?"
+    if isinstance(op, dict):
+        return f"line {op['startLine']} `{op['code'].strip()[:60]}`"
+    return f"{op.event} line {op.start} ({op.kind}) `{op.code.strip()[:60]}`"
+
+
+class IncrementalSurgeryError(RuntimeError):
+    """증분 편집(CFG 수술) 실패 또는 미지원 — fail loud (2026-10-22 사용자 결정: 전체 재빌드 폴백 폐기).
+    변경은 후보(세션 사본)에만 적용되므로 실패해도 마지막 정상 상태는 그대로다(EngineSession._run_transaction)."""
+
+
 def _is_risky_op(op) -> bool:
-    """surgical 미지원(silent corruption 위험) 편집 → full-rebuild 안전망 대상.
-    try-catch / do-while(통삭제 전제) + 분기 안 break/continue 삭제."""
+    """증분 수술 **미지원** 편집 — try-catch / do-while(통삭제 전제) + break/continue 삭제·수정.
+    (예전엔 full-rebuild 안전망으로 보냈다. 지금은 IncrementalSurgeryError 로 거부한다.)"""
     t = op.code.strip()
     if op.kind in ("break", "continue", "catch"):
         return True
@@ -1157,11 +1133,11 @@ class EngineSession:
     """타겟 1개에 대한 분석 세션.
 
     내부: SolidityAnalyzer 1개 보유(Analyzer/SolidityAnalyzer.py:13) +
-          deps 1회 로드(main.load_dependencies 를 인스턴스 받는 형태로 신규 작성).
+          프로젝트 deps 1회 로드(Dependencies.main.load_project_deps — CLI 와 공용).
           debug 적용은 DebugBatchManager(Analyzer/DebugUnitAnalyzer.py:33) snapshot/restore 로 감쌈.
     """
 
-    def __init__(self, deps: Optional[list[DepSpec]] = None) -> None:
+    def __init__(self, deps_root: Optional[str] = None, exclude: tuple[str, ...] = ()) -> None:
         from Analyzer.SolidityAnalyzer import SolidityAnalyzer
         from Analyzer.DebugUnitAnalyzer import DebugBatchManager
 
@@ -1181,10 +1157,20 @@ class EngineSession:
         # values_version → freeze 된 fcfg (Stage1 states 캐시). 키는 debug 값 직렬화 해시.
         self._states_cache: dict[str, object] = {}
         self._prev_records: list[dict] = []  # B1 증분 diff 기준 (마지막 적용 records)
-        self._deps = deps or []
-        # deps 선별 로드(@IReturn/cross-contract 해소). 없으면 단순 케이스로 동작.
-        if self._deps:
-            _load_dependencies_into(self._sa, self._ca, self._deps)
+        # 프로젝트 단위 deps 로드(@IReturn/cross-contract 해소) — CLI(main.load_dependencies)와 같은 로더.
+        #   2026-10-22: DepSpec 이름으로 전역 objectfile 에서 선별 로드하던 방식 폐기(전역 공용 트리 삭제).
+        #   deps_root 가 없으면 의존성 없이 동작(타깃이 의존성을 참조하면 분석 시점에 명시적 오류).
+        self._deps_root = deps_root
+        self._deps_exclude = tuple(exclude)
+        # (2026-10-22) 에디터의 **현재** 소스 오류. 비어 있지 않으면 엔진 CFG 는 마지막 정상(committed) 버전이고
+        #   현재 소스와 다르다 → evaluate/verify 거부. 성공한 업데이트에서 비운다.
+        self._editor_errors: list[Diagnostic] = []
+        self._load_deps()
+        # (2026-10-22) 의존성만 올린 빈 세션 — **직접 바꾸지 않고 사본만 만든다**. 컨트랙트 수준 선언을 지우거나 고친
+        #   업데이트는 이 사본 위에서 현재 소스 전체를 새로 분석한다(_run_transaction(fresh=True)).
+        self._pristine = (self._sa, self._batch)
+        self._sa, self._batch = self._copy_pair(self._pristine)
+        self._ca = self._sa.contract_analyzer
 
     def close(self) -> None:
         """세션 리소스 해제. (현재는 참조 해제만.)"""
@@ -1342,14 +1328,33 @@ class EngineSession:
         """
         # fail-loud: 드라이버 에러는 그대로 전파. 유저 코드 syntax 검증은 별도(추후 ANTLR
         #   게이트가 누적 코드 파스 실패를 diagnostics 로 산출 — 버그 숨기는 catch-all 아님).
-        diagnostics: list[Diagnostic] = []
-        for rec in records:
-            self._apply_code_record(rec["code"], rec["startLine"], rec["endLine"], rec["event"],
-                                    rec.get("closeBefore", False))
-        self._prev_records = list(records)  # B1 증분 diff 기준
+        def apply(cur):
+            for rec in records:
+                cur["op"] = rec
+                self._apply_code_record(rec["code"], rec["startLine"], rec["endLine"], rec["event"],
+                                        rec.get("closeBefore", False))
+        errs = self._run_transaction(apply)
+        if errs:
+            # 사용자 소스 오류 — 아무것도 반영하지 않는다(committed = 빈 세션). 다음 update 가 [] 와 diff 한다.
+            self._editor_errors = errs
+            return self.structure(contract, func, errs)
+        self._prev_records = list(records)  # B1 증분 diff 기준 (= committed records)
+        self._editor_errors = []
         # 코드 변경 → 이전 states 캐시 전부 무효화 (analyze→evaluate→verify 체인 종속).
         self._states_cache.clear()
-        return self.structure(contract, func, diagnostics)
+        return self.structure(contract, func, [])
+
+    def analyze_source(self, source: str, contract: Optional[str] = None,
+                       func: Optional[str] = None) -> Structure:
+        """전체 소스 → slice → analyze. 슬라이스 단계의 입력 전제 위반(SourceError)도 진단으로 돌려준다."""
+        from Dependencies.main import slice_solidity
+        try:
+            records = slice_solidity(source)
+        except SourceError as ex:
+            self._editor_errors = [Diagnostic(line=ex.line if ex.line is not None else -1,
+                                              message=str(ex), category="semantic")]
+            return self.structure(contract, func, self._editor_errors)
+        return self.analyze(records, contract=contract, func=func)
 
     def structure(self, contract: Optional[str] = None, func: Optional[str] = None,
                   diagnostics: Optional[list] = None) -> Structure:
@@ -1360,7 +1365,8 @@ class EngineSession:
         if fcfg is None:
             return Structure(scope=self._scope, cfg=CFG(entry="ENTRY", exit="EXIT"),
                              debug_slots=[], diagnostics=diags)
-        cfg = _serialize_cfg(fcfg, self._ca.recorder, with_states=False)
+        cfg = _serialize_cfg(fcfg, self._ca.recorder, with_states=False,
+                             code_lines=self._sa.full_code_lines)
         ccf = self._ca.contract_cfgs.get(contract) if contract else None
         # 이 함수의 소스 텍스트만 슬라이스(상태변수/글로벌 사용 판정용) — 함수 CFG 라인 스팬 기준.
         body_lines = [n.src_line for n in fcfg.graph.nodes() if getattr(n, "src_line", None)]
@@ -1460,47 +1466,116 @@ class EngineSession:
 
         ok, diags = syntax_valid(new_source)
         if not ok:
+            self._editor_errors = [Diagnostic(line=d["line"], message=d["message"]) for d in diags]
             return {"ok": False, "diagnostics": diags}
 
-        new_records = slice_solidity(new_source)
+        try:
+            new_records = slice_solidity(new_source)
+        except SourceError as ex:          # 입력 전제 위반(한 입력 = 한 문장) — 소스 오류로 진단
+            self._editor_errors = [Diagnostic(line=ex.line if ex.line is not None else -1,
+                                              message=str(ex), category="semantic")]
+            return {"ok": False, "diagnostics": [asdict(d) for d in self._editor_errors]}
         ops = diff_records(self._prev_records, new_records)
         mods = [o for o in ops if o.event == "modify"]
         dels = sorted((o for o in ops if o.event == "delete"), key=lambda o: o.start, reverse=True)
         adds = sorted((o for o in ops if o.event == "add"), key=lambda o: o.start)
 
-        # 안전망(§5.6): surgical 미지원 구조(try/do-while/catch/break/continue)가 끼면 silent corruption
-        #   위험 → 검증된 full-rebuild 로. 그 외는 surgical 시도하되 예외 시 rebuild 폴백.
-        if any(_is_risky_op(o) for o in (dels + mods)):
-            self._full_rebuild(new_records)
-        else:
-            try:
-                for o in mods:
-                    self._apply_modify(o)
-                for o in dels:
-                    self._apply_delete(o.start, o.end, o.kind)
-                for o in adds:
-                    self._apply_code_record(o.code, o.start, o.end, "add", o.close_before)
-                self._prev_records = list(new_records)
-            except Exception:
-                self._full_rebuild(new_records)  # surgical 실패 → 안전 폴백
+        # (2026-10-22, 사용자 결정) **컨트랙트 수준 선언**(상태변수·struct/멤버·enum/멤버·event·modifier·함수 헤더 등)의
+        #   삭제·수정은 증분 수술 대신 현재 소스 전체를 새로 분석한다. 이런 선언은 여러 함수의 해석(변수 환경 주입·
+        #   타입)에 쓰이는데, 수술은 CFG 노드만 떼어 내고 등록된 정의는 지우지 않았다(struct P 를 지워도 f(P) 가 옛 P 로
+        #   정상 처리됨). 새로 분석하면 지워진 선언을 참조하는 곳이 SourceError 로 드러나고 남는 정의도 없다.
+        #   함수 본문 문장 편집과 선언 추가는 증분 그대로.
+        if any(self._is_declaration_level(o.start) for o in (dels + mods)):
+            def rebuild(cur):
+                for rec in new_records:
+                    cur["op"] = rec
+                    self._apply_code_record(rec["code"], rec["startLine"], rec["endLine"], rec["event"],
+                                            rec.get("closeBefore", False))
+            errs = self._run_transaction(rebuild, fresh=True)
+            if errs:
+                self._editor_errors = errs
+                return {"ok": False, "diagnostics": [asdict(d) for d in errs]}
+            self._prev_records = list(new_records)
+            self._editor_errors = []
+            self._states_cache.clear()
+            return {"ok": True, "diagnostics": []}
 
+        # (2026-10-22) fail loud — 예전엔 미지원 구조(try/do-while/catch/break/continue)는 full-rebuild 로,
+        #   수술 중 예외도 full-rebuild 로 덮었다(수술 버그가 결과에 드러나지 않음). 지금은 둘 다 오류다.
+        #   미지원 판정은 수술 시작 **전**에 하므로 이 경우 세션 상태는 그대로다.
+        risky = [o for o in (dels + mods) if _is_risky_op(o)]
+        if risky:
+            o = risky[0]
+            raise IncrementalSurgeryError(
+                f"증분 편집 미지원: {o.event} line {o.start} ({o.kind}) `{o.code.strip()[:60]}` — "
+                f"이 구조의 CFG 수술은 아직 구현되지 않았다 (세션 상태는 변경 전 그대로)")
+        def apply(cur):
+            for o in mods:
+                cur["op"] = o; self._apply_modify(o)
+            for o in dels:
+                cur["op"] = o; self._apply_delete(o.start, o.end, o.kind)
+            for o in adds:
+                cur["op"] = o; self._apply_code_record(o.code, o.start, o.end, "add", o.close_before)
+        errs = self._run_transaction(apply)
+        if errs:
+            self._editor_errors = errs
+            return {"ok": False, "diagnostics": [asdict(d) for d in errs]}
+        self._prev_records = list(new_records)      # committed records 는 성공했을 때만 갱신
+        self._editor_errors = []
         self._states_cache.clear()
         return {"ok": True, "diagnostics": []}
 
-    def _full_rebuild(self, records: list) -> None:
-        """안전망: 분석기를 새로 만들어 records 전체 재적용(검증된 add-only 경로). 증분 실패 시 폴백."""
-        from Analyzer.SolidityAnalyzer import SolidityAnalyzer
-        from Analyzer.DebugUnitAnalyzer import DebugBatchManager
-        self._sa = SolidityAnalyzer()
-        self._ca = self._sa.contract_analyzer
-        self._batch = DebugBatchManager(self._ca, self._ca.snapman)
-        self._ca._capture_debug_fcfg = True
-        if self._deps:
-            _load_dependencies_into(self._sa, self._ca, self._deps)
-        for rec in records:
-            self._apply_code_record(rec["code"], rec["startLine"], rec["endLine"], rec["event"],
-                                    rec.get("closeBefore", False))
-        self._prev_records = list(records)
+    # ── (2026-10-22) 업데이트 트랜잭션 ─────────────────────────────────────────
+    #   한 번의 analyze/update 가 만드는 연산 전체를 **후보(세션 사본)** 에 적용하고, 전부 성공하면 후보로 교체한다.
+    #   실패하면 후보를 버린다 → 마지막 정상(committed) 상태는 한 번도 바뀌지 않는다. 그래서
+    #     · 사용자 소스 오류(SourceError) = 진단으로 돌려주고 세션은 계속 쓴다(편집 중 흔한 상태).
+    #     · 그 밖의 예외 = 엔진 내부 실패 — 숨기지 않고 올린다(전체 재빌드로 덮지 않는다). 세션은 오염되지 않는다.
+    #   사본은 deepcopy 이되 의존성 CFG(로드 후 불변)는 공유한다 — 측정상 6~10ms (의존성까지 복사하면 수백 ms).
+    _DECL_BLOCKS = ("contract", "abstract contract", "interface", "library", "struct", "enum")
+
+    def _is_declaration_level(self, line: int) -> bool:
+        """committed 소스에서 line 이 함수 본문 밖(파일·컨트랙트·struct·enum 블록 직속)인가."""
+        ln = self._ca._enclosing_open_brace_line(line, inclusive=False)
+        if ln is None:
+            return True
+        ctx = self._ca.determine_top_level_context(self._sa.full_code_lines.get(ln, ""))
+        return ctx in self._DECL_BLOCKS
+
+    @staticmethod
+    def _copy_pair(pair):
+        """(SolidityAnalyzer, DebugBatchManager) deepcopy — 의존성 CFG(로드 후 불변, from_dependency)는 공유."""
+        import copy
+        ca = pair[0].contract_analyzer
+        shared = {}
+        for v in list(ca.contract_cfgs.values()) + list(ca.library_cfgs.values()):
+            if getattr(v, "from_dependency", False):
+                shared[id(v)] = v
+        return copy.deepcopy(pair, shared)
+
+    def _run_transaction(self, apply_fn, fresh: bool = False) -> list:
+        """fresh=False: 현재(committed) 세션 사본에 증분 적용. fresh=True: 의존성만 올린 빈 세션 사본에서 시작
+        (컨트랙트 수준 선언의 삭제·수정 — 그 선언을 참조하던 곳까지 새로 해석해야 하므로 현재 소스 전체를 다시 분석)."""
+        committed = (self._sa, self._ca, self._batch)
+        cand_sa, cand_batch = self._copy_pair(self._pristine if fresh else (self._sa, self._batch))
+        self._sa, self._ca, self._batch = cand_sa, cand_sa.contract_analyzer, cand_batch
+        cur: dict = {"op": None}
+        try:
+            apply_fn(cur)
+        except SourceError as ex:
+            self._sa, self._ca, self._batch = committed
+            return [Diagnostic(line=ex.line if ex.line is not None else _op_line(cur["op"]),
+                               message=str(ex), category="semantic")]
+        except Exception as ex:
+            self._sa, self._ca, self._batch = committed
+            raise IncrementalSurgeryError(
+                f"증분 분석 실패: {_op_where(cur['op'])}: {type(ex).__name__}: {ex} "
+                f"— 이 변경은 반영되지 않았다(직전 정상 상태 유지)") from ex
+        return []
+
+    def _load_deps(self) -> None:
+        if self._deps_root is not None:
+            from Dependencies.main import load_project_deps
+            load_project_deps(self._sa, self._ca, self._deps_root, self._deps_exclude, verbose=False)
 
     def _apply_delete(self, start: int, end: int, kind: str) -> None:
         """CFG surgery(delete_cfg_range, line_info 사용) → 소스 라인 장부(update_code delete) 순.
@@ -1538,6 +1613,7 @@ class EngineSession:
           * 반환은 불변 스냅샷. 엔진 객체는 리셋된 채 다음 run 대기.
           * top_vars: ⊤(top) 으로 평가된 변수 수집(provenance 는 현재 None).
         """
+        self._require_valid_source()
         if contract or func:
             sc = self._scope or Scope(contract="", function="")
             self._scope = Scope(contract=contract or sc.contract, function=func or sc.function)
@@ -1551,7 +1627,8 @@ class EngineSession:
                                  cfg=CFG(entry="ENTRY", exit="EXIT"), diagnostics=diags)
         if frozen is None:
             # 값 없음(또는 전부 미입력/오류) → 구조만. 프론트는 슬롯 입력/오류표시.
-            cfg = _serialize_cfg(fcfg, self._ca.recorder, with_states=False)
+            cfg = _serialize_cfg(fcfg, self._ca.recorder, with_states=False,
+                             code_lines=self._sa.full_code_lines)
             return CfgWithStates(scope=self._scope, cfg=cfg, top_vars=[], diagnostics=diags)
 
         self._states_cache[_values_key(debug_values, self._scope)] = frozen
@@ -1563,10 +1640,19 @@ class EngineSession:
                                     getattr(self._ca, "contract_cfgs", None))
         callee_cfgs, node_callees = _build_callees(frozen, self._ca, _ext)
         cfg = _serialize_cfg(frozen, self._ca.recorder, with_states=True,
+                             code_lines=self._sa.full_code_lines,
                              node_callees=node_callees)
         top_vars = _collect_top_vars(frozen, scope=self._scope.function)
         return CfgWithStates(scope=self._scope, cfg=cfg, callees=callee_cfgs,
                              top_vars=top_vars, diagnostics=diags)
+
+    def _require_valid_source(self) -> None:
+        """(2026-10-22) 에디터의 현재 소스에 오류가 있으면 디버깅 거부 — 엔진 CFG 는 마지막 정상 버전이라
+        현재 코드에 대한 결과가 아니다."""
+        if self._editor_errors:
+            first = self._editor_errors[0]
+            raise SourceError(f"현재 코드에 오류가 있어 디버깅할 수 없음 — L{first.line}: {first.message}",
+                              line=first.line)
 
     def verify(self, intents: list[IntentItem],
                contract: Optional[str] = None, func: Optional[str] = None,
@@ -1584,6 +1670,7 @@ class EngineSession:
           하지 않는 프론트(세션성, decision #32)가 재접속했을 때 **이전 생애의 유령 값**으로
           verdict 가 나와 위 소프트 게이트가 무력화된다.
         """
+        self._require_valid_source()
         if contract or func:
             sc = self._scope or Scope(contract="", function="")
             self._scope = Scope(contract=contract or sc.contract, function=func or sc.function)
@@ -1618,11 +1705,12 @@ class EngineSession:
         self._set_context(live_fcfg, sc.contract, sc.function)
         self._attach_intents(live_fcfg, intents)
 
-        # live node.intents → frozen node.intents (이름 매칭). exit 노드(post) 포함.
-        live_by_name = {n.name: list(getattr(n, "intents", []) or [])
-                        for n in live_fcfg.graph.nodes()}
+        # live node.intents → frozen node.intents (uid 매칭 — frozen 은 live 의 pickle 사본이라 uid 가 같다.
+        #   예전 이름 매칭은 줄 이동으로 이름이 중복되면 intent 를 다른 노드에 붙였다). exit 노드(post) 포함.
+        live_by_uid = {n.uid: list(getattr(n, "intents", []) or [])
+                       for n in live_fcfg.graph.nodes()}
         for fn in frozen_fcfg.graph.nodes():
-            fn.intents = list(live_by_name.get(fn.name, []))
+            fn.intents = list(live_by_uid.get(fn.uid, []))
 
         engine = self._ca.engine
         prev = getattr(self._ca, "current_target_function_cfg", None)
@@ -1684,14 +1772,15 @@ def analyze_once(
     records: list[Record],
     debug_values: Optional[dict[SlotKey, RangeValue]] = None,
     intents: Optional[list[IntentItem]] = None,
-    deps: Optional[list[DepSpec]] = None,
+    deps_root: Optional[str] = None,
+    exclude: tuple[str, ...] = (),
 ) -> AnalysisResultDict:
     """세션 없이 fresh 1회 통짜 분석(L2 실험·격리 실행용). [인터랙티브는 3콜, 실험은 이 1콜]
 
-    내부: EngineSession(deps) 만들어 analyze → evaluate → verify → to_analysis_result 후 close.
+    내부: EngineSession(deps_root, exclude) 만들어 analyze → evaluate → verify → to_analysis_result 후 close.
     인터랙티브 캐시 계층(dirty 신호)이 필요 없는 배치/격리 시나리오 전용.
     """
-    sess = EngineSession(deps)
+    sess = EngineSession(deps_root, exclude)
     try:
         structure = sess.analyze(records)
         states = sess.evaluate(debug_values or {})

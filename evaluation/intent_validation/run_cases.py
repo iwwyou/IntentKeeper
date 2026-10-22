@@ -170,8 +170,6 @@ def main_cli():
     ap.add_argument("--only")
     ap.add_argument("--tag", default="current")
     ap.add_argument("--timeout", type=int, default=900)
-    ap.add_argument("--rebuilt", action="store_true",
-                    help="(b) 재구성 케이스(cases_rebuilt/) + 프로젝트 단위 의존성(Dataset/deps/<p>) 사용")
     a = ap.parse_args()
     if a.one:
         print("@@JSON@@" + json.dumps(run_one(pathlib.Path(a.one)), ensure_ascii=False))
@@ -185,11 +183,12 @@ def main_cli():
         cid = r["case_id"]
         if a.only and cid != a.only:
             continue
-        p = (HERE / "cases_rebuilt" / f"{cid}.json") if a.rebuilt else case_path(cid)
+        # (2026-10-22) 재구성 케이스(cases_rebuilt/) + 프로젝트 단위 의존성(Dataset/deps/<p>) 만 — 전역 공용 pkl 트리 폐기.
+        #   RQ1/cases 는 rebuild_cases.py 의 어노테이션 원본(case_path)으로만 쓴다.
+        p = HERE / "cases_rebuilt" / f"{cid}.json"
         env = dict(os.environ, PYTHONIOENCODING="utf-8")
-        if a.rebuilt:
-            env["IQ_DEPS_ROOT"] = str(DS / "deps" / project_key(r))
-            env["IQ_DEPS_EXCLUDE"] = ",".join(declared_names(DS / "target_contraction_auto" / f"{cid}.sol"))
+        env["IQ_DEPS_ROOT"] = str(DS / "deps" / project_key(r))
+        env["IQ_DEPS_EXCLUDE"] = ",".join(declared_names(DS / "target_contraction_auto" / f"{cid}.sol"))
         if not p.exists():
             out[cid] = {"error": f"case file missing: {p}"}
             print(f"{cid:<34} MISSING {p}")

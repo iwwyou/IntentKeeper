@@ -3231,3 +3231,31 @@ PRBMath* 두 파일이 `[ANTLR]` 157건(전체 187 중)을 차지한다.
   rebuilt 44/48 동일(나머지 = Nokon 복귀·70_H_04/10 오류 해소·35_H_11 상태 변화).
 - **보고(미수정)**: `_pow_fits` 과보수(`2**200` → ⊤, 정밀도), 범위 인덱스 쓰기 unsound(동적 배열 무시·정적 배열 강한 갱신·매핑 기존
   키만), 반환문 여러 개인 다중 반환 함수가 첫 경로 값만 반환(리스트 join 없음 → 폴백).
+
+## F64. 전역 의존성 트리 폐기·로더 통합·증분 수술 fail loud (2026-10-22, 사용자 결정)
+
+- **전역 트리 폐기**: `Dependencies/{objectfile,interfaces,libraries,contracts}`·`Libraries/`·`Analyzer/CFGSerializer{,Pickle}.py` 삭제.
+  의존성은 프로젝트 단위(`evaluation/Dataset/deps/<p>`)만. 이유: 전역 풀의 동명이인(contract Roles vs library Roles)·판 혼입
+  (OZ vs solmate ERC20, F62 의 `FloatStruct`)은 실제 컴파일 단위와 다른 인공 집합이라 생긴다.
+- **로더 통합**: CLI(`main.load_dependencies`)와 서버(`engine_api._load_dependencies_into`, DepSpec 선별)가 따로 있어 동작이
+  어긋났다(file-level enum 덮어쓰기 vs setdefault 등) → `Dependencies.main.load_project_deps` 하나로.
+- **증분 수술 fail loud**: `EngineSession.update()` 가 미지원 구조(try/catch·do-while·break/continue 삭제·수정)를 전체 재빌드로
+  보내고, 수술 중 예외도 `except Exception: _full_rebuild` 로 삼켰다 — 수술 버그가 결과에 드러나지 않는 폴백.
+  → `IncrementalSurgeryError`: 미지원은 수술 전 거부(세션 불변), 수술 중 실패는 세션 오염 표시 후 모든 공개 메서드 거부.
+  서버는 오염 세션을 캐시에서 제거.
+- **검증**: temp 16종 통과(`test_safety_net` 은 거부 검증으로 변경 8/8, `test_engine_fixes` 의 로더 이름 검사 갱신),
+  smoke(`deps/n_BoostToken` SafeMath 로드), micro 기대 실패 3개만, rebuilt 48/48 이전과 동일.
+- **남은 것(보고)**: builder 수술 함수(`_delete_early_exit` 등)의 조용한 `return []` 중 "처리 불가" 경우가 여전히 no-op.
+
+## F65. 노드 uid·실행 전 상태·표시 줄·callee 호출 키 (2026-10-22, 사용자 승인 F1/F2/U3)
+
+- **노드 uid**: 직렬화 id 가 노드 이름(`Assign_4` = 생성 시점 줄)이라 증분 편집으로 줄이 밀리면 중복됐다(실측: 줄 삽입 후
+  `Assign_4` 2개). intent live→frozen 대응·callee 상태·TopVar 도 이름 키라 같은 문제. → `CFGNode.uid`(uuid, 불변), 모든 키 uid.
+  uid 없는 pkl 은 `__setstate__` 에서 재빌드 요구 오류.
+- **IN 상태**: worklist 가 선행 join·scope 정리 직후 `in_variables` 저장(문장 노드·루프 헤더·φ). 루프 헤더 IN = back-edge
+  선행 미방문 시점 = 루프 밖에서 들어오는 상태.
+- **표시 줄**: if/else-if join 은 조건 줄에 생성·첫 `} else` 줄에 등록돼 화면 위치가 블록 중간이었다 → 체인을 닫는 `}` 줄 계산.
+- **callee 호출 키 결함 2건**: ① 키 (호출 노드, 함수) — 같은 노드에서 같은 함수를 두 번 부르면 앞 호출이 사라짐 → 노드 안
+  호출 식 순번 추가. ② callee 해석이 `_call_site_node` 를 자기 노드로 덮은 채 복귀 → 같은 문장의 다음 호출이 callee 의
+  마지막 노드를 호출 지점으로 잡음(조건식 안 호출은 직전 문장 노드) → 복귀 시 복원, 조건 노드에서 지정.
+- **검증**: temp 16/16, micro 동일, rebuilt 48 엔진 효과 48/48 동일.

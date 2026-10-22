@@ -75,7 +75,7 @@ export default function DebugView() {
       {/* 문법 오류 상태에선 아래 CFG/값이 "직전 유효 코드"의 것이다 — 최신으로 오인하면 안 됨 */}
       {syntaxErrors.length > 0 && (
         <div className="analyze-error" title={syntaxErrors.map((e) => `L${e.line}: ${e.message}`).join('\n')}>
-          ⚠ 문법 오류 {syntaxErrors.length}건 — 아래 결과는 직전 유효 코드 기준입니다
+          ⚠ 코드 오류 {syntaxErrors.length}건 — 아래 결과는 직전 정상 코드 기준이며 디버깅(Apply)은 막혀 있습니다
         </div>
       )}
 

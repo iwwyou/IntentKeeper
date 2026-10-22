@@ -16,12 +16,22 @@ export type NodeFlag =
 export type EdgeKind = 'normal' | 'true' | 'false' | 'back_edge'
 
 export interface CFGNode {
+  /** 노드 uid — 생성 시 한 번 정해지고 증분 편집(줄 이동)에도 바뀌지 않는다 (2026-10-22). */
   id: string
+  /** 엔진 노드 이름(`Assign_4`) — 사람이 읽는 라벨일 뿐 식별자가 아니다(줄 이동 시 중복 가능). */
+  name?: string
   src_line: number
+  /** 화면 표시·breakpoint 줄. if/else-if join 은 체인을 닫는 `}` 줄, 그 외는 src_line (U3). */
+  display_line: number
   flags: NodeFlag[]
   cond_type?: string // if | else_if | require | while | for | do_while
-  /** 변수명 → 직렬화된 추상값 ("[lo,hi]" | "address(⊤)" | "top" | ...) */
+  /** 실행 **후**(OUT) 상태: 변수명 → 직렬화된 추상값 ("[lo,hi]" | "address(⊤)" | "top" | ...) */
   state: Record<string, string>
+  /**
+   * 실행 **전**(IN) 상태 — 커서의 기본 표시("이 줄 실행 직전"). join·분기 노드는 state 와 같다.
+   * 루프 헤더는 루프 밖에서 들어오는 상태(back-edge 제외). 루프 본문 문장은 비어 있다(루프에 들어가지 않음).
+   */
+  in_state: Record<string, string>
   /** merge 노드면 join에 기여한 predecessor 노드 id들 (backward 양쪽 하이라이트용) */
   join_from?: string[]
   /**

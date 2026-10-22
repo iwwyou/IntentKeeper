@@ -8,10 +8,10 @@ debug flush 마다 Engine 의 freeze 게이트(`_capture_debug_fcfg`)로 해석 
 엔진 코드는 건드리지 않는다 — flush 를 감싸는 것은 이 하네스 안에서만.
 
 사용:
-  .venv/Scripts/python.exe evaluation/refactor/baseline_cases.py --tag p0            # legacy 케이스(RQ1/cases)
-  .venv/Scripts/python.exe evaluation/refactor/baseline_cases.py --tag p0 --rebuilt  # cases_rebuilt + 프로젝트 deps
+  .venv/Scripts/python.exe evaluation/refactor/baseline_cases.py --tag p0            # cases_rebuilt + 프로젝트 deps
   .venv/Scripts/python.exe evaluation/refactor/baseline_cases.py --tag p0 --only web3bugs_5_H_07
-출력: evaluation/refactor/baseline/<tag>_<legacy|rebuilt>.json
+출력: evaluation/refactor/baseline/<tag>_rebuilt.json
+(2026-10-22) legacy 모드(RQ1/cases + 전역 공용 pkl 트리) 폐기 — 전역 트리 삭제. 기존 *_legacy.json 은 기록으로만 남는다.
 """
 import argparse
 import contextlib
@@ -198,7 +198,6 @@ def main_cli():
     ap.add_argument("--only")
     ap.add_argument("--tag", default="p0")
     ap.add_argument("--timeout", type=int, default=900)
-    ap.add_argument("--rebuilt", action="store_true")
     a = ap.parse_args()
     if a.one:
         print("@@JSON@@" + json.dumps(run_one(pathlib.Path(a.one)), ensure_ascii=False))
@@ -211,11 +210,10 @@ def main_cli():
         cid = r["case_id"]
         if a.only and cid != a.only:
             continue
-        p = (IV / "cases_rebuilt" / f"{cid}.json") if a.rebuilt else rc.case_path(cid)
+        p = IV / "cases_rebuilt" / f"{cid}.json"
         env = dict(os.environ, PYTHONIOENCODING="utf-8")
-        if a.rebuilt:
-            env["IQ_DEPS_ROOT"] = str(DS / "deps" / project_key(r))
-            env["IQ_DEPS_EXCLUDE"] = ",".join(rc.declared_names(DS / "target_contraction_auto" / f"{cid}.sol"))
+        env["IQ_DEPS_ROOT"] = str(DS / "deps" / project_key(r))
+        env["IQ_DEPS_EXCLUDE"] = ",".join(rc.declared_names(DS / "target_contraction_auto" / f"{cid}.sol"))
         if not p.exists():
             out[cid] = {"error": f"case file missing: {p}"}
             continue
@@ -231,7 +229,7 @@ def main_cli():
         e = (" ERR " + d["error"].splitlines()[0][:80]) if d.get("error") else ""
         print(f"{cid:<34} {d['verdict']:<12} runs={len(d.get('runs', []))} t={d.get('elapsed_s', '-')}s{e}", flush=True)
     OUT.mkdir(exist_ok=True)
-    rp = OUT / f"{a.tag}_{'rebuilt' if a.rebuilt else 'legacy'}.json"
+    rp = OUT / f"{a.tag}_rebuilt.json"
     if a.only and rp.exists():
         merged = json.loads(rp.read_text(encoding="utf-8")); merged.update(out); out = merged
     rp.write_text(json.dumps(out, indent=1, ensure_ascii=False, sort_keys=True), encoding="utf-8")

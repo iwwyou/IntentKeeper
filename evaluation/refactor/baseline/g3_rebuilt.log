@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       Violated     runs=1 t=0.094s
+numscout_BoostToken_indivisible    Violated     runs=1 t=0.704s
+numscout_BoostToken_operator       Violated     runs=1 t=0.715s
+numscout_EthereumGod               Satisfied    runs=1 t=0.867s
+numscout_HIT                       Violated     runs=1 t=0.274s
+numscout_Nokon                     Warning      runs=1 t=0.205s
+numscout_WANGMI                    Violated     runs=1 t=0.832s
+web3bugs_101_H_01                  Violated     runs=1 t=0.181s
+web3bugs_112_H_01                  Violated     runs=1 t=0.17s
+web3bugs_113_H_05                  Violated     runs=1 t=0.362s
+web3bugs_16_H_04                   None         runs=0 t=0.135s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_16_H_06                   None         runs=0 t=0.11s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_192_H_01                  None         runs=1 t=0.364s
+web3bugs_29_H_08                   None         runs=1 t=0.14s
+web3bugs_29_H_11                   Warning      runs=1 t=0.551s
+web3bugs_31_H_01                   None         runs=0 t=0.347s ERR ValueError: external call return type unresolved: IERC20Upgradeable.safeTransfer
+web3bugs_35_H_08                   None         runs=0 t=0.094s ERR SourceError: Type 'Position' is not defined as struct, enum, or type alias in co
+web3bugs_35_H_10                   None         runs=0 t=0.093s ERR SourceError: Type 'Position' is not defined as struct, enum, or type alias in co
+web3bugs_35_H_11                   Violated     runs=1 t=0.128s
+web3bugs_35_H_12                   None         runs=0 t=0.095s ERR SourceError: Type 'Position' is not defined as struct, enum, or type alias in co
+web3bugs_36_H_02                   None         runs=0 t=0.021s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_3_H_04                    None         runs=1 t=0.149s
+web3bugs_3_H_05                    None         runs=1 t=3.127s
+web3bugs_42_H_01                   Warning      runs=1 t=0.369s
+web3bugs_45_H_01                   None         runs=1 t=1.167s
+web3bugs_47_H_02                   None         runs=1 t=0.17s
+web3bugs_51_H_02                   None         runs=0 t=0.025s ERR AttributeError: 'LibraryCFG' object has no attribute 'events'
+web3bugs_52_H_04                   Warning      runs=1 t=0.438s
+web3bugs_52_H_23                   None         runs=0 t=0.131s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Warning      runs=1 t=0.44s
+web3bugs_56_H_02                   None         runs=1 t=0.17s
+web3bugs_58_H_02                   None         runs=0 t=0.023s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_59_H_04                   None         runs=1 t=0.287s
+web3bugs_5_H_07                    Violated     runs=1 t=0.091s
+web3bugs_5_H_08                    Violated     runs=1 t=0.138s
+web3bugs_5_H_12                    Violated     runs=1 t=0.128s
+web3bugs_60_H_01                   Violated     runs=1 t=0.174s
+web3bugs_62_H_03                   None         runs=0 t=0.25s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   None         runs=1 t=0.341s
+web3bugs_62_H_10                   None         runs=0 t=0.198s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   None         runs=0 t=0.024s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_70_H_04                   None         runs=0 t=0.411s ERR ValueError: Member 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_70_H_05                   None         runs=0 t=0.23s ERR ValueError: 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_70_H_10                   None         runs=0 t=0.357s ERR ValueError: Member 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_77_H_01                   Violated     runs=1 t=0.104s
+web3bugs_78_H_02                   Unreachable  runs=1 t=0.159s
+web3bugs_79_H_02                   Violated     runs=1 t=0.361s
+web3bugs_83_H_01                   Violated     runs=1 t=0.215s
+
+verdicts: {'Violated': 16, 'Satisfied': 1, 'Warning': 5, 'None': 25, 'Unreachable': 1} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\g3_rebuilt.json

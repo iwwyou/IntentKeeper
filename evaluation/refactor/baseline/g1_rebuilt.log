@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       Violated     runs=1 t=0.09s
+numscout_BoostToken_indivisible    Violated     runs=1 t=0.69s
+numscout_BoostToken_operator       Violated     runs=1 t=0.746s
+numscout_EthereumGod               Satisfied    runs=1 t=0.907s
+numscout_HIT                       Violated     runs=1 t=0.254s
+numscout_Nokon                     Warning      runs=1 t=0.191s
+numscout_WANGMI                    Violated     runs=1 t=0.819s
+web3bugs_101_H_01                  Violated     runs=1 t=0.183s
+web3bugs_112_H_01                  Violated     runs=1 t=0.298s
+web3bugs_113_H_05                  Violated     runs=1 t=0.389s
+web3bugs_16_H_04                   None         runs=1 t=0.25s
+web3bugs_16_H_06                   Violated     runs=1 t=0.157s
+web3bugs_192_H_01                  None         runs=1 t=0.49s
+web3bugs_29_H_08                   None         runs=1 t=0.149s
+web3bugs_29_H_11                   Warning      runs=1 t=0.775s
+web3bugs_31_H_01                   None         runs=0 t=0.497s ERR ValueError: unresolved member '.mul' on Variables value <Domain.Variable.Variabl
+web3bugs_35_H_08                   None         runs=0 t=0.147s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_35_H_10                   None         runs=0 t=0.18s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_35_H_11                   Violated     runs=1 t=0.395s
+web3bugs_35_H_12                   None         runs=0 t=0.142s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_36_H_02                   None         runs=0 t=0.03s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_3_H_04                    None         runs=1 t=0.42s
+web3bugs_3_H_05                    None         runs=1 t=15.58s
+web3bugs_42_H_01                   Warning      runs=1 t=0.505s
+web3bugs_45_H_01                   None         runs=1 t=1.765s
+web3bugs_47_H_02                   None         runs=1 t=0.161s
+web3bugs_51_H_02                   None         runs=0 t=0.032s ERR AttributeError: 'LibraryCFG' object has no attribute 'events'
+web3bugs_52_H_04                   Warning      runs=1 t=0.773s
+web3bugs_52_H_23                   None         runs=0 t=0.248s ERR ValueError: modifier 'supportedToken': expected 0 arguments, got 1
+web3bugs_52_H_34                   Warning      runs=1 t=0.81s
+web3bugs_56_H_02                   None         runs=1 t=0.347s
+web3bugs_58_H_02                   None         runs=0 t=0.022s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_59_H_04                   None         runs=1 t=0.412s
+web3bugs_5_H_07                    Violated     runs=1 t=0.186s
+web3bugs_5_H_08                    Violated     runs=1 t=0.413s
+web3bugs_5_H_12                    Violated     runs=1 t=0.382s
+web3bugs_60_H_01                   Violated     runs=1 t=0.173s
+web3bugs_62_H_03                   None         runs=0 t=0.303s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   None         runs=1 t=0.475s
+web3bugs_62_H_10                   None         runs=0 t=0.252s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   None         runs=0 t=0.023s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_70_H_04                   None         runs=1 t=1.299s
+web3bugs_70_H_05                   Warning      runs=1 t=0.583s
+web3bugs_70_H_10                   None         runs=1 t=0.726s
+web3bugs_77_H_01                   Violated     runs=1 t=0.121s
+web3bugs_78_H_02                   Unreachable  runs=1 t=0.16s
+web3bugs_79_H_02                   Violated     runs=1 t=0.482s
+web3bugs_83_H_01                   Violated     runs=1 t=0.225s
+
+verdicts: {'Violated': 17, 'Satisfied': 1, 'Warning': 6, 'None': 23, 'Unreachable': 1} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\g1_rebuilt.json

@@ -474,11 +474,20 @@ def _split_one_statement(s: str) -> list[str] | None:
     return None
 
 
+_ONE_LINE_ASM = re.compile(r'^\s*(assembly\s*(?:\("memory-safe"\)\s*)?)\{\s*(\S.*?)\s*\}\s*$')
+
+
 def normalize_one_statement_per_line(lines: list[str]) -> list[str]:
     """`_split_one_statement` 를 줄마다 적용(원래 들여쓰기 유지). 문자열 리터럴 줄바꿈이 없는 정규화된 소스 전제."""
     out = []
     for line in lines:
         indent = line[:len(line) - len(line.lstrip())]
+        # (2026-10-22) 한 줄 assembly 블록 `assembly { size := extcodesize(account) }` → 헤더 / Yul 본문 / `}`
+        #   (OZ Address 계열). 본문은 Yul 이라 슬라이서의 assembly 경로가 줄 단위로 받는다.
+        m_asm = _ONE_LINE_ASM.match(line)
+        if m_asm:
+            out.extend([f"{indent}{m_asm.group(1)}{{", f"{indent}    {m_asm.group(2)}", f"{indent}}}"])
+            continue
         parts = _split_one_statement(line) if line.strip() and not line.strip().startswith("//") else None
         if parts is None:
             out.append(line)

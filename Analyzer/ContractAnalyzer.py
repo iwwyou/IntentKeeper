@@ -102,7 +102,12 @@ class ContractAnalyzer:
             self.recorder.ledger[new_ln] = self.recorder.ledger.pop(old_ln)
 
         # ③ 이미 생성된 CFG-Statement 들의 src_line 보정
+        #   ★ (2026-10-22) **편집 중인 소스의 CFG 만**. 의존성 CFG(pkl 로드, from_dependency)의 줄 번호는 **그 파일**
+        #     기준이라 타깃의 줄 이동과 무관하다. 예전엔 모든 CFG 를 돌며 "같은 번호" 노드를 옮겨, 타깃에 줄이 들어올
+        #     때마다 의존성 함수 줄 번호가 누적해서 오염됐다(w70: 63개 함수, Context._msgSender 5 → 82).
         for ccf in self.contract_cfgs.values():
+            if getattr(ccf, "from_dependency", False):
+                continue
             for _, fcfg in ccf.iter_all_functions():
                 for blk in fcfg.graph.nodes:
                     if getattr(blk, "src_line", None) == old_ln:

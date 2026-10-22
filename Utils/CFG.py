@@ -1,4 +1,5 @@
 import networkx as nx
+import uuid
 from typing import Any
 from Domain.IR import *
 from Domain.Variable import *
@@ -20,6 +21,11 @@ class CFGNode:
                  unchecked_block: bool = False,
                  src_line: int | None = None):
         self.name = name
+        # (2026-10-22, 사용자 승인 F1) 노드 고유 ID — 생성 시 한 번 정하고 바꾸지 않는다.
+        #   `name` 은 생성 시점 줄 번호가 박혀(`Assign_4`) 증분 편집으로 줄이 밀리면 중복된다 → 프론트·직렬화의
+        #   노드 식별은 uid 로 한다. pickle 사본(디버깅 실행본)은 uid 를 그대로 가져 구조 노드와 대응된다.
+        #   카운터가 아닌 uuid: 의존성 pkl(다른 프로세스에서 생성)의 노드와 겹치지 않게.
+        self.uid = uuid.uuid4().hex[:12]
 
         # condition / branch
         self.condition_node = condition_node
@@ -46,6 +52,9 @@ class CFGNode:
         self.statements: list[Statement] = []   # 블록 내 명령어
         self.variables: dict[str, Variables] = {}  # var_name -> Variables
         self.before_envs: dict[int, dict[str, Variables]] = {}
+        # (2026-10-22) 실행 전 상태(IN) — worklist 가 선행 join·scope 정리 직후 저장. None 이면 IN == OUT
+        #   (문장 없는 join/분기 노드). 루프 헤더는 루프 밖에서 들어오는 상태(back-edge 제외).
+        self.in_variables: dict[str, Variables] | None = None
 
         # sink kinds
         self.function_exit_node = False         # 함수 정상 종료(기본 EXIT)
@@ -60,6 +69,13 @@ class CFGNode:
 
         # intent annotations attached to this node
         self.intents: list[dict] = []  # @During, @Post 등
+
+    def __setstate__(self, state):
+        # uid 이전에 만들어진 pkl 은 노드 식별이 불가능하다 — 조용히 새 uid 를 주지 않고 재빌드를 요구한다.
+        if "uid" not in state:
+            raise ValueError(f"CFGNode '{state.get('name')}' has no uid — pkl predates node uid "
+                             f"(2026-10-22); rebuild dependencies (build_project_deps.py)")
+        self.__dict__.update(state)
 
     def add_variable_declaration_statement(self, typeObj, varName, initExpr, line_no):
 

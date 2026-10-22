@@ -69,7 +69,7 @@ def _build(r: Req):
     (analyze 를 같은 세션에 두 번 호출하면 records 이중 적용으로 손상 → 항상 fresh.)"""
     sess = EngineSession()
     _sessions[_key(r)] = sess
-    st = sess.analyze(slice_solidity(r.source), contract=r.contract, func=r.func)
+    st = sess.analyze_source(r.source, contract=r.contract, func=r.func)
     return sess, st
 
 
@@ -119,7 +119,12 @@ def analyze(r: Req) -> dict:
         sess, st = _build(r)
         diags = [asdict(d) for d in st.diagnostics]
     else:
-        res = sess.update(r.source)         # invalid 면 상태 유지 + diagnostics 반환
+        try:
+            res = sess.update(r.source)     # invalid 면 상태 유지 + diagnostics 반환
+        except engine_api.IncrementalSurgeryError:
+            # (2026-10-22) fail loud: 수술 실패·미지원은 오류로 올린다(전체 재빌드 폴백 폐기).
+            #   변경은 후보에만 적용되므로 세션은 마지막 정상 상태 그대로다 — 캐시에 남겨 둔다.
+            raise
         # ★ 스코프 명시 필수: 생략하면 structure() → _resolve_fcfg(None, None) 폴백이
         #   "컨트랙트의 마지막 함수"를 집어 다른 함수의 슬롯/CFG 를 돌려준다(_slots 도 오염).
         st = sess.structure(r.contract, r.func)  # 갱신(또는 거부 시 직전) 구조 재직렬화
@@ -138,6 +143,8 @@ def evaluate(r: Req) -> dict:
     return {
         "scope": asdict(ev.scope),
         "cfg": _cfg_to_dict(ev.cfg),
+        # (2026-10-22) Step Into 대상 callee CFG(상태 포함) — 예전엔 보내지 않아 실제 UI 에선 Step Into 가 불가능했다
+        "callees": {k: _cfg_to_dict(c) for k, c in (ev.callees or {}).items()},
         "top_vars": [asdict(t) for t in ev.top_vars],
         "diagnostics": [asdict(d) for d in ev.diagnostics],
     }

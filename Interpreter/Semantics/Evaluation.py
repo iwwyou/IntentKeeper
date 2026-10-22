@@ -2988,7 +2988,8 @@ class Evaluation :
 
         # 5) 인자 평가(caller env) → 6) 공통 진입점으로 해석 (Phase 4: 바인딩·참조 의미·컨텍스트는 invoke_callee)
         arg_values = self._ordered_call_args(arguments, named_arguments, param_names, variables, function_name)
-        return_value = self.engine.invoke_callee(function_cfg, arg_values, variables, kind="internal")
+        return_value = self.engine.invoke_callee(function_cfg, arg_values, variables, kind="internal",
+                                                 call_expr=expr)
         return self._mapping_lookup_if_needed(return_value, callerObject)
 
     def _ordered_call_args(self, arguments, named_arguments, param_names, variables, function_name):
@@ -3029,7 +3030,7 @@ class Evaluation :
                 for var_name, var_obj in ((svn.variables if svn else {}) or {}).items():
                     caller_env.setdefault(var_name, var_obj)
                 break
-        return self.engine.invoke_callee(library_function_cfg, values, caller_env, kind="library")
+        return self.engine.invoke_callee(library_function_cfg, values, caller_env, kind="library", call_expr=expr)
 
     def evaluate_super_function_call_context(self, expr, variables, super_function_cfg):
         """super.f(...) / Base.f(...) — (Phase 4) 공통 진입점으로. 못 찾으면 예외(예전엔 ⊤)."""
@@ -3038,7 +3039,7 @@ class Evaluation :
         param_names = list(getattr(super_function_cfg, 'parameters', []) or [])
         values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
                                          variables, super_function_cfg.function_name)
-        return self.engine.invoke_callee(super_function_cfg, values, variables, kind="super")
+        return self.engine.invoke_callee(super_function_cfg, values, variables, kind="super", call_expr=expr)
 
     def evaluate_this_function_call_context(self, expr, variables, this_function_cfg):
         """this.f(...) — 외부 호출이므로 인자는 복사(참조 의미 없음). (Phase 4) 못 찾으면 예외(예전엔 ⊤/문자열)."""
@@ -3047,7 +3048,7 @@ class Evaluation :
         param_names = list(getattr(this_function_cfg, 'parameters', []) or [])
         values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
                                          variables, this_function_cfg.function_name)
-        return self.engine.invoke_callee(this_function_cfg, values, variables, kind="this")
+        return self.engine.invoke_callee(this_function_cfg, values, variables, kind="this", call_expr=expr)
 
     def update_mapping_in_cfg(self, mapVarName: str, key_str: str, new_var_obj: Variables):
         """

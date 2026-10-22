@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 """
-Dependencies 사전분석 스크립트
+Dependencies 사전분석 스크립트 — **프로젝트 단위** (2026-10-22: 전역 공용 트리 폐기)
 
-libraries/, interfaces/, contracts/ 폴더의 .sol 파일을 분석하여
-objectfile/ 에 pkl로 저장한다.
-
-분석 순서:
-1. interfaces/ → InterfaceCFG (ifc_*.pkl)
-2. libraries/  → LibraryCFG   (lib_*.pkl)
-3. contracts/  → ContractCFG  (con_*.pkl)
+<root>/{interfaces,libraries,contracts}/ 의 .sol 을 분석해 <root>/objectfile/ 에 pkl 로 저장한다.
+<root> 는 evaluation/Dataset/build_project_deps.py 가 만든 deps/<p> 이다.
 
 Usage:
-    python Dependencies/main.py                    # 전체 분석
-    python Dependencies/main.py --type interfaces  # interface만
-    python Dependencies/main.py --type libraries   # library만
-    python Dependencies/main.py --file IERC20.sol  # 특정 파일만
+    python Dependencies/main.py --root <deps/<p>>                   # 프로젝트 전체 분석
+    python Dependencies/main.py --root <deps/<p>> --file IERC20.sol # 특정 파일만
 """
 
 import re
@@ -34,11 +27,12 @@ from Utils.Helper import ParserHelpers
 from Utils.YulHelper import YulParserHelpers
 
 # ── 디렉토리 설정 ──
-BASE_DIR    = pathlib.Path(__file__).parent
-LIB_DIR     = BASE_DIR / "libraries"
-IFC_DIR     = BASE_DIR / "interfaces"
-CON_DIR     = BASE_DIR / "contracts"
-OBJ_DIR     = BASE_DIR / "objectfile"
+# (2026-10-22) 전역 공용 트리(Dependencies/{interfaces,libraries,contracts,objectfile}) 폐기 — 의존성은
+# **프로젝트 단위**로만 빌드한다. 루트는 main() 의 --root(필수)로 정해진다.
+LIB_DIR: pathlib.Path
+IFC_DIR: pathlib.Path
+CON_DIR: pathlib.Path
+OBJ_DIR: pathlib.Path
 
 
 # ── soltotestjson 패턴 (soltotestjson.py와 동일) ──
@@ -115,7 +109,14 @@ def _one_statement_violation(txt: str, close_before: bool) -> str | None:
     올바른 입력은 `if (x) {` ⏎ `}` 와 `return;` 두 입력이다. 예전엔 이런 줄이 어느 패턴에도 맞지 않아
     **다음 줄들과 조용히 합쳐져** 엉뚱한 문장이 됐다(조용한 오분석).
     판정은 문자열 리터럴·라인 주석을 건너뛰고 **괄호 밖** `;` 만 센다(`for (a; b; c) {` 의 `;` 는 문장 구분이 아님).
+
+    (2026-10-22) `;` 가 없는 위반도 잡는다 — 예전엔 아래 둘이 그대로 통과해 다음 줄과 합쳐지거나(한 줄 enum) ANTLR 이
+    오류를 출력만 하고 본문 없는 함수를 만들었다(조용한 오분석):
+      · 닫는 `}` 뒤에 다른 문장 `}    function f() {` (`} else` / `} catch` / do-while 꼬리는 호출 전에 벗겨진다)
+      · 괄호 밖 `{` 뒤에 내용이 오는 한 줄 블록 `enum E { A, B }` (빈 블록 `{}` 은 허용 — 전용 처리 경로가 있다)
     """
+    if txt.startswith("}") and txt[1:].split("//", 1)[0].strip():
+        return "닫는 `}` 뒤에 다른 문장"
     code, q, i, depth, semis = [], None, 0, 0, []
     while i < len(txt):
         c = txt[i]
@@ -135,6 +136,23 @@ def _one_statement_violation(txt: str, close_before: bool) -> str | None:
             depth -= 1
         elif c == ";" and depth == 0:
             semis.append(i)
+        elif c == "{" and depth == 0:
+            # 호출 옵션 `x.call{value: v}(...)` / `new C{salt: s}()` 의 중괄호는 블록이 아니다 — 짝 `}` 뒤가 `(` 면 건너뛴다
+            j, d = i, 0
+            while j < len(txt):
+                if txt[j] == "{":
+                    d += 1
+                elif txt[j] == "}":
+                    d -= 1
+                    if d == 0:
+                        break
+                j += 1
+            if j < len(txt) and txt[j + 1:].lstrip().startswith("("):
+                i = j + 1
+                continue
+            rest = txt[i + 1:].split("//", 1)[0].strip()
+            if rest and rest != "}":
+                return "블록 헤더와 본문이 한 줄(한 줄 블록)"
         i += 1
     if not semis:
         return None
@@ -243,8 +261,10 @@ def slice_solidity(source: str) -> List[Dict]:
         if not _comment.match(raw):
             why = _one_statement_violation(txt, close_before)
             if why:
-                raise ValueError(f"line {cur_line}: 입력 전제 위반 — {why}: `{txt[:80]}` "
-                                 f"(블록 헤더와 각 문장을 별도 줄로)")
+                # 사용자(입력 쪽) 소스 오류 — 엔진 세션은 이 소스를 반영하지 않고 진단으로 돌려준다(SourceError ⊂ ValueError)
+                from Utils.Errors import SourceError
+                raise SourceError(f"line {cur_line}: 입력 전제 위반 — {why}: `{txt[:80]}` "
+                                  f"(블록 헤더와 각 문장을 별도 줄로)", line=cur_line)
 
         # 2.5) 주석 라인
         if _comment.match(raw):
@@ -447,6 +467,83 @@ def scan_file_level_enums(directories: list[pathlib.Path]) -> dict:
                         brace_depth = 0
                 i += 1
     return enums
+
+
+# ── 프로젝트 단위 의존성 로더 (CLI main.py · 서버 engine_api 공용, 2026-10-22) ──────────────
+#   예전엔 main.load_dependencies(전역 싱글턴 대상)와 engine_api._load_dependencies_into(DepSpec 이름으로
+#   전역 objectfile 에서 선별)가 따로 있어 두 경로의 동작이 어긋났다(enum 덮어쓰기 vs setdefault 등).
+#   전역 공용 트리를 폐기하면서 하나로 합친다.
+
+def _load_dep_pkl(pkl_path: pathlib.Path, sa):
+    """pkl 하나 → cfg. 실패하면 예외 (2026-10-21: 예전엔 `except Exception: pass` 로 조용히 건너뛰어
+    해당 의존성이 없는 채 분석이 진행됐다 — 조용한 오분석).
+    로드한 CFG 에 `from_dependency = True` 를 단다 — 소스가 세션에 없다는 표시(표시 줄 등은 빌드 시점 값을 쓴다)."""
+    with open(pkl_path, 'rb') as f:
+        raw = pickle.load(f)
+    if isinstance(raw, dict) and "cfg" in raw:
+        sa.file_level_structs.update(raw.get("file_level_structs", {}))
+        sa.type_aliases.update(raw.get("type_aliases", {}))
+        cfg = raw["cfg"]
+    else:
+        cfg = raw
+    cfg.from_dependency = True
+    return cfg
+
+
+def load_project_deps(sa, ca, deps_root, exclude=(), verbose: bool = True) -> None:
+    """프로젝트 deps 트리(build_project_deps.py 가 만든 deps/<p>/{interfaces,libraries,contracts,objectfile})를
+    sa/ca 에 로드: pkl → contract_cfgs/library_cfgs/interface_names, + type alias·file-level enum·interface 이름 사전 등록.
+
+    exclude: 분석 대상 소스가 스스로 선언하는 이름 — pkl 판을 올리지 않는다(같은 선언이 두 판 생기지 않게).
+    """
+    exclude = set(exclude or ())
+    root = pathlib.Path(deps_root)
+    obj_dir = root / "objectfile"
+    if not obj_dir.is_dir():
+        raise FileNotFoundError(f"project deps not built: {obj_dir}")
+    src_dirs = [root / "libraries", root / "contracts", root / "interfaces"]
+
+    # 1) pkl 로드
+    for pkl_path in sorted(obj_dir.glob("*.pkl")):
+        kind, name = pkl_path.stem[:4], pkl_path.stem[4:]
+        if name in exclude:
+            continue
+        if kind == "ifc_":
+            ca.interface_names.add(name)
+            ca.contract_cfgs[name] = _load_dep_pkl(pkl_path, sa)
+        elif kind == "lib_":
+            cfg = _load_dep_pkl(pkl_path, sa)
+            ca.library_cfgs[name] = cfg
+            ca.contract_cfgs[name] = cfg
+        elif kind == "con_":
+            ca.contract_cfgs[name] = _load_dep_pkl(pkl_path, sa)
+    # 2) type alias + file-level enum 사전 수집
+    #    file-level enum(컨트랙트/인터페이스 밖 최상위 enum)은 pkl 에 구워져 있지 않다
+    #    (오프라인 빌드가 enum 을 추적 안 함) → type alias 와 같은 regex 사전-스캔으로 보완.
+    _type_re = re.compile(r'type\s+(\w+)\s+is\s+(\w+)\s*;')
+    _enum_re = re.compile(r'enum\s+(\w+)\s*\{([^}]*)\}', re.DOTALL)
+    _ifc_re = re.compile(r'interface\s+(\w+)')
+    for d in src_dirs:
+        if not d.exists():
+            continue
+        for sol in d.rglob("*.sol"):
+            text = sol.read_text(encoding='utf-8', errors='ignore')
+            for alias, underlying in _type_re.findall(text):
+                sa.type_aliases[alias] = underlying
+            for enum_name, body in _enum_re.findall(text):
+                members = [m.strip() for m in body.split(',') if m.strip()]
+                if members:
+                    sa.file_level_enums[enum_name] = members
+            # 3) interface 이름 regex 사전 수집 (Phase 0과 동일)
+            for name in _ifc_re.findall(text):
+                ca.interface_names.add(name)
+    if verbose:
+        if sa.type_aliases:
+            print(f"[Dependencies] {len(sa.type_aliases)} type aliases registered: {sa.type_aliases}")
+        if sa.file_level_enums:
+            print(f"[Dependencies] {len(sa.file_level_enums)} file-level enums registered")
+        if ca.interface_names:
+            print(f"[Dependencies] {len(ca.interface_names)} interfaces registered")
 
 
 # 전역 사전 등록 (Phase 0에서 수집, analyze_file에서 주입)
@@ -727,7 +824,29 @@ def _load_parent_pkls(source: str, ca) -> None:
 _written_pkls: dict[str, str] = {}   # 이번 실행에서 쓴 pkl 이름 → 원본 파일 (중복 이름 덮어쓰기 금지)
 
 
-def _write_pkl(pkl_name: str, payload: dict, sol_path: pathlib.Path) -> pathlib.Path:
+def _function_cfgs_of(cfg) -> list:
+    """컨트랙트/라이브러리 CFG 의 모든 FunctionCFG (오버로드·생성자·fallback·receive·modifier 포함)."""
+    out = []
+    for sub in (getattr(cfg, "functions", None) or {}).values():
+        out.extend(sub.values() if isinstance(sub, dict) else [sub])
+    for attr in ("constructor", "fallback", "receive"):
+        f = getattr(cfg, attr, None)
+        if f is not None:
+            out.append(f)
+    return out
+
+
+def _bake_display_lines(cfg, code_lines: dict) -> None:
+    """(2026-10-22, U3) if/else-if join 의 표시 줄을 노드에 저장 — 세션엔 이 파일 소스가 없으므로 빌드 시점에 계산."""
+    from Utils.DisplayLines import join_display_lines
+    for fcfg in _function_cfgs_of(cfg):
+        disp = join_display_lines(fcfg, code_lines)
+        for n in fcfg.graph.nodes():
+            if n.uid in disp:
+                n.display_line = disp[n.uid]
+
+
+def _write_pkl(pkl_name: str, payload: dict, sol_path: pathlib.Path, code_lines: dict) -> pathlib.Path:
     """★ (2026-10-21) 같은 pkl 이름을 한 실행 안에서 두 번 쓰면 예외.
     예전엔 `78_OZ_ERC20.sol` 과 `solmate_ERC20.sol` 이 둘 다 `con_ERC20.pkl` 로 저장되어 나중 것이 **경고 없이** 덮어썼고,
     web3bugs_78_H_02 가 OZ 대신 solmate ERC20 으로 해석됐다."""
@@ -735,6 +854,7 @@ def _write_pkl(pkl_name: str, payload: dict, sol_path: pathlib.Path) -> pathlib.
     if prev is not None and prev != str(sol_path):
         raise ValueError(f"pkl name collision: {pkl_name} ← {sol_path} (already written from {prev})")
     _written_pkls[pkl_name] = str(sol_path)
+    _bake_display_lines(payload["cfg"], code_lines)
     out = OBJ_DIR / pkl_name
     with open(out, 'wb') as f:
         pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -830,7 +950,8 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
                 pkl_name = f"lib_{name}.pkl"
             _write_pkl(pkl_name, {"cfg": cfg,
                                   "file_level_structs": dict(sa.file_level_structs),
-                                  "type_aliases": dict(sa.type_aliases)}, sol_path)
+                                  "type_aliases": dict(sa.type_aliases)}, sol_path,
+                       code_lines=sa.full_code_lines)
             funcs = list(cfg.functions.keys())
             print(f"  → {pkl_name} ({len(funcs)} functions: {funcs})")
             # cross-library 호출용: 분석 결과를 전역에 누적
@@ -858,7 +979,8 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
                 pkl_name = f"ifc_{name}.pkl"
             _write_pkl(pkl_name, {"cfg": cfg,
                                   "file_level_structs": dict(sa.file_level_structs),
-                                  "type_aliases": dict(sa.type_aliases)}, sol_path)
+                                  "type_aliases": dict(sa.type_aliases)}, sol_path,
+                       code_lines=sa.full_code_lines)
             funcs = list(cfg.functions.keys())
             print(f"  → {pkl_name} ({len(funcs)} functions: {funcs})")
             return name
@@ -884,7 +1006,8 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
                 pkl_name = f"con_{name}.pkl"
             _write_pkl(pkl_name, {"cfg": cfg,
                                   "file_level_structs": dict(sa.file_level_structs),
-                                  "type_aliases": dict(sa.type_aliases)}, sol_path)
+                                  "type_aliases": dict(sa.type_aliases)}, sol_path,
+                       code_lines=sa.full_code_lines)
             funcs = list(cfg.functions.keys())
             print(f"  → {pkl_name} ({len(funcs)} functions: {funcs})")
             return name
@@ -894,41 +1017,29 @@ def analyze_file(sol_path: pathlib.Path, mode: str) -> str | None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Dependencies 사전분석")
-    parser.add_argument("--type", choices=["interfaces", "libraries", "contracts", "all"],
-                        default="all", help="분석 대상 타입")
-    parser.add_argument("--file", type=str, help="특정 파일만 분석")
-    parser.add_argument("--root", type=str,
-                        help="(2026-10-21) 프로젝트 단위 의존성 트리 루트. <root>/{interfaces,libraries,contracts} 를 분석해 "
+    parser = argparse.ArgumentParser(description="Dependencies 사전분석 (프로젝트 단위)")
+    parser.add_argument("--root", type=str, required=True,
+                        help="프로젝트 단위 의존성 트리 루트. <root>/{interfaces,libraries,contracts} 를 분석해 "
                              "<root>/objectfile 에 pkl 저장 (evaluation/Dataset/build_project_deps.py 가 만든다)")
+    parser.add_argument("--file", type=str, help="특정 파일만 분석 (<root> 하위 종류 디렉토리 기준 파일명)")
     args = parser.parse_args()
 
-    if args.root:
-        global LIB_DIR, IFC_DIR, CON_DIR, OBJ_DIR
-        root = pathlib.Path(args.root).resolve()
-        LIB_DIR, IFC_DIR, CON_DIR, OBJ_DIR = (root / "libraries", root / "interfaces",
-                                              root / "contracts", root / "objectfile")
-        OBJ_DIR.mkdir(parents=True, exist_ok=True)
+    global LIB_DIR, IFC_DIR, CON_DIR, OBJ_DIR
+    root = pathlib.Path(args.root).resolve()
+    LIB_DIR, IFC_DIR, CON_DIR, OBJ_DIR = (root / "libraries", root / "interfaces",
+                                          root / "contracts", root / "objectfile")
+    OBJ_DIR.mkdir(parents=True, exist_ok=True)
 
     results = {"interfaces": [], "libraries": [], "contracts": []}
 
     # 특정 파일만
     if args.file:
-        target = pathlib.Path(args.file)
-        if not target.exists():
-            # 각 디렉토리에서 찾기
-            for d, mode in [(IFC_DIR, "interface"), (LIB_DIR, "library"), (CON_DIR, "contract")]:
-                candidate = d / args.file
-                if candidate.exists():
-                    target = candidate
-                    result = analyze_file(target, mode)
-                    if result:
-                        results[f"{mode}s" if mode != "library" else "libraries"].append(result)
-                    break
-            else:
-                print(f"파일 없음: {args.file}")
+        for d, mode in [(IFC_DIR, "interface"), (LIB_DIR, "library"), (CON_DIR, "contract")]:
+            candidate = d / args.file
+            if candidate.exists():
+                analyze_file(candidate, mode)
                 return
-        return
+        raise FileNotFoundError(f"파일 없음: {args.file} (root={root})")
 
     # ── Phase 0: type alias + interface 이름 + file-level struct 사전 수집 ──
     global _global_type_aliases, _global_interface_names, _global_file_level_structs
@@ -946,86 +1057,22 @@ def main():
     if _global_file_level_enums:
         print(f"[Phase 0] File-level enums: {list(_global_file_level_enums.keys())}")
 
-    # ── --root 모드: 세 종류를 **하나로 합쳐** 의존 순서로 정렬 (2026-10-21) ──
+    # ── 세 종류를 **하나로 합쳐** 의존 순서로 정렬 (2026-10-21) ──
     #    종류별 Phase(interface→library→contract)를 고정하면 library 가 contract 타입을 쓰는 경우
     #    (solmate SafeTransferLib 이 `ERC20` 을 파라미터 타입으로 씀) library 가 먼저 분석돼 타입을 못 찾는다.
-    #    기존 Dependencies/ 트리는 같은 파일에 `contract ERC20` 스텁을 함께 넣어 피했지만, 프로젝트 트리는
-    #    원본 그대로라 선언별로 나뉘어 있다. _topo_order 는 상속·라이브러리 호출·using·타입 참조를 모두 의존으로
-    #    세고, 파일별 주 선언 종류로 모드를 정하므로 섞인 목록을 그대로 처리한다.
-    if args.root:
-        all_files = []
-        for d in (IFC_DIR, LIB_DIR, CON_DIR):
-            all_files += sorted(d.glob("*.sol")) if d.exists() else []
-        ordered = _topo_order(all_files, "project")
-        print(f"\n[--root] {len(ordered)}개 (종류 통합 위상정렬)")
-        for f, mode in ordered:
-            name = analyze_file(f, mode)
-            if name:
-                results[{"interface": "interfaces", "library": "libraries", "contract": "contracts"}[mode]].append(name)
-        print(f"\n  Interfaces: {len(results['interfaces'])}  Libraries: {len(results['libraries'])}  "
-              f"Contracts: {len(results['contracts'])}")
-        return
-
-    # ── 분석 순서: interfaces → libraries → contracts ──
-
-    # 1) Interfaces (의존 순서 고려 — Phase 2/3 과 동일하게 위상정렬)
-    #    ★ 예전엔 `sorted(rglob)` 알파벳순이었다. F7 이 libraries/contracts 만 고치고
-    #      **interfaces 를 빠뜨렸다**. 알파벳순은 의존 방향과 정반대가 될 수 있다:
-    #        IPooledCreditLine < IPooledCreditLineDeclarations < IPooledCreditLineEnums
-    #      인데 실제 의존은 `IPooledCreditLine is ...Declarations is ...Enums` 이다.
-    #      조상이 나중에 분석되면 부모 분석 시점에 조상 pkl 이 없어
-    #      `parent_cfgs` 가 **빈 채로** 저장되고(실측: 인터페이스 pkl 전부 parent_cfgs=[]),
-    #      `EnhancedSolidityVisitor._find_in_chain` 이 돌 것이 없어
-    #      상속된 enum/struct 타입을 못 찾는다
-    #      (`Type 'PooledCreditLineStatus' is not defined as struct, enum, or type alias`).
-    #      IFC_DIR 73개 파일 전수 확인: 주 선언이 모두 interface 라 모드 불일치 위험 없음.
-    if args.type in ("interfaces", "all"):
-        ifc_files = sorted(IFC_DIR.rglob("*.sol")) if IFC_DIR.exists() else []
-        ifc_ordered = _topo_order(ifc_files, "interfaces")
-        print(f"\n[Phase 1] Interfaces: {len(ifc_ordered)}개 (위상정렬)")
-        for f, mode in ifc_ordered:
-            name = analyze_file(f, mode)
-            if name:
-                results["interfaces"].append(name)
-
-    # 2) Libraries (의존 순서 고려: 다른 library를 호출하는 파일을 뒤로)
-    if args.type in ("libraries", "all"):
-        lib_files = sorted(LIB_DIR.glob("*.sol")) if LIB_DIR.exists() else []
-        lib_ordered = _topo_order(lib_files, "libraries")
-        print(f"\n[Phase 2] Libraries: {len(lib_ordered)}개 (위상정렬)")
-        print(f"  순서: {[f.name for f, _ in lib_ordered]}")
-        for f, mode in lib_ordered:
-            name = analyze_file(f, mode)
-            if name:
-                results["libraries"].append(name)
-
-    # 3) Contracts (서브폴더 포함)
-    #    library → parent contract → child contract 순서로 분석
-    #    의존관계를 수동으로 파악하여 하드코딩 (자동 정렬은 복잡도 대비 이점 없음)
-    if args.type in ("contracts", "all"):
-        con_files = sorted(CON_DIR.rglob("*.sol")) if CON_DIR.exists() else []
-        con_ordered = _topo_order(con_files, "contracts")
-        print(f"\n[Phase 3] Contracts: {len(con_ordered)}개 (위상정렬)")
-        for f, mode in con_ordered:
-            print(f"  - {f.relative_to(CON_DIR).as_posix()} [{mode}]")
-        for f, mode in con_ordered:
-            name = analyze_file(f, mode)
-            if name:
-                results["contracts"].append(name)
-
-    # ── 결과 요약 ──
-    print(f"\n{'='*60}")
-    print(f"분석 완료")
-    print(f"{'='*60}")
-    print(f"  Interfaces: {len(results['interfaces'])} -{results['interfaces']}")
-    print(f"  Libraries:  {len(results['libraries'])} -{results['libraries']}")
-    print(f"  Contracts:  {len(results['contracts'])} -{results['contracts']}")
-
-    obj_files = list(OBJ_DIR.glob("*.pkl"))
-    print(f"\n  objectfile/: {len(obj_files)}개 pkl")
-    for p in sorted(obj_files):
-        size_kb = p.stat().st_size / 1024
-        print(f"    {p.name} ({size_kb:.1f} KB)")
+    #    _topo_order 는 상속·라이브러리 호출·using·타입 참조를 모두 의존으로 세고, 파일별 주 선언 종류로
+    #    모드를 정하므로 섞인 목록을 그대로 처리한다.
+    all_files = []
+    for d in (IFC_DIR, LIB_DIR, CON_DIR):
+        all_files += sorted(d.glob("*.sol")) if d.exists() else []
+    ordered = _topo_order(all_files, "project")
+    print(f"\n[--root] {len(ordered)}개 (종류 통합 위상정렬)")
+    for f, mode in ordered:
+        name = analyze_file(f, mode)
+        if name:
+            results[{"interface": "interfaces", "library": "libraries", "contract": "contracts"}[mode]].append(name)
+    print(f"\n  Interfaces: {len(results['interfaces'])}  Libraries: {len(results['libraries'])}  "
+          f"Contracts: {len(results['contracts'])}")
 
 
 if __name__ == "__main__":

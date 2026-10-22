@@ -780,7 +780,10 @@ class EnhancedSolidityVisitor(SolidityVisitor):
                         raise ValueError(f"Qualified type '{type_name}': '{member_name}' not found in library '{lib_name}'.")
                 else:
                     scope = f"contract '{contract_name}'" if contract_name else "file level"
-                    raise ValueError(f"Type '{type_name}' is not defined as struct, enum, or type alias in {scope}.")
+                    # (2026-10-22) 사용자 소스 오류 — 현재 소스·로드된 의존성 어디에도 선언이 없다(편집 중 흔함).
+                    #   SourceError 면 증분 업데이트가 이 변경만 반영하지 않고 진단으로 돌려준다(세션 유지).
+                    from Utils.Errors import SourceError
+                    raise SourceError(f"Type '{type_name}' is not defined as struct, enum, or type alias in {scope}.")
 
         return type_obj
 

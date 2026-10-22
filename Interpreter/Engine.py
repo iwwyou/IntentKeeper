@@ -559,6 +559,7 @@ class Engine:
                 cond_expr = getattr(node, "condition_expr", None)
                 if ed and "condition" in ed and cond_expr is not None:
                     want_true = bool(ed["condition"])
+                    self._call_site_node = node   # (2026-10-22) 조건식 안의 호출도 호출 지점 = 이 조건 노드 (예전엔 직전 문장 노드가 남아 엉뚱한 노드에 캡처됐다)
                     ref.update_variables_with_condition(base, cond_expr, want_true)
                     if not self._branch_feasible(base, cond_expr, want_true):
                         return None
@@ -872,7 +873,8 @@ class Engine:
             return True
         return getattr(var, "scope", None) == "state"
 
-    def invoke_callee(self, fcfg: FunctionCFG, arg_values: list, caller_env: dict | None, *, kind: str):
+    def invoke_callee(self, fcfg: FunctionCFG, arg_values: list, caller_env: dict | None, *, kind: str,
+                      call_expr=None):
         """(Phase 4, D3) 모든 내부 호출(일반·library·super·this)의 공통 진입점.
 
         - 인자는 callee 의 `related_variables` 를 고치지 않고 **바인딩**으로 넘긴다(예전엔 4 개 binder 가 callee CFG 의
@@ -905,6 +907,9 @@ class Engine:
                 b.value = coerce_to_declared(VariableEnv._copy_value(val), getattr(proto, "typeInfo", None),
                                              f"argument for '{pname}' of '{fcfg.function_name}'")
             bindings[pname] = b
+        # (2026-10-22) 이 호출의 식 — callee 상태 캡처 키(호출 지점 노드 안의 몇 번째 호출인가)에 쓴다.
+        #   같은 노드에서 같은 함수를 두 번 부르면(`half(a) + half(a + 1)`) 예전 키 (노드, 함수) 가 겹쳐 앞 호출이 사라졌다.
+        self._pending_call_expr = call_expr
         return self.interpret_function_cfg(fcfg, caller_env, param_bindings=bindings, param_sources=sources)
 
     def interpret_function_cfg(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None,
@@ -918,6 +923,8 @@ class Engine:
         #   `self._call_site_node` 를 자기 노드로 덮으므로, 중첩 호출에서도 각 프레임이
         #   자기 호출 지점을 유지한다.
         _call_site_node = getattr(self, "_call_site_node", None)
+        _call_expr = getattr(self, "_pending_call_expr", None)
+        self._pending_call_expr = None
 
         an.current_target_function = fcfg.function_name
         an.current_target_function_cfg = fcfg
@@ -935,17 +942,22 @@ class Engine:
         #   예전엔 복원이 정상 경로에만 있어서, 예외 한 번이면 `_record_enabled=False` 와
         #   callee 컨텍스트가 남아 이후 기록·During 검증이 조용히 꺼졌다.
         try:
-            return self._interpret_callee_body(fcfg, caller_env, _call_site_node, param_bindings, param_sources)
+            return self._interpret_callee_body(fcfg, caller_env, _call_site_node, param_bindings, param_sources,
+                                               _call_expr)
         finally:
             for blk, saved_vars in _saved_node_vars.items():
                 blk.variables = saved_vars
+                blk.in_variables = None       # live callee 는 구성 결과로 되돌린다(IN 은 캡처본에만)
             an.current_target_function = _old_func
             an.current_target_function_cfg = _old_fcfg
             fcfg.ireturn_registry = _saved_ireturn
             self._record_enabled = _old_record_enabled
+            # (2026-10-22) 호출 지점 복원 — callee 해석이 자기 노드로 덮어 둔 채 돌아오면, 같은 caller 문장의
+            #   **다음** 호출(`half(a) + half(a + 1)` 의 두 번째)이 callee 의 마지막 노드를 호출 지점으로 잡았다.
+            self._call_site_node = _call_site_node
 
     def _interpret_callee_body(self, fcfg: FunctionCFG, caller_env, _call_site_node,
-                               param_bindings=None, param_sources=None):
+                               param_bindings=None, param_sources=None, _call_expr=None):
         """interpret_function_cfg 의 본체(진입 env 구성 → worklist → exit 처리 → caller 되쓰기).
         노드/컨텍스트 복원은 호출자(interpret_function_cfg)의 finally 가 맡는다."""
         an = self.an
@@ -1022,7 +1034,7 @@ class Engine:
         #   놓으므로, 이 지점을 놓치면 이 호출의 계산 결과는 **어디에도 남지 않는다**.
         #   (실측: 같은 callee 를 4회 호출해도 복귀 후 상태가 4회 모두 동일 = 전부 baseline)
         if getattr(an, "_capture_debug_fcfg", False):
-            self._capture_callee_states(fcfg, _call_site_node)
+            self._capture_callee_states(fcfg, _call_site_node, _call_expr)
 
         # callee의 exit env를 caller에 반영 (state variable 변경 전파)
         # callee 파라미터가 caller의 동명 변수를 오염시키지 않도록 제외
@@ -1089,6 +1101,7 @@ class Engine:
         # 이전 해석 흔적 제거: 노드 env·before_envs·return_vals 는 이번 실행이 새로 만든다.
         for blk in run.graph.nodes:
             blk.variables = {}
+            blk.in_variables = None
             blk.before_envs = {}
             blk.return_vals = {}
             for st in blk.statements:
@@ -1173,7 +1186,43 @@ class Engine:
         fcfg = getattr(fcfg, "_live_origin", fcfg)
         return idx.get(id(fcfg), (None, getattr(fcfg, "function_name", "?")))
 
-    def _capture_callee_states(self, fcfg, call_site_node) -> None:
+    @staticmethod
+    def _call_ordinal(site, call_expr) -> int:
+        """호출 지점 노드 안에서 `call_expr` 가 몇 번째 호출 식인가(전위 순회, 0부터). pickle 사본 사이에서도 같은 값이라
+        실행 회차가 달라도 안정적이다. 노드에서 찾지 못하면 오류 — 캡처 키가 엉뚱한 호출에 붙는 것을 막는다."""
+        calls: list = []
+        seen: set = set()
+
+        def walk(e):
+            if isinstance(e, (list, tuple)):
+                for x in e:
+                    walk(x)
+                return
+            if isinstance(e, dict):
+                for x in e.values():
+                    walk(x)
+                return
+            if not isinstance(e, Expression) or id(e) in seen:
+                return
+            seen.add(id(e))
+            if getattr(e, "function", None) is not None:
+                calls.append(e)
+            for v in vars(e).values():
+                if isinstance(v, (Expression, list, tuple, dict)):
+                    walk(v)
+
+        for st in getattr(site, "statements", []) or []:
+            for v in vars(st).values():
+                if isinstance(v, (Expression, list, tuple, dict)):
+                    walk(v)
+        if getattr(site, "condition_expr", None) is not None:
+            walk(site.condition_expr)
+        for i, c in enumerate(calls):
+            if c is call_expr:
+                return i
+        raise ValueError(f"callee capture: call expression not found in call-site node '{getattr(site, 'name', '?')}'")
+
+    def _capture_callee_states(self, fcfg, call_site_node, call_expr=None) -> None:
         """callee 노드 상태를 `{노드명: {변수: 직렬화값}}` 으로 떠내 analyzer 에 적재한다.
 
         ★ fcfg 를 pickle 하지 않는다 — 프론트가 필요한 건 이 dict 뿐이고, 구조(노드·엣지)는
@@ -1189,18 +1238,29 @@ class Engine:
         if store is None:
             store = an._frozen_callee_states = {}
         cname, fname = self._fcfg_owner(fcfg)
-        site = getattr(call_site_node, "name", None) or "?"
-        states: dict[str, dict[str, str]] = {}
-        for n in fcfg.graph.nodes():
+        # (2026-10-22) 노드 식별 = uid (이름은 줄 이동 시 중복될 수 있다) + 노드 안 호출 순번
+        site = getattr(call_site_node, "uid", None) or "?"
+        ordinal = self._call_ordinal(call_site_node, call_expr) if (call_site_node is not None
+                                                                     and call_expr is not None) else 0
+
+        def _flat(env) -> dict[str, str]:
             flat: dict[str, str] = {}
-            for k, var in (getattr(n, "variables", {}) or {}).items():
+            for k, var in (env or {}).items():
                 if self.SHADOW_SEP in k:      # (Phase 3b) 보관된 바깥 binding — 내부용
                     continue
                 self.rec._flatten_var(var, k, flat)
-            if flat:
-                states[n.name] = {kk: ("⊥" if vv == "[None,None]" else vv)
-                                  for kk, vv in flat.items()}
-        store[(site, cname, fname)] = states
+            return {kk: ("⊥" if vv == "[None,None]" else vv) for kk, vv in flat.items()}
+
+        states: dict[str, dict[str, str]] = {}
+        in_states: dict[str, dict[str, str]] = {}
+        for n in fcfg.graph.nodes():
+            out = _flat(getattr(n, "variables", {}))
+            if out:
+                states[n.uid] = out
+            inn = getattr(n, "in_variables", None)
+            if inn is not None:
+                in_states[n.uid] = _flat(inn)
+        store[(site, ordinal, cname, fname)] = {"state": states, "in_state": in_states}
 
     def _reset_node_vars(self, fcfg: FunctionCFG) -> dict:
         """node variables 백업 및 초기화. 백업 dict 반환."""
@@ -1208,6 +1268,7 @@ class Engine:
         saved = {blk: dict(blk.variables) for blk in fcfg.graph.nodes}
         for blk in fcfg.graph.nodes:
             blk.variables = {}
+            blk.in_variables = None
             for st in blk.statements:
                 ln = getattr(st, "src_line", None)
                 if ln is not None and ln in an.analysis_per_line:
@@ -1231,7 +1292,7 @@ class Engine:
         fn_entry, fn_exit = fcfg.get_entry_node(), fcfg.get_exit_node()
         fn_ret, fn_err = fcfg.get_return_exit_node(), fcfg.get_error_exit_node()
 
-        for name, args in reversed(invs):
+        for k_app, (name, args) in enumerate(reversed(invs)):
             if name in an.contract_cfgs:            # 생성자의 기반 생성자 호출 — modifier 아님 (Phase 7)
                 continue
             mod = ccf.get_function_cfg(name) if ccf is not None else None
@@ -1261,6 +1322,7 @@ class Engine:
             mapping = {v: f"{name}${v}" for v in local_names}
             for n in CG.nodes:
                 n.name = f"{name}::{n.name}"
+                n.uid = f"{name}#{k_app}:{n.uid}"     # (2026-10-22) 적용 회차별로 구분되는 결정적 ID
                 for st in n.statements:
                     self._rename_in_statement(st, mapping)
                 if getattr(n, "condition_expr", None) is not None:
@@ -1270,6 +1332,7 @@ class Engine:
             # 인자는 함수 헤더(modifier 호출 위치)에서 평가된다 → 그 줄로 기록
             hdr_line = self._function_start_line(fcfg)
             bind = CFGNode(f"{name}::ARGS", src_line=hdr_line)
+            bind.uid = f"{name}#{k_app}:ARGS"        # 실행마다 새로 만들어지는 노드 — ID 는 결정적으로
             for pname, a in zip(params, args):
                 ptype = mod.related_variables[pname].typeInfo
                 bind.add_variable_declaration_statement(ptype, mapping[pname], a, hdr_line)
@@ -1453,6 +1516,7 @@ class Engine:
                 ed = G.get_edge_data(pred, succ, default=None)
                 if cond_expr is not None and ed and "condition" in ed:
                     want_true = bool(ed["condition"])
+                    self._call_site_node = pred   # (2026-10-22) 조건식 안의 호출도 호출 지점 = 이 조건 노드 (예전엔 직전 문장 노드가 남아 엉뚱한 노드에 캡처됐다)
                     self.ref.update_variables_with_condition(base, cond_expr, want_true)
                     if not self._branch_feasible(base, cond_expr, want_true):
                         return None
@@ -1495,6 +1559,18 @@ class Engine:
                 node.variables = self._restrict_scope(node.variables,
                                                       self._scope_keys(G, node.scope_anchor))
 
+            # (2026-10-22) 실행 전 상태(IN) — 프론트 커서의 "이 줄 실행 직전" 표시용.
+            #   문장 노드는 아래에서 node.variables 를 제자리에서 갱신(→ OUT)하므로 사본을 둔다.
+            #   루프 헤더·φ 는 fixpoint 가 node.variables 를 수렴값으로 바꾸므로 역시 사본 — 이 시점의
+            #   값은 back-edge 선행이 아직 미방문이라 **루프 밖에서 들어오는 상태**다(사용자 결정 F2).
+            #   문장 없는 join/분기 노드는 IN == OUT 이라 None.
+            node.in_variables = (VariableEnv.copy_variables(node.variables)
+                                 if (node.statements
+                                     or getattr(node, "fixpoint_evaluation_node", False)
+                                     or (node.condition_node
+                                         and node.condition_node_type in ("while", "for", "do_while")))
+                                 else None)
+
             cur_vars = node.variables
             node.evaluated = True
 
@@ -1516,6 +1592,7 @@ class Engine:
 
                     true_variables  = VariableEnv.copy_variables(cur_vars)
                     false_variables = VariableEnv.copy_variables(cur_vars)
+                    self._call_site_node = node   # (2026-10-22) 조건식 안의 호출도 호출 지점 = 이 조건 노드 (예전엔 직전 문장 노드가 남아 엉뚱한 노드에 캡처됐다)
                     self.ref.update_variables_with_condition(true_variables,  condition_expr, True)
                     self.ref.update_variables_with_condition(false_variables, condition_expr, False)
 
@@ -1541,6 +1618,7 @@ class Engine:
                 elif node.condition_node_type in ["require", "assert"]:
                     (t,) = [s for s in G.successors(node) if G.edges[node, s].get('condition') is True]
                     true_variables = VariableEnv.copy_variables(cur_vars)
+                    self._call_site_node = node   # (2026-10-22) 조건식 안의 호출도 호출 지점 = 이 조건 노드 (예전엔 직전 문장 노드가 남아 엉뚱한 노드에 캡처됐다)
                     self.ref.update_variables_with_condition(true_variables, condition_expr, True)
                     can_true = self._branch_feasible(true_variables, condition_expr, True)
 

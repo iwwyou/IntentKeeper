@@ -226,3 +226,97 @@ SolQDebug 에서 물려받은 "편집 시점 즉시 평가" CFG 구성을
   - 결정 대기: ① 초기화식 있는 mutable 상태변수 = 초기값 유지 vs D5 대로 ⊤ ② 범위 인덱스 쓰기 unsound·다중 반환 join 폴백 수정 시점
     ③ `_pow_fits` 정밀도. 재빌드 대기: legacy 3_H_05(옛 pkl 초기값 폭).
   - 덤프: `baseline/p4c_{legacy,rebuilt}.json`, `micro_p4c.json`. legacy 41/48·rebuilt 44/48 동일(p4b 대비).
+- 2026-10-22 (5): 의존성·증분 편집 정리 (커밋 `622e754` 이후 작업 트리; 복원 지점 = git tag `pre-global-deps-removal`).
+  1. **전역 공용 의존성 트리 폐기 (사용자 결정: "모든 경우에 프로젝트 단위")** — 삭제: `Dependencies/{objectfile,interfaces,
+     libraries,contracts}`, `Libraries/` 전체, `Analyzer/CFGSerializer{,Pickle}.py`(Libraries 전용). 유지: `evaluation/RQ1/cases/`
+     (rebuild_cases.py 어노테이션 원본), `cases_rebuilt`, 기존 baseline JSON.
+     - 로더 통합: `Dependencies.main.load_project_deps(sa, ca, deps_root, exclude)` 하나 — CLI(`main.load_dependencies`, env
+       `IQ_DEPS_ROOT`/`IQ_DEPS_EXCLUDE`; 미지정이면 의존성 없이 시작)와 서버(`EngineSession(deps_root, exclude)`) 공용.
+       DepSpec 이름 선별 로드 폐기(`DepSpec/DepInfo/DependencyStore` 선언은 프론트 업로드 API 자리로 유지).
+     - `Dependencies/main.py` 는 `--root` 필수(전역 Phase 1~3·`--type` 제거). `check_pkl.py` 도 `--root`.
+     - `run_cases.py`·`baseline_cases.py` 는 rebuilt 전용(`--rebuilt` 플래그 제거, 출력명 `<tag>_rebuilt.json` 유지).
+     - 회귀: temp 16/16, micro 기대 실패 3개만, rebuilt 48/48 p4c 와 동일(`baseline/g1_rebuilt.json`).
+       ※ rebuilt 48 중 23 은 원래부터 verdict None(오류) — 레지스트리·재빌드 뒤 원인별 정리 예정.
+  2. **증분 수술 fail loud (사용자 결정)** — `engine_api.update()` 의 전체 재빌드 폴백 두 경로 제거(`_full_rebuild` 삭제).
+     미지원 수술(try/catch·do-while·break/continue 의 삭제·수정)은 수술 전에 `IncrementalSurgeryError`(세션 불변),
+     수술 중 예외는 op 정보와 함께 `IncrementalSurgeryError` + 세션 오염(`_poisoned`; 이후 모든 공개 메서드 거부).
+     `engine_server` 는 오염 세션을 캐시에서 제거하고 오류를 올린다. `temp/test_safety_net.py` 를 거부 검증으로 변경(8/8).
+  3. **의존성 빌드 순서 재설계 방향 (사용자 합의, 구현 전)** — 컨트랙트별 **선언 header 레지스트리**(visitor 로 파싱된 선언만:
+     kind·부모·상태변수(초기화식 IR)·struct/enum·using·함수/modifier/event/error 시그니처). 2패스(선언 → 본문, 순서 무관),
+     부모·라이브러리는 이름으로 연결하고 본문·바인딩·초기화식은 디버깅 시점, 빌드 후 링크 검사. 위상정렬·`_type_refs_in`·
+     `reorder_members`·`_load_type_ref_pkls` 폐기 예정. 레지스트리는 **의존성 전용**(타깃은 개발 순서상 전방 참조가 없다).
+     조사 결과: 빌드 시점에 타 선언 **본문**은 쓰지 않음 — 순서 의존의 원인은 자식이 부모·라이브러리 CFG 객체를 참조로 보관하는 것.
+     부수 발견(미수정): 생성자 CFG 에 부모 상태변수 미주입(함수·modifier 는 주입), `get_full_struct_enum_defs` 가 직속 부모만 봄.
+     상세 설계는 별도 보고 후 승인. 사용자가 다른 LLM 과 검토 중(정수 폭·결정 대기 3건과 함께).
+  - **결정 대기**: (가) return/revert/break/continue 삭제 수술을 소스 구조 기반 fall-through 계산으로 일반화해 지원
+    (나) builder 수술 함수의 조용한 `return []` 를 "이미 제거됨"/"처리 불가"로 구분해 후자를 오류로 (다) try/catch·do-while 은
+    Phase 6 에서 빌드 경로 복구(마이크로 실패: do-while 루프변수 미선언 오류, try `add_control_flow_node` 부재) → 수술 지원 순.
+    + 위 (4)의 ①~③.
+- 2026-10-22 (6): **프론트 탐색 재구성 (사용자 결정 F1~F4, U2~U6)** — 프론트 작업을 엔진 리팩터링보다 먼저.
+  - 엔진: 노드 고유 `uid`(생성 시 1회, 줄 이동 불변; 의존성 pkl 은 uid 없으면 로드 거부), 실행 전 상태 `in_variables`
+    (worklist 의 join·scope 정리 직후 사본, 루프 헤더 = 루프 밖에서 들어오는 상태 F2), if/else-if join 의 표시 줄
+    `display_line`(체인을 닫는 `}`; `Utils/DisplayLines.py`, 의존성은 빌드 시점에 노드에 저장), callee 캡처 키에
+    노드 안 호출 순번(같은 노드의 같은 함수 두 호출이 덮이던 문제) + callee 복귀 시 호출 지점 복원·조건식 호출 지점 지정
+    (두 번째 호출이 callee 의 마지막 노드를 호출 지점으로 잡던 결함).
+  - 직렬화: `CFGNode.id = uid`, `name`(라벨), `display_line`, `in_state`. 이름 키 맵(intent 대응·callee·TopVar) 전부 uid.
+  - 프론트: `navGraph.ts`(순수 규칙) + `useNavigation.ts` 재작성 — 착지 규칙(merge·loop exit 허용, 더미·φ·루프 본문·
+    연속 join 제외), 루프 미진입(헤더 → exit), Select Successor/Predecessor, Into 반복 = 평가 순서, Continue 가 callee 안
+    breakpoint 까지·분기별 서로 다른 bp 면 분기점에서 정지(U2), bp 키 (파일, 줄)(U6), 루프 본문 줄 bp 금지(U5),
+    Next/Prev Intent, Restart, why-unreachable 출력. Step Over Branch 제외(F3). `tsc` 통과, 규칙은 엔진 출력으로 node 검증.
+  - 의존성 전체 재빌드(uid·display_line 포함): 42 프로젝트 pkl 수 동일, 빌드 ERR 대폭 감소(예: w3 160→5). w36/w58/w65 는
+    여전히 순환 실패(레지스트리 대상).
+  - 회귀: temp 16/16, micro 동일. rebuilt 48: **엔진 변경 효과 48/48 동일**(커밋 622e754 엔진 + 새 deps 와 비교),
+    **의존성 재빌드 효과 10건 변화**(16_H_04/06, 70_H_04/05/10 오류, 31_H_01·52_H_23 오류 메시지 변화, 45_H_01·47_H_02·
+    60_H_01 상태 변화) — 원인 조사·결정 대기. 덤프 `baseline/g2_rebuilt.json`, `baseline/h2_rebuilt.json`.
+  - 정정: 초기화식 있는 mutable 상태변수는 2026-10-20 부터 이미 ⊤(결정 대기 ① 은 사실상 해결). immutable 은 초기화식이
+    있어도 ⊤(sound, 비정밀).
+- 2026-10-22 (7): **증분 업데이트 트랜잭션 (사용자 승인)** — "마지막 정상(committed) 상태 유지, 업데이트 전체를 후보에 적용해
+  전부 성공하면 확정". `EngineSession._run_transaction`: 세션 deepcopy(의존성 CFG 는 memo 로 공유, 측정 6~10ms) 위에서
+  연산 적용 → `SourceError`(사용자 소스 오류, `Utils/Errors.py`; 현재는 미정의 타입 1곳) = 진단(category=semantic)으로 반환·
+  세션 유지, 그 밖의 예외 = `IncrementalSurgeryError`(내부 실패, 숨기지 않음)·committed 불변이라 세션 오염 없음(`_poisoned`
+  제거). committed records 는 성공 시에만 갱신. 현재 소스에 오류가 있으면 evaluate/verify 거부. analyze 도 같은 트랜잭션.
+  한 입력 = 한 문장 전제상 같은 업데이트 안의 선언·사용 순서 문제는 다루지 않음(사용자 판단).
+  - 함께 고침: 서버 `/evaluate` 가 callee CFG 를 안 보내고 store 도 결과에 안 넣어 실제 UI 에서 Step Into 불가였다.
+  - 테스트 `temp/test_transaction.py` 24항목 중 23 통과. **실패 1 = 기존 결함(보고)**: `ContractAnalyzer._shift_cfg_meta` ③ 이
+    줄 이동 때 **의존성 CFG 까지** 같은 줄 번호 노드를 옮긴다(w70: 63개 함수 src_line 오염, 예 Context._msgSender 5→82).
+    트랜잭션의 "의존성 공유" 전제(타깃 분석이 의존성을 바꾸지 않음)도 깨진다. 수정안: ③ 에서 from_dependency CFG 제외.
+  - 추가 발견(보고): ① 컨트랙트 수준 선언(struct·멤버·enum·event·modifier·함수)을 지워도 엔진 정의가 남는다 → 후보
+    타입 참조 재검증의 전제. ② 슬라이서가 한 줄 enum(`enum E { A, B }`)을 다음 문장과 한 record 로 합친다(deps 전처리가
+    enum 을 한 줄로 접으므로 deps 영향 가능). ③ `}    function f(...) {` 처럼 한 줄 두 문장을 1-statement 검사가 못 잡고,
+    ANTLR 오류는 출력만 하고 진행해 본문 없는 함수가 조용히 생긴다.
+
+## 7. 추후 구현·결정 대기 목록 (2026-10-22 정리 — §6 에 흩어진 항목을 모음, 완료 시 여기서 지운다)
+
+### 7.1 엔진 의미론 (Phase 5~7)
+- Phase 5: D7 재귀 근사, D9 함수 포인터·Yul 근사, D10 루프 본문 intent 거부.
+- Phase 6: try/catch·do-while **빌드 경로 복구**(마이크로 실패: do-while 루프변수 미선언, try `add_control_flow_node` 부재),
+  do-while 안 continue/break, 다중 `_` modifier.
+- Phase 7: 생성자 pre-state(D5 예외), 생성자 CFG 에 부모 상태변수 미주입(함수·modifier 는 주입).
+- 정수(A): 오류 3분류(리터럴 = 컴파일 오류 / 디버그 입력 = 입력 검증 오류 / 그 외 = 엔진 불변식 위반), 부호 혼합 공통 타입
+  (`uintM → intN`, N>M), 정확한 상수 평가기(리터럴 임의 정밀도 + `constant` 선언, 순환 = 오류 — C-6 과 하나로),
+  비교 연산 폭 처리·`1 << x`/`2 ** x` 리터럴 타입 규칙 확인.
+- B1: immutable 초기화식이 컴파일 타임 상수면 그 값(지금은 항상 ⊤ — sound·비정밀).
+- B2 (승인 순서): 다중 반환 tuple 원소별 join → 배열·매핑 구간 인덱스 weak update(매핑 미지정 키 = ⊤, D5).
+- B3: 상수 ** 상수 정확 계산(`_pow_fits`), 구간 지수는 보수 유지.
+- 길이 모르는 동적 배열, a → (외부) b → a 재진입 모델 (논의 대기).
+
+### 7.2 증분 편집
+- 미지원 수술(try/catch·do-while·break/continue 의 삭제·수정): 지금은 `IncrementalSurgeryError`. 구현 방향 = return/revert/
+  break/continue 삭제를 **소스 구조 기반 fall-through** 로 일반화, builder 수술 함수의 조용한 `return []` 를 "이미 제거됨"/
+  "처리 불가" 로 구분해 후자는 오류. (사용자: 추후 전부 구현)
+- SourceError 분류 확대(지금은 미정의 타입 1곳). 애매하면 내부 실패가 기본.
+- 프론트 revision 표시(현재 소스 revision ≠ committed revision 이면 CFG 결과를 "직전 정상 코드 기준"으로 — 지금은 진단 배너로 대신).
+
+### 7.3 의존성 (C: 선언 header 레지스트리)
+- 1A 등록 → 1B 해석(정적 타입·struct/enum·C3 선형화·using·시그니처) → 2 CFG 구성(순서 무관), 부모·라이브러리는 이름 연결,
+  본문·바인딩은 디버깅 시점, 빌드 후 **해석 커버리지 검사**(의존성은 forge 가 컴파일한 소스라 Solidity 유효성은 보장됨).
+- DeclarationId = 프로젝트 안의 이름 + 모호하면 오류(import alias 로 같은 이름 다른 선언 = limitation).
+- 폐기 예정: `_topo_order`·`_type_refs_in`·`reorder_members`·`_load_type_ref_pkls`. w36/w58/w65 순환 해소.
+- `get_full_struct_enum_defs` 가 직속 부모만 봄(visitor 는 체인 전체).
+- 의존성 재빌드로 바뀐 10 케이스(16_H_04/06, 70_H_04/05/10, 31_H_01, 52_H_23, 45_H_01, 47_H_02, 60_H_01) 원인 조사 — 다음 작업.
+- numscout_HIT 컴파일 불가 contraction 처리.
+
+### 7.4 프론트
+- 브라우저에서 실제 탐색 동작 확인(Continue 의 callee 진입·분기점 정지 포함).
+- 의존성 업로드 빌드 API(`DependencyStore` 자리), 업로드만으로 오류가 풀리는 경우 재검증.
+- solc 진단(선택): 엔진이 못 잡는 컴파일 오류(인자 타입 등)를 추가 진단으로.

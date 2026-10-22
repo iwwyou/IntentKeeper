@@ -7,7 +7,7 @@
 (예: uint160 이면 0)을 조용히 반환한다. 재생성 로그의 `[UPDATE_CODE ERR]` 는
 *파싱* 실패만 잡으므로, 결과물 쪽에서 한 번 더 확인한다.
 
-실행: .venv\Scripts\python.exe Dependencies\check_pkl.py [--verbose]
+실행: .venv\Scripts\python.exe Dependencies\check_pkl.py --root <deps\<p>> [--verbose]
 종료코드: 손상 의심이 있으면 1
 """
 from __future__ import annotations
@@ -18,7 +18,10 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
-OBJ_DIR = pathlib.Path(__file__).parent / "objectfile"
+# (2026-10-22) 전역 Dependencies/objectfile 폐기 — 프로젝트 deps 루트를 받는다: --root <deps/<p>>
+if "--root" not in sys.argv:
+    sys.exit("usage: check_pkl.py --root <deps/<p>> [--verbose]")
+OBJ_DIR = pathlib.Path(sys.argv[sys.argv.index("--root") + 1]) / "objectfile"
 VERBOSE = "--verbose" in sys.argv
 
 # interface 는 본문이 없는 게 정상. 아래는 "함수 0개가 정상" 으로 알려진 것들

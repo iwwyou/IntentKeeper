@@ -26,7 +26,7 @@ export default function CallStack({ nav }: { nav: NavState }) {
           >
             <span className="cs-depth">{i === 0 ? '▣' : '↳'}</span>
             <span className="cs-label">{f.label}</span>
-            {isTop && n && <span className="cs-at">@ L{n.src_line}</span>}
+            {isTop && n && <span className="cs-at">{n.display_line >= 0 ? `@ L${n.display_line}` : "@ 함수 경계"}</span>}
           </div>
         )
       })}
@@ -34,7 +34,7 @@ export default function CallStack({ nav }: { nav: NavState }) {
       {enterable.length > 0 && (
         <div className="cs-hint">
           Step Into 가능: {enterable.map((r) => r.label).join(', ')}
-          {enterable.length > 1 && ' (첫째로 내려갑니다)'}
+          {enterable.length > 1 && ' (평가 순서대로 — Into 를 반복하면 다음 호출)'}
           {atCap && ` — ⚠ 깊이 상한 ${MAX_CALL_DEPTH} 도달`}
         </div>
       )}

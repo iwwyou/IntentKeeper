@@ -280,6 +280,7 @@ export const useStore = create<AppState>()(
 
         let scope = cur?.scope ?? { contract, function: fn }
         let cfg = cur?.cfg
+        let callees = cur?.callees
         let debugSlots = cur?.debugSlots ?? []
         let topVars = cur?.top_vars ?? []
         let valueErrors: { line: number; message: string }[] = []
@@ -293,6 +294,7 @@ export const useStore = create<AppState>()(
             if (!st) return
             scope = st.scope
             cfg = st.cfg
+            callees = undefined // 구조가 바뀌면 이전 evaluate 의 callee 상태는 무효
             debugSlots = st.debugSlots
             // 문법 오류 → 편집기 squiggle. 비어있지 않으면 이 편집은 엔진에 반영되지 않았고
             // cfg/debugSlots 는 직전(마지막 유효) 구조다.
@@ -303,6 +305,7 @@ export const useStore = create<AppState>()(
             if (ev) {
               scope = ev.scope
               cfg = ev.cfg // states 채워진 CFG = navigation substrate
+              callees = ev.callees
               topVars = ev.top_vars
               valueErrors = (ev.diagnostics ?? []).map((d) => ({ line: d.line, message: d.message }))
             }
@@ -318,6 +321,7 @@ export const useStore = create<AppState>()(
           const result: AnalysisResult = {
             scope,
             cfg,
+            callees,
             verdict,
             top_vars: topVars,
             intents,

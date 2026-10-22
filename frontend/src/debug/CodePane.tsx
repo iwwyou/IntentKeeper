@@ -44,13 +44,13 @@ export default function CodePane({ source, nav, result, startLine }: Props) {
   const cfgRef = useRef(cfg)
   cfgRef.current = cfg
 
-  const cursorLine = nav.node?.src_line
+  const cursorLine = nav.node?.display_line
   const predLines = nav.highlightedPreds
-    .map((id) => cfg.nodes.find((n) => n.id === id)?.src_line)
+    .map((id) => cfg.nodes.find((n) => n.id === id)?.display_line)
     .filter((l): l is number => l !== undefined)
   // ★ N1. forward 분기의 다른 feasible successor 들 (커서가 간 첫째는 cursor-line 이 덮는다)
   const succLines = nav.highlightedSuccs
-    .map((id) => cfg.nodes.find((n) => n.id === id)?.src_line)
+    .map((id) => cfg.nodes.find((n) => n.id === id)?.display_line)
     .filter((l): l is number => l !== undefined)
   const violatedLines = result.verdict
     .filter((v) => v.status === 'Violated')
@@ -60,7 +60,7 @@ export default function CodePane({ source, nav, result, startLine }: Props) {
   const foldedNode = nav.foldedLoopHead
     ? cfg.nodes.find((n) => n.id === nav.foldedLoopHead)
     : undefined
-  const foldedLine = foldedNode && foldedNode.src_line >= 0 ? foldedNode.src_line : undefined
+  const foldedLine = foldedNode && foldedNode.display_line >= 0 ? foldedNode.display_line : undefined
   const foldedHover = foldedNode?.loop_delta
     ? Object.entries(foldedNode.loop_delta)
         .map(([k, v]) => `- \`${k}\` → \`${v}\``)

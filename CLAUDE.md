@@ -29,16 +29,21 @@ intent-aware quick debugger. 상세 진행상황·설계결정 로그는 `PROGRE
 **반드시 `.venv\Scripts\python.exe`로 실행한다.** 글로벌 Python310은 networkx 2.5.1이라 CFG 백엔드가 깨진다.
 
 ```powershell
-# 단일 케이스(레코드 JSON) 실행 — 라인별 분석 출력
-.venv\Scripts\python.exe main.py evaluation\RQ1\cases\web3bugs_5_H_07\web3bugs_5_H_07.json
+# 단일 케이스(레코드 JSON) 실행 — 라인별 분석 출력. 의존성은 프로젝트 deps 루트를 환경변수로 지정
+$env:IQ_DEPS_ROOT = "evaluation\Dataset\deps\w5"
+.venv\Scripts\python.exe main.py evaluation\intent_validation\cases_rebuilt\web3bugs_5_H_07.json
 # 같은 케이스를 verdict 요약만 출력 (main.simulate_inputs(silent=True) 래퍼)
 .venv\Scripts\python.exe run_case.py <case.json>
+# 48 케이스 전체 (cases_rebuilt + 케이스별 프로젝트 deps 자동 지정)
+.venv\Scripts\python.exe evaluation\refactor\baseline_cases.py --tag <tag>
 
 # 프론트가 붙는 엔진 HTTP 서버 (uvicorn, 127.0.0.1:8000)
 .venv\Scripts\python.exe engine_server.py
 
-# 의존성 .sol → pkl 사전분석 (Dependencies/objectfile/{ifc_,lib_,con_}*.pkl)
-.venv\Scripts\python.exe Dependencies\main.py [--type interfaces|libraries|contracts] [--file X.sol]
+# 의존성: 프로젝트 단위로만 빌드 (deps/<p>/{interfaces,libraries,contracts} → deps/<p>/objectfile/*.pkl)
+#   전역 공용 트리(Dependencies/{interfaces,libraries,contracts,objectfile}, Libraries/)는 2026-10-22 폐기됐다.
+.venv\Scripts\python.exe evaluation\Dataset\build_project_deps.py [--only w62]
+.venv\Scripts\python.exe Dependencies\main.py --root evaluation\Dataset\deps\<p> [--file X.sol]
 
 # 파서 재생성 (Parser/ 에서; CLI antlr4 4.13.2 = runtime 버전과 반드시 일치)
 antlr4 -Dlanguage=Python3 -visitor Solidity.g4
@@ -126,9 +131,9 @@ transfer function 은 `Interpreter/Semantics/`(`Evaluation`=식 평가, `Update`
   `engine_server._build` 는 항상 새 세션을 만든다.
 - `sess.structure()` 를 스코프 없이 호출하면 `_resolve_fcfg(None, None)` 폴백이 **컨트랙트의 마지막
   함수**를 집어 엉뚱한 CFG/슬롯을 돌려준다. 항상 `contract`, `func` 를 명시할 것.
-- `main.load_dependencies()` 는 pkl 외에 **3개 디렉토리**를 interface 이름 regex 스캔에 사용한다
-  (`evaluation/Dataset/target_contraction`, `evaluation/Dataset/Dependencies/pool`,
-  `Dataset/Numscout/contraction`). 하나라도 없으면 interface 호출 해석이 조용히 실패한다.
+- 의존성 로드는 `Dependencies.main.load_project_deps(sa, ca, deps_root, exclude)` 하나다(CLI `main.load_dependencies`
+  = env `IQ_DEPS_ROOT`/`IQ_DEPS_EXCLUDE`, 서버 `EngineSession(deps_root, exclude)` 가 공용). deps 루트를 안 주면
+  의존성 없이 돈다 — 타깃이 의존성을 참조하면 분석 중 명시적 오류가 난다.
 - `Dependencies/main.py` 의 분석 순서는 **위상정렬**(`_topo_order`, 상속·라이브러리 호출·using·타입 참조 기준)이다.
   예전의 `_con_order` 하드코딩은 대체됐다. 순환 참조·이름 충돌은 폴백 없이 예외를 던진다.
 - 분석 실패가 예외가 아니라 **조용한 오분석**으로 나타나는 경우가 많다(pkl 로드 `except: pass`,

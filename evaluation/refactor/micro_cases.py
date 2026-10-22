@@ -576,7 +576,7 @@ def _line_of(src, marker):
 
 
 def _cfg_dump(cfg):
-    return {n.id: {"line": n.src_line, "state": dict(sorted((n.state or {}).items()))} for n in cfg.nodes}
+    return {n.name: {"line": n.src_line, "state": dict(sorted((n.state or {}).items()))} for n in cfg.nodes}
 
 
 def run_one(name):
@@ -621,7 +621,7 @@ def run_one(name):
                 out["analyze_s"] = round(time.perf_counter() - t, 3)
                 out["diagnostics"] = [f"{d.line}:{d.message}" for d in st.diagnostics]
                 out["slots"] = sorted(f"{x.kind}:{x.key}" for x in st.debug_slots)
-                out["structure"] = sorted(f"{n.id}@{n.src_line}" for n in st.cfg.nodes)
+                out["structure"] = sorted(f"{n.name}@{n.src_line}" for n in st.cfg.nodes)
                 t = time.perf_counter()
                 ev = s.evaluate(vals, c, f)
                 out["evaluate_s"] = round(time.perf_counter() - t, 3)
