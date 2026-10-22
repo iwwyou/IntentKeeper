@@ -93,6 +93,96 @@ def _literal_retype(sub_expr, iv, target_cls):
     return target_cls(lo, hi, w)
 
 
+_ARITH_OPS = frozenset({'+', '-', '*', '/', '%', '&', '|', '^'})
+
+
+def _is_constant_expr(expr) -> bool:
+    """숫자 리터럴과 연산자로만 이루어진 식(Solidity 의 rational constant — `10**18`, `1 << 128`, `-1`).
+    이런 식은 **타입이 없고** 상대 피연산자/대입 대상의 타입으로 변환된다."""
+    if expr is None:
+        return False
+    if getattr(expr, "context", None) == "LiteralExpContext":
+        return _is_numeric_literal(expr)
+    if getattr(expr, "left", None) is not None and getattr(expr, "right", None) is not None:
+        return _is_constant_expr(expr.left) and _is_constant_expr(expr.right)
+    if getattr(expr, "operator", None) in ('-', '~') and getattr(expr, "expression", None) is not None \
+            and getattr(expr, "left", None) is None:
+        return _is_constant_expr(expr.expression)
+    return False
+
+
+def _int_bounds(cls, w: int) -> tuple[int, int]:
+    if cls is IntegerInterval:
+        return -(1 << (w - 1)), (1 << (w - 1)) - 1
+    return 0, (1 << w) - 1
+
+
+def coerce_to_declared(value, sol_type, what: str = "value"):
+    """Solidity **암묵 변환**: 정수 값을 선언 타입(`sol_type`)의 폭·부호로 바꾼다. (Phase 4b, 2026-10-22 승인)
+
+    값을 저장하는 모든 지점(선언 초기화·대입·튜플·인자 바인딩·반환값·멤버/원소 쓰기)에서 부른다.
+    Solidity 는 손실 없는 변환(같은 부호에서 넓히기, 범위에 맞는 상수)만 암묵 허용하므로 **값 범위는 바뀌지 않고 타입만 바뀐다.**
+    예전엔 변환이 없어 `(uint256 r0, …) = pair.getReserves()` 의 r0 가 uint112 폭을 그대로 들고 다녔고,
+    산술이 그 폭에서 overflow 해 112비트 ⊤ 가 됐다(실제 값은 256비트 — **unsound**; web3bugs_70_H_04/10).
+    값이 선언 타입 범위에 안 들어가면 컴파일러가 거부했을 코드이거나 엔진의 타입 오류이므로 **예외**(폴백 없음).
+    정수가 아닌 값·정수가 아닌 선언 타입은 그대로 돌려준다.
+    """
+    if not isinstance(value, (IntegerInterval, UnsignedIntegerInterval)):
+        return value
+    et = getattr(sol_type, "elementaryTypeName", None) if sol_type is not None else None
+    if getattr(sol_type, "typeCategory", "elementary") != "elementary" or not isinstance(et, str):
+        return value
+    if et.startswith("uint"):
+        cls = UnsignedIntegerInterval
+    elif et.startswith("int"):
+        cls = IntegerInterval
+    else:
+        return value
+    w = getattr(sol_type, "intTypeLength", None) or 256
+    if type(value) is cls and value.type_length == w:
+        return value
+    if value.is_bottom():
+        return cls(None, None, w)
+    lo, hi = _int_bounds(cls, w)
+    if value.min_value < lo or value.max_value > hi:
+        raise ValueError(f"implicit conversion of {what} {value} to {et} does not fit "
+                         f"(Solidity 는 손실 있는 암묵 변환을 허용하지 않음 — 타입 오류)")
+    return cls(value.min_value, value.max_value, w)
+
+
+def _unify_operand_types(expr, L, R):
+    """이항 산술·비트 연산의 **공통 타입** (Phase 4b). 예전엔 왼쪽 피연산자의 폭을 그대로 썼다.
+      · 한쪽이 상수식(리터럴)이면 상대 타입으로 변환(범위 밖이면 Solidity 도 컴파일 오류 → 예외)
+      · 둘 다 타입이 있고 부호가 같으면 넓은 쪽 폭(좁은 쪽이 암묵적으로 넓어진다)
+      · 둘 다 상수식이면 그대로(상수 산술)
+    부호가 다른 비상수 피연산자 조합은 기존 동작 유지(별도 검토 대상)."""
+    if not (isinstance(L, (IntegerInterval, UnsignedIntegerInterval))
+            and isinstance(R, (IntegerInterval, UnsignedIntegerInterval))):
+        return L, R
+    lc, rc = _is_constant_expr(expr.left), _is_constant_expr(expr.right)
+    if lc and rc:
+        return L, R
+
+    def _to(v, cls, w, side):
+        if v.is_bottom():
+            return cls(None, None, w)
+        lo, hi = _int_bounds(cls, w)
+        if v.min_value < lo or v.max_value > hi:
+            raise ValueError(f"constant operand {v} of '{expr.operator}' does not fit "
+                             f"{'int' if cls is IntegerInterval else 'uint'}{w} (compile error)")
+        return cls(v.min_value, v.max_value, w)
+
+    if rc:
+        return L, _to(R, type(L), L.type_length, "right")
+    if lc:
+        return _to(L, type(R), R.type_length, "left"), R
+    if type(L) is type(R) and L.type_length != R.type_length:
+        w = max(L.type_length, R.type_length)
+        return type(L)(L.min_value, L.max_value, w) if not L.is_bottom() else type(L)(None, None, w), \
+            type(R)(R.min_value, R.max_value, w) if not R.is_bottom() else type(R)(None, None, w)
+    return L, R
+
+
 class Evaluation :
 
     def __init__(self, analyzer: "ContractAnalyzer"):
@@ -172,28 +262,20 @@ class Evaluation :
         - (("member", "x"),) → struct member
         - (("index", 0),) → tuple index
         """
-        import pickle, pathlib
-
         # 단일 반환 (access_chain이 빈 tuple)
         if () in entries and len(entries) == 1:
             return self._mapping_lookup_if_needed(entries[()], callerObject)
 
         # struct member 또는 index가 있는 경우 → return type 조회 후 조립
-        pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{interface_name}.pkl')
-        if not pkl_path.exists():
-            # fallback: 단일 값이면 반환
-            if () in entries:
-                return self._mapping_lookup_if_needed(entries[()], callerObject)
-            return None
-
-        with open(pkl_path, 'rb') as f:
-            raw = pickle.load(f)
-        ifc_cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
+        # (Phase 4b) 예전엔 `Dependencies/objectfile/ifc_<T>.pkl` 을 하드코딩해 읽고, 없으면 조용히 None 을 돌렸다.
+        #   로드된 의존성(`contract_cfgs`)만 본다 — `_lookup_interface_return` 주석 참고.
+        ifc_cfg = (getattr(self.an, 'contract_cfgs', {}) or {}).get(interface_name)
+        if ifc_cfg is None:
+            raise ValueError(f"@IReturn: interface '{interface_name}' 의 선언을 찾지 못함 (의존성 누락)")
         ifc_fcfg = ifc_cfg.get_function_cfg(func_name)
         if not ifc_fcfg or not ifc_fcfg.return_types:
             return None
 
-        rt = ifc_fcfg.return_types[0]
         # ★ file-level struct(예: `struct FloatStruct {...}`가 인터페이스/컨트랙트
         # 밖, 파일 최상위에 선언된 경우, `IMochiProfile.liquidationFactor()`처럼
         # 그 인터페이스의 함수가 반환 타입으로만 참조함) 병합 — `ifc_cfg.structDefs`는
@@ -205,13 +287,19 @@ class Evaluation :
         enum_defs = getattr(ifc_cfg, 'enumDefs', {})
 
         # top 값 생성
-        top_val = VariableEnv.top_from_soltype(
-            rt, struct_defs, enum_defs,
-            identifier=f"{interface_name}.{func_name}_ret")
-        # Variables wrapper → value 추출 (elementary)
-        if isinstance(top_val, Variables) and \
-           not isinstance(top_val, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
-            top_val = top_val.value
+        #   다중 반환이면 반환 타입별 ⊤ 의 리스트 (Phase 3b: 예전엔 첫 반환 타입만 만들었다)
+        def _top(rt, ident):
+            tv = VariableEnv.top_from_soltype(rt, struct_defs, enum_defs, identifier=ident)
+            # Variables wrapper → value 추출 (elementary)
+            if isinstance(tv, Variables) and \
+               not isinstance(tv, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
+                tv = tv.value
+            return tv
+        if len(ifc_fcfg.return_types) > 1:
+            top_val = [_top(rt, f"{interface_name}.{func_name}_ret{i}")
+                       for i, rt in enumerate(ifc_fcfg.return_types)]
+        else:
+            top_val = _top(ifc_fcfg.return_types[0], f"{interface_name}.{func_name}_ret")
 
         # entries의 access chain을 따라 값 설정
         for chain, val in entries.items():
@@ -231,6 +319,16 @@ class Evaluation :
                             target = target.members[step[1]]
                     else:
                         break  # member를 찾지 못함
+                elif step[0] == "index" and isinstance(target, list):
+                    # 다중 반환 값의 i 번째 (Phase 3b)
+                    idx = step[1]
+                    if not (0 <= idx < len(target)):
+                        raise ValueError(f"@IReturn {interface_name}.{func_name}()[{idx}]: "
+                                         f"function returns {len(target)} values")
+                    if is_last:
+                        target[idx] = val
+                    else:
+                        target = target[idx]
                 elif step[0] == "index":
                     if isinstance(target, ArrayVariable):
                         idx = step[1]
@@ -304,15 +402,17 @@ class Evaluation :
         """외부 호출 `T(addr).f()` / `t.f()` 의 반환값 = 선언 반환 타입의 ⊤ (2026-10-21 재작성, 사용자 승인).
 
         조회 순서 (각각 부모 체인 포함):
-          1. interface pkl (`Dependencies/objectfile/ifc_<T>.pkl`)
-          2. 이미 로드된 contract/library CFG (`self.an.contract_cfgs`) — T 가 interface 가 아니라 **contract** 인 경우
-             (예: `Ownable(address(factory)).owner()`, web3bugs_36_H_02)
-          3. public 상태변수의 자동 getter (`factory.ownerSplit()` 처럼 함수가 아니라 상태변수인 경우)
+          1. 로드된 interface/contract/library CFG (`self.an.contract_cfgs`) — interface pkl 도 여기에 올라와 있다.
+             T 가 interface 가 아니라 **contract** 인 경우도 같다 (예: `Ownable(address(factory)).owner()`, web3bugs_36_H_02)
+          2. public 상태변수의 자동 getter (`factory.ownerSplit()` 처럼 함수가 아니라 상태변수인 경우)
         함수를 찾았는데 반환 타입이 없으면(void) **None** = 값 없음(정상).
         끝내 못 찾으면 **예외** — 컴파일되는 코드라면 선언이 반드시 있으므로 의존성 누락이다.
         예전엔 못 찾으면 호출부가 `UnsignedIntegerInterval.top()` 으로 대체했고, 그 숫자가 address 자리에 들어가
         `require(account != address(0))` 를 불가능으로 만들었다(36_H_02 Unreachable)."""
-        import pickle, pathlib
+        # (Phase 4b) 예전엔 1. 단계에서 `Dependencies/objectfile/ifc_<T>.pkl` 경로를 **하드코딩**해 직접 읽었다.
+        #   프로젝트 단위 의존성(IQ_DEPS_ROOT)으로 돌릴 때도 레거시 공용 트리의 같은 이름 interface 를 읽어
+        #   다른 판의 타입(web3bugs_42_H_01: 공용 트리의 rename 된 `FloatStruct` ↔ 프로젝트의 `float`)이 섞였다.
+        #   interface pkl 은 load_dependencies 가 두 모드 모두 `contract_cfgs` 에 올려 두므로 그것만 본다.
         visited = set()
         queue = [interface_name]
         while queue:
@@ -320,20 +420,18 @@ class Evaluation :
             if name in visited or not name:
                 continue
             visited.add(name)
-            cfg = None
-            pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{name}.pkl')
-            if pkl_path.exists():
-                with open(pkl_path, 'rb') as f:
-                    raw = pickle.load(f)
-                cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
-            if cfg is None:
-                cfg = (getattr(self.an, 'contract_cfgs', {}) or {}).get(name)
+            cfg = (getattr(self.an, 'contract_cfgs', {}) or {}).get(name)
             if cfg is None:
                 continue
             fcfg = cfg.get_function_cfg(func_name)
             if fcfg is not None:
                 if not fcfg.return_types:
                     return None                                   # void 함수: 값 없음
+                if len(fcfg.return_types) > 1:
+                    # ★ (Phase 3b) 다중 반환 = 반환 타입별 ⊤ 의 리스트. 예전엔 첫 반환 타입 하나만 돌려줘
+                    #   `(a, b, , , c) = feed.latestRoundData()` 의 튜플 대입이 (조용히) 무시됐다.
+                    return [self._top_of_type(t, cfg, f"{name}.{func_name}_ret{i}")
+                            for i, t in enumerate(fcfg.return_types)]
                 return self._top_of_type(fcfg.return_types[0], cfg, f"{name}.{func_name}_ret")
             svn = getattr(cfg, 'state_variable_node', None)
             sv = (getattr(svn, 'variables', {}) or {}).get(func_name) if svn is not None else None
@@ -355,7 +453,6 @@ class Evaluation :
         interface `IPool` 안에 정의된 경우)를 위한 헬퍼. `_lookup_interface_return`
         과 동일한 PKL 로딩 패턴 재사용.
         Returns: (struct_def, struct_defs, enum_defs) 또는 None"""
-        import pickle, pathlib
         visited = set()
         queue = [interface_name]
         while queue:
@@ -363,12 +460,10 @@ class Evaluation :
             if ifc_name in visited:
                 continue
             visited.add(ifc_name)
-            pkl_path = pathlib.Path(f'Dependencies/objectfile/ifc_{ifc_name}.pkl')
-            if not pkl_path.exists():
+            # (Phase 4b) 하드코딩 경로 대신 로드된 의존성을 본다 — `_lookup_interface_return` 주석 참고.
+            ifc_cfg = (getattr(self.an, 'contract_cfgs', {}) or {}).get(ifc_name)
+            if ifc_cfg is None:
                 continue
-            with open(pkl_path, 'rb') as f:
-                raw = pickle.load(f)
-            ifc_cfg = raw["cfg"] if isinstance(raw, dict) and "cfg" in raw else raw
             struct_defs = getattr(ifc_cfg, 'structDefs', {})
             if struct_name in struct_defs:
                 enum_defs = getattr(ifc_cfg, 'enumDefs', {})
@@ -1622,6 +1717,17 @@ class Evaluation :
             return f"this.{member}"
 
         # ──────────────────────────────────────────────────────────────
+        # 0-3. address 변수 (Phase 4b)
+        #   MemberAccessContext 의 식별자 평가는 using-for 조회(0.)를 위해 **변수 객체**를 돌려준다.
+        #   using-for 로 해소되지 않은 address 변수의 멤버(.transfer/.send/.balance …)는 값(AddressSet)
+        #   기준으로 처리해야 하는데, 예전엔 풀어주지 않아 6.(해석 불가 멤버)로 떨어졌다.
+        # ──────────────────────────────────────────────────────────────
+        if (isinstance(baseVal, Variables)
+                and not isinstance(baseVal, (ArrayVariable, StructVariable, MappingVariable, EnumVariable))
+                and isinstance(baseVal.value, AddressSet)):
+            baseVal = baseVal.value
+
+        # ──────────────────────────────────────────────────────────────
         # 1. Global-var (block / msg / tx)
         # ──────────────────────────────────────────────────────────────
         if isinstance(baseVal, str):
@@ -1799,9 +1905,10 @@ class Evaluation :
             if member == "length":
                 # 동적 배열인데 아직 push 로 단 1-개도 추가되지 않음
                 if baseVal.typeInfo.isDynamicArray and not baseVal.elements:
-                    # “얼마든지 될 수 있다”  →  ⊥(bottom) 으로 전파
-                    #   • 이후 비교( >, == 등) 는 항상 불확정 TOP 으로 유지
-                    return UnsignedIntegerInterval(None, None, 256)
+                    # 원소가 구체화되지 않은 동적 배열 = 길이를 모름 → ⊤.
+                    # ★ (Phase 2, D2) 예전엔 ⊥ 를 돌려 "도달 불가" 로 오판할 수 있었다.
+                    #   (동적 배열 길이를 추상값으로 따로 들고 있지 않은 것은 별개의 미해결 과제 — D5)
+                    return UnsignedIntegerInterval.top(256)
 
                 # 그 밖의 경우 → 현재 element 수를 singleton-interval 로
                 ln = len(baseVal.elements)
@@ -1876,15 +1983,11 @@ class Evaluation :
                     # send는 성공/실패를 bool로 반환
                     return BoolInterval.top()  # [0,1] 둘 다 가능
 
-                # address.call{value:...}() 등
-                if member == "call":
-                    # call은 (bool success, bytes memory data) 반환
-                    # 단순화: Top 반환
-                    return BoolInterval.top()
-
-                # address.delegatecall(), staticcall()
-                if member in ("delegatecall", "staticcall"):
-                    return BoolInterval.top()
+                # address.call/delegatecall/staticcall(data) → (bool success, bytes memory data)
+                #   (Phase 4b) 예전엔 bool ⊤ 하나만 돌려 `(bool ok, bytes memory d) = a.call(...)` 의 튜플 대입이
+                #   터졌다. 다중 반환은 리스트로 표현한다(슬롯 위치 보존). bytes 는 다른 동적 bytes 와 같이 심볼.
+                if member in ("call", "delegatecall", "staticcall"):
+                    return [BoolInterval.top(), f"symbol_{member}_returndata"]
 
             # interface cast된 address의 함수 호출 (IERC20(x).balanceOf())
             cast_ifc = getattr(baseVal, '_cast_interface', None)
@@ -2192,19 +2295,23 @@ class Evaluation :
             true_val = self.evaluate_expression(expr.true_expr, variables, callerObject, "ConditionalExp")
             false_val = self.evaluate_expression(expr.false_expr, variables, callerObject, "ConditionalExp")
 
-            # 두 결과가 모두 Interval이면 => join
-            # (IntegerInterval, UnsignedIntegerInterval, BoolInterval 등)
-            if (hasattr(true_val, 'join') and hasattr(false_val, 'join')
-                    and type(true_val) == type(false_val)):
-                return true_val.join(false_val)
-            else:
-                # 타입이 다르거나, join 메서드 없는 경우 => symbolic
-                return f"symbolicConditional({true_val}, {false_val})"
+            return self._join_branch_values(true_val, false_val)
 
-        # 2) cond_val이 BoolInterval가 아님 => symbolic
-        # 예: cond_val이 IntegerInterval => 0이 아닌 값은 true?
-        # 여기서는 간단히 [0,∞]? => partial => symbolic
-        return f"symbolicConditionalCondition({cond_val})"
+        # ★ (Phase 3b, D4) 조건이 bool 구간이 아닌 경우를 심볼 문자열로 넘기지 않는다.
+        raise ValueError(f"conditional expression: condition is not a bool value ({type(cond_val).__name__})")
+
+    def _join_branch_values(self, a, b):
+        """삼항식 두 분기 값의 join. 튜플이면 원소별 (Phase 3b).
+        ★ 예전엔 join 할 수 없으면 `"symbolicConditional(...)"` 문자열을 반환했다(튜플 분기 포함) — 그 문자열이
+          튜플 대입에서 조용히 무시돼 변수들이 초기값으로 남았다."""
+        if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)) and len(a) == len(b):
+            return [self._join_branch_values(x, y) for x, y in zip(a, b)]
+        if hasattr(a, 'join') and hasattr(b, 'join') and type(a) == type(b):
+            return a.join(b)
+        if isinstance(a, Variables) and isinstance(b, Variables):
+            return VariableEnv._merge_values(a, b, "join")
+        raise ValueError(f"conditional expression: cannot join branch values "
+                         f"{type(a).__name__} / {type(b).__name__}")
 
     def evaluate_inline_array_expression_context(self, expr, variables, callerObject=None, callerContext=None):
         """
@@ -2249,6 +2356,9 @@ class Evaluation :
     def evaluate_tuple_expression_context(self, expr, variables,
                                           callerObject=None, callerContext=None):
         # 각 요소 평가
+        if any(e is None for e in expr.elements):
+            # 빈 슬롯은 대입 좌변(`(, , x) = …`)에서만 의미가 있다 — 값으로 평가할 수 없다
+            raise ValueError("tuple expression with empty slots cannot be evaluated as a value")
         elems = [self.evaluate_expression(e, variables, None, "TupleElem")
                  for e in expr.elements]
 
@@ -2268,6 +2378,10 @@ class Evaluation :
             raise ValueError(f"Unable to evaluate operand in unary expression: {expr}")
 
         op = expr.operator
+        if op == '-' and isinstance(operand_val, UnsignedIntegerInterval) and _is_constant_expr(expr.expression)                 and not operand_val.is_bottom():
+            # (Phase 4b) `-1` 등 상수식의 부호 반전 = **타입 없는 유리수** 음수(문맥 타입은 대입·상대 피연산자가 정함).
+            #   예전엔 uint256 리터럴에 wrap 을 적용해 `return -1;`(int256) 이 2^256-1 이 됐다.
+            return IntegerInterval(-operand_val.max_value, -operand_val.min_value, 256)
         if op == '-':
             result = operand_val.negate()
         elif op == '!':
@@ -2326,10 +2440,18 @@ class Evaluation :
                 return BoolInterval.bottom()
             return _bottom(leftInterval if not left_bottom else rightInterval)
 
+        # (Phase 4b) 산술·비트 연산은 공통 타입에서 계산 — 왼쪽 폭이 아니라(Solidity 의미)
+        if operator in _ARITH_OPS:
+            leftInterval, rightInterval = _unify_operand_types(expr, leftInterval, rightInterval)
+
         if operator == '+':
             result = leftInterval.add(rightInterval)
         elif operator == '-':
-            result = leftInterval.subtract(rightInterval)
+            if isinstance(leftInterval, UnsignedIntegerInterval):
+                # (Phase 2) unchecked 블록에서는 wrap — Engine 이 문장 해석 중 노드 플래그로 켠다
+                result = leftInterval.subtract(rightInterval, wrapping=self.an.engine._unchecked)
+            else:
+                result = leftInterval.subtract(rightInterval)
         elif operator == '*':
             result = leftInterval.multiply(rightInterval)
         elif operator == '/':
@@ -2608,6 +2730,14 @@ class Evaluation :
                 # qualified call: library CFG에서 직접 함수 검색
                 if is_qualified:
                     lib_fcfg = ccfg.get_function_cfg(func_name)
+                    # (Phase 4) `Lib.S(args)` = 라이브러리에 정의된 구조체의 생성자 (함수 아님)
+                    lib_structs = getattr(ccfg, "structDefs", {}) or {}
+                    if lib_fcfg is None and func_name in lib_structs:
+                        qname = f"{getattr(ccfg, 'library_name', None) or ''}.{func_name}".lstrip(".")
+                        return self._mapping_lookup_if_needed(
+                            self._construct_struct(lib_structs[func_name], qname, expr, variables,
+                                                   lib_structs, getattr(ccfg, "enumDefs", {}) or {}),
+                            callerObject)
                     # overload: 인자 개수로 매칭
                     if lib_fcfg and len(lib_fcfg.parameters) != n_args:
                         if func_name in ccfg.functions:
@@ -2687,11 +2817,13 @@ class Evaluation :
             return self.evaluate_new_expression_context(new_expr, variables, callerObject, callerContext)
 
         elif expr.function.context == "FunctionCallOptionContext":
-            # expr{value: ethAmount}(args) → options는 무시, 외부 호출이므로 Top 반환
-            return self._mapping_lookup_if_needed(
-                self.evaluate_function_call_option_context(
-                    expr.function, variables, callerObject, callerContext),
-                callerObject)
+            # expr{value: v, gas: g}(args) — (Phase 4b) 옵션은 반환값에 영향이 없으므로 옵션을 벗긴 호출로
+            #   평가한다. 예전엔 무엇을 부르든 uint ⊤ 를 돌려 반환 타입이 틀렸다
+            #   (`(bool ok, ) = to.call{value: v}("")` 가 튜플 대입에서 터지고, interface 호출의 반환 타입도 무시됨).
+            plain = Expression(function=expr.function.function, arguments=expr.arguments,
+                               named_arguments=expr.named_arguments, operator=expr.operator,
+                               context=expr.context)
+            return self.evaluate_function_call_context(plain, variables, callerObject, callerContext)
 
         elif expr.function.context == "IdentifierExpContext":
             function_name = expr.function.identifier
@@ -2712,35 +2844,48 @@ class Evaluation :
         found = self._find_struct_def(contract_cfg, function_name)
         if found is not None:
             struct_def, qualified_name = found
-            new_struct = StructVariable(
-                identifier=f"temp_{function_name}_{id(expr)}",
-                struct_type=qualified_name,
-                scope="memory"
-            )
-            new_struct.initialize_struct(struct_def, struct_defs=contract_cfg.structDefs,
-                                         enum_defs=contract_cfg.enumDefs)
+            return self._construct_struct(struct_def, qualified_name, expr, variables,
+                                          contract_cfg.structDefs, contract_cfg.enumDefs)
 
-            # named_arguments로 필드 초기화
-            named_args = expr.named_arguments if expr.named_arguments else {}
-            if named_args:
-                for field_name, field_expr in named_args.items():
-                    if field_name in new_struct.members:
-                        field_value = self.evaluate_expression(field_expr, variables, None, None)
-                        field_var = new_struct.members[field_name]
-                        if isinstance(field_var, Variables):
-                            field_var.value = field_value
-            elif expr.arguments:
-                # positional arguments: StructName(val1, val2, ...)
-                member_names = list(new_struct.members.keys())
-                for i, arg_expr in enumerate(expr.arguments):
-                    if i < len(member_names):
-                        field_value = self.evaluate_expression(arg_expr, variables, None, None)
-                        field_var = new_struct.members[member_names[i]]
-                        if isinstance(field_var, Variables):
-                            field_var.value = field_value
+        return self._resolve_and_call_internal(expr, variables, callerObject, callerContext,
+                                               function_name, contract_cfg)
 
-            return new_struct
+    def _construct_struct(self, struct_def, qualified_name, expr, variables, struct_defs, enum_defs):
+        """구조체 생성자 `S(a, b)` / `S({x: a})` / `Lib.S(a)` → memory StructVariable."""
+        new_struct = StructVariable(
+            identifier=f"temp_{qualified_name}_{id(expr)}",
+            struct_type=qualified_name,
+            scope="memory"
+        )
+        new_struct.initialize_struct(struct_def, struct_defs=struct_defs, enum_defs=enum_defs)
 
+        # named_arguments로 필드 초기화
+        named_args = expr.named_arguments if expr.named_arguments else {}
+        if named_args:
+            for field_name, field_expr in named_args.items():
+                if field_name in new_struct.members:
+                    field_value = self.evaluate_expression(field_expr, variables, None, None)
+                    field_var = new_struct.members[field_name]
+                    if isinstance(field_var, Variables):
+                        # (Phase 4b) 필드 선언 타입으로 암묵 변환
+                        field_var.value = coerce_to_declared(field_value, getattr(field_var, "typeInfo", None),
+                                                             f"struct field '{field_var.identifier}'")
+        elif expr.arguments:
+            # positional arguments: StructName(val1, val2, ...)
+            member_names = list(new_struct.members.keys())
+            for i, arg_expr in enumerate(expr.arguments):
+                if i < len(member_names):
+                    field_value = self.evaluate_expression(arg_expr, variables, None, None)
+                    field_var = new_struct.members[member_names[i]]
+                    if isinstance(field_var, Variables):
+                        # (Phase 4b) 필드 선언 타입으로 암묵 변환
+                        field_var.value = coerce_to_declared(field_value, getattr(field_var, "typeInfo", None),
+                                                             f"struct field '{field_var.identifier}'")
+
+        return new_struct
+
+    def _resolve_and_call_internal(self, expr, variables, callerObject, callerContext, function_name, contract_cfg):
+        """이름 호출 `f(args)` — 정적 스코프로 callee 를 찾아 공통 진입점으로 해석 (Phase 4)."""
         # 3) 함수 CFG 가져오기
         # ★ 지금 라이브러리 함수 몸체 안에서 이름만으로 호출하는 중이라면(예:
         # SafeMathUpgradeable의 `sub(a,b) { return sub(a,b,errorMsg); }`처럼
@@ -2762,13 +2907,21 @@ class Evaluation :
             # 실제로 호출되는 라이브러리 함수는 각 컨트랙트의
             # `contract_cfg.using_libraries[target_type] -> [LibraryCFG, ...]`
             # 에 붙어있는 것이므로, 거기서 찾아야 함.
+            _cur = getattr(cur_fcfg, "_live_origin", cur_fcfg)
             for _lib_list in getattr(contract_cfg, 'using_libraries', {}).values():
                 for _lib_cfg in _lib_list:
-                    if cur_fcfg in [f for _, f in _lib_cfg.iter_all_functions()]:
+                    if _cur in [f for _, f in _lib_cfg.iter_all_functions()]:
                         owning_lib = _lib_cfg
                         break
                 if owning_lib is not None:
                     break
+            # ★ (Phase 4, D3) `Lib.f(...)` 처럼 이름으로 직접 부른 라이브러리 본문 — using-for 목록에 없으므로
+            #   로드된 라이브러리 전체에서 소속을 찾는다(예전엔 못 찾아 형제 함수 호출이 uint ⊤ 로 무너졌다).
+            if owning_lib is None:
+                for _lib_cfg in (self.an.library_cfgs or {}).values():
+                    if _cur in [f for _, f in _lib_cfg.iter_all_functions()]:
+                        owning_lib = _lib_cfg
+                        break
 
         if owning_lib is not None:
             functions_source = owning_lib.functions.get(function_name)
@@ -2781,11 +2934,20 @@ class Evaluation :
                 contract_cfg, function_name)
 
         if not function_cfg:
-            # 함수를 찾을 수 없음 → Top 반환 (외부 함수, interface 메서드, 미정의 함수)
-            # ★ 아직 분석 안 된 함수일 수 있음 → pending_callee_name에 기록
-            self.an.pending_callee_name = function_name
-            # 반환 타입을 알 수 없으므로 uint256 Top으로 처리
-            return self._mapping_lookup_if_needed(UnsignedIntegerInterval.top(), callerObject)
+            # ★ (Phase 4, D3/D4) 예전엔 여기서 `pending_callee_name` 을 남기고 uint256 ⊤ 를 반환했다(반환 타입 무시).
+            #   디버깅 해석 시점에는 모든 선언이 들어와 있으므로, 이름이 가리킬 수 있는 것은 셋뿐이다.
+            # (1) interface/contract 타입 이름 → 형변환 `X(a)` (파싱 시점에 X 가 아직 선언 전이었던 경우)
+            if function_name in (getattr(self.an, "interface_names", set()) or set()) \
+                    or function_name in (self.an.contract_cfgs or {}):
+                conv = Expression(typeName=function_name,
+                                  expression=(expr.arguments[0] if expr.arguments else None),
+                                  operator='typecast', context='TypeConversion')
+                return self.evaluate_expression(conv, variables, callerObject, callerContext)
+            # (2) 함수 타입 변수 → 간접 호출(D9: 보수적 근사, Phase 5)
+            if function_name in variables:
+                raise ValueError(f"call through function-type variable '{function_name}' is not supported yet")
+            # (3) 그 외 = 존재하지 않는 함수 (컴파일 오류급)
+            raise ValueError(f"call to undefined function '{function_name}'")
 
         # 4) 함수 파라미터와 인자 매핑
         #    expr.arguments -> 위치 기반 인자
@@ -2824,313 +2986,68 @@ class Evaluation :
             raise ValueError(f"Argument count mismatch in function call to '{function_name}': "
                              f"expected {total_params}, got {total_args}.")
 
-        # 현재 함수 컨텍스트 저장
-        saved_function = self.an.current_target_function
-        self.current_target_function = function_name
-
-        # 5) 인자 해석
-        #    순서 기반 인자
-        for i, arg_expr in enumerate(arguments):
-            param_name = param_names[i]
-            arg_val = self.evaluate_expression(arg_expr, variables, None, None)
-
-            # function_cfg 내부의 related_variables에 param_name이 있어야
-            if param_name in function_cfg.related_variables:
-                param_var = function_cfg.related_variables[param_name]
-                # struct 인자: StructVariable이면 members도 복사
-                if hasattr(param_var, 'members') and hasattr(arg_val, 'members'):
-                    param_var.members = {k: copy.deepcopy(v) for k, v in arg_val.members.items()}
-                    param_var.value = arg_val.value
-                elif hasattr(param_var, 'members') and arg_val is None:
-                    # struct 파라미터에 None이 전달됨 → members 유지 (기본 초기화 상태)
-                    pass
-                else:
-                    param_var.value = arg_val
-            else:
-                raise ValueError(f"Parameter '{param_name}' not found in function '{function_name}' variables.")
-        #    named 인자
-        #    (예: foo(a=1,b=2)) => paramName->index 매핑이 필요할 수 있음
-        #    여기서는 paramName가 function_cfg.parameters[i]와 동일한지 가정
-        param_offset = len(arguments)
-        for i, (key, expr_val) in enumerate(named_arguments.items()):
-            if key not in param_names:
-                raise ValueError(f"Unknown named parameter '{key}' in function '{function_name}'.")
-            arg_val = self.evaluate_expression(expr_val, variables, None, f"CallNamedArg({function_name})")
-
-            if key in function_cfg.related_variables:
-                function_cfg.related_variables[key].value = arg_val
-            else:
-                raise ValueError(f"Parameter '{key}' not found in function '{function_name}' variables.")
-
-        # 6) 실제 함수 CFG 해석
-        #    caller env는 interpret_function_cfg 내에서 start_block.variables에 병합됨
-        #    related_variables는 함수 정의 시점의 변수 집합이므로 수정하지 않음
-        return_value = self.engine.interpret_function_cfg(function_cfg, variables)
-
-        # 7) 함수 컨텍스트 복원
-        self.an.current_target_function = saved_function
-
+        # 5) 인자 평가(caller env) → 6) 공통 진입점으로 해석 (Phase 4: 바인딩·참조 의미·컨텍스트는 invoke_callee)
+        arg_values = self._ordered_call_args(arguments, named_arguments, param_names, variables, function_name)
+        return_value = self.engine.invoke_callee(function_cfg, arg_values, variables, kind="internal")
         return self._mapping_lookup_if_needed(return_value, callerObject)
+
+    def _ordered_call_args(self, arguments, named_arguments, param_names, variables, function_name):
+        """위치 인자 + 이름 인자 → 파라미터 순서의 값 리스트 (caller env 에서 평가)."""
+        values = [self.evaluate_expression(a, variables, None, None) for a in (arguments or [])]
+        if named_arguments:
+            by_name = {}
+            for key, ex in named_arguments.items():
+                if key not in param_names:
+                    raise ValueError(f"Unknown named parameter '{key}' in function '{function_name}'.")
+                by_name[key] = self.evaluate_expression(ex, variables, None, f"CallNamedArg({function_name})")
+            for pname in param_names[len(values):]:
+                if pname not in by_name:
+                    raise ValueError(f"call to '{function_name}': missing argument '{pname}'")
+                values.append(by_name[pname])
+        return values
 
     def evaluate_library_function_call_context(self, expr, variables, implicit_first_arg, library_function_cfg):
         """
-        라이브러리 함수 호출 처리
-        expr: 원래 FunctionCallContext Expression 객체 (arguments 포함)
-        implicit_first_arg: 첫 번째 인자로 전달될 baseVal (Variables 객체)
-        library_function_cfg: 라이브러리 함수의 FunctionCFG
+        라이브러리 함수 호출 (`using L for T` 의 `x.f(...)` 또는 `L.f(...)`).
+        implicit_first_arg: using-for 의 수신자(첫 번째 인자) 값.
+        ★ (Phase 4) 공통 진입점(`Engine.invoke_callee`)으로 바인딩·해석. 예전엔 callee 파라미터 객체를 제자리에서
+          덮어쓰거나(복합 타입은 caller 객체로 교체) 인자 수가 안 맞으면 심볼 문자열을 반환했다.
         """
         if not library_function_cfg:
-            return f"symbolic_library_call(unknown_function)"
+            raise ValueError(f"library call '{getattr(expr.function, 'identifier', expr)}': function not found")
+        param_names = list(getattr(library_function_cfg, 'parameters', []) or [])
+        values = [] if implicit_first_arg is None else [implicit_first_arg]
+        values += self._ordered_call_args(expr.arguments or [], getattr(expr, "named_arguments", None) or {},
+                                          param_names[len(values):], variables,
+                                          library_function_cfg.function_name)
 
-        # 1) 인자 준비 - implicit_first_arg가 있으면 첫 번째 인자로 설정
-        arguments = []
-        if implicit_first_arg is not None:
-            arguments.append(implicit_first_arg)
-        if expr.arguments:
-            arguments.extend(expr.arguments)
-
-        # 2) 파라미터와 인자 매핑
-        param_names = getattr(library_function_cfg, 'parameters', [])
-
-        if len(param_names) > len(arguments):
-            for _ in range(len(param_names) - len(arguments)):
-                arguments.append("")
-        elif len(param_names) < len(arguments):
-            return f"symbolic_library_call_mismatch({expr.function.identifier})"
-
-        # 3) 파라미터는 related_variables에 설정, caller_env에는 나머지만
-        #    related_variables 수정은 파라미터에 한정 (다른 함수의 변수 오염 방지)
-        caller_env = variables.copy()
-
-        for i, param_name in enumerate(param_names):
-            if isinstance(arguments[i], (StructVariable, ArrayVariable, MappingVariable)):
-                # 복합 타입: 객체 자체를 파라미터로 설정
-                library_function_cfg.related_variables[param_name] = arguments[i]
-            elif isinstance(arguments[i], Variables):
-                arg_val = arguments[i].value if hasattr(arguments[i], 'value') else arguments[i]
-                if param_name in library_function_cfg.related_variables:
-                    library_function_cfg.related_variables[param_name].value = arg_val
-                else:
-                    param_var = Variables(identifier=param_name, scope="local")
-                    param_var.value = arg_val
-                    library_function_cfg.related_variables[param_name] = param_var
-            elif isinstance(arguments[i], (UnsignedIntegerInterval, IntegerInterval)):
-                if param_name in library_function_cfg.related_variables:
-                    library_function_cfg.related_variables[param_name].value = arguments[i]
-                else:
-                    param_var = Variables(identifier=param_name, scope="local")
-                    param_var.value = arguments[i]
-                    library_function_cfg.related_variables[param_name] = param_var
-            elif isinstance(arguments[i], str):
-                if param_name in library_function_cfg.related_variables:
-                    library_function_cfg.related_variables[param_name].value = arguments[i]
-                else:
-                    param_var = Variables(identifier=param_name, scope="local")
-                    param_var.value = arguments[i]
-                    library_function_cfg.related_variables[param_name] = param_var
-            else:
-                arg_val = self.evaluate_expression(arguments[i], variables, None, None)
-                # evaluate 결과가 복합 타입이면 객체 자체를 파라미터로 설정
-                if isinstance(arg_val, (StructVariable, ArrayVariable, MappingVariable)):
-                    library_function_cfg.related_variables[param_name] = arg_val
-                elif param_name in library_function_cfg.related_variables:
-                    library_function_cfg.related_variables[param_name].value = arg_val
-                else:
-                    param_var = Variables(identifier=param_name, scope="local")
-                    param_var.value = arg_val
-                    library_function_cfg.related_variables[param_name] = param_var
-
-        # 4) 라이브러리 함수 실행
-        try:
-            saved_function = self.an.current_target_function
-            saved_function_cfg = self.an.current_target_function_cfg
-
-            self.an.current_target_function = library_function_cfg.function_name
-            self.an.current_target_function_cfg = library_function_cfg
-
-            # 라이브러리의 constant 변수들을 caller_env에 추가
-            library_cfg = None
-            for lib_name, lib_cfg in self.an.library_cfgs.items():
-                if library_function_cfg in [f for _, f in lib_cfg.iter_all_functions()]:
-                    library_cfg = lib_cfg
-                    break
-
-            if library_cfg and library_cfg.state_variable_node:
-                for var_name, var_obj in library_cfg.state_variable_node.variables.items():
-                    if var_name not in caller_env:
-                        caller_env[var_name] = var_obj
-
-            return_value = self.engine.interpret_function_cfg(library_function_cfg, caller_env)
-
-            # 함수 컨텍스트 복원
-            self.an.current_target_function = saved_function
-            self.an.current_target_function_cfg = saved_function_cfg
-            
-            return return_value
-            
-        except Exception as e:
-            # 오류 발생 시 symbolic 값 반환
-            import traceback
-            print(f"[LIBRARY CALL ERROR] {expr.function.identifier}: {str(e)}")
-            traceback.print_exc()
-            return f"symbolic_library_error({expr.function.identifier}: {str(e)})"
+        # 라이브러리의 constant 변수들을 callee 공유 env 에 추가 (호출자 env 는 건드리지 않는다)
+        caller_env = dict(variables)
+        for lib_cfg in self.an.library_cfgs.values():
+            if library_function_cfg in [f for _, f in lib_cfg.iter_all_functions()]:
+                svn = getattr(lib_cfg, "state_variable_node", None)
+                for var_name, var_obj in ((svn.variables if svn else {}) or {}).items():
+                    caller_env.setdefault(var_name, var_obj)
+                break
+        return self.engine.invoke_callee(library_function_cfg, values, caller_env, kind="library")
 
     def evaluate_super_function_call_context(self, expr, variables, super_function_cfg):
-        """
-        super 함수 호출 처리 (super.foo())
-        부모 컨트랙트의 함수를 호출한다.
-
-        Args:
-            expr: 원래 FunctionCallContext Expression 객체 (arguments 포함)
-            variables: 현재 변수 환경
-            super_function_cfg: 부모 컨트랙트의 함수 FunctionCFG
-        """
+        """super.f(...) / Base.f(...) — (Phase 4) 공통 진입점으로. 못 찾으면 예외(예전엔 ⊤)."""
         if not super_function_cfg:
-            return UnsignedIntegerInterval.top()
-
-        # 1) 함수 파라미터 정보
-        param_names = getattr(super_function_cfg, 'parameters', [])
-
-        # 2) 인자 준비
-        arguments = expr.arguments if expr.arguments else []
-        named_arguments = expr.named_arguments if expr.named_arguments else {}
-
-        total_params = len(param_names)
-        total_args = len(arguments) + len(named_arguments)
-
-        if total_params != total_args:
-            return UnsignedIntegerInterval.top()
-
-        # 3) 인자 값 설정
-        caller_env = variables.copy()
-
-        for i, arg_expr in enumerate(arguments):
-            param_name = param_names[i]
-            arg_val = self.evaluate_expression(arg_expr, variables, None, None)
-
-            if param_name in super_function_cfg.related_variables:
-                super_function_cfg.related_variables[param_name].value = arg_val
-            else:
-                from Domain.Variable import Variables as Var
-                param_var = Var(identifier=param_name, scope="local")
-                param_var.value = arg_val
-                super_function_cfg.related_variables[param_name] = param_var
-
-        # named arguments 처리
-        for key, expr_val in named_arguments.items():
-            if key in param_names:
-                arg_val = self.evaluate_expression(expr_val, variables, None, None)
-                if key in super_function_cfg.related_variables:
-                    super_function_cfg.related_variables[key].value = arg_val
-
-        # 4) caller env를 callee에 병합
-        for k, v in variables.items():
-            super_function_cfg.related_variables.setdefault(k, v)
-
-        # 5) 부모 함수 CFG 실행
-        saved_function = self.an.current_target_function
-        saved_function_cfg = self.an.current_target_function_cfg
-        try:
-            self.an.current_target_function = super_function_cfg.function_name
-            self.an.current_target_function_cfg = super_function_cfg
-
-            return_value = self.engine.interpret_function_cfg(super_function_cfg, caller_env)
-
-            return return_value
-
-        except Exception as e:
-            # ★ 실패 원인을 조용히 삼키지 않고 경고로 남김(다른 코드베이스 곳곳의
-            # "Cannot resolve ..." 경고와 동일한 컨벤션) — 다만 리턴값 자체는
-            # raw 문자열이 아니라 TOP interval로 degrade시켜서, 이 값이 그대로
-            # 산술 연산(+=/등)에 들어가 AttributeError로 크래시하지 않게 함
-            # (Pattern A/B의 TOP-degradation 폴백과 동일한 패턴, web3bugs_3_H_05
-            # 에서 발견 — 예전엔 raw 문자열이 그대로 리턴돼서 다음 statement의
-            # 산술 연산에서 크래시했음).
-            print(f"[WARNING] super/base-contract call '{super_function_cfg.function_name}' "
-                  f"failed to interpret: {e}")
-            return UnsignedIntegerInterval.top()
-
-        finally:
-            # ★ interpret_function_cfg가 도중에 예외를 던져도(위 except가 잡음)
-            # current_target_function/_cfg는 반드시 원상복구돼야 함 — 안 그러면
-            # 이 호출 이후 나머지 caller 함수 전체(CFG 빌드 포함)가 계속
-            # callee(super_function_cfg)의 컨텍스트로 오염된 채 진행되다가,
-            # DynamicCFGBuilder.get_current_block()이 엉뚱한 그래프에서
-            # line_info를 조회해서 원래 함수 그래프엔 없는 stale 노드를 리턴
-            # → networkx.NetworkXError로 표면화됨(web3bugs_3_H_05에서 발견).
-            self.an.current_target_function = saved_function
-            self.an.current_target_function_cfg = saved_function_cfg
+            raise ValueError("super call: parent function not found")
+        param_names = list(getattr(super_function_cfg, 'parameters', []) or [])
+        values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
+                                         variables, super_function_cfg.function_name)
+        return self.engine.invoke_callee(super_function_cfg, values, variables, kind="super")
 
     def evaluate_this_function_call_context(self, expr, variables, this_function_cfg):
-        """
-        this 함수 호출 처리 (this.foo())
-        현재 컨트랙트의 함수를 external call로 호출한다.
-        Solidity에서 this.foo()는 external call이지만, 추상 해석에서는 일반 함수 호출과 동일하게 처리.
-
-        Args:
-            expr: 원래 FunctionCallContext Expression 객체 (arguments 포함)
-            variables: 현재 변수 환경
-            this_function_cfg: 현재 컨트랙트의 함수 FunctionCFG
-        """
+        """this.f(...) — 외부 호출이므로 인자는 복사(참조 의미 없음). (Phase 4) 못 찾으면 예외(예전엔 ⊤/문자열)."""
         if not this_function_cfg:
-            return UnsignedIntegerInterval.top()  # 함수를 찾지 못하면 Top 반환
-
-        # 1) 함수 파라미터 정보
-        param_names = getattr(this_function_cfg, 'parameters', [])
-
-        # 2) 인자 준비
-        arguments = expr.arguments if expr.arguments else []
-        named_arguments = expr.named_arguments if expr.named_arguments else {}
-
-        total_params = len(param_names)
-        total_args = len(arguments) + len(named_arguments)
-
-        if total_params != total_args:
-            return f"symbolic_this_error(arg count mismatch: expected {total_params}, got {total_args})"
-
-        # 3) 인자 값 설정
-        caller_env = variables.copy()
-
-        for i, arg_expr in enumerate(arguments):
-            param_name = param_names[i]
-            arg_val = self.evaluate_expression(arg_expr, variables, None, None)
-
-            if param_name in this_function_cfg.related_variables:
-                this_function_cfg.related_variables[param_name].value = arg_val
-            else:
-                from Domain.Variable import Variables as Var
-                param_var = Var(identifier=param_name, scope="local")
-                param_var.value = arg_val
-                this_function_cfg.related_variables[param_name] = param_var
-
-        # named arguments 처리
-        for key, expr_val in named_arguments.items():
-            if key in param_names:
-                arg_val = self.evaluate_expression(expr_val, variables, None, None)
-                if key in this_function_cfg.related_variables:
-                    this_function_cfg.related_variables[key].value = arg_val
-
-        # 4) caller env를 callee에 병합
-        for k, v in variables.items():
-            this_function_cfg.related_variables.setdefault(k, v)
-
-        # 5) 함수 CFG 실행
-        try:
-            saved_function = self.an.current_target_function
-            saved_function_cfg = self.an.current_target_function_cfg
-
-            self.an.current_target_function = this_function_cfg.function_name
-            self.an.current_target_function_cfg = this_function_cfg
-
-            return_value = self.engine.interpret_function_cfg(this_function_cfg, caller_env)
-
-            self.an.current_target_function = saved_function
-            self.an.current_target_function_cfg = saved_function_cfg
-
-            return return_value
-
-        except Exception as e:
-            return f"symbolic_this_error({this_function_cfg.function_name}: {str(e)})"
+            raise ValueError("this-call: function not found in the current contract")
+        param_names = list(getattr(this_function_cfg, 'parameters', []) or [])
+        values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
+                                         variables, this_function_cfg.function_name)
+        return self.engine.invoke_callee(this_function_cfg, values, variables, kind="this")
 
     def update_mapping_in_cfg(self, mapVarName: str, key_str: str, new_var_obj: Variables):
         """
@@ -3167,15 +3084,10 @@ class Evaluation :
         # 1) Interval 계열 (Unsigned / Integer)
         # ────────────────────────────────────────────────────────
         if isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
-            if sub_val.is_bottom():  # ★ bottom 우선 검사
+            if sub_val.is_bottom():  # ★ bottom 우선 검사 (도달 불가는 그대로 전파)
                 return UnsignedIntegerInterval(None, None, bits)
-
-            new_min = max(0, sub_val.min_value)
-            new_max = min(type_max, sub_val.max_value)
-            if new_min > new_max:  # 교집합이 공집합
-                return UnsignedIntegerInterval(None, None, bits)
-
-            return UnsignedIntegerInterval(new_min, new_max, bits)
+            lo, hi = self._wrap_integer_range(sub_val.min_value, sub_val.max_value, bits, signed=False)
+            return UnsignedIntegerInterval(lo, hi, bits)
 
         # ────────────────────────────────────────────────────────
         # 2) BoolInterval  (0 또는 1)
@@ -3196,10 +3108,30 @@ class Evaluation :
         # ────────────────────────────────────────────────────────
         try:
             v = int(sub_val)
-            v = max(0, min(type_max, v))
-            return UnsignedIntegerInterval(v, v, bits)
+            lo, hi = self._wrap_integer_range(v, v, bits, signed=False)
+            return UnsignedIntegerInterval(lo, hi, bits)
         except (ValueError, TypeError):
             return f"symbolicUint{bits}({sub_val})"
+
+    @staticmethod
+    def _wrap_integer_range(lo: int, hi: int, bits: int, *, signed: bool) -> tuple[int, int]:
+        """명시적 정수 변환(`uint8(x)`, `uint256(int x)`, `int128(y)` …)의 구간 의미. (Phase 2)
+
+        Solidity 의 정수 간 명시적 변환은 **revert 하지 않고** 2의 보수로 잘라/재해석한다
+        (v mod 2^bits, signed 면 상위 절반을 음수로). 예전 구현은 범위 밖을 경계로 **clamp** 하고
+        (불건전: uint8(300) = 44 를 255 로), 범위와 겹치지 않으면 **⊥**(도달 불가로 오판)를 냈다.
+        결과가 연속 구간으로 표현되면 그 구간, 감긴 결과가 두 조각이면 타입 전체(⊤).
+        """
+        mod = 1 << bits
+        off = (1 << (bits - 1)) if signed else 0           # signed: [-2^(b-1), 2^(b-1)) 로 이동
+        t_lo, t_hi = -off, mod - 1 - off
+        if hi - lo + 1 >= mod:
+            return t_lo, t_hi
+        w_lo = (lo + off) % mod - off
+        w_hi = (hi + off) % mod - off
+        if w_lo <= w_hi:
+            return w_lo, w_hi
+        return t_lo, t_hi
 
     def convert_to_int(self, sub_val, bits):
         """
@@ -3214,14 +3146,10 @@ class Evaluation :
         #    ⊥(bottom) 은 그대로 bottom 반환
         # ────────────────────────────────────────────────────────
         if isinstance(sub_val, (IntegerInterval, UnsignedIntegerInterval)):
-            if sub_val.is_bottom():  # ★ bottom 체크
+            if sub_val.is_bottom():  # ★ bottom 체크 (도달 불가는 그대로 전파)
                 return IntegerInterval(None, None, bits)
-
-            new_min = max(type_min, sub_val.min_value)
-            new_max = min(type_max, sub_val.max_value)
-            if new_min > new_max:  # 교집합이 공집합
-                return IntegerInterval(None, None, bits)
-            return IntegerInterval(new_min, new_max, bits)
+            lo, hi = self._wrap_integer_range(sub_val.min_value, sub_val.max_value, bits, signed=True)
+            return IntegerInterval(lo, hi, bits)
 
         # ────────────────────────────────────────────────────────
         # 2) BoolInterval → 0/1 로 압축 후 위와 동일
@@ -3245,8 +3173,8 @@ class Evaluation :
         # ────────────────────────────────────────────────────────
         try:
             v = int(sub_val)
-            v = max(type_min, min(type_max, v))  # 범위 클램프
-            return IntegerInterval(v, v, bits)
+            lo, hi = self._wrap_integer_range(v, v, bits, signed=True)
+            return IntegerInterval(lo, hi, bits)
         except (ValueError, TypeError):
             return f"symbolicInt{bits}({sub_val})"
 

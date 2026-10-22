@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=0.488s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_BoostToken_indivisible    None         runs=0 t=4.435s ERR ValueError: external call return type unresolved: IUniswapV2Router02.WETH() — 'I
+numscout_BoostToken_operator       None         runs=0 t=4.715s ERR ValueError: external call return type unresolved: IUniswapV2Router02.WETH() — 'I
+numscout_EthereumGod               None         runs=0 t=1.19s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_HIT                       Violated     runs=1 t=3.094s
+numscout_Nokon                     Warning      runs=1 t=1.374s
+numscout_WANGMI                    None         runs=1 t=15.625s
+web3bugs_101_H_01                  Violated     runs=1 t=1.519s
+web3bugs_112_H_01                  Violated     runs=1 t=1.0s
+web3bugs_113_H_05                  Violated     runs=1 t=3.732s
+web3bugs_16_H_04                   Warning      runs=1 t=2.968s
+web3bugs_16_H_06                   Violated     runs=1 t=0.517s
+web3bugs_192_H_01                  Violated     runs=1 t=14.167s
+web3bugs_29_H_08                   None         runs=0 t=0.097s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_29_H_11                   None         runs=0 t=0.318s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_31_H_01                   Violated     runs=1 t=4.678s
+web3bugs_35_H_08                   Warning      runs=1 t=12.238s
+web3bugs_35_H_10                   Warning      runs=1 t=13.103s
+web3bugs_35_H_11                   Violated     runs=1 t=1.85s
+web3bugs_35_H_12                   Violated     runs=1 t=12.885s
+web3bugs_36_H_02                   Unreachable  runs=1 t=2.714s
+web3bugs_3_H_04                    Violated     runs=1 t=5.953s
+web3bugs_3_H_05                    Warning      runs=1 t=133.56s
+web3bugs_42_H_01                   Warning      runs=1 t=4.758s
+web3bugs_45_H_01                   None         runs=0 t=6.172s ERR ValueError: external call return type unresolved: IUErc20.totalSupply() — 'IUErc
+web3bugs_47_H_02                   Unreachable  runs=1 t=1.87s
+web3bugs_51_H_02                   Violated     runs=1 t=4.312s
+web3bugs_52_H_04                   Warning      runs=1 t=38.782s
+web3bugs_52_H_23                   None         runs=0 t=0.417s ERR ValueError: unresolved member '.uqdiv' on UnsignedIntegerInterval value Unsigned
+web3bugs_52_H_34                   Warning      runs=1 t=38.449s
+web3bugs_56_H_02                   Violated     runs=1 t=1.899s
+web3bugs_58_H_02                   Warning      runs=1 t=22.062s
+web3bugs_59_H_04                   Warning      runs=1 t=1.366s
+web3bugs_5_H_07                    Violated     runs=1 t=0.438s
+web3bugs_5_H_08                    Violated     runs=1 t=1.155s
+web3bugs_5_H_12                    Violated     runs=1 t=0.964s
+web3bugs_60_H_01                   Violated     runs=1 t=1.317s
+web3bugs_62_H_03                   None         runs=0 t=0.778s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   Violated     runs=1 t=7.449s
+web3bugs_62_H_10                   None         runs=0 t=0.342s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   Violated     runs=1 t=2.239s
+web3bugs_70_H_04                   Warning      runs=1 t=16.804s
+web3bugs_70_H_05                   Warning      runs=1 t=13.799s
+web3bugs_70_H_10                   Violated     runs=1 t=16.553s
+web3bugs_77_H_01                   Violated     runs=1 t=0.437s
+web3bugs_78_H_02                   None         runs=0 t=0.154s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_79_H_02                   Violated     runs=1 t=5.817s
+web3bugs_83_H_01                   Violated     runs=1 t=0.749s
+
+verdicts: {'None': 12, 'Violated': 22, 'Warning': 12, 'Unreachable': 2} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p1b_legacy.json

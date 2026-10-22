@@ -315,6 +315,8 @@ def _serialize_node_state(n, recorder) -> dict[str, str]:
     RecordManager._flatten_var 는 인스턴스 상태에 의존하지 않는 순수 평탄화라 재사용 가능."""
     flat: dict[str, str] = {}
     for name, var in getattr(n, "variables", {}).items():
+        if "" in name:      # (Phase 3b) shadowing 으로 보관된 바깥 binding — 내부용 키
+            continue
         recorder._flatten_var(var, name, flat)  # fail-loud: 직렬화 구멍은 그대로 터뜨림
     # ⊥(bottom = 도달 불가 분기) 가독화: "[None,None]" → "⊥"
     return {k: ("⊥" if v == "[None,None]" else v) for k, v in flat.items()}
@@ -671,6 +673,8 @@ def _collect_top_vars(fcfg, scope: str) -> list[TopVar]:
     seen: set[str] = set()
     for n in fcfg.graph.nodes():
         for name, var in getattr(n, "variables", {}).items():
+            if "\x1f" in name:      # (Phase 3b) shadowing 보관 키 — 내부용
+                continue
             val = getattr(var, "value", None)
             # AddressSet/BytesSet.is_top 는 bool 속성. interval 의 is_top 은 메서드라
             #   strict True 비교로 오탐 방지(interval-top 판별은 후속).
@@ -1137,9 +1141,11 @@ def _is_risky_op(op) -> bool:
     return t.startswith(("do ", "do{", "try ", "try{", "} catch", "catch"))
 
 
-def _values_key(debug_values: dict[str, RangeValue]) -> str:
-    """debug 값 묶음 → states 캐시 키. evaluate 가 심고 verify 가 찾는다(같은 값 = 같은 states)."""
-    return repr(sorted((k, tuple(sorted(v.items()))) for k, v in debug_values.items()))
+def _values_key(debug_values: dict[str, RangeValue], scope: Optional["Scope"] = None) -> str:
+    """(타깃 함수, debug 값 묶음) → states 캐시 키. evaluate 가 심고 verify 가 찾는다.
+    ★ (Phase 1a) 스코프 포함 — 예전 키는 값만이라, 다른 함수를 같은 값으로 돌린 states 를 재사용했다."""
+    sc = (scope.contract, scope.function) if scope is not None else ("", "")
+    return repr((sc, sorted((k, tuple(sorted(v.items()))) for k, v in debug_values.items())))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1379,9 +1385,9 @@ class EngineSession:
           (실측: `else {` 라인이 open=1, close=0). 그래서 balance 가 1씩 부풀어
           함수 끝을 지나쳐 다음 함수까지 삼켰다. full_code_lines 원문을 세면 정확하다.
 
-        ★★ `full_code_lines` 도 그냥 세면 안 된다: 엔진이 저장하는 건 **정규화된** 텍스트라
-          `} else {` 가 `else {` 로 들어있다(닫는 괄호는 record 의 `closeBefore` 로 이동).
-          그래서 `closeBefore=True` 인 record 의 startLine 마다 close 1개를 되돌려준다.
+        ★★ 예전에는 `full_code_lines` 에 `} else {` 가 `else {` 로 들어있어(닫는 괄호는 record 의
+          `closeBefore` 로 이동) 여기서 close 1개를 되돌려줬다. Phase 4b 부터 저장소가 `} else {`
+          원문을 보관하므로(`SolidityAnalyzer._stored_text`) 그대로 센다.
 
         한계: 문자열 리터럴·블록 주석 안의 중괄호는 구분하지 않는다(라인 주석은 제거).
               아웃라인 용도라 허용 가능하며, 어긋나도 최대 span 으로 폴백한다.
@@ -1396,19 +1402,12 @@ class EngineSession:
         if start is None:
             return None
         lines = self._sa.full_code_lines or {}
-        # slice 가 삼킨 닫는 괄호를 라인별로 복원 (`} else {`, `} while`, `} catch` 등)
-        close_before = {}
-        for r in self._prev_records:
-            if r.get("closeBefore"):
-                ln0 = r.get("startLine")
-                if ln0 is not None:
-                    close_before[ln0] = close_before.get(ln0, 0) + 1
         max_ln = max(lines.keys()) if lines else start
         bal = 0
         opened = False
         for ln in range(start, max_ln + 1):
             text = lines.get(ln, "").split("//", 1)[0]   # 라인 주석 제거
-            bal += text.count("{") - text.count("}") - close_before.get(ln, 0)
+            bal += text.count("{") - text.count("}")
             if bal > 0:
                 opened = True
             elif opened:
@@ -1513,8 +1512,7 @@ class EngineSession:
         sc = self._scope or Scope(contract="", function="")
         _, _, fcfg = self._resolve_fcfg(sc.contract or None, sc.function or None)
         if fcfg is not None:
-            self._ca.builder.delete_cfg_range(fcfg=fcfg, start_line=start, kind=kind,
-                                              reinterpret=False)
+            self._ca.builder.delete_cfg_range(fcfg=fcfg, start_line=start, kind=kind)
         self._sa.update_code(start, end, "", "delete")
 
     def _apply_modify(self, op) -> None:
@@ -1556,7 +1554,7 @@ class EngineSession:
             cfg = _serialize_cfg(fcfg, self._ca.recorder, with_states=False)
             return CfgWithStates(scope=self._scope, cfg=cfg, top_vars=[], diagnostics=diags)
 
-        self._states_cache[_values_key(debug_values)] = frozen
+        self._states_cache[_values_key(debug_values, self._scope)] = frozen
 
         # ★ N4. callee 상태(S1 포착) → callee CFG 맵 + 노드별 CalleeRef.
         #   `fcfg`(live)로 호출 지점을 스캔하고, `frozen`(states 스냅샷)으로 CFG 를 직렬화한다.
@@ -1598,7 +1596,7 @@ class EngineSession:
 
         # Stage 2 standalone P2: 이번 값으로 계산된 보존 states 가 있으면 재해석 없이 사후 검증.
         #   (직전 evaluate 의 키가 아니라 "이번 요청 값"의 키로 조회 — Apply 흐름에선 동일 키라 적중.)
-        frozen = self._states_cache.get(_values_key(self._last_debug_values))
+        frozen = self._states_cache.get(_values_key(self._last_debug_values, self._scope))
         if frozen is not None:
             return self._verify_standalone(frozen, self._intents)
 

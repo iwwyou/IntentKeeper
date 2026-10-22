@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=0.066s ERR ValueError: unresolved member '.send' on Variables value <Domain.Variable.Variab
+numscout_BoostToken_indivisible    None         runs=0 t=0.087s ERR ValueError: Argument count mismatch in function call to 'sub': expected 2, got 3
+numscout_BoostToken_operator       None         runs=0 t=0.085s ERR ValueError: Argument count mismatch in function call to 'sub': expected 2, got 3
+numscout_EthereumGod               None         runs=0 t=0.076s ERR ValueError: Argument count mismatch in function call to 'sub': expected 2, got 3
+numscout_HIT                       None         runs=0 t=0.047s ERR TypeError: ContractAnalyzer.process_assert_statement() missing 1 required positi
+numscout_Nokon                     None         runs=0 t=0.11s ERR ValueError: Argument count mismatch in function call to 'balanceOf': expected 0,
+numscout_WANGMI                    None         runs=0 t=0.088s ERR ValueError: Argument count mismatch in function call to 'sub': expected 2, got 3
+web3bugs_101_H_01                  Violated     runs=1 t=0.873s
+web3bugs_112_H_01                  Violated     runs=1 t=0.511s
+web3bugs_113_H_05                  None         runs=0 t=0.747s ERR ValueError: No CFG node found after line 110 (searched up to line 111)
+web3bugs_16_H_04                   None         runs=1 t=1.233s
+web3bugs_16_H_06                   Violated     runs=1 t=0.414s
+web3bugs_192_H_01                  None         runs=1 t=11.688s
+web3bugs_29_H_08                   None         runs=0 t=0.152s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_29_H_11                   None         runs=0 t=1.676s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_31_H_01                   None         runs=0 t=0.11s ERR ValueError: unresolved member '.mul' on Variables value <Domain.Variable.Variabl
+web3bugs_35_H_08                   None         runs=0 t=0.187s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_35_H_10                   None         runs=0 t=0.197s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_35_H_11                   Violated     runs=1 t=1.024s
+web3bugs_35_H_12                   None         runs=0 t=0.216s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_36_H_02                   None         runs=0 t=0.054s ERR ValueError: Type 'PendingPublisher' is not defined as struct, enum, or type alia
+web3bugs_3_H_04                    None         runs=1 t=4.41s
+web3bugs_3_H_05                    None         runs=1 t=82.853s
+web3bugs_42_H_01                   None         runs=0 t=0.339s ERR NetworkXError: The node <Utils.CFG.CFGNode object at 0x000002A3B762B580> is not 
+web3bugs_45_H_01                   None         runs=1 t=10.069s
+web3bugs_47_H_02                   None         runs=1 t=0.725s
+web3bugs_51_H_02                   None         runs=0 t=0.028s ERR AttributeError: 'LibraryCFG' object has no attribute 'events'
+web3bugs_52_H_04                   Warning      runs=1 t=37.869s
+web3bugs_52_H_23                   None         runs=0 t=0.073s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Warning      runs=1 t=44.105s
+web3bugs_56_H_02                   None         runs=0 t=0.089s ERR ValueError: 'getEarnedYield' not in struct '_self'
+web3bugs_58_H_02                   None         runs=0 t=0.275s ERR ValueError: This 'CommonLibrary' is may be array or struct but may not be declar
+web3bugs_59_H_04                   None         runs=1 t=2.217s
+web3bugs_5_H_07                    Violated     runs=1 t=0.236s
+web3bugs_5_H_08                    Violated     runs=1 t=0.668s
+web3bugs_5_H_12                    Violated     runs=1 t=0.549s
+web3bugs_60_H_01                   Violated     runs=1 t=0.886s
+web3bugs_62_H_03                   None         runs=0 t=0.582s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   None         runs=0 t=0.447s ERR ValueError: Cannot join intervals of different type lengths
+web3bugs_62_H_10                   None         runs=0 t=0.272s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   None         runs=0 t=0.044s ERR ValueError: Type 'PendingPublisher' is not defined as struct, enum, or type alia
+web3bugs_70_H_04                   None         runs=1 t=11.46s
+web3bugs_70_H_05                   Warning      runs=1 t=15.399s
+web3bugs_70_H_10                   None         runs=1 t=13.149s
+web3bugs_77_H_01                   Violated     runs=1 t=0.179s
+web3bugs_78_H_02                   Unreachable  runs=1 t=0.422s
+web3bugs_79_H_02                   Violated     runs=1 t=1.763s
+web3bugs_83_H_01                   Violated     runs=1 t=0.298s
+
+verdicts: {'None': 33, 'Violated': 11, 'Warning': 3, 'Unreachable': 1} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p0_rebuilt.json

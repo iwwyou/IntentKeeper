@@ -160,8 +160,7 @@ def expected():
 
 def declared_names(sol_path):
     """분석 대상 소스가 스스로 선언하는 contract/library/interface 이름 — 로더가 pkl 판을 올리지 않게."""
-    text = re.sub(r"//[^
-]*", "", sol_path.read_text(encoding="utf-8"))
+    text = re.sub(r"//[^\n]*", "", sol_path.read_text(encoding="utf-8"))
     return sorted(set(re.findall(r"^\s*(?:abstract\s+)?(?:contract|library|interface)\s+(\w+)", text, re.M)))
 
 

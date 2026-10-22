@@ -161,6 +161,7 @@ class StaticCFGFactory:
             # 파라미터용 Variables 객체 한 개 생성
             var_obj = Variables(identifier=var_name, scope="local")
             var_obj.typeInfo = type_info
+            mod_cfg.parameters.append(var_name)      # (Phase 4) 인자 바인딩 순서
 
             # elementary 타입이면 보수적 default 값 부여
             if type_info.typeCategory == "elementary":
@@ -212,6 +213,8 @@ class StaticCFGFactory:
                              params: list[tuple[SolType, str]],
                              modifiers: list[str]) -> FunctionCFG:
         cfg = FunctionCFG(function_type="constructor", function_name=name)
+        # (Phase 4) modifier·기반 생성자 호출 기록 (생성자 의미론은 Phase 7 — 합성은 modifier 만)
+        cfg.modifier_invocations = list(modifiers or [])
 
         # 파라미터->Variables
         for typ, pname in params:
@@ -276,8 +279,9 @@ class StaticCFGFactory:
                 fcfg.add_related_variable(var)
                 fcfg.parameters.append(p_name)
 
-        for m_name in modifiers:
-            an.process_modifier_invocation(fcfg, m_name)
+        # (Phase 4, D6) modifier 는 구성 시점에 splice 하지 않는다 — (이름, 인자 식) 만 기록하고,
+        #   디버깅 해석 때 실행 사본 위에서 합성한다(`Engine._compose_modifiers`). 정의가 뒤에 와도 된다.
+        fcfg.modifier_invocations = list(modifiers or [])
 
         for r_type, r_name in returns:
             if r_name:

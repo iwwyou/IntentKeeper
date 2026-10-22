@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=0.092s ERR ValueError: unresolved member '.send' on Variables value <Domain.Variable.Variab
+numscout_BoostToken_indivisible    None         runs=0 t=0.741s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_BoostToken_operator       None         runs=0 t=0.711s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_EthereumGod               Satisfied    runs=0 t=1.284s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_HIT                       Violated     runs=1 t=0.496s
+numscout_Nokon                     Warning      runs=1 t=0.277s
+numscout_WANGMI                    Violated     runs=1 t=1.538s
+web3bugs_101_H_01                  Violated     runs=1 t=0.366s
+web3bugs_112_H_01                  Violated     runs=1 t=0.397s
+web3bugs_113_H_05                  None         runs=0 t=0.197s ERR ValueError: No CFG node found after line 110 (searched up to line 111)
+web3bugs_16_H_04                   None         runs=1 t=0.4s
+web3bugs_16_H_06                   Violated     runs=1 t=0.241s
+web3bugs_192_H_01                  None         runs=1 t=1.743s
+web3bugs_29_H_08                   None         runs=0 t=0.164s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_29_H_11                   None         runs=0 t=0.666s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_31_H_01                   None         runs=0 t=0.665s ERR ValueError: external call return type unresolved: ICvxLocker.getReward() — 'ICvx
+web3bugs_35_H_08                   None         runs=0 t=0.144s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_35_H_10                   None         runs=0 t=0.18s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_35_H_11                   Violated     runs=1 t=0.484s
+web3bugs_35_H_12                   None         runs=0 t=0.143s ERR ValueError: Type 'Position' is not defined as struct, enum, or type alias in con
+web3bugs_36_H_02                   None         runs=0 t=0.059s ERR ValueError: Type 'PendingPublisher' is not defined as struct, enum, or type alia
+web3bugs_3_H_04                    None         runs=1 t=0.85s
+web3bugs_3_H_05                    None         runs=1 t=478.023s
+web3bugs_42_H_01                   None         runs=0 t=0.44s ERR ValueError: 'denominator' not in struct 'cf'
+web3bugs_45_H_01                   None         runs=1 t=8.298s
+web3bugs_47_H_02                   None         runs=1 t=0.284s
+web3bugs_51_H_02                   None         runs=0 t=0.031s ERR AttributeError: 'LibraryCFG' object has no attribute 'events'
+web3bugs_52_H_04                   Warning      runs=1 t=2.149s
+web3bugs_52_H_23                   None         runs=0 t=0.412s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Warning      runs=1 t=2.382s
+web3bugs_56_H_02                   None         runs=0 t=0.51s ERR ValueError: tuple assignment: right-hand side is not a tuple value (UnsignedInte
+web3bugs_58_H_02                   None         runs=0 t=0.202s ERR ValueError: No CFG node found after line 85 (searched up to line 86)
+web3bugs_59_H_04                   None         runs=1 t=1.955s
+web3bugs_5_H_07                    Violated     runs=1 t=0.194s
+web3bugs_5_H_08                    Violated     runs=1 t=0.474s
+web3bugs_5_H_12                    Violated     runs=1 t=0.365s
+web3bugs_60_H_01                   Violated     runs=1 t=0.467s
+web3bugs_62_H_03                   None         runs=0 t=0.419s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   None         runs=1 t=0.766s
+web3bugs_62_H_10                   None         runs=0 t=0.291s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   None         runs=0 t=0.054s ERR ValueError: Type 'PendingPublisher' is not defined as struct, enum, or type alia
+web3bugs_70_H_04                   None         runs=1 t=2.497s
+web3bugs_70_H_05                   Warning      runs=1 t=1.201s
+web3bugs_70_H_10                   None         runs=1 t=2.508s
+web3bugs_77_H_01                   Violated     runs=1 t=0.132s
+web3bugs_78_H_02                   Unreachable  runs=1 t=0.227s
+web3bugs_79_H_02                   Violated     runs=1 t=0.526s
+web3bugs_83_H_01                   Violated     runs=1 t=0.25s
+
+verdicts: {'None': 29, 'Satisfied': 1, 'Violated': 13, 'Warning': 4, 'Unreachable': 1} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p3b2_rebuilt.json

@@ -708,10 +708,21 @@ class UnsignedIntegerInterval(Interval):
                                        self.type_length)
 
     # ---------- 산술 연산 (실제 빼기) ----------
-    def subtract(self, other: "UnsignedIntegerInterval") -> "UnsignedIntegerInterval":
+    def subtract(self, other: "UnsignedIntegerInterval", wrapping: bool = False) -> "UnsignedIntegerInterval":
+        """checked(기본): 음수가 되는 경로는 revert → 0 미만을 잘라내고, 전부 음수면 ⊥.
+        wrapping=True (`unchecked` 블록, Phase 2): 음수는 2^w 를 더해 감긴다 —
+          전부 음수면 정확히 [lo+2^w, hi+2^w], 0 을 가로지르면 두 조각의 합집합이라 구간으론 ⊤."""
         def _impl(a, b):
             min_diff = a.min_value - b.max_value
             max_diff = a.max_value - b.min_value
+
+            if wrapping:
+                if min_diff >= 0:
+                    return UnsignedIntegerInterval(min_diff, max_diff, a.type_length)
+                mod = 1 << a.type_length
+                if max_diff < 0:
+                    return UnsignedIntegerInterval(min_diff + mod, max_diff + mod, a.type_length)
+                return UnsignedIntegerInterval(0, mod - 1, a.type_length)
 
             # 전부 음수가 될 가능성이 있으면 실행 불가 → ⊥
             if max_diff < 0:
@@ -989,8 +1000,11 @@ class BoolInterval(Interval):
         return BoolInterval(new_min, new_max)
 
     def widen(self, current_interval=None):
-        # bool에선 widen => top
-        return BoolInterval.top()
+        # bool 격자는 높이가 유한(⊥ < [0,0],[1,1] < [0,1])이라 widening = join 으로 충분하다.
+        # ★ (Phase 2, D2) 예전엔 무조건 ⊤ 를 돌려 ⊥(도달 불가) 끼리의 widening 도 ⊤ 가 됐다.
+        if current_interval is None:
+            return self.copy()
+        return self.join(current_interval)
 
     def narrow(self, new_interval):
         if self.is_bottom():

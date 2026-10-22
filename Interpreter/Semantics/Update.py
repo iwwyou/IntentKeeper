@@ -11,6 +11,7 @@ from Domain.AddressSet import AddressSet, address_manager
 from Domain.Variable import Variables, ArrayVariable, MappingVariable, StructVariable, EnumVariable
 from Domain.IR import Expression
 from Utils.Helper import VariableEnv
+from Interpreter.Semantics.Evaluation import coerce_to_declared
 
 
 class Update :
@@ -104,12 +105,18 @@ class Update :
         # expr.elements(빈 슬롯은 None, _split_tuple_slots가 채움)를 위치별로
         # 짝지어 각각 재귀 업데이트.
         elif expr.context == "TupleExpressionContext":
-            if isinstance(rVal, (list, tuple)):
-                for idx, target in enumerate(expr.elements):
-                    if target is None or idx >= len(rVal):
-                        continue
-                    self.update_left_var(target, rVal[idx], operator, variables,
-                                          None, None, log, line_no, top_expr)
+            if len(expr.elements or []) == 1:
+                # 원소 하나 = 괄호식 `(x)` — 안쪽 식이 대상이다(refine 이 `(a * b) > 0` 의 좌변을 넘기는 경우 포함)
+                return self.update_left_var(expr.elements[0], rVal, operator, variables,
+                                            callerObject, callerContext, log, line_no, top_expr)
+            if not isinstance(rVal, (list, tuple)):
+                # ★ (Phase 3b, D4) 예전엔 우변이 튜플 값이 아니면 대입 전체를 조용히 건너뛰었다.
+                raise ValueError(f"tuple assignment: right-hand side is not a tuple value ({type(rVal).__name__})")
+            for idx, target in enumerate(expr.elements):
+                if target is None or idx >= len(rVal):
+                    continue
+                self.update_left_var(target, rVal[idx], operator, variables,
+                                      None, None, log, line_no, top_expr)
             return None
 
         # ★ 위 named-context 어디에도 안 걸리는 인덱스 표현식(예: cast
@@ -317,7 +324,7 @@ class Update :
             if rVal is None:
                 return entry
             if hasattr(entry, "value"):
-                entry.value = self.compound_assignment(entry.value, rVal, operator)
+                self._store(entry, self.compound_assignment(entry.value, rVal, operator))
 
             if log :
                 actual_line = line_no if line_no is not None else self.an.current_start_line
@@ -422,7 +429,7 @@ class Update :
             if rVal is None:
                 return nested
 
-            nested.value = self.compound_assignment(nested.value, rVal, operator)
+            self._store(nested, self.compound_assignment(nested.value, rVal, operator))
 
             if log :
                 actual_line = line_no if line_no is not None else self.an.current_start_line
@@ -531,7 +538,7 @@ class Update :
                     return elem
 
                 new_iv = _to_interval(elem, lit_str)
-                elem.value = self.compound_assignment(elem.value, new_iv, operator)
+                self._store(elem, self.compound_assignment(elem.value, new_iv, operator))
 
                 if log:
                     self.an.recorder.record_assignment(
@@ -576,7 +583,7 @@ class Update :
                     return entry
 
                 new_iv = _to_interval(entry, lit_str)
-                entry.value = self.compound_assignment(entry.value, new_iv, operator)
+                self._store(entry, self.compound_assignment(entry.value, new_iv, operator))
 
                 if log:
                     self.an.recorder.record_assignment(
@@ -659,7 +666,7 @@ class Update :
                     else:
                         raise ValueError(f"AddressSet does not support compound operator: {operator}")
                 else:
-                    var_obj.value = self.compound_assignment(var_obj.value, conv_val, operator)
+                    self._store(var_obj, self.compound_assignment(var_obj.value, conv_val, operator))
 
             # (c) 기록 (log가 True이고 operator가 None이 아닐 때)
             if log and operator is not None:
@@ -738,8 +745,13 @@ class Update :
                 if idx >= decl_len:
                     raise IndexError(f"Index {idx} out of range (decl len={decl_len})")
                 base_t = caller_object.typeInfo.arrayBaseType
+                # ★ (Phase 2, D2) 아직 구체화되지 않은 앞쪽 원소 = 값을 모름 → typed ⊤.
+                #   예전엔 ⊥ 로 채워, 그 원소를 읽는 순간 env 전체가 도달 불가로 판정될 수 있었다.
                 while len(caller_object.elements) <= idx:
-                    caller_object.elements.append(VariableEnv.bottom_from_soltype(base_t))
+                    caller_object.elements.append(VariableEnv.top_from_soltype(
+                        base_t, getattr(caller_object, "struct_defs", None) or {},
+                        getattr(caller_object, "enum_defs", None) or {},
+                        identifier=f"{caller_object.identifier}[{len(caller_object.elements)}]"))
 
             elem = caller_object.elements[idx]
             if isinstance(elem, (StructVariable, ArrayVariable, MappingVariable)):
@@ -999,6 +1011,11 @@ class Update :
             f"_touch_index_entry: unsupported container type {type(container).__name__}"
         )
 
+    def _store(self, var_obj, new_val):
+        """leaf 변수에 값 기록 — 선언 타입으로 암묵 변환(`coerce_to_declared`, Phase 4b)."""
+        var_obj.value = coerce_to_declared(new_val, getattr(var_obj, "typeInfo", None),
+                                           f"value assigned to '{getattr(var_obj, 'identifier', '?')}'")
+
     def compound_assignment(self, left_interval, right_interval, operator):
         """
         +=, -=, <<= … 등 복합 대입 연산자의 interval 계산.
@@ -1022,7 +1039,10 @@ class Update :
         # 2) 연산자 → 동작 매핑 ―――――――――――――――――――――――――――――――
         mapping = {
             '+=': lambda l, r: _arith_safe(l, r, lambda a, b: a.add(b)),
-            '-=': lambda l, r: _arith_safe(l, r, lambda a, b: a.subtract(b)),
+            # (Phase 2) unchecked 블록에서는 unsigned 뺄셈이 wrap 한다
+            '-=': lambda l, r: _arith_safe(l, r, lambda a, b: (
+                a.subtract(b, wrapping=self.an.engine._unchecked)
+                if isinstance(a, UnsignedIntegerInterval) else a.subtract(b))),
             '*=': lambda l, r: _arith_safe(l, r, lambda a, b: a.multiply(b)),
             '/=': lambda l, r: _arith_safe(l, r, lambda a, b: a.divide(b)),
             '%=': lambda l, r: _arith_safe(l, r, lambda a, b: a.modulo(b)),
@@ -1101,7 +1121,7 @@ class Update :
         """
         # 0) 이미 Interval 객체면 그대로
         if VariableEnv.is_interval(new_value) or isinstance(new_value, BoolInterval):
-            var_obj.value = new_value
+            self._store(var_obj, new_value)
             return
 
         # 1) elementary 타입 확인

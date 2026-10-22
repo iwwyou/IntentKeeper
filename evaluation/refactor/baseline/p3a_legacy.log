@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=0.581s ERR ValueError: unresolved member '.send' on Variables value <Domain.Variable.Variab
+numscout_BoostToken_indivisible    None         runs=0 t=2.193s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_BoostToken_operator       None         runs=0 t=2.22s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_EthereumGod               Satisfied    runs=0 t=1.862s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_HIT                       Violated     runs=1 t=1.774s
+numscout_Nokon                     Warning      runs=1 t=0.673s
+numscout_WANGMI                    Violated     runs=1 t=9.826s
+web3bugs_101_H_01                  Violated     runs=1 t=0.609s
+web3bugs_112_H_01                  Violated     runs=1 t=1.155s
+web3bugs_113_H_05                  Violated     runs=1 t=3.51s
+web3bugs_16_H_04                   Warning      runs=1 t=1.234s
+web3bugs_16_H_06                   Violated     runs=1 t=0.321s
+web3bugs_192_H_01                  Violated     runs=1 t=2.066s
+web3bugs_29_H_08                   None         runs=0 t=0.364s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_29_H_11                   None         runs=0 t=3.176s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_31_H_01                   Violated     runs=1 t=3.375s
+web3bugs_35_H_08                   Warning      runs=1 t=6.105s
+web3bugs_35_H_10                   Warning      runs=1 t=7.869s
+web3bugs_35_H_11                   Violated     runs=1 t=1.457s
+web3bugs_35_H_12                   Violated     runs=1 t=6.749s
+web3bugs_36_H_02                   Unreachable  runs=1 t=1.225s
+web3bugs_3_H_04                    Violated     runs=1 t=1.323s
+web3bugs_3_H_05                    Warning      runs=1 t=7.015s
+web3bugs_42_H_01                   Warning      runs=1 t=3.457s
+web3bugs_45_H_01                   Warning      runs=1 t=11.104s
+web3bugs_47_H_02                   Unreachable  runs=1 t=0.785s
+web3bugs_51_H_02                   Violated     runs=1 t=2.144s
+web3bugs_52_H_04                   Warning      runs=1 t=4.2s
+web3bugs_52_H_23                   None         runs=0 t=1.561s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Warning      runs=1 t=4.591s
+web3bugs_56_H_02                   Violated     runs=1 t=1.01s
+web3bugs_58_H_02                   Warning      runs=1 t=8.873s
+web3bugs_59_H_04                   Warning      runs=1 t=0.888s
+web3bugs_5_H_07                    Violated     runs=1 t=0.351s
+web3bugs_5_H_08                    Violated     runs=1 t=0.708s
+web3bugs_5_H_12                    Violated     runs=1 t=0.86s
+web3bugs_60_H_01                   Violated     runs=1 t=0.892s
+web3bugs_62_H_03                   None         runs=0 t=1.948s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   Violated     runs=1 t=4.504s
+web3bugs_62_H_10                   None         runs=0 t=1.127s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   Violated     runs=1 t=0.851s
+web3bugs_70_H_04                   Warning      runs=1 t=3.379s
+web3bugs_70_H_05                   Warning      runs=1 t=1.654s
+web3bugs_70_H_10                   Violated     runs=1 t=3.792s
+web3bugs_77_H_01                   Violated     runs=1 t=0.474s
+web3bugs_78_H_02                   None         runs=0 t=0.416s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_79_H_02                   Violated     runs=1 t=3.437s
+web3bugs_83_H_01                   Violated     runs=1 t=0.651s
+
+verdicts: {'None': 9, 'Satisfied': 1, 'Violated': 23, 'Warning': 13, 'Unreachable': 2} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p3a_legacy.json

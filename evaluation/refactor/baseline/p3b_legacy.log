@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=0.714s ERR ValueError: unresolved member '.send' on Variables value <Domain.Variable.Variab
+numscout_BoostToken_indivisible    None         runs=0 t=2.326s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_BoostToken_operator       None         runs=0 t=2.168s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_EthereumGod               Satisfied    runs=0 t=1.732s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_HIT                       Violated     runs=1 t=1.734s
+numscout_Nokon                     Warning      runs=1 t=0.856s
+numscout_WANGMI                    Violated     runs=1 t=10.241s
+web3bugs_101_H_01                  Violated     runs=1 t=0.71s
+web3bugs_112_H_01                  Violated     runs=1 t=1.04s
+web3bugs_113_H_05                  Violated     runs=1 t=3.178s
+web3bugs_16_H_04                   Warning      runs=1 t=1.202s
+web3bugs_16_H_06                   Violated     runs=1 t=0.366s
+web3bugs_192_H_01                  Warning      runs=1 t=1.856s
+web3bugs_29_H_08                   None         runs=0 t=0.382s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_29_H_11                   None         runs=0 t=3.162s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_31_H_01                   Violated     runs=1 t=3.861s
+web3bugs_35_H_08                   Warning      runs=1 t=6.236s
+web3bugs_35_H_10                   Warning      runs=1 t=7.068s
+web3bugs_35_H_11                   Violated     runs=1 t=1.26s
+web3bugs_35_H_12                   Violated     runs=1 t=7.24s
+web3bugs_36_H_02                   Unreachable  runs=1 t=0.986s
+web3bugs_3_H_04                    None         runs=0 t=1.076s ERR ValueError: loop scope anchor 'for_join_37' has no entry baseline (fixpoint not 
+web3bugs_3_H_05                    Warning      runs=1 t=299.723s
+web3bugs_42_H_01                   Warning      runs=1 t=3.074s
+web3bugs_45_H_01                   Warning      runs=1 t=11.212s
+web3bugs_47_H_02                   Unreachable  runs=1 t=0.717s
+web3bugs_51_H_02                   Violated     runs=1 t=2.335s
+web3bugs_52_H_04                   Unreachable  runs=1 t=3.194s
+web3bugs_52_H_23                   None         runs=0 t=1.942s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Unreachable  runs=1 t=3.492s
+web3bugs_56_H_02                   Violated     runs=1 t=0.948s
+web3bugs_58_H_02                   None         runs=0 t=7.09s ERR ValueError: loop scope anchor 'for_join_38' has no entry baseline (fixpoint not 
+web3bugs_59_H_04                   Warning      runs=1 t=1.014s
+web3bugs_5_H_07                    Violated     runs=1 t=0.339s
+web3bugs_5_H_08                    Violated     runs=1 t=0.796s
+web3bugs_5_H_12                    Violated     runs=1 t=0.754s
+web3bugs_60_H_01                   Violated     runs=1 t=0.79s
+web3bugs_62_H_03                   None         runs=0 t=2.048s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   Violated     runs=1 t=5.478s
+web3bugs_62_H_10                   None         runs=0 t=1.241s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   Violated     runs=1 t=0.945s
+web3bugs_70_H_04                   None         runs=0 t=2.449s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_70_H_05                   None         runs=0 t=1.211s ERR AttributeError: 'NoneType' object has no attribute 'multiply'
+web3bugs_70_H_10                   None         runs=0 t=2.594s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_77_H_01                   Violated     runs=1 t=0.372s
+web3bugs_78_H_02                   None         runs=0 t=0.416s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_79_H_02                   Violated     runs=1 t=4.084s
+web3bugs_83_H_01                   Violated     runs=1 t=0.601s
+
+verdicts: {'None': 14, 'Satisfied': 1, 'Violated': 20, 'Warning': 9, 'Unreachable': 4} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p3b_legacy.json

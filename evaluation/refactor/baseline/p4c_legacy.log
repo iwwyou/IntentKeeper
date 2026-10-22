@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=1.012s ERR ValueError: modifier 'onlyOwner': 2 placeholders '_' — only exactly one is suppo
+numscout_BoostToken_indivisible    Violated     runs=1 t=2.505s
+numscout_BoostToken_operator       Violated     runs=1 t=2.818s
+numscout_EthereumGod               Satisfied    runs=1 t=2.719s
+numscout_HIT                       Violated     runs=0 t=2.804s ERR ValueError: call to undefined function 'balanceOf'
+numscout_Nokon                     Warning      runs=1 t=1.033s
+numscout_WANGMI                    Violated     runs=1 t=14.622s
+web3bugs_101_H_01                  Violated     runs=1 t=1.398s
+web3bugs_112_H_01                  Violated     runs=1 t=2.004s
+web3bugs_113_H_05                  Violated     runs=1 t=5.377s
+web3bugs_16_H_04                   Warning      runs=1 t=2.314s
+web3bugs_16_H_06                   Violated     runs=1 t=0.697s
+web3bugs_192_H_01                  Violated     runs=1 t=1.631s
+web3bugs_29_H_08                   Warning      runs=1 t=0.662s
+web3bugs_29_H_11                   Warning      runs=1 t=4.969s
+web3bugs_31_H_01                   Violated     runs=1 t=4.089s
+web3bugs_35_H_08                   Warning      runs=1 t=5.519s
+web3bugs_35_H_10                   Warning      runs=1 t=8.103s
+web3bugs_35_H_11                   Violated     runs=1 t=1.945s
+web3bugs_35_H_12                   Violated     runs=1 t=6.263s
+web3bugs_36_H_02                   Unreachable  runs=1 t=1.273s
+web3bugs_3_H_04                    Violated     runs=1 t=1.629s
+web3bugs_3_H_05                    None         runs=0 t=3.361s ERR ValueError: Cannot join intervals of different type lengths
+web3bugs_42_H_01                   Warning      runs=1 t=3.916s
+web3bugs_45_H_01                   Warning      runs=1 t=7.785s
+web3bugs_47_H_02                   Unreachable  runs=1 t=0.824s
+web3bugs_51_H_02                   Violated     runs=1 t=2.721s
+web3bugs_52_H_04                   Warning      runs=1 t=3.621s
+web3bugs_52_H_23                   None         runs=0 t=2.835s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Warning      runs=1 t=5.342s
+web3bugs_56_H_02                   Violated     runs=1 t=1.649s
+web3bugs_58_H_02                   Warning      runs=1 t=10.235s
+web3bugs_59_H_04                   Warning      runs=1 t=1.63s
+web3bugs_5_H_07                    Violated     runs=1 t=0.875s
+web3bugs_5_H_08                    Violated     runs=1 t=1.562s
+web3bugs_5_H_12                    Violated     runs=1 t=1.636s
+web3bugs_60_H_01                   Violated     runs=1 t=1.157s
+web3bugs_62_H_03                   None         runs=0 t=3.877s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   Violated     runs=1 t=8.572s
+web3bugs_62_H_10                   None         runs=0 t=1.952s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   Violated     runs=1 t=1.112s
+web3bugs_70_H_04                   Warning      runs=1 t=2.578s
+web3bugs_70_H_05                   Warning      runs=1 t=1.688s
+web3bugs_70_H_10                   Violated     runs=1 t=3.491s
+web3bugs_77_H_01                   Violated     runs=1 t=0.639s
+web3bugs_78_H_02                   None         runs=0 t=0.674s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_79_H_02                   Violated     runs=1 t=4.597s
+web3bugs_83_H_01                   Violated     runs=1 t=0.993s
+
+verdicts: {'None': 6, 'Violated': 25, 'Satisfied': 1, 'Warning': 14, 'Unreachable': 2} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p4c_legacy.json

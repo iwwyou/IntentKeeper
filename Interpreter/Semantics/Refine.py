@@ -278,6 +278,8 @@ class Refine:
         # ───────── CASE 2-A : Interval vs literal ──────────────
         if VariableEnv.is_interval(left_val) and not VariableEnv.is_interval(right_val):
             coerced_r = self._coerce_literal_to_interval(right_val, left_val.type_length)
+            if coerced_r is None:          # 상대를 구간으로 표현 못 함 → 정제 없음(건전)
+                return
             new_l, _dummy = self.refine_intervals_for_comparison(left_val, coerced_r, actual_op)
             _maybe_update(left_expr, variables, new_l)  # ★ 변경
             return
@@ -285,6 +287,8 @@ class Refine:
         # ───────── CASE 2-B : literal vs Interval ──────────────
         if VariableEnv.is_interval(right_val) and not VariableEnv.is_interval(left_val):
             coerced_l = self._coerce_literal_to_interval(left_val, right_val.type_length)
+            if coerced_l is None:          # 상대를 구간으로 표현 못 함 → 정제 없음(건전)
+                return
             _dummy, new_r = self.refine_intervals_for_comparison(coerced_l, right_val, actual_op)
             _maybe_update(right_expr, variables, new_r)  # ★ 변경
             return
@@ -306,6 +310,8 @@ class Refine:
                 left_val = self._coerce_literal_to_interval(left_val, 160)
             if not VariableEnv.is_interval(right_val):
                 right_val = self._coerce_literal_to_interval(right_val, 160)
+            if left_val is None or right_val is None:   # 구간으로 표현 못 함 → 정제 없음(건전)
+                return
 
             new_l, new_r = self.refine_intervals_for_comparison(left_val, right_val, actual_op)
             _maybe_update(left_expr, variables, new_l)  # ★ 변경
@@ -501,8 +507,10 @@ class Refine:
                 return IntegerInterval(v, v, default_bits) if v < 0 \
                     else UnsignedIntegerInterval(v, v, default_bits)
             except ValueError:
-                return IntegerInterval(None, None, default_bits)  # bottom
-        return IntegerInterval(None, None, default_bits)
+                return None
+        # ★ (Phase 2, D2) 구간으로 바꿀 수 없는 비교 상대(심볼릭 값 등) → None = "정제하지 않음".
+        #   예전엔 ⊥ 를 돌려 비교 결과를 '불가능' 으로 정제해 분기 전체를 도달 불가로 만들었다(불건전).
+        return None
 
     def _update_bool_comparison(
             self,

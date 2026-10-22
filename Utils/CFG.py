@@ -115,6 +115,11 @@ class CFGNode:
         )
         self.statements.append(function_call_stmt)
 
+    def add_emit_statement(self, event_name, arguments, line_no):
+        """emit 문(Phase 2). 이벤트 자체는 상태를 바꾸지 않지만 인자 식은 평가된다."""
+        self.statements.append(Statement(statement_type='emit', event_name=event_name,
+                                         arguments=list(arguments or []), src_line=line_no))
+
     def add_return_statement(self, return_expr: Expression, line_no):
         """
         반환 구문을 CFG에 추가하고, 반환 값을 업데이트합니다.

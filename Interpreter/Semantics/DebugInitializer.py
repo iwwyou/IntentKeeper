@@ -13,6 +13,15 @@ from Domain.IR import Expression
 
 from Utils.Helper import VariableEnv
 
+
+def _coerce_debug(value, var):
+    """(Phase 4b) 디버그 입력 값을 변수의 선언 타입으로 암묵 변환. 예전엔 `@StateVar x = [8,8]` 이 선언 타입(uint16 등)과 무관하게
+    256비트로 들어가, 이후 대입으로 선언 폭이 된 값과 join 할 때 폭 불일치로 터지거나 256비트에서 계산됐다.
+    선언 타입 범위를 벗어난 입력은 사용자 입력 오류로 예외."""
+    from Interpreter.Semantics.Evaluation import coerce_to_declared
+    return coerce_to_declared(value, getattr(var, "typeInfo", None),
+                              f"debug value for '{getattr(var, 'identifier', '?')}'")
+
 class DebugInitializer:
     """
     디버깅 전용 변수 초기화/업데이트 클래스.
@@ -297,7 +306,7 @@ class DebugInitializer:
 
             # leaf 변수에 값 대입하는 경우
             if rVal is not None and hasattr(entry, "value"):
-                entry.value = rVal
+                entry.value = _coerce_debug(rVal, entry)
 
             return entry
 
@@ -485,7 +494,7 @@ class DebugInitializer:
                     return nested
                 elif isinstance(nested, (Variables, EnumVariable)):
                     if rVal is not None:
-                        nested.value = rVal
+                        nested.value = _coerce_debug(rVal, nested)
                     return nested
 
         return None
@@ -682,7 +691,7 @@ class DebugInitializer:
                 else:
                     target_var.value = new_value
             else:
-                target_var.value = new_value
+                target_var.value = _coerce_debug(new_value, target_var)
 
     def _update_left_var_of_type_conversion_context_for_debug(
             self, expr: Expression, rVal, operator, variables, callerObject=None, callerContext=None):
@@ -793,25 +802,26 @@ class DebugInitializer:
     def _initialize_dynamic_array_to_length(self, arr: ArrayVariable, target_length: int):
         """
         동적 배열을 target_length 크기로 초기화
-        - 현재 크기보다 크면 bottom 값으로 채움
+        - 현재 크기보다 크면 지정되지 않은 원소(typed ⊤)로 채움
         - 현재 크기보다 작으면 뒤쪽 요소 제거
         """
         current_length = len(arr.elements)
 
         if target_length > current_length:
-            # 부족한 만큼 bottom 값으로 채우기
+            # 부족한 만큼 '지정되지 않은 원소' = typed ⊤ 로 채우기 (Phase 2, D2: ⊥ 는 도달 불가 전용)
             base_type = arr.typeInfo.arrayBaseType
             for i in range(current_length, target_length):
-                elem = self._create_array_element_with_bottom(arr, i, base_type)
+                elem = self._create_unspecified_array_element(arr, i, base_type)
                 arr.elements.append(elem)
         elif target_length < current_length:
             # 뒤쪽 요소 제거
             arr.elements = arr.elements[:target_length]
         # target_length == current_length이면 아무것도 안 함
 
-    def _create_array_element_with_bottom(self, arr: ArrayVariable, index: int, base_type: SolType) -> Variables:
+    def _create_unspecified_array_element(self, arr: ArrayVariable, index: int, base_type: SolType) -> Variables:
         """
-        배열 요소를 bottom 값으로 생성
+        디버그 입력이 지정하지 않은 배열 원소 생성 — 값을 모름 → typed ⊤.
+        ★ (Phase 2, D2) 예전엔 ⊥ 로 채워, 그 원소를 읽으면 env 전체가 도달 불가로 판정될 수 있었다.
         """
         elem_id = f"{arr.identifier}[{index}]"
 
@@ -822,23 +832,23 @@ class DebugInitializer:
 
             if et.startswith("uint"):
                 from Domain.Interval import UnsignedIntegerInterval
-                bottom_val = UnsignedIntegerInterval.bottom(bits)
+                unspecified_val = UnsignedIntegerInterval.top(bits)
             elif et.startswith("int"):
                 from Domain.Interval import IntegerInterval
-                bottom_val = IntegerInterval.bottom(bits)
+                unspecified_val = IntegerInterval.top(bits)
             elif et == "bool":
                 from Domain.Interval import BoolInterval
-                bottom_val = BoolInterval.bottom()
+                unspecified_val = BoolInterval.top()
             elif et == "address":
                 from Domain.AddressSet import AddressSet
-                bottom_val = AddressSet.bot()
+                unspecified_val = AddressSet.top()
             else:
                 # bytes, string 등
-                bottom_val = f"symbolic_{elem_id}"
+                unspecified_val = f"symbolic_{elem_id}"
 
             return Variables(
                 identifier=elem_id,
-                value=bottom_val,
+                value=unspecified_val,
                 scope=arr.scope,
                 typeInfo=base_type
             )

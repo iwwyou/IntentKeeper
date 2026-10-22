@@ -505,6 +505,9 @@
   "renamed": {
    "from": 1
   },
+  "moved_forward": [
+   "SafeMath"
+  ],
   "manual_functions": [
    "balanceOf",
    "buy",

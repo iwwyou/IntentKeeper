@@ -13,6 +13,7 @@ from Domain.BytesSet import BytesSet
 from Domain.Annotation import CompoundDuringAnnotation, CompoundPostAnnotation
 from Utils.CFG import CFGNode, FunctionCFG
 from Utils.Helper import VariableEnv
+from Interpreter.Semantics.Evaluation import coerce_to_declared
 from collections import deque
 from typing import cast
 
@@ -23,6 +24,7 @@ class Engine:
         self._record_enabled: bool = True
         self._suppress_stmt_records: bool = False  # 고정점 중 문장 기록 억제
         self._in_widening_mode: bool = False  # widening 중에는 side-effect 억제
+        self._unchecked: bool = False  # (Phase 2) 지금 해석 중인 문장이 `unchecked { }` 안인가 → unsigned 뺄셈 wrap
 
     # ── lazy properties (그대로 유지) ──────────────────────────────────
     @property
@@ -51,6 +53,15 @@ class Engine:
         #   **진입 시점에 로컬로 받아두므로** 중첩 호출에서도 각 프레임이 자기 호출 지점을 쥔다.
         if node is not None:
             self._call_site_node = node
+        # (Phase 2) unchecked 문맥은 문장 단위로 켜고, callee 해석이 끝나면 되돌린다.
+        _old_unchecked = self._unchecked
+        self._unchecked = bool(getattr(node, "unchecked_block", False)) if node is not None else _old_unchecked
+        try:
+            return self._dispatch_statement(stmt, current_variables, ret_acc, node)
+        finally:
+            self._unchecked = _old_unchecked
+
+    def _dispatch_statement(self, stmt, current_variables, ret_acc=None, node=None):
         typ = stmt.statement_type
         if   typ == 'variableDeclaration':
             return self._interpret_var_decl(stmt, current_variables)
@@ -70,72 +81,106 @@ class Engine:
             return self._interpret_continue(stmt, current_variables)
         elif typ == 'assembly':
             return self._interpret_assembly(stmt, current_variables)
+        elif typ == 'emit':
+            return self._interpret_emit(stmt, current_variables)
         else:
             raise ValueError(f"Statement '{typ}' is not implemented.")
+
+    def _interpret_emit(self, stmt, variables):
+        """emit 문(Phase 2): 인자 식만 평가한다(호출 부수효과). 이벤트 로그 자체는 추상 상태가 아니다."""
+        if self._is_bottom_env(variables):
+            return variables
+        for arg in stmt.arguments:
+            self.eval.evaluate_expression(arg, variables, None, None)
+        return variables
 
     def _interpret_var_decl(self, stmt, variables):
         var_type = stmt.type_obj
         var_name = stmt.var_name
         init_expr = stmt.init_expr
 
+        # (Phase 3b, D8) 바깥 이름을 가리는 선언 — 바깥 binding 을 보관(블록 종료 시 `_restrict_scope` 가 복원)
+        if getattr(stmt, "shadow_unsupported", False):
+            raise ValueError(f"line {stmt.src_line}: declaration of '{var_name}' shadows an outer name inside a "
+                             f"block without a scope-exit node (bare/unchecked/do/try block) — not supported")
+        if getattr(stmt, "shadows", False) and var_name in variables:
+            variables[f"{var_name}{self.SHADOW_SEP}shadow@{id(stmt)}"] = variables[var_name]
+
         # ──────────────────────────────────────────────────────────────
-        # 1. 변수가 없으면 새로 생성
+        # 1. 선언 = 매 실행마다 새 변수
+        #   ★ (Phase 3a, D2) 예전엔 "이미 있으면 건너뜀" 이라, 루프 안 선언이 다시 실행될 때 이전 반복 값이
+        #     남았다(back-edge 로 들어온 같은 이름). 선언은 실행될 때마다 새 바인딩을 만든다.
         # ──────────────────────────────────────────────────────────────
-        if var_name not in variables:
-            if var_type.typeCategory in ("struct", "array", "mapping"):
-                # ★ F29. `ContractAnalyzer._create_variable_object` 와 **같은 것**을 만들어야 한다.
-                #   여기엔 그 함수의 **인라인 사본**이 있었는데 struct/enum 정의
-                #   (`struct_defs`/`enum_defs`)를 붙이지 않아 **멤버가 빈** 객체가 나왔다.
-                #
-                #   왜 이 경로가 타지는가: `process_variable_declaration` 은 선언 노드를 만든
-                #   직후 `reinterpret_from(fcfg, stmt_blk)` 를 부른다. 재해석은 in-env 를
-                #   predecessor 에서 다시 계산하므로(선언 전이니 그 변수가 없는 게 정상)
-                #   선언문이 **재실행**되고, 그때 이 코드가 ContractAnalyzer 가 제대로 만든
-                #   객체를 덮어쓴다. 실측 객체 수명(`AddressProviderMeta.fromUInt`):
-                #     [1] CA 가 members=['freezable','frozen'] 로 생성(id=84016)
-                #     [2] 블록 env 에 심음 + 선언 statement 도 CFG 에 등록
-                #     [3] reinterpret_from 진입 — pred 에 meta 없음(정상)
-                #     [4] 여기서 members=[] 로 재생성(id=75280)  ← 덮어씀
-                #     [5] `meta.freezable = ...` → Member 'freezable' not in struct 'meta'
-                #   ★ `meta` 가 사라지는 게 아니라 `meta.members` 가 빈다.
-                #
-                #   "CFG 에 등록된 expression 을 보면 되지 않나" = **이미 그렇게 하고 있다**
-                #   ([4]가 `stmt.type_obj` 를 읽는다). 문제는 "보지 않음" 이 아니라
-                #   **"보고 만드는 방법이 틀림"** 이었다. 그래서 사본을 지우고 팩토리를 부른다.
-                #   배열·매핑도 `struct_defs`/`enum_defs` 를 안 넘겨 같은 결함이 있었다
-                #   (구조체 배열 · 값이 구조체인 매핑).
-                #
-                #   ⚠ 대안(선언 statement 에 프로토타입을 저장해 clone)은 멱등성은 지키지만
-                #     **증분 편집에 불리**하다 — struct 정의가 바뀌면 프로토타입이 낡는다.
-                #     `type_obj` 재구성은 **현재 정의**를 집어온다.
-                #   ⚠ `_create_variable_object` 의 3번째 인자 `ccf` 는 현재 미사용이고
-                #     내부적으로 `get_full_struct_enum_defs()` → `current_target_contract` 를
-                #     본다(백로그 ⑪). 기존 호출부와 동일한 한계이므로 회귀는 아니다.
-                variables[var_name] = self.an._create_variable_object(var_type, var_name, None)
+        if var_type.typeCategory in ("struct", "array", "mapping"):
+            # ★ F29. `ContractAnalyzer._create_variable_object` 와 **같은 것**을 만들어야 한다.
+            #   여기엔 그 함수의 **인라인 사본**이 있었는데 struct/enum 정의
+            #   (`struct_defs`/`enum_defs`)를 붙이지 않아 **멤버가 빈** 객체가 나왔다.
+            #
+            #   왜 이 경로가 타지는가: `process_variable_declaration` 은 선언 노드를 만든
+            #   직후 `reinterpret_from(fcfg, stmt_blk)` 를 부른다. 재해석은 in-env 를
+            #   predecessor 에서 다시 계산하므로(선언 전이니 그 변수가 없는 게 정상)
+            #   선언문이 **재실행**되고, 그때 이 코드가 ContractAnalyzer 가 제대로 만든
+            #   객체를 덮어쓴다. 실측 객체 수명(`AddressProviderMeta.fromUInt`):
+            #     [1] CA 가 members=['freezable','frozen'] 로 생성(id=84016)
+            #     [2] 블록 env 에 심음 + 선언 statement 도 CFG 에 등록
+            #     [3] reinterpret_from 진입 — pred 에 meta 없음(정상)
+            #     [4] 여기서 members=[] 로 재생성(id=75280)  ← 덮어씀
+            #     [5] `meta.freezable = ...` → Member 'freezable' not in struct 'meta'
+            #   ★ `meta` 가 사라지는 게 아니라 `meta.members` 가 빈다.
+            #
+            #   "CFG 에 등록된 expression 을 보면 되지 않나" = **이미 그렇게 하고 있다**
+            #   ([4]가 `stmt.type_obj` 를 읽는다). 문제는 "보지 않음" 이 아니라
+            #   **"보고 만드는 방법이 틀림"** 이었다. 그래서 사본을 지우고 팩토리를 부른다.
+            #   배열·매핑도 `struct_defs`/`enum_defs` 를 안 넘겨 같은 결함이 있었다
+            #   (구조체 배열 · 값이 구조체인 매핑).
+            #
+            #   ⚠ 대안(선언 statement 에 프로토타입을 저장해 clone)은 멱등성은 지키지만
+            #     **증분 편집에 불리**하다 — struct 정의가 바뀌면 프로토타입이 낡는다.
+            #     `type_obj` 재구성은 **현재 정의**를 집어온다.
+            #   ⚠ `_create_variable_object` 의 3번째 인자 `ccf` 는 현재 미사용이고
+            #     내부적으로 `get_full_struct_enum_defs()` → `current_target_contract` 를
+            #     본다(백로그 ⑪). 기존 호출부와 동일한 한계이므로 회귀는 아니다.
+            variables[var_name] = self.an._create_variable_object(var_type, var_name, None)
+        else:
+            # Elementary / interface 타입 처리
+            vobj = Variables(identifier=var_name, scope="local")
+            vobj.typeInfo = var_type
+            if var_type.typeCategory == "interface":
+                ifc_name = getattr(var_type, 'interfaceName', None)
+                vobj.value = AddressSet.top()
+                if ifc_name:
+                    vobj.value._cast_interface = ifc_name
             else:
-                # Elementary / interface 타입 처리
-                vobj = Variables(identifier=var_name, scope="local")
-                vobj.typeInfo = var_type
-                if var_type.typeCategory == "interface":
-                    ifc_name = getattr(var_type, 'interfaceName', None)
+                et = var_type.elementaryTypeName
+                if et and et.startswith("uint"):
+                    bits = var_type.intTypeLength or 256
+                    vobj.value = UnsignedIntegerInterval.top(bits)
+                elif et and et.startswith("int"):
+                    bits = var_type.intTypeLength or 256
+                    vobj.value = IntegerInterval.top(bits)
+                elif et == "bool":
+                    vobj.value = BoolInterval.top()
+                elif et == "address":
                     vobj.value = AddressSet.top()
-                    if ifc_name:
-                        vobj.value._cast_interface = ifc_name
                 else:
-                    et = var_type.elementaryTypeName
-                    if et and et.startswith("uint"):
-                        bits = var_type.intTypeLength or 256
-                        vobj.value = UnsignedIntegerInterval.top(bits)
-                    elif et and et.startswith("int"):
-                        bits = var_type.intTypeLength or 256
-                        vobj.value = IntegerInterval.top(bits)
-                    elif et == "bool":
-                        vobj.value = BoolInterval.top()
-                    elif et == "address":
-                        vobj.value = AddressSet.top()
-                    else:
-                        vobj.value = f"symbol_{var_name}"
-                variables[var_name] = vobj
+                    vobj.value = f"symbol_{var_name}"
+            variables[var_name] = vobj
+
+        # 1-b. 초기화식이 없으면 Solidity 기본값(0 / false / address(0) / 빈 동적 배열 / 0 으로 채운 struct·정적 배열).
+        #   ★ (Phase 3a, D2) 예전엔 ⊤ 로 두었다(건전하지만 부정확). 파라미터·상태변수(⊤)와 달리 지역변수는 값이 정해져 있다.
+        if init_expr is None:
+            var = variables[var_name]
+            if isinstance(var, (ArrayVariable, StructVariable)):
+                self._delete_composite(var)
+            elif isinstance(var, EnumVariable):
+                var.valueIndex = 0
+                if isinstance(getattr(var, "members", None), dict) and var.members:
+                    var.value = next(iter(var.members))
+            elif not isinstance(var, MappingVariable) and not isinstance(getattr(var, "value", None), str):
+                zero = self._zero_of(var)
+                if isinstance(zero, AddressSet) and isinstance(getattr(var, "value", None), AddressSet):
+                    zero._cast_interface = getattr(var.value, "_cast_interface", None)
+                var.value = zero
 
         # ──────────────────────────────────────────────────────────────
         # 2. 초기화식이 있으면 항상 평가 (변수가 이미 있어도)
@@ -157,9 +202,9 @@ class Engine:
 
                 # 평가 결과가 Variables 객체면 그 value를 추출
                 if isinstance(eval_result, Variables) and not isinstance(eval_result, (ArrayVariable, StructVariable, MappingVariable)):
-                    vobj.value = getattr(eval_result, 'value', eval_result)
-                else:
-                    vobj.value = eval_result
+                    eval_result = getattr(eval_result, 'value', eval_result)
+                # (Phase 4b) 선언 타입으로 암묵 변환 — `coerce_to_declared` 주석 참고
+                vobj.value = coerce_to_declared(eval_result, var_type, f"initializer of '{var_name}'")
 
                 if self._record_enabled and not self._suppress_stmt_records:
                     self.rec.record_variable_declaration(
@@ -194,17 +239,74 @@ class Engine:
         op = stmt.operator
         operand = stmt.operand
 
-        if op == '++' or op == 'unary_suffix' or op == 'unary_prefix':
+        if op == '++':
             self.up.update_left_var(operand, 1, '+=', variables, None, None, False)
             return variables
         if op == '--':
             self.up.update_left_var(operand, 1, '-=', variables, None, None, False)
             return variables
         if op == 'delete':
-            self.up.update_left_var(operand, 0, '=', variables, None, None,
-                                    (self._record_enabled and not self._suppress_stmt_records))
+            if self._is_bottom_env(variables):
+                return variables
+            target = self.up.resolve_lhs_expr(operand, variables)
+            if isinstance(target, (ArrayVariable, StructVariable, MappingVariable)):
+                # ★ (Phase 3a) 예전엔 구성 시점(`ContractAnalyzer.handle_delete._wipe`)에만 타입별 0 초기화가 있었고,
+                #   해석기는 피연산자에 정수 0 을 대입했다(복합 타입이면 틀린 결과). 의미를 해석기로 옮긴다.
+                self._delete_composite(target)
+            else:
+                self.up.update_left_var(operand, self._zero_of(target), '=', variables, None, None,
+                                        (self._record_enabled and not self._suppress_stmt_records))
             return variables
-        return variables
+        if op in ('unary_prefix', 'unary_suffix'):
+            # Phase 2 이전에 빌드된 pkl 의 IR — ++/-- 구분이 없어 의미를 복원할 수 없다.
+            raise ValueError(f"stale IR: unary operator token '{op}' (pkl built before 2026-10-21 Phase 2) "
+                             f"— rebuild the dependency pkl")
+        # ★ (Phase 2) 모르는 단항 연산자를 조용히 무시하지 않는다(D4).
+        raise ValueError(f"unary statement operator '{op}' is not supported")
+
+    @staticmethod
+    def _zero_of(var):
+        """`delete x` 의 결과 = 타입의 0 값 (uint/int/bool/address/enum/bytesN)."""
+        from Domain.BytesSet import BytesSet
+        if isinstance(var, EnumVariable):
+            return 0
+        val = getattr(var, "value", None)
+        ti = getattr(var, "typeInfo", None)
+        et = getattr(ti, "elementaryTypeName", "") or ""
+        bits = getattr(ti, "intTypeLength", None) or 256
+        if isinstance(val, UnsignedIntegerInterval) or et.startswith("uint"):
+            return UnsignedIntegerInterval(0, 0, bits)
+        if isinstance(val, IntegerInterval) or et.startswith("int"):
+            return IntegerInterval(0, 0, bits)
+        if isinstance(val, BoolInterval) or et == "bool":
+            return BoolInterval(0, 0)
+        if isinstance(val, AddressSet) or et == "address":
+            return AddressSet(ids={0})
+        if isinstance(val, BytesSet):
+            return BytesSet(values={0}, byte_size=val.byte_size)
+        raise ValueError(f"delete: zero value of type '{et or type(val).__name__}' is not modeled")
+
+    def _delete_composite(self, obj):
+        """`delete` on struct/array (Solidity): 동적 배열 → 길이 0, 정적 배열·struct → 원소/멤버 재귀 0, mapping 은 영향 없음."""
+        if isinstance(obj, MappingVariable):
+            return
+        if isinstance(obj, ArrayVariable):
+            if obj.typeInfo.isDynamicArray:
+                obj.elements.clear()
+            else:
+                for e in obj.elements:
+                    self._delete_composite(e) if isinstance(e, (ArrayVariable, StructVariable, MappingVariable)) \
+                        else setattr(e, "value", self._zero_of(e))
+            return
+        if isinstance(obj, StructVariable):
+            for m in obj.members.values():
+                if isinstance(m, (ArrayVariable, StructVariable, MappingVariable)):
+                    self._delete_composite(m)
+                elif isinstance(m, EnumVariable):
+                    m.valueIndex = 0
+                    m.value = next(iter(m.members), None) if isinstance(getattr(m, "members", None), dict) else 0
+                else:
+                    m.value = self._zero_of(m)
 
     def _interpret_func_call(self, stmt, variables):
         # ★ infeasible branch(BOTTOM env)에서는 함수 호출 스킵
@@ -221,6 +323,7 @@ class Engine:
             r_val = None
         else:
             r_val = self.eval.evaluate_expression(rexpr, variables, None, None)
+            r_val = self._coerce_return(r_val)
         if self._record_enabled and not self._suppress_stmt_records:
             self.rec.record_return(
                 line_no=stmt.src_line,
@@ -233,6 +336,19 @@ class Engine:
         if ret_acc is not None:
             ret_acc.append(r_val); ret_acc.append("__STOP__")
         return variables
+
+    def _coerce_return(self, r_val):
+        """(Phase 4b) 반환값 → 선언 반환 타입 암묵 변환. 다중 반환은 리스트(슬롯 위치 보존)."""
+        fc = self.an.current_target_function_cfg
+        rtypes = list(getattr(fc, "return_types", None) or [])
+        fname = getattr(fc, "function_name", "?")
+        if isinstance(r_val, list):
+            if len(r_val) != len(rtypes):
+                raise ValueError(f"return: {len(r_val)} values for {len(rtypes)} return types")
+            return [coerce_to_declared(v, t, f"return value #{i} of '{fname}'") for i, (v, t) in enumerate(zip(r_val, rtypes))]
+        if isinstance(r_val, Variables) and not isinstance(r_val, (ArrayVariable, StructVariable, MappingVariable)):
+            r_val = r_val.value
+        return coerce_to_declared(r_val, rtypes[0], f"return value of '{fname}'") if len(rtypes) == 1 else r_val
 
     def _interpret_revert(self, stmt, variables):
         return variables
@@ -421,11 +537,23 @@ class Engine:
     #  Fixpoint (루프 중 문장기록 억제)
     # =================================================================
     def fixpoint(self, head: CFGNode) -> CFGNode:
+        # ★ (Phase 1a) 루프 해석 중 예외가 나도 기록 억제·widening 플래그를 복원한다.
+        old_sup, old_widening = self._suppress_stmt_records, self._in_widening_mode
+        try:
+            return self._fixpoint_impl(head)
+        finally:
+            self._suppress_stmt_records = old_sup
+            self._in_widening_mode = old_widening
+
+    def _fixpoint_impl(self, head: CFGNode) -> CFGNode:
         G = self.an.current_target_function_cfg.graph
         ref = self.ref; rec = self.rec
 
         def _edge_flow_from_node_out(node, succ, node_out_env):
             base = VariableEnv.copy_variables(node_out_env or {})
+            # (Phase 3b, D8) back-edge(본문 → 루프 join): 본문에서 선언된 이름은 다음 반복으로 넘어가지 않는다
+            if succ is join_node_ref and node in loop_nodes and base:
+                base = self._restrict_scope(base, set(join_node_ref.join_baseline_env or {}))
             if getattr(node, "condition_node", False):
                 ed = G.get_edge_data(node, succ, default=None)
                 cond_expr = getattr(node, "condition_expr", None)
@@ -636,6 +764,38 @@ class Engine:
         # 루프 내부 문장 기록 억제 off
         self._suppress_stmt_records = old_sup
 
+        # (Phase 3c, D2) 수렴 후에도 값이 한 번도 흘러 들어오지 않은 루프 노드.
+        #   들어오는 흐름이 전부 infeasible 엣지이거나 ⊥ 노드에서 오는 경우에만 명시적 ⊥ (바깥 worklist 와 같은 의미).
+        #   도달한 선행에서 feasible 한 흐름이 있는데도 해석되지 않았다면 해석기 결함 → 예외(⊥ 로 덮지 않는다).
+        pending = [n for n in loop_nodes if out_vars.get(n) is None and not n.variables]
+        bot_nodes: set = set()
+        changed = True
+        while pending and changed:
+            changed = False
+            for n in list(pending):
+                ok = True
+                for p in G.predecessors(n):
+                    if p in bot_nodes:
+                        continue
+                    if p in loop_nodes:
+                        if out_vars.get(p) is None:
+                            if p in pending:
+                                ok = False          # 아직 판정 안 된 선행 — 다음 회차
+                                break
+                            continue
+                        if _edge_flow_from_node_out(p, n, out_vars[p]) is not None:
+                            raise ValueError(f"interpreter invariant: loop node '{n.name}' has a feasible flow "
+                                             f"from '{p.name}' but was not interpreted")
+                if ok:
+                    bot = VariableEnv.copy_variables(start_env or {})
+                    self._set_bottom_env(bot)
+                    n.variables = bot
+                    bot_nodes.add(n)
+                    pending.remove(n)
+                    changed = True
+        if pending:
+            raise ValueError(f"interpreter invariant: loop nodes not interpreted: {[n.name for n in pending]}")
+
         # exit env
         exit_node = self.find_loop_exit_node(head)
         if not exit_node:
@@ -712,7 +872,44 @@ class Engine:
             return True
         return getattr(var, "scope", None) == "state"
 
-    def interpret_function_cfg(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None):
+    def invoke_callee(self, fcfg: FunctionCFG, arg_values: list, caller_env: dict | None, *, kind: str):
+        """(Phase 4, D3) 모든 내부 호출(일반·library·super·this)의 공통 진입점.
+
+        - 인자는 callee 의 `related_variables` 를 고치지 않고 **바인딩**으로 넘긴다(예전엔 4 개 binder 가 callee CFG 의
+          파라미터 객체를 제자리에서 덮어썼다 → 실행 간 누수, super/this 는 caller env 전체를 영구 병합).
+        - 값 타입 인자 = 사본. 복합 타입(memory struct/array, storage 참조) 인자 = 내부 호출(`kind != "this"`)에서는
+          **참조 의미** — callee 종료 시 파라미터의 최종 내용을 caller 의 원래 객체에 되쓴다.
+          `this.f()` 는 외부 호출이므로 ABI 복사(되쓰기 없음).
+        """
+        params = list(getattr(fcfg, "parameters", []) or [])
+        if len(arg_values) != len(params):
+            raise ValueError(f"call to '{fcfg.function_name}': expected {len(params)} arguments, got {len(arg_values)}")
+        bindings, sources = {}, {}
+        for pname, val in zip(params, arg_values):
+            proto = (fcfg.related_variables or {}).get(pname)
+            if proto is None:
+                raise ValueError(f"call to '{fcfg.function_name}': parameter '{pname}' has no declaration")
+            if isinstance(val, (StructVariable, ArrayVariable, MappingVariable)):
+                b = VariableEnv.copy_single_variable(val)
+                b.identifier = pname
+                if kind != "this":
+                    sources[pname] = val
+            elif isinstance(proto, (StructVariable, ArrayVariable, MappingVariable)):
+                raise ValueError(f"call to '{fcfg.function_name}': argument for composite parameter '{pname}' "
+                                 f"is not a composite value ({type(val).__name__})")
+            else:
+                b = VariableEnv.copy_single_variable(proto)
+                if isinstance(val, Variables):
+                    val = val.value
+                # (Phase 4b) 인자 → 파라미터 타입 암묵 변환
+                b.value = coerce_to_declared(VariableEnv._copy_value(val), getattr(proto, "typeInfo", None),
+                                             f"argument for '{pname}' of '{fcfg.function_name}'")
+            bindings[pname] = b
+        return self.interpret_function_cfg(fcfg, caller_env, param_bindings=bindings, param_sources=sources)
+
+    def interpret_function_cfg(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None,
+                               param_bindings: dict | None = None, param_sources: dict | None = None):
+        fcfg = self._composed_callee(fcfg)   # (Phase 4, D6) modifier 합성본
         an = self.an
         _old_func = an.current_target_function
         _old_fcfg = an.current_target_function_cfg
@@ -734,7 +931,24 @@ class Engine:
                 fcfg.ireturn_registry.setdefault(key, val)
 
         _saved_node_vars = self._reset_node_vars(fcfg)
+        # ★ (Phase 1a) 해석 중 예외가 나도 callee 노드·컨텍스트·플래그를 반드시 복원한다.
+        #   예전엔 복원이 정상 경로에만 있어서, 예외 한 번이면 `_record_enabled=False` 와
+        #   callee 컨텍스트가 남아 이후 기록·During 검증이 조용히 꺼졌다.
+        try:
+            return self._interpret_callee_body(fcfg, caller_env, _call_site_node, param_bindings, param_sources)
+        finally:
+            for blk, saved_vars in _saved_node_vars.items():
+                blk.variables = saved_vars
+            an.current_target_function = _old_func
+            an.current_target_function_cfg = _old_fcfg
+            fcfg.ireturn_registry = _saved_ireturn
+            self._record_enabled = _old_record_enabled
 
+    def _interpret_callee_body(self, fcfg: FunctionCFG, caller_env, _call_site_node,
+                               param_bindings=None, param_sources=None):
+        """interpret_function_cfg 의 본체(진입 env 구성 → worklist → exit 처리 → caller 되쓰기).
+        노드/컨텍스트 복원은 호출자(interpret_function_cfg)의 finally 가 맡는다."""
+        an = self.an
         entry = fcfg.get_entry_node()
         (start_block,) = fcfg.graph.successors(entry)
 
@@ -775,13 +989,33 @@ class Engine:
                     continue
                 start_block.variables[k] = VariableEnv.copy_single_variable(v)
 
+        # (Phase 4) 인자 바인딩 — invoke_callee 가 만든 새 파라미터 객체
+        for pname, b in (param_bindings or {}).items():
+            start_block.variables[pname] = b
+
         return_values = self._run_worklist(fcfg, start_block)
 
         self._force_join_before_exit(fcfg)
+        self._restore_all_shadows(fcfg.get_exit_node().variables)   # (Phase 3b, D8)
         self._sync_named_return_vars(fcfg)
 
         # exit env를 node 복원 전에 캡처
         _exit_env = VariableEnv.copy_variables(fcfg.get_exit_node().variables) if caller_env is not None else None
+
+        # (Phase 4) 복합 타입 인자의 참조 의미 — callee 가 바꾼 내용을 caller 의 원래 객체에 되쓴다.
+        #   exit 가 ⊥(항상 revert)면 이후 caller 경로는 도달 불가이므로 되쓰지 않는다.
+        _exit_vars = fcfg.get_exit_node().variables or {}
+        if param_sources and _exit_vars and not self._is_bottom_env(_exit_vars):
+            for pname, src in param_sources.items():
+                final = _exit_vars.get(pname)
+                if final is None:
+                    continue
+                if isinstance(src, StructVariable) and isinstance(final, StructVariable):
+                    src.members = VariableEnv.copy_variables(final.members)
+                elif isinstance(src, ArrayVariable) and isinstance(final, ArrayVariable):
+                    src.elements = [VariableEnv.copy_single_variable(e) for e in final.elements]
+                elif isinstance(src, MappingVariable) and isinstance(final, MappingVariable):
+                    src.mapping = VariableEnv.copy_variables(final.mapping)
 
         # ★ N4/S1. restore 로 baseline 이 복원되기 **전에** callee 노드 상태를 떠낸다.
         #   아래 restore 루프가 `_reset_node_vars` 의 백업(= 선언 시점 스냅샷)으로 되돌려
@@ -789,13 +1023,6 @@ class Engine:
         #   (실측: 같은 callee 를 4회 호출해도 복귀 후 상태가 4회 모두 동일 = 전부 baseline)
         if getattr(an, "_capture_debug_fcfg", False):
             self._capture_callee_states(fcfg, _call_site_node)
-
-        for blk, saved_vars in _saved_node_vars.items():
-            blk.variables = saved_vars
-
-        an.current_target_function = _old_func
-        an.current_target_function_cfg = _old_fcfg
-        fcfg.ireturn_registry = _saved_ireturn
 
         # callee의 exit env를 caller에 반영 (state variable 변경 전파)
         # callee 파라미터가 caller의 동명 변수를 오염시키지 않도록 제외
@@ -828,7 +1055,7 @@ class Engine:
                 elif isinstance(v, (MappingVariable, ArrayVariable)):
                     caller_env[k] = v
 
-        self._record_enabled = _old_record_enabled
+        # log_implicit=False → 기록 플래그·컨텍스트와 무관(return_vars / RETURN.return_vals 만 읽음)
         return self._extract_return_value(fcfg, return_values)
 
     # =================================================================
@@ -837,62 +1064,86 @@ class Engine:
     #  - 기록 활성화, assign_env/entry_env 갱신, annotation 처리
     # =================================================================
     def interpret_function_cfg_for_debug(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None):
+        """디버깅 입력 1회 해석.
+
+        ★ (리팩터링 Phase 1a, REFACTOR_PLAN.md) 실행 격리: live fcfg 를 직접 해석하지 않고
+          **실행용 사본(run)** 을 만들어 그 위에서 해석한다. live CFG 는 구성 결과로서 불변으로 남고,
+          계산된 states 는 사본에만 남는다 → 노드 reset/restore 가 필요 없고, 이전 회차의
+          before_envs / return_vals / ireturn_registry 가 다음 회차에 새지 않는다.
+          사본은 그대로 freeze 결과가 된다(예전의 해석 후 pickle 과 같은 비용).
+        """
+        import pickle as _pickle
         an = self.an; rec = self.rec
         _old_func = an.current_target_function
         _old_fcfg = an.current_target_function_cfg
         _old_record_enabled = self._record_enabled
 
-        an.current_target_function = fcfg.function_name
-        an.current_target_function_cfg = fcfg
-        self._record_enabled = True
-        an._seen_stmt_ids.clear()
-        # ★ N4/S1. 이번 해석에서 떠낼 callee 상태를 새로 모은다(이전 회차 잔류 방지).
-        #   역색인도 무효화 — 의존성이 추가됐을 수 있다.
-        an._frozen_callee_states = {}
-        an._fcfg_owner_index = None
+        # 실행용 사본 — debug 지시자가 패치한 related_variables·ireturn_registry 를 그대로 싣는다.
+        run = _pickle.loads(_pickle.dumps(fcfg))
+        # 줄 좌표(sa.line_info 의 cfg_nodes)는 live 노드 identity 로 기록돼 있다 → 원본 참조를 단다.
+        run._live_origin = fcfg
+        self._composed_cache = {}            # (Phase 4) callee modifier 합성본 — 실행마다 새로
+        self._compose_modifiers(run)         # (Phase 4, D6) modifier 를 실행 사본 위에서 합성
+        # @IReturn 지시자는 이번 회차 입력이다 → 사본으로 넘긴 뒤 live 에서 비운다(다음 회차 누수 방지).
+        fcfg.ireturn_registry = {}
+        # 이전 해석 흔적 제거: 노드 env·before_envs·return_vals 는 이번 실행이 새로 만든다.
+        for blk in run.graph.nodes:
+            blk.variables = {}
+            blk.before_envs = {}
+            blk.return_vals = {}
+            for st in blk.statements:
+                ln = getattr(st, "src_line", None)
+                if ln is not None and ln in an.analysis_per_line:
+                    an.analysis_per_line[ln].clear()
 
+        try:
+            an.current_target_function = run.function_name
+            an.current_target_function_cfg = run
+            self._record_enabled = True
+            an._seen_stmt_ids.clear()
+            # ★ N4/S1. 이번 해석에서 떠낼 callee 상태를 새로 모은다(이전 회차 잔류 방지).
+            #   역색인도 무효화 — 의존성이 추가됐을 수 있다.
+            an._frozen_callee_states = {}
+            an._fcfg_owner_index = None
 
-        _saved_node_vars = self._reset_node_vars(fcfg)
+            # debug-patched related_variables로 assign_env / entry_env 갱신
+            run.assign_env = VariableEnv.copy_variables(run.related_variables)
+            run.entry_env = VariableEnv.copy_variables(run.related_variables)
 
-        # debug-patched related_variables로 assign_env / entry_env 갱신
-        fcfg.assign_env = VariableEnv.copy_variables(fcfg.related_variables)
-        fcfg.entry_env = VariableEnv.copy_variables(fcfg.related_variables)
+            entry = run.get_entry_node()
+            (start_block,) = run.graph.successors(entry)
 
-        entry = fcfg.get_entry_node()
-        (start_block,) = fcfg.graph.successors(entry)
+            start_block.variables = VariableEnv.copy_variables(run.related_variables)
 
-        start_block.variables = VariableEnv.copy_variables(fcfg.related_variables)
+            if caller_env is not None:
+                for k, v in caller_env.items():
+                    if k not in start_block.variables:
+                        start_block.variables[k] = VariableEnv.copy_single_variable(v)
 
-        if caller_env is not None:
-            for k, v in caller_env.items():
-                if k not in start_block.variables:
-                    start_block.variables[k] = VariableEnv.copy_single_variable(v)
+            return_values = self._run_worklist(run, start_block)
 
-        return_values = self._run_worklist(fcfg, start_block)
+            self._force_join_before_exit(run)
+            self._restore_all_shadows(run.get_exit_node().variables)   # (Phase 3b, D8)
+            self._sync_named_return_vars(run)
+            self._classify_unvisited(run)                               # (Phase 3c, D2)
 
-        self._force_join_before_exit(fcfg)
-        self._sync_named_return_vars(fcfg)
+            # ═══ Post Annotation 처리 ═══
+            self._process_post_annotations(run)
 
-        # ═══ Post Annotation 처리 ═══
-        self._process_post_annotations(fcfg)
-
-        # engine_api(IQDebug): 아래 restore 로 baseline 복원되기 전, 계산된 states 를 가진
-        #   fcfg 를 freeze 한다(우리 시나리오 = states 보존). 게이트 off(기본)면 게재 경로 무영향.
-        #   pickle 실패는 그대로 전파(fail-loud) — 조용한 fallback 없음.
-        if getattr(an, "_capture_debug_fcfg", False):
-            import pickle as _pickle
-            an._frozen_debug_fcfg = _pickle.loads(_pickle.dumps(fcfg))
-
-        for blk, saved_vars in _saved_node_vars.items():
-            blk.variables = saved_vars
-
-        an.current_target_function = _old_func
-        an.current_target_function_cfg = _old_fcfg
+            # engine_api(IQDebug): 계산된 states 를 가진 사본을 freeze 결과로 넘긴다.
+            if getattr(an, "_capture_debug_fcfg", False):
+                an._frozen_debug_fcfg = run
+        finally:
+            an.current_target_function = _old_func
+            an.current_target_function_cfg = _old_fcfg
+            self._record_enabled = _old_record_enabled
 
         # 반환값 (기록 포함)
-        result = self._extract_return_value(fcfg, return_values, log_implicit=True)
-        self._record_enabled = _old_record_enabled
-        return result
+        self._record_enabled = True
+        try:
+            return self._extract_return_value(run, return_values, log_implicit=True)
+        finally:
+            self._record_enabled = _old_record_enabled
 
     # =================================================================
     #  공통 헬퍼
@@ -919,6 +1170,7 @@ class Engine:
                 if ctor is not None:
                     idx[id(ctor)] = (cname, "constructor")
             an._fcfg_owner_index = idx
+        fcfg = getattr(fcfg, "_live_origin", fcfg)
         return idx.get(id(fcfg), (None, getattr(fcfg, "function_name", "?")))
 
     def _capture_callee_states(self, fcfg, call_site_node) -> None:
@@ -942,6 +1194,8 @@ class Engine:
         for n in fcfg.graph.nodes():
             flat: dict[str, str] = {}
             for k, var in (getattr(n, "variables", {}) or {}).items():
+                if self.SHADOW_SEP in k:      # (Phase 3b) 보관된 바깥 binding — 내부용
+                    continue
                 self.rec._flatten_var(var, k, flat)
             if flat:
                 states[n.name] = {kk: ("⊥" if vv == "[None,None]" else vv)
@@ -959,6 +1213,224 @@ class Engine:
                 if ln is not None and ln in an.analysis_per_line:
                     an.analysis_per_line[ln].clear()
         return saved
+
+    # ── (Phase 4, D6) modifier 합성 ─────────────────────────────────────────
+    #   구성 시점엔 `fcfg.modifier_invocations = [(이름, [인자 식])]` 만 있다. 디버깅 해석 때 실행 사본 위에서
+    #   f() M1 M2 { B }  →  M1( M2( B ) ) 로 그래프를 합성한다:
+    #     ENTRY → [Mi 인자 바인딩] → Mi 본문 … `_` 자리에 안쪽(B 또는 안쪽 modifier) … Mi 나머지 → EXIT
+    #   안쪽의 정상 종료(EXIT/RETURN 으로 가던 엣지)는 `_` 다음으로, Mi 의 require 실패는 함수 ERROR 로.
+    #   modifier 파라미터·지역변수는 `이름$변수` 로 바꿔 함수 쪽 이름과 섞이지 않게 한다.
+    def _compose_modifiers(self, fcfg: FunctionCFG) -> None:
+        import pickle as _pickle
+        invs = list(getattr(fcfg, "modifier_invocations", None) or [])
+        if not invs:
+            return
+        an = self.an
+        ccf = an.contract_cfgs.get(an.current_target_contract)
+        G = fcfg.graph
+        fn_entry, fn_exit = fcfg.get_entry_node(), fcfg.get_exit_node()
+        fn_ret, fn_err = fcfg.get_return_exit_node(), fcfg.get_error_exit_node()
+
+        for name, args in reversed(invs):
+            if name in an.contract_cfgs:            # 생성자의 기반 생성자 호출 — modifier 아님 (Phase 7)
+                continue
+            mod = ccf.get_function_cfg(name) if ccf is not None else None
+            if mod is None and ccf is not None:
+                mod = an._find_in_ancestors(ccf, name)
+            if mod is None or getattr(mod, "function_type", None) != "modifier":
+                raise ValueError(f"modifier '{name}' is not defined")
+            params = list(getattr(mod, "parameters", []) or [])
+            if len(args) != len(params):
+                raise ValueError(f"modifier '{name}': expected {len(params)} arguments, got {len(args)}")
+
+            clone = _pickle.loads(_pickle.dumps(mod))
+            CG = clone.graph
+            m_entry, m_exit = clone.get_entry_node(), clone.get_exit_node()
+            m_ret, m_err = clone.get_return_exit_node(), clone.get_error_exit_node()
+            placeholders = [n for n in CG.nodes if n.name.startswith("MOD_PLACEHOLDER")]
+            if len(placeholders) != 1:
+                raise ValueError(f"modifier '{name}': {len(placeholders)} placeholders '_' — only exactly one is supported")
+            ph = placeholders[0]
+
+            # 이름 바꾸기: 파라미터 + modifier 안에서 선언된 지역변수
+            local_names = set(params)
+            for n in CG.nodes:
+                for st in n.statements:
+                    if st.statement_type == "variableDeclaration":
+                        local_names.add(st.var_name)
+            mapping = {v: f"{name}${v}" for v in local_names}
+            for n in CG.nodes:
+                n.name = f"{name}::{n.name}"
+                for st in n.statements:
+                    self._rename_in_statement(st, mapping)
+                if getattr(n, "condition_expr", None) is not None:
+                    self._rename_in_expr(n.condition_expr, mapping)
+
+            # 인자 바인딩 노드: `uint v$gt = <인자 식>` (함수 진입 env 에서 평가된다)
+            # 인자는 함수 헤더(modifier 호출 위치)에서 평가된다 → 그 줄로 기록
+            hdr_line = self._function_start_line(fcfg)
+            bind = CFGNode(f"{name}::ARGS", src_line=hdr_line)
+            for pname, a in zip(params, args):
+                ptype = mod.related_variables[pname].typeInfo
+                bind.add_variable_declaration_statement(ptype, mapping[pname], a, hdr_line)
+
+            # 안쪽(현재 함수 몸체) 경계
+            (inner_start,) = list(G.successors(fn_entry))
+            inner_exits = [(u, v) for v in (fn_exit, fn_ret) for u in list(G.predecessors(v))]
+            (ph_succ,) = list(CG.successors(ph)) if CG.out_degree(ph) == 1 else (None,)
+            if ph_succ is None:
+                raise ValueError(f"modifier '{name}': placeholder must have exactly one successor")
+
+            # modifier 노드 편입
+            for n in CG.nodes:
+                if n in (m_entry, m_exit, m_ret, m_err, ph):
+                    continue
+                G.add_node(n)
+            G.add_node(bind)
+            G.remove_edge(fn_entry, inner_start)
+            G.add_edge(fn_entry, bind)
+
+            def _map(n):
+                if n is m_exit or n is m_ret:
+                    return fn_exit
+                if n is m_err:
+                    return fn_err
+                return n
+            for u, v, data in list(CG.edges(data=True)):
+                if v is ph:
+                    G.add_edge(_map(u) if u is not m_entry else bind, inner_start)
+                    continue
+                if u is ph:
+                    continue
+                src = bind if u is m_entry else _map(u)
+                G.add_edge(src, _map(v), **data)
+            # 안쪽의 정상 종료 → `_` 다음 (`_` 가 modifier 의 마지막이면 곧 함수 종료)
+            after = _map(ph_succ)
+            for u, v in inner_exits:
+                if u is bind:
+                    continue
+                G.remove_edge(u, v)
+                G.add_edge(u, after)
+
+    def _rename_in_statement(self, st, mapping: dict) -> None:
+        if getattr(st, "statement_type", None) == "variableDeclaration" and st.var_name in mapping:
+            st.var_name = mapping[st.var_name]
+        for attr in ("left", "right", "init_expr", "return_expr", "function_expr", "operand"):
+            e = getattr(st, attr, None)
+            if e is not None:
+                self._rename_in_expr(e, mapping)
+        for e in (getattr(st, "arguments", None) or []):
+            self._rename_in_expr(e, mapping)
+
+    def _rename_in_expr(self, e, mapping: dict, _seen=None) -> None:
+        if _seen is None:
+            _seen = set()
+        if isinstance(e, (list, tuple)):
+            for x in e:
+                self._rename_in_expr(x, mapping, _seen)
+            return
+        if isinstance(e, dict):
+            for x in e.values():
+                self._rename_in_expr(x, mapping, _seen)
+            return
+        if not isinstance(e, Expression) or id(e) in _seen:
+            return
+        _seen.add(id(e))
+        if getattr(e, "context", None) == "IdentifierExpContext" and getattr(e, "identifier", None) in mapping:
+            e.identifier = mapping[e.identifier]
+        for v in vars(e).values():
+            if isinstance(v, (Expression, list, tuple, dict)):
+                self._rename_in_expr(v, mapping, _seen)
+
+    def _composed_callee(self, fcfg: FunctionCFG) -> FunctionCFG:
+        """modifier 가 붙은 callee 의 합성본(실행 1 회 동안 캐시). 원본은 건드리지 않는다."""
+        if not getattr(fcfg, "modifier_invocations", None):
+            return fcfg
+        import pickle as _pickle
+        cache = getattr(self, "_composed_cache", None)
+        if cache is None:
+            cache = self._composed_cache = {}
+        hit = cache.get(id(fcfg))
+        if hit is None:
+            hit = _pickle.loads(_pickle.dumps(fcfg))
+            hit._live_origin = fcfg
+            self._compose_modifiers(hit)
+            cache[id(fcfg)] = hit
+        return hit
+
+    def _classify_unvisited(self, fcfg: FunctionCFG) -> None:
+        """(Phase 3c, D2) 해석 종료 후 "값이 없는" 노드 정리 — 사용자에게 '평가 안 됨' 이 ⊥ 처럼 보이지 않게.
+
+        - ENTRY 에서 그래프상 경로가 없는 노드(`return`/`revert` 뒤 dead code 등) → 명시적 ⊥ (도달 불가).
+        - 경로가 있는데 해석되지 않은 노드 → 해석기 버그이므로 예외(조용히 빈 상태로 내보내지 않는다).
+        sink(EXIT/RETURN/ERROR)·ENTRY 는 상태를 따로 다루므로 제외한다.
+        """
+        G = fcfg.graph
+        entry = fcfg.get_entry_node()
+
+        def _sink(n):
+            return (getattr(n, "function_exit_node", False) or getattr(n, "return_exit_node", False)
+                    or getattr(n, "error_exit_node", False))
+
+        # 도달성은 sink 에서 멈춘다 — sink 는 해석의 종착점이다(그 뒤에 붙은 노드는 해석 대상이 아니다).
+        reach, stack = set(), [entry]
+        while stack:
+            u = stack.pop()
+            for v in G.successors(u):
+                if v not in reach:
+                    reach.add(v)
+                    if not _sink(v):
+                        stack.append(v)
+        for n in G.nodes:
+            if n is entry or n.variables or _sink(n):
+                continue
+            if n in reach:
+                raise ValueError(f"interpreter invariant: node '{n.name}' is reachable from ENTRY "
+                                 f"but was not interpreted")
+            bottom = VariableEnv.copy_variables(fcfg.related_variables)
+            self._set_bottom_env(bottom)
+            n.variables = bottom
+
+    # ── (Phase 3b, D8) 블록 스코프 ─────────────────────────────────────────
+    #   env 는 이름 → Variables 이므로, 블록이 끝나는 노드(분기 join, 루프 exit, 루프 back-edge)에서
+    #   "블록에 들어가기 전에 있던 이름" 만 남긴다. 블록 안에서 바깥 이름을 다시 선언(shadowing)한 경우엔
+    #   선언 시점에 바깥 binding 을 `name␟shadow@<id>` 키로 보관해 두었다가 여기서 되돌린다.
+    SHADOW_SEP = "\x1f"
+
+    def _scope_keys(self, G, anchor) -> set:
+        """블록 진입 시점의 이름 집합. anchor = if/else-if cond(그 env = 분기 직전) 또는 루프 join(진입 baseline)."""
+        if anchor not in G:
+            raise ValueError(f"scope anchor '{anchor.name}' is not in the CFG (stale structure after edit)")
+        if getattr(anchor, "fixpoint_evaluation_node", False):
+            base = getattr(anchor, "join_baseline_env", None)
+            if base is None:
+                raise ValueError(f"loop scope anchor '{anchor.name}' has no entry baseline (fixpoint not run)")
+            keys = set(base)
+            # for-init 에서 선언된 변수(`for (uint i …)`)는 루프 블록 소속
+            for pp in G.predecessors(anchor):
+                if getattr(pp, "name", "").startswith("for_init_"):
+                    keys -= {st.var_name for st in pp.statements if st.statement_type == "variableDeclaration"}
+            return keys
+        return set(anchor.variables or {})
+
+    def _restrict_scope(self, env: dict, keep: set) -> dict:
+        """블록 종료: 보관된 바깥 binding 복원 → keep 밖의 이름(블록 지역변수·이 블록의 보관 키) 제거."""
+        if not env:
+            return env
+        sep = self.SHADOW_SEP
+        for k in [k for k in env if sep in k and k not in keep]:
+            env[k.split(sep, 1)[0]] = env.pop(k)
+        for k in [k for k in env if k not in keep]:
+            del env[k]
+        return env
+
+    def _restore_all_shadows(self, env: dict) -> None:
+        """함수 종료: 함수 최상위 블록에서 상태변수 등을 가린 지역변수가 있으면 바깥 binding 복원."""
+        if not env:
+            return
+        sep = self.SHADOW_SEP
+        for k in sorted([k for k in env if sep in k], reverse=True):
+            env[k.split(sep, 1)[0]] = env.pop(k)
 
     def _run_worklist(self, fcfg: FunctionCFG, start_block) -> list:
         """CFG worklist 순회. return_values 리스트 반환."""
@@ -1014,6 +1486,14 @@ class Engine:
                               else VariableEnv.join_variables_simple(joined, flow))
                 if joined is not None:
                     node.variables = joined
+
+            # (Phase 3b, D8) 분기 블록이 끝나는 join — 블록 안에서 선언된 이름 제거.
+            #   루프 exit 는 fixpoint 직후에 정리한다(여기로 오는 루프 exit 는 루프가 ⊥ 로 건너뛰어진 경우뿐).
+            anchor = getattr(node, "scope_anchor", None)
+            if anchor is not None and node.variables \
+                    and not getattr(anchor, "fixpoint_evaluation_node", False):
+                node.variables = self._restrict_scope(node.variables,
+                                                      self._scope_keys(G, node.scope_anchor))
 
             cur_vars = node.variables
             node.evaluated = True
@@ -1084,6 +1564,10 @@ class Engine:
 
                 elif node.condition_node_type in ["while", "for", "do_while"]:
                     exit_node = self.fixpoint(node)
+                    # (Phase 3b, D8) 루프 블록(본문·for-init) 변수는 루프 밖에서 사라진다
+                    if getattr(exit_node, "scope_anchor", None) is not None and exit_node.variables:
+                        exit_node.variables = self._restrict_scope(
+                            exit_node.variables, self._scope_keys(G, exit_node.scope_anchor))
                     # ★ loop-exit 도 **처리 완료**로 표시한다. `fixpoint` 가 그 env 를 이미
                     #   확정했으므로(`exit_node.variables`) 뒤의 join 이 그대로 쓰면 된다.
                     #
@@ -1199,156 +1683,6 @@ class Engine:
             return joined_ret
 
     # =================================================================
-    #  reinterpret_from (변경 없음; self.* 호출로 정리)
-    # =================================================================
-    def reinterpret_from(self, fcfg: "FunctionCFG", seed_or_seeds) -> None:
-        G = fcfg.graph; ref = self.ref
-        rec = self.rec  # ★ Recorder
-        # --- helpers 동일 (_is_loop_head / _false_succs / _is_sink / _edge_env_from_pred / _compute_in) ---
-
-        # ★ 재해석 시 기록 활성화
-        self._record_enabled = True
-        self._suppress_stmt_records = False
-
-        seeds = list(seed_or_seeds) if isinstance(seed_or_seeds, (list, tuple, set)) else [seed_or_seeds]
-        WL, in_queue = deque(), set()
-        out_snapshot: dict[CFGNode, dict[str, Variables] | None] = {}
-
-        # ★ 이번 run에서 이미 비웠던 라인 집합
-        cleared_lines: set[int] = set()
-        # ★ 이번 run에서 "출력 대상으로 건드린 라인" 집합 (send_report에서 사용)
-        touched_lines: set[int] = set()
-        def _is_loop_head(n):
-            return (getattr(n, "condition_node", False) and
-                    getattr(n, "condition_node_type", None) in {"while", "for", "doWhile", "do_while"})
-        def _false_succs(n):
-            return [s for s in G.successors(n) if G[n][s].get("condition") is False]
-        def _is_sink(n):
-            if getattr(n, "function_exit_node", False): return True
-            if getattr(n, "error_exit_node", False):    return True
-            if getattr(n, "return_exit_node", False):   return True
-            nm = getattr(n, "name", "")
-            return nm in {"EXIT", "ERROR", "RETURN"}
-        def _edge_env_from_pred(pred, succ):
-            base = VariableEnv.copy_variables(getattr(pred, "variables", {}) or {})
-            if getattr(pred, "condition_node", False):
-                cond_expr = getattr(pred, "condition_expr", None)
-                ed = G.get_edge_data(pred, succ, default=None)
-                if cond_expr is not None and ed and "condition" in ed:
-                    want_true = bool(ed["condition"])
-                    ref.update_variables_with_condition(base, cond_expr, want_true)
-                    if not self._branch_feasible(base, cond_expr, want_true):
-                        return None
-                return base
-            return base
-        def _compute_in(n):
-            acc = None
-            for p in G.predecessors(n):
-                env_p = _edge_env_from_pred(p, n)
-                if env_p is None: continue
-                acc = VariableEnv.join_variables_simple(acc, env_p)
-            acc = acc or {}
-            # ★ 함수 ENTRY 의 env 는 dataflow 로 **유도되는** 값이 아니라 **주어지는** 값이다
-            #   (파라미터 + state 변수 + globals = fcfg.related_variables). 호출 규약이지
-            #   계산 결과가 아니다. interpret_function_cfg 는 이미 그렇게 쓴다
-            #   (`start_block.variables = copy(fcfg.related_variables)`) — 여기만 빠져 있었다.
-            #
-            #   이 함수는 원래 "seed 는 언제나 함수 중간의 statement 블록" 이라는 전제로
-            #   쓰였다(= callee 가 caller 보다 먼저 선언된다는 전제). 나중에 얹힌
-            #   pending_calls 경로는 그 전제를 깬다: 미정의 함수 호출이 **함수의 첫 문장**이면
-            #   ContractAnalyzer 가 등록하는 cur_blk 이 ENTRY 자신이라, 재해석이 ENTRY 부터 돈다.
-            #   그때 ENTRY 는
-            #     · predecessor 가 없으면        -> acc == {}                (modifier 없는 함수)
-            #     · modifier 가 splice 돼 있으면 -> modifier 자신의 얇은 env (splice_modifier 가
-            #                                      modifier 체인을 ENTRY **앞에** 붙인다)
-            #   로 계산돼 파라미터·state 변수가 통째로 사라진다. 게다가 바깥에서
-            #   `n.variables = copy(new_out)` 로 ENTRY 에 **영구 기록**되므로, 예외가 안 나는
-            #   경우엔 오류 없이 "state 를 모르는 함수" 가 그대로 pkl 에 저장된다.
-            #   (실측: ERC1155Upgradeable L29/L30, 그리고 modifier 가 없는 합성 케이스에서도 재현)
-            #
-            #   ⚠ predecessor 값이 **우선**이다 — 빠진 키만 채운다. modifier 가 바꾼 state
-            #     (`_initializing = true`) 와 modifier 지역변수(`isTopLevelCall`) 를 덮으면
-            #     `_;` 이후 구간(EXIT -> modifier 의 뒷부분)이 깨진다.
-            if n is fcfg.get_entry_node():
-                for _k, _v in (fcfg.related_variables or {}).items():
-                    if _k not in acc:
-                        acc[_k] = VariableEnv.copy_single_variable(_v)
-            return acc
-
-        def _clear_line_once(ln: int | None) -> None:
-            if ln is None or ln in cleared_lines:
-                return
-            rec.clear_line(ln)
-            cleared_lines.add(ln)
-
-
-        for s in seeds:
-            if not _is_sink(s) and s not in in_queue:
-                WL.append(s); in_queue.add(s)
-
-        while WL:
-            n = WL.popleft(); in_queue.discard(n)
-
-            in_env = _compute_in(n)
-
-            # ── loop head는 fixpoint에서 loopDelta를 기록하므로 특별 처리
-            if _is_loop_head(n):
-                ln_head = getattr(n, "src_line", None)
-                if ln_head is not None: touched_lines.add(ln_head)
-
-                # ★ fixpoint 재실행 전에 join 노드의 스냅샷 초기화
-                # 디버그 주석 적용 후 조건이 바뀌었을 수 있으므로 clean slate에서 시작
-                for p in G.predecessors(n):
-                    if getattr(p, "fixpoint_evaluation_node", False):
-                        if hasattr(p, "fixpoint_evaluation_node_vars"):
-                            delattr(p, "fixpoint_evaluation_node_vars")
-
-                exit_node = self.fixpoint(n)
-                for s in G.successors(exit_node):
-                    if not _is_sink(s) and s not in in_queue:
-                        WL.append(s); in_queue.add(s)
-
-                continue
-
-            # ── (A) 라인 초기화: 이 노드가 기록을 남길 수 있는 라인들을 선제적으로 clear
-            #     - 조건 노드: 자신의 src_line (branchTrue/requireTrue 등)
-            #     - 일반/베이식: 각 statement 의 src_line
-            ln = getattr(n, "src_line", None)
-            if getattr(n, "condition_node", False):
-                _clear_line_once(ln)
-                if ln is not None: touched_lines.add(ln)
-            else:
-                for st in getattr(n, "statements", []):
-                    ln_st = getattr(st, "src_line", None)
-                    _clear_line_once(ln_st)
-                    if ln_st is not None: touched_lines.add(ln_st)
-
-            new_out = self.transfer_function(n, in_env)
-            n.variables = VariableEnv.copy_variables(new_out)
-
-            # ═══ During Annotation 처리 (일반 노드에서만) ═══
-            if not getattr(n, "condition_node", False):
-                for st in getattr(n, "statements", []):
-                    self._process_during_annotations(st, n, n.variables)
-
-            changed = not VariableEnv.variables_equal(out_snapshot.get(n), new_out)
-            out_snapshot[n] = VariableEnv.copy_variables(new_out)
-
-            if changed:
-                for s in G.successors(n):
-                    if not _is_sink(s) and s not in in_queue:
-                        WL.append(s); in_queue.add(s)
-
-            # ★ 이번 reinterpret 에서 '어디를 보여줄지'를 ContractAnalyzer에 남김
-            if touched_lines:
-                self.an._last_touched_lines = set(touched_lines)
-
-        # ═══ Post Annotation 처리 ═══
-        # reinterpret_from은 seed부터 함수 끝(EXIT)까지 영향받는 모든 노드를 재해석하므로
-        # 항상 post annotation 검증 수행
-        self._process_post_annotations(fcfg)
-
-    # =================================================================
     #  Helpers (branch feasible, bottom, EXIT sync, line utils)
     # =================================================================
     def _branch_feasible(self, env: dict, cond: Expression, assume_true: bool) -> bool:
@@ -1411,6 +1745,9 @@ class Engine:
             bot = AddressSet.bot()
             bot._cast_interface = getattr(val, '_cast_interface', None)
             v.value = bot; return
+        from Domain.BytesSet import BytesSet
+        if isinstance(val, BytesSet):              # (Phase 2) bytesN 도 고유 ⊥ 를 가진다
+            v.value = BytesSet.bot(val.byte_size); return
         v.value = None
 
     @staticmethod
@@ -1474,7 +1811,8 @@ class Engine:
         return None
 
     def _function_start_line(self, fcfg: FunctionCFG) -> int | None:
-        entry = fcfg.get_entry_node()
+        # 실행용 사본(interpret_function_cfg_for_debug)이면 live 원본의 ENTRY 로 찾는다.
+        entry = getattr(fcfg, "_live_origin", fcfg).get_entry_node()
         for ln, info in (self.an.sa.line_info or {}).items():
             nodes = []
             if isinstance(info.get("cfg_nodes"), list): nodes.extend(info["cfg_nodes"])

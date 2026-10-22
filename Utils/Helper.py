@@ -6,7 +6,7 @@ from Parser.SolidityLexer  import SolidityLexer
 from Parser.SolidityParser import SolidityParser
 from antlr4.error.ErrorListener import ErrorListener, ConsoleErrorListener
 
-from Domain.Variable import (Variables, ArrayVariable,
+from Domain.Variable import (Variables, ArrayVariable, GlobalVariable,
                              StructVariable, MappingVariable, EnumVariable)
 from Domain.Interval import *   # ← 딱 이 정도만 있으면 됨
 from Domain.AddressSet import AddressSet
@@ -119,7 +119,7 @@ class VariableEnv:
         if isinstance(v, ArrayVariable):
             new_arr = ArrayVariable(
                 identifier=v.identifier,
-                base_type=copy.deepcopy(v.typeInfo.arrayBaseType),
+                base_type=v.typeInfo.arrayBaseType,            # 타입 메타데이터는 공유(불변)
                 array_length=v.typeInfo.arrayLength,
                 is_dynamic=v.typeInfo.isDynamicArray,
                 scope=v.scope,
@@ -143,8 +143,8 @@ class VariableEnv:
         if isinstance(v, MappingVariable):
             new_mp = MappingVariable(
                 identifier=v.identifier,
-                key_type=copy.deepcopy(v.typeInfo.mappingKeyType),
-                value_type=copy.deepcopy(v.typeInfo.mappingValueType),
+                key_type=v.typeInfo.mappingKeyType,            # 타입 메타데이터는 공유(불변)
+                value_type=v.typeInfo.mappingValueType,
                 scope=v.scope,
                 struct_defs=v.struct_defs,
                 enum_defs=v.enum_defs
@@ -152,8 +152,40 @@ class VariableEnv:
             new_mp.mapping = VariableEnv.copy_variables(v.mapping)
             return new_mp
 
-        # Variables / EnumVariable
+        # ★ (Phase 3b, 성능) 일반 Variables: 값만 새로 만들고 타입 메타데이터(typeInfo)는 공유한다.
+        #   elementary 변수의 typeInfo 를 제자리에서 바꾸는 코드는 없다(배열/구조체/매핑·생성자만 자기 객체를 바꾼다).
+        #   예전 `copy.deepcopy(v)` 는 SolType 까지 매번 깊은 복사해 fixpoint 비용의 대부분을 차지했다
+        #   (web3bugs_3_H_05 프로파일: 전체 1138s 중 deepcopy 1046s).
+        if type(v) in (Variables, GlobalVariable, EnumVariable):
+            nv = type(v).__new__(type(v))
+            nv.__dict__ = dict(v.__dict__)
+            nv.value = VariableEnv._copy_value(v.value)
+            if type(v) is GlobalVariable:
+                nv.default_value = VariableEnv._copy_value(v.default_value)
+                nv.debug_override = VariableEnv._copy_value(v.debug_override)
+            return nv
+
         return copy.deepcopy(v)
+
+    @staticmethod
+    def _copy_value(val):
+        """추상값 하나의 독립 사본 (Interval·AddressSet·BytesSet 는 가볍게, 나머지는 deepcopy)."""
+        from Domain.BytesSet import BytesSet
+        if val is None or isinstance(val, (str, int, bool)):
+            return val
+        if isinstance(val, (IntegerInterval, UnsignedIntegerInterval, BoolInterval)):
+            nv = val.copy()
+            if len(val.__dict__) > 3:      # 덧붙은 태그(있다면)도 보존
+                nv.__dict__.update({k: x for k, x in val.__dict__.items()
+                                    if k not in ("min_value", "max_value", "type_length")})
+            return nv
+        if isinstance(val, AddressSet):
+            nv = AddressSet(ids=val.ids, is_top=val.is_top)
+            nv._cast_interface = getattr(val, "_cast_interface", None)
+            return nv
+        if isinstance(val, BytesSet):
+            return BytesSet(values=val.values, is_top=val.is_top, byte_size=val.byte_size)
+        return copy.deepcopy(val)
 
     @staticmethod
     def copy_variables(src: Dict[str, "Variables"]) -> Dict[str, "Variables"]:
@@ -500,32 +532,6 @@ class VariableEnv:
         v.value = f"symbol_{identifier}"
         return v
 
-    @staticmethod
-    def bottom_from_soltype(sol_t: SolType):
-        if sol_t.typeCategory == "array":
-            return ArrayVariable(
-                base_type=sol_t.arrayBaseType,
-                array_length=sol_t.arrayLength,
-                is_dynamic=sol_t.isDynamicArray
-            )
-        if sol_t.typeCategory == "mapping":
-            return MappingVariable(
-                key_type=sol_t.mappingKeyType,
-                value_type=sol_t.mappingValueType
-            )
-        if sol_t.typeCategory == "struct":
-            return StructVariable(struct_type=sol_t.structTypeName)
-        et = sol_t.elementaryTypeName
-        if et.startswith("int"):
-            return IntegerInterval.bottom(sol_t.intTypeLength or 256)
-        if et.startswith("uint"):
-            return UnsignedIntegerInterval.bottom(sol_t.intTypeLength or 256)
-        if et == "bool":
-            return BoolInterval.bottom()
-        if et == "address":
-            # ★ AddressSet bottom 반환
-            return AddressSet.bot()
-        return f"symbolic_{et}"
 
     @staticmethod
     def convert_int_to_bool_interval(int_interval):

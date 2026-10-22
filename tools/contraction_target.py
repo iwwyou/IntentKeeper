@@ -258,6 +258,47 @@ def rename_grammar_clashes(text: str) -> tuple[str, dict]:
     return "".join(out), counts
 
 
+_DECL_NAME = re.compile(
+    r"^(?:(?:abstract\s+)?(?:contract|library|interface)|struct|enum|error|function)\s+([A-Za-z_]\w*)"
+    r"|^type\s+([A-Za-z_]\w*)\s+is\b"
+    r"|^[A-Za-z_][\w\s\[\]]*?\bconstant\s+([A-Za-z_]\w*)")
+_IDENT = re.compile(r"[A-Za-z_]\w*")
+
+
+def order_declarations(text: str) -> tuple[str, list[str]]:
+    """파일 최상위 선언을 **선언 후 사용** 순서로 재배치한다 (2026-10-22 결정). 반환 (텍스트, 앞으로 옮겨진 선언 이름들).
+
+    IQDebug 는 소스를 한 줄씩 증분 소비하므로, 같은 파일에서 **뒤에 선언된** 라이브러리·interface 등을 앞에서 참조하는 것
+    (예: numscout_Nokon 의 `using SafeMath for uint256;` 이 파일 끝의 `library SafeMath` 를 참조)은 도구의 입력 전제 위반이다
+    (solc 는 허용 — Solidity 에서 최상위 선언 순서는 의미가 없으므로 재배치는 의미를 바꾸지 않는다).
+    원래 순서를 최대한 유지하는 안정 위상정렬. 서로를 참조하는 순환은 순서를 정할 수 없으므로 **예외**(폴백 없음).
+    순서가 바뀌지 않으면 텍스트를 그대로 돌려준다(공백 배치 보존).
+    """
+    masked = _mask_strings(text)
+    units = _members(masked, 0, len(masked))
+    if len(units) < 2:
+        return text, []
+    names, refs = [], []
+    for s, e in units:
+        m = _DECL_NAME.match(masked[s:e])
+        names.append(next((g for g in m.groups() if g), None) if m else None)
+        refs.append(set(_IDENT.findall(masked[s:e])))
+    by_name = {n: i for i, n in enumerate(names) if n}
+    deps = [{by_name[r] for r in refs[i] if r in by_name and by_name[r] != i} for i in range(len(units))]
+    order, placed = [], set()
+    while len(order) < len(units):
+        ready = [i for i in range(len(units)) if i not in placed and deps[i] <= placed]
+        if not ready:
+            cyc = [names[i] or f"#{i}" for i in range(len(units)) if i not in placed]
+            raise ValueError(f"order_declarations: 최상위 선언 사이 순환 참조 — 순서를 정할 수 없음: {cyc}")
+        order.append(ready[0])
+        placed.add(ready[0])
+    if order == list(range(len(units))):
+        return text, []
+    moved = [names[i] or f"#{i}" for k, i in enumerate(order) if any(j < i for j in order[k + 1:])]
+    return "\n\n".join(text[units[i][0]:units[i][1]].rstrip() for i in order) + "\n", moved
+
+
 def contract_for_target(source: str, targets: list[str]) -> tuple[str, dict]:
     lines = strip_noncode(source)
     sliced, info = slice_to_target("\n".join(lines), targets)
@@ -267,5 +308,7 @@ def contract_for_target(source: str, targets: list[str]) -> tuple[str, dict]:
     lines = remove_bare_scoping_blocks(text.splitlines())
     lines = expand_single_line_blocks(lines)
     lines = collapse_empty_lines(lines)
+    text, moved = order_declarations("\n".join(lines) + "\n")
     info["renamed"] = renamed
-    return "\n".join(lines) + "\n", info
+    info["moved_forward"] = moved
+    return text, info

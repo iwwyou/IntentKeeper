@@ -3066,3 +3066,168 @@ PRBMath* 두 파일이 `[ANTLR]` 157건(전체 187 중)을 차지한다.
   uint ⊤ 대체 2곳 제거, @IReturn 체인 중간 호출의 조용한 `break` 도 예외로. 미해결 멤버 2곳(library member / 일반 member)
   → 예외. 부수: `getattr(baseVal, 'bits', 256)` → `baseVal.type_length`(interval 에 `bits` 속성이 없어 늘 256 이던 잠복 버그).
 - **영향**: 지금까지 조용히 ⊤/문자열로 넘어가던 경우가 예외로 드러난다(의도). 드러나는 것은 근본 원인(데이터·정의 누락)으로 처리.
+
+## F55. 디버깅 실행 격리 — 실행용 fcfg 사본·snapshot 의미·try/finally (2026-10-21, 리팩터링 Phase 1a, `REFACTOR_PLAN.md`)
+
+- **증상**: (1) `interpret_function_cfg_for_debug` 가 live fcfg 노드를 직접 reset/해석/restore 해서, 실행마다 지워지지 않는
+  `before_envs`·`return_vals`·`ireturn_registry` 가 다음 회차와 **구성 시점 값**을 섞었다. 특히 CFG 구성 때 평가한
+  `RETURN.return_vals`(파라미터 ⊤ 기반, `DynamicCFGBuilder.py:701`)가 남아 있으면 `_get_post_exit_node` 가 그것을 골라
+  **@Post 반환값 검증이 디버깅 입력을 무시**했다(web3bugs_3_H_04: 반환 ⊤ vs 2000 → Warning). @IReturn 값도 다음 회차(미지정)에 남았다.
+  (2) `SnapshotManager.snapshot()` 이 객체의 *최초 등록 시점* 상태를 복사해, restore 가 등록 이후의 정상적인 구성 변경까지
+  되돌렸고, flush 중 새로 등록된 객체(디버그 값으로 패치된 것)는 복원하지 않았다.
+  (3) `interpret_function_cfg`·`fixpoint` 의 컨텍스트·플래그 복원이 정상 경로에만 있어, 예외 한 번이면 `_record_enabled=False`·
+  callee 컨텍스트가 남았다. (4) `engine_api._states_cache` 키에 타깃 스코프가 없었다.
+- **수정**: (1) `Engine.interpret_function_cfg_for_debug` — pickle 사본(`run`)을 만들어 그 위에서 해석, 노드 env·before_envs·
+  return_vals 초기화, live `ireturn_registry` 는 사본으로 넘긴 뒤 비움, 사본이 곧 freeze 결과, `run._live_origin` 으로 line_info
+  identity 조회(`_function_start_line`). (2) `Utils/Snapshot.py` — snapshot = 현재 상태, restore = store 전체(새로 등록된 것은
+  등록 스냅 = 패치 직전). (3) `interpret_function_cfg` 본체를 `_interpret_callee_body` 로 분리하고 복원은 finally,
+  `fixpoint` → `_fixpoint_impl` 래핑으로 `_suppress_stmt_records`·`_in_widening_mode` finally 복원. (4) `_values_key(values, scope)`.
+- **검증**: temp 회귀 12종 통과. 마이크로 37/37 동일, @IReturn 누수 테스트(`__isolation_ireturn__`) 이전 leaked=True → False.
+  48 케이스(legacy) 46/48 동일: 3_H_04 Warning→**Violated**(입력 기준 반환 3000 ≠ 2000, 올바른 판정. IntentChecker 기대값은 Warning),
+  58_H_02 EXIT.return_vals 의 구성 시점 잔여 항목 제거(판정 불변). rebuilt 동일 + return_vals 잔여 제거 2건. 시간 565s→432s.
+
+## F56. library·super·this 호출의 오류 삼키기 제거 (2026-10-21, 리팩터링 Phase 1b)
+
+- **증상**: `Evaluation.evaluate_library_function_call_context` / `_super_` / `_this_` 가 callee 해석 중 **모든 예외**를 잡아
+  `"symbolic_library_error(...)"` 문자열·⊤·`"symbolic_this_error(...)"` 로 반환했다(내부 버그가 값으로 위장). library·this 는
+  예외 시 컨텍스트도 복원하지 않았다. 또 세 경로 모두 `interpret_function_cfg` 호출 **전에** 컨텍스트를 callee 로 바꿔,
+  `interpret_function_cfg` 가 caller 를 callee 자신으로 보고 @IReturn registry 전파가 끊겼다.
+- **수정**: 세 경로에서 try/except 와 사전 컨텍스트 전환 제거 → 전환·복원(finally)은 `interpret_function_cfg` 가 담당, 오류는 전파.
+- **검증**: temp 회귀 통과, 마이크로 38/38 동일, 48(legacy) 48/48 동일, rebuilt 47/48 — 42_H_01 이 `NetworkXError`(오염된
+  컨텍스트 증상) → `ValueError: 'denominator' not in struct 'IDiscountProfile.discount_ret'`(실제 원인 노출, 미수정·보고).
+
+## F57. IR 보존·기본 의미 정리 (2026-10-21, 리팩터링 Phase 2)
+
+- **수정**
+  - `assert`: `process_assert_statement(condition_expr, string_literal=None)` — visitor 는 조건만 넘겨 TypeError 로 assert 가 전혀
+    동작하지 않았다(rebuilt numscout_HIT 결과 없음 → Violated, IntentChecker 와 일치).
+  - `x--`: IR 에 실제 연산자(`++`/`--`) 저장(`handle_unary_incdec`). 예전 토큰(`unary_prefix/suffix`)은 `+=` 로 재해석됐다.
+    해석기는 모르는 연산자·옛 토큰을 예외로(옛 pkl = 재빌드 필요). `Dependencies/objectfile` 3개(FullMath, CommonLibrary,
+    LockeERC20) 재빌드. `evaluation/Dataset/deps` 의 11개는 deps 전체 재빌드 때.
+  - 튜플 선언 `(a, b) = e`: 선언문 뒤에 슬롯 위치를 보존한 튜플 대입문을 IR 에 추가(`build_variable_declaration_tuple(tuple_lhs=)`).
+    예전엔 init 식이 IR 에 없어 해석 시 모든 슬롯 ⊤ + 호출 부수효과 소실 + 그 안의 interface 호출이 @IReturn 슬롯에서 빠졌다.
+  - `emit E(args)`: `emit` 문 IR(Statement/`add_emit_statement`/`build_emit_statement`/`Engine._interpret_emit`) — 인자 식 평가.
+  - `unchecked { }`: 구성 시 문장 블록에 `unchecked_block` 표시(`ContractAnalyzer.is_inside_unchecked`, pkl 보존), 해석 중
+    `Engine._unchecked` 로 unsigned 뺄셈을 wrap(`UnsignedIntegerInterval.subtract(wrapping=)`). 덧셈·곱셈·signed 는 이미 overflow ⊤.
+  - 정수 명시적 변환(`uintN(x)`, `intN(x)`): 2의 보수 wrap(`Evaluation._wrap_integer_range`). 예전엔 범위 밖을 clamp(불건전)하고
+    범위와 안 겹치면 ⊥(도달 불가 오판).
+  - ⊥ 오용 제거(D2): 빈 동적 배열 `.length` ⊥→⊤ / 정적 배열 미구체화 원소 ⊥→typed ⊤(`bottom_from_soltype` 삭제) /
+    디버그 배열 패딩 ⊥→typed ⊤(`_create_unspecified_array_element`) / 구간으로 못 바꾸는 비교 상대 ⊥→"정제 안 함" /
+    `BoolInterval.widen` 무조건 ⊤→join(유한 격자) / `BytesSet.is_bottom` 추가 + `_make_bottom` 의 bytesN ⊥.
+- **검증**: temp 회귀 16종 통과. 마이크로 33/38 동일 + 의도한 5건(incdec·tuple·emit·assert·unchecked). 48 legacy: **판정 변화 0**,
+  상태 변화 = emit 노드 추가 / 정수 변환 wrap(35_H_08·10·12 등 범위가 넓어지거나 좁아짐) / 튜플 초기화(79_H_02 주소 ⊤→실제) /
+  @IReturn 슬롯 추가(52_H_04·34: 튜플 선언 안 interface 호출) / ⊥ env 의 bytesN 표시 None→⊥ / bool widening 정밀도.
+- **⚠ 드러난 결함(미수정·보고)**: numscout_BoostToken_* — `.length` 가 ⊥ 이던 동안 죽어 있던 루프 본문이 살아나
+  `_rOwned[_excluded[i]]`(길이 모르는 address 동적 배열 원소로 mapping 인덱싱)가 AddressSet 으로 평가 → `sub` 에서 AttributeError.
+  (이전엔 그 앞의 `IUniswapV2Router02.WETH()` 반환형 미해결 오류)
+
+## F58. CFG 구성 단계에서 추상 평가 제거 (2026-10-21, 리팩터링 Phase 3a, D1/D3)
+
+- **수정**: `ContractAnalyzer.process_*`(변수 선언·튜플·Yul let/:=·대입·++/--·delete·호출·if/else if/else·while·for·return·
+  revert·require/assert·emit) 에서 식 평가·refine·update·`reinterpret_from`·`_sync_constructor_state` 제거 → 노드·엣지·
+  Statement IR 만 만든다. `DynamicCFGBuilder` 의 env 인자(true_env/false_env/join_env/else_env/false_base_env)·노드 env 복사·
+  join 재계산·`RETURN.return_vals` 기록·삭제 경로의 재해석 제거. `Engine.reinterpret_from` 삭제(150줄). pending 메커니즘
+  (`pending_calls`/`pending_callee_name` 등록·`flush_pending_calls`) 제거. `delete` 의 타입별 0 의미를 해석기로 이동
+  (`Engine._delete_composite`/`_zero_of`; 예전 해석기는 피연산자에 정수 0 대입). @During/@Post 의 "구성 시점 상태로 즉시
+  검증" 폴백 → annotation 오류(D4-b), @Post 는 함수 이름으로 fcfg 를 찾아 부착(직전 처리기가 포인터를 비운 경우).
+- **검증**: temp 회귀 16종(삭제 테스트 3종은 `reinterpret` 인자만 제거) 통과. 마이크로: 구성 중 실패하던 forward call·
+  상호/자기 재귀·struct 생성자·함수 뒤 상태변수 선언이 구조 완성(자기 재귀 fact(a∈[0,3]) = [1,6], refine 으로 종료).
+  48 legacy: 40/48 동일, 새 판정 EthereumGod Satisfied·WANGMI Violated(일치)·45_H_01 Warning, 3_H_04 의 중복 가짜 결과
+  (구성 시점 상태로 검증한 같은 @Post) 제거. rebuilt: Nokon·WANGMI·56_H_02·62_H_08 실행됨. **시간 451s→130s, 242s→40s.**
+- **⚠ 드러난 결함(미수정·보고)**: rebuilt 58_H_02 — `} else {` 중괄호 소실(F-B)로 컨트랙트 수준 `event` 줄이 함수 안 문장으로
+  분류. 42_H_01 `'denominator' not in struct 'cf'`. for 루프 `continue` 후 흐름 unsound(마이크로 break_continue: return 의
+  n=[0,2]). memory struct 생성자 `P(a)` 후 멤버 소실. 한 줄 블록 `{ stmt; }` 은 slicer 미지원. `process_payable_function_call`/
+  `process_function_call_options` 가 `pass`(옵션 호출 문장이 조용히 사라짐). `address.transfer/send` 미해결 멤버 예외.
+
+## F59. 블록 스코프·지역변수 기본값·튜플 슬롯·env 복사 성능 (2026-10-22, 리팩터링 Phase 3b, D2/D8)
+
+- **수정**
+  - D8 블록 스코프: 빌더가 if/else-if join(앵커 = cond)·while/for exit(앵커 = 루프 join)에 `scope_anchor` 기록. 해석기가
+    분기 join·루프 exit(fixpoint 직후)·back-edge 에서 블록 진입 시점 이름만 남긴다(`Engine._restrict_scope/_scope_keys`).
+    shadowing: 구성 시 텍스트 스코프로 감지(`ContractAnalyzer.shadowing_info`, 상태변수·파라미터 포함) → 선언 실행 시 바깥
+    binding 을 `name␟shadow@id` 키로 보관 → 블록 종료/함수 종료(`_restore_all_shadows`)에서 복원. 종료 노드가 없는 블록
+    (bare `{`·unchecked·do·try/catch) 안의 shadowing 은 명시적 미지원 오류. 보관 키는 직렬화·top_vars·callee 상태에서 제외.
+  - 지역변수 선언 = 실행마다 새 binding(루프 반복 간 이전 값 잔류 제거), 초기화식 없으면 Solidity 기본값(0/false/address(0)/
+    빈 동적 배열/0 으로 채운 struct·정적 배열; 예전 ⊤).
+  - 기본값 변경으로 드러난 침묵 처리 수정: 튜플 대입 우변이 튜플이 아니면 조용히 건너뛰던 것 → 예외 / 다중 반환 외부 호출이
+    첫 반환 타입만 돌려주던 것(`_lookup_interface_return`, `_assemble_ireturn_value`) → 반환 타입별 리스트(+@IReturn `[i]`) /
+    삼항식 분기 값 join 불가 시 `"symbolicConditional(...)"` 문자열 → 튜플은 원소별 join, 그 외 예외 / 괄호식 `(x)` 갱신 =
+    안쪽 식 / 튜플 식의 빈 슬롯 위치 보존(`visitTupleExp` 가 `_split_tuple_slots` 사용: `(, , lpSupply) = f()` 가 0 번째 값을 받던 버그).
+  - 성능: `VariableEnv.copy_single_variable` 이 Variables/GlobalVariable/EnumVariable 을 `copy.deepcopy` 하던 것 → 값만 새로
+    만들고 타입 메타데이터 공유(`_copy_value`), 배열·mapping 타입 메타데이터도 공유. 3_H_05 459s→48s(정밀해진 for 루프 반복).
+- **검증**: temp 16종, 마이크로 40/40(새 케이스 shadow_if_block x=[1,1] 복원, shadow_state_var EXIT s=[1,2]), 48 판정 = Phase 3a 와
+  동일(legacy·rebuilt), 상태 변화 = 블록 밖 변수 제거·기본값 0. 시간 legacy 145s / rebuilt 69s.
+
+## F60. "평가 안 됨" 과 ⊥ 분리 — 해석 후 노드 분류 (2026-10-22, 리팩터링 Phase 3c, D2)
+
+- **수정**: `Engine._classify_unvisited`(디버깅 해석 종료 후): ENTRY 에서(sink 에서 멈추는) 경로가 없는 노드 → 명시적 ⊥,
+  경로가 있는데 해석되지 않은 노드 → 예외(해석기 결함을 빈 상태로 내보내지 않음). 루프 fixpoint 가 수렴 후에도 값이 한 번도
+  흘러 들어오지 않은 노드(루프 안 infeasible 분기)를 바깥 worklist 처럼 명시적 ⊥ 로 둔다(예전엔 `{}`).
+- **검증**: temp 16종 통과. 48 판정 변화 0(legacy·rebuilt), 상태 변화 = 미해석 노드 `{}`→⊥(modifier splice 복제 노드·루프
+  안 infeasible 분기). 마이크로 break_continue 는 이제 **예외**("if_true_8 reachable but not interpreted") — 보고 목록 (2)
+  `continue`/`break` 흐름 결함이 조용한 오답 대신 드러남.
+
+## F61. 내부 호출 통합 진입점·on-demand 해석·modifier 디버깅 시점 합성 (2026-10-22, 리팩터링 Phase 4a, D3/D4/D6)
+
+- **수정**
+  - `Engine.invoke_callee`: 일반·library·super·this 4 binder 를 하나로. 인자는 callee `related_variables` 를 고치지 않고 바인딩
+    (`interpret_function_cfg(param_bindings=)`) — 실행 간 누수·super/this 의 caller env 영구 병합 제거. 복합 타입 인자는 내부
+    호출에서 참조 의미(callee 종료 시 caller 원 객체에 되쓰기, this 는 복사). 마이크로 memory_alias p.v=[2,2](기대값).
+  - 이름 호출 미해결: uint ⊤ 반환(+pending 기록) → interface/contract 이름이면 형변환으로, 함수 타입 변수면 명시적 미지원(D9,
+    Phase 5), 그 외 "undefined function" 예외(컴파일 오류급). library 함수 못 찾음·super/this 못 찾음·인자 수 불일치 → 예외
+    (예전 심볼 문자열·⊤). `Lib.f()` 로 직접 부른 라이브러리 본문의 형제 호출을 그 라이브러리에서 찾음(예전 사용자 컨트랙트에서
+    찾다 ⊤). `Lib.S(args)`(라이브러리 구조체 생성자)를 구조체로(예전 심볼 문자열) — `_construct_struct` 로 공통화.
+  - modifier: 구성 시점 splice·존재 검사 제거, `fcfg.modifier_invocations=[(이름, 인자 식)]` 기록(visitor 가 인자 수집,
+    modifier CFG 에 `parameters` 순서 기록). 디버깅 해석 때 실행 사본 위에서 합성(`Engine._compose_modifiers`): modifier
+    CFG 복제(문장·조건·엣지 속성 포함), 파라미터·지역변수 `이름$변수` 로 변경, 인자 바인딩 노드(함수 헤더 줄), `_` 자리에 안쪽
+    본문, 안쪽 정상 종료 → `_` 다음, modifier ERROR → 함수 ERROR. 내부 호출 callee 도 합성본(실행 1 회 캐시). `_` 2 개 이상 →
+    명시적 미지원. 생성자의 기반 생성자 호출은 합성 제외(Phase 7).
+- **검증**: temp 16종 통과, 마이크로 modifier_before counter=[6,6]·modifier_after 정상(예전 각각 미실행·함수 손실).
+  48: 판정 변화 = legacy numscout_HIT(→ "undefined function 'balanceOf'": contraction 소스가 상속 없이 `balanceOf` 호출 —
+  케이스 데이터가 컴파일 불가, 보고) / legacy SwordCrowdsale(legacy 모드가 objectfile 의 옛 `Ownable` 과 소스 `Ownable` 을 같이
+  올려 modifier 에 `_` 가 2 개 — 중복 정의, 보고). rebuilt 52_H_23: 옛 deps pkl 의 modifier 에 `parameters` 없음(재빌드 필요).
+  나머지 = modifier 실행에 따른 상태 변화. 시간 legacy 145s→113s, rebuilt 69s→35s.
+
+## F62. 리팩터링 Phase 4b — 기존 결함 수정 (2026-10-22, 사용자 승인)
+
+- **for `continue`**: 감싸는 루프의 증감 노드를 거쳐 join 으로(예전 join 직행 — continue 경로에서 `i++` 누락, unsound).
+  증감식 없는 `for(;;)` 은 body → join(예전 `add_edge(body, None)`).
+- **`continue`/`break` 대상 = 문법적 최내곽 루프** (`DynamicCFGBuilder._enclosing_loop`, 중괄호 체인). 예전엔 역방향 DFS 가
+  앞서 닫힌 안쪽 루프의 exit → 헤더로 들어가 안쪽 루프에 연결됐다(`for i { for j {…} if(c){continue;} }`). do-while 안은
+  Phase 6 까지 명시적 오류, 루프 밖은 컴파일 오류. `find_loop_condition` 삭제.
+- **`} else {` 중괄호**: slice 가 `closeBefore` 로 떼어낸 `}` 를 저장소에 되돌림(`SolidityAnalyzer._stored_text`) —
+  예전엔 앞 블록의 `}` 가 소스 저장소에서 사라져 괄호 균형 기반 탐색이 한 단계씩 어긋났다(if/else 뒤 줄이 if 안으로, 함수 뒤
+  `event` 가 함수 문장으로). `determine_top_level_context` 는 앞 `}` 무시. `engine_api._function_span` 보정 제거.
+- **`address payable`**: 방문자에서 `address` 로 정규화(`isPayable` 표시). 예전엔 `== "address"` 초기화 분기를 모두 빗나가
+  `"symbol_x"` 문자열 값 → `.transfer/.send` 해석 불가. address 변수 멤버는 값(AddressSet) 기준 처리.
+  `.call/.delegatecall/.staticcall` = `[bool ⊤, bytes]`(예전 bool 하나 → 튜플 대입 실패). 옵션 호출 `f{value:v}(…)` 은 옵션을 벗긴
+  호출로 평가(예전 무조건 uint ⊤). 호출 괄호 없는 옵션식 = 컴파일 오류.
+- **하드코딩 의존성 경로 제거**: interface 반환 조회·@IReturn 조립·using-for 등록·qualified struct 해석이
+  `Dependencies/objectfile`(·`Libraries/objectfile`) pkl 을 직접(일부 `except: pass`) 읽었다 → 프로젝트 deps 와 다른 판이 섞임
+  (42_H_01 `FloatStruct` vs `float`). 로드된 `contract_cfgs`/`library_cfgs` 만 본다. using-for 대상 라이브러리가 없으면 예외.
+- **입력 전제(입력 1개 = statement 1개)**: `Dependencies.main._one_statement_violation` — 한 줄 블록·다중 문장·중괄호 없는
+  제어문을 슬라이서가 명시적 오류로 거부(예전엔 다음 줄과 조용히 합쳐짐). 의존성은 빌드 시 정규화
+  (`preprocess_contraction.normalize_one_statement_per_line`).
+- **contraction 생성기**: `contraction_target.order_declarations` — 최상위 선언 선언-후-사용 안정 위상정렬(순환은 예외).
+  변화 = numscout_Nokon(`library SafeMath` 를 컨트랙트 앞으로), 케이스 재생성.
+- **검증**: temp 16종 통과, 마이크로 continue/break 5종·address_members 확인. 48: transfer/send/staticcall 로 멈추던
+  6건 진행(BoostToken×2·SwordCrowdsale Violated, 29_H_08/11 Warning, EthereumGod), 42_H_01 Warning, 113_H_05 Violated·58_H_02
+  "No CFG node found" 해소, Nokon Warning 복귀. 드러난 것: w34·w36·w58·w65 deps 빌드가 `_topo_order` 순환으로 pkl 0개였음
+  (폴백이 가림 — 설계 논의 중), 31_H_01 `.mul` 미해결.
+
+## F63. 정수 암묵 변환·공통 타입 (2026-10-22, 리팩터링 Phase 4b, 사용자 승인 A)
+
+- **문제(unsound)**: 저장 시 선언 타입으로 변환하지 않고, 산술은 왼쪽 피연산자 폭을 썼다. `(uint256 r0, …) = pair.getReserves()`
+  의 r0 가 uint112 폭을 유지 → `r0 * price` 가 112비트에서 overflow → 112비트 ⊤(실제는 256비트). 루프 join 에서 폭 불일치
+  예외로 드러남(web3bugs_70_H_04/10).
+- **수정**: `Evaluation.coerce_to_declared` — 저장 지점(선언 초기화·대입 leaf(`Update._store`)·튜플·인자 바인딩·반환값
+  (`Engine._coerce_return`)·struct 생성자 필드·디버그 입력(`DebugInitializer._coerce_debug`)·상태변수/상수 초기화식)에서
+  선언 타입 폭·부호로 변환(값 범위 유지). 범위 밖이면 예외(Solidity 는 손실 있는 암묵 변환 불가 → 타입 오류/잘못된 디버그 입력).
+  이항 산술·비트 연산은 `_unify_operand_types` 로 공통 타입(상수식은 상대 타입으로, 그 외 같은 부호면 넓은 폭).
+  상수식의 단항 `-` = 부호 있는 값(예전 `return -1;`(int256) → 2^256-1).
+- **검증**: temp 16종 통과, 마이크로 `int_width`(c=[2^200,3·2^200], 튜플 uint112→uint256 후 곱 정확, `1 + uint8` = 251).
+  48: 70_H_04/10 복귀(legacy Warning/Violated), 드러났던 35_H_08/10/12·52_H_04/34·60_H_01 은 원인(디버그 입력 256비트 주입,
+  상수 부호 반전) 수정 후 원래 판정. legacy 3_H_05 = 옛 pkl(`con_PriceAware`) 상태변수 초기값이 변환 전 256비트 → 재빌드 필요.
+  rebuilt 44/48 동일(나머지 = Nokon 복귀·70_H_04/10 오류 해소·35_H_11 상태 변화).
+- **보고(미수정)**: `_pow_fits` 과보수(`2**200` → ⊤, 정밀도), 범위 인덱스 쓰기 unsound(동적 배열 무시·정적 배열 강한 갱신·매핑 기존
+  키만), 반환문 여러 개인 다중 반환 함수가 첫 경로 값만 반환(리스트 join 없음 → 폴백).

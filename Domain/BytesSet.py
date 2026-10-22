@@ -29,6 +29,10 @@ class BytesSet:
     def bot(byte_size=32):
         return BytesSet(values=frozenset(), byte_size=byte_size)
 
+    def is_bottom(self) -> bool:
+        """(Phase 2) 빈 집합 = 도달 불가. 예전엔 이 메서드가 없어 Engine._is_bottom_var 가 bytesN ⊥ 를 못 봤다."""
+        return not self.is_top and not self.values
+
     def leq(self, other: "BytesSet") -> bool:
         """Partial order: self ⊑ other"""
         if self.is_top:

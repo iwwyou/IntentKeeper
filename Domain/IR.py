@@ -30,6 +30,11 @@ class Statement:
             self.operator = kwargs.get("operator")   # '++' | '--' | 'delete'
             self.operand  = kwargs.get("operand")    # Expression
 
+        # ------ emit Event(args) — 인자 식의 부수효과(호출 등)만 의미가 있다 (Phase 2)
+        elif statement_type == "emit":
+            self.event_name = kwargs.get("event_name")
+            self.arguments  = kwargs.get("arguments") or []   # list[Expression]
+
         # ------ 흐름 제어(break / continue) ------
         elif statement_type in {"break", "continue"}:
             # 별도 데이터 필요 없음 – src_line 만 기록

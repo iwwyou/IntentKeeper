@@ -260,12 +260,8 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         if ctx.parameterList():
             parameters = self.visitParameterList(ctx.parameterList())
 
-        # Modifier 처리
-        modifiers = []
-        if ctx.modifierInvocation():
-            for modifier_ctx in ctx.modifierInvocation():
-                modifier_name = modifier_ctx.identifierPath().getText()
-                modifiers.append(modifier_name)
+        # Modifier(및 기반 생성자 호출) — (이름, 인자 식) 으로 수집 (Phase 4)
+        modifiers = self._modifier_invocations(ctx.modifierInvocation() or [])
 
         # ContractAnalyzer로 전달하여 처리
         self.contract_analyzer.process_constructor_definition(
@@ -415,6 +411,21 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     def visitModifierInvocation(self, ctx:SolidityParser.ModifierInvocationContext):
         return self.visitChildren(ctx)
 
+    def _modifier_invocations(self, ctxs) -> list:
+        """(Phase 4, D6) modifierInvocation 들 → [(이름, [인자 Expression])]. 예전엔 이름만 모아 인자가 버려졌다."""
+        out = []
+        for m in ctxs:
+            name = m.identifierPath().getText()
+            if name in {"override", "virtual"}:
+                continue
+            args = []
+            if m.callArgumentList() is not None:
+                args = self.visitCallArgumentList(m.callArgumentList()) or []
+                if isinstance(args, dict):
+                    raise ValueError(f"modifier '{name}': named arguments are not supported")
+            out.append((name, list(args)))
+        return out
+
     # Visit a parse tree produced by SolidityParser#functionDefinition.
     def visitFunctionDefinition(self, ctx: SolidityParser.FunctionDefinitionContext):
         fname = ctx.identifier().getText() if ctx.identifier() else None
@@ -474,12 +485,8 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         # ------------------------------------------------------------
         # ⑤ modifierInvocation(override/virtual 제외) 수집
         # ------------------------------------------------------------
-        mods = []
-        for m in ctx.getChildren():
-            if isinstance(m, SolidityParser.ModifierInvocationContext):
-                name = m.identifierPath().getText()
-                if name not in {"override", "virtual"}:
-                    mods.append(name)
+        mods = self._modifier_invocations(
+            [m for m in ctx.getChildren() if isinstance(m, SolidityParser.ModifierInvocationContext)])
 
         # ------------------------------------------------------------
         # ⑥ ContractAnalyzer 로 전달
@@ -629,6 +636,13 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     # Visit a parse tree produced by SolidityParser#BasicType.
     def visitBasicType(self, ctx: SolidityParser.ElementaryTypeNameContext, type_obj):
         var_type = ctx.getText()
+        # (Phase 4b) `address payable` 은 문법상 한 토큰이다. 추상 도메인(AddressSet)에서 payable 여부는
+        #   의미가 없으므로 `address` 로 정규화한다. 예전엔 "address payable" 그대로 두어 `== "address"` 로
+        #   분기하는 모든 초기화(⊤ AddressSet)를 빗나가 `"symbol_x"` 문자열 값이 됐고, `.transfer/.send` 가
+        #   해석 불가 멤버로 터졌다.
+        if var_type == "address payable":
+            var_type = "address"
+            type_obj.isPayable = True
         type_obj.typeCategory = "elementary"
         type_obj.elementaryTypeName = var_type
 
@@ -2594,7 +2608,9 @@ class EnhancedSolidityVisitor(SolidityVisitor):
     def visitTupleExp(self,
                       ctx: SolidityParser.TupleExpContext):
         inner = ctx.tupleExpression()  # ← 먼저 꺼냄
-        elems = [self.visit(e) for e in inner.expression()]
+        # ★ (Phase 3b) 빈 슬롯 위치 보존 — `inner.expression()` 은 빈 슬롯을 빠뜨려 `(, , x) = f()` 의 x 가
+        #   0 번째 값을 받았다(선언 쪽은 이미 _split_tuple_slots 를 썼지만 식 쪽은 아니었다).
+        elems = [None if e is None else self.visit(e) for e in self._split_tuple_slots(inner)]
         return Expression(
             context="TupleExpressionContext",
             elements=elems

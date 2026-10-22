@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       None         runs=0 t=0.592s ERR ValueError: modifier 'onlyOwner': 2 placeholders '_' — only exactly one is suppo
+numscout_BoostToken_indivisible    None         runs=0 t=2.132s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_BoostToken_operator       None         runs=0 t=2.369s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_EthereumGod               Satisfied    runs=0 t=1.521s ERR ValueError: unresolved member '.transfer' on Variables value <Domain.Variable.Va
+numscout_HIT                       Violated     runs=0 t=1.679s ERR ValueError: call to undefined function 'balanceOf'
+numscout_Nokon                     Warning      runs=1 t=0.674s
+numscout_WANGMI                    Violated     runs=1 t=8.065s
+web3bugs_101_H_01                  Violated     runs=1 t=0.481s
+web3bugs_112_H_01                  Violated     runs=1 t=0.741s
+web3bugs_113_H_05                  Violated     runs=1 t=3.201s
+web3bugs_16_H_04                   Warning      runs=1 t=1.051s
+web3bugs_16_H_06                   Violated     runs=1 t=0.27s
+web3bugs_192_H_01                  Violated     runs=1 t=0.688s
+web3bugs_29_H_08                   None         runs=0 t=0.342s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_29_H_11                   None         runs=0 t=3.329s ERR ValueError: unresolved member '.staticcall' on Variables value <Domain.Variable.
+web3bugs_31_H_01                   Violated     runs=1 t=2.997s
+web3bugs_35_H_08                   Warning      runs=1 t=3.75s
+web3bugs_35_H_10                   Warning      runs=1 t=4.983s
+web3bugs_35_H_11                   Violated     runs=1 t=1.181s
+web3bugs_35_H_12                   Violated     runs=1 t=4.593s
+web3bugs_36_H_02                   Unreachable  runs=1 t=0.935s
+web3bugs_3_H_04                    Violated     runs=1 t=0.896s
+web3bugs_3_H_05                    Warning      runs=1 t=14.931s
+web3bugs_42_H_01                   None         runs=0 t=-s ERR no result line
+web3bugs_45_H_01                   None         runs=0 t=-s ERR no result line
+web3bugs_47_H_02                   Unreachable  runs=1 t=0.522s
+web3bugs_51_H_02                   Violated     runs=1 t=2.125s
+web3bugs_52_H_04                   Warning      runs=1 t=2.407s
+web3bugs_52_H_23                   None         runs=0 t=1.977s ERR ValueError: external call return type unresolved: IERC20.safeTransferFrom() — 'I
+web3bugs_52_H_34                   Warning      runs=1 t=2.788s
+web3bugs_56_H_02                   Violated     runs=1 t=0.603s
+web3bugs_58_H_02                   Warning      runs=1 t=6.381s
+web3bugs_59_H_04                   Warning      runs=1 t=0.768s
+web3bugs_5_H_07                    Violated     runs=1 t=0.371s
+web3bugs_5_H_08                    Violated     runs=1 t=0.667s
+web3bugs_5_H_12                    Violated     runs=1 t=0.682s
+web3bugs_60_H_01                   Violated     runs=1 t=0.471s
+web3bugs_62_H_03                   None         runs=0 t=2.126s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_62_H_08                   Violated     runs=1 t=4.555s
+web3bugs_62_H_10                   None         runs=0 t=1.239s ERR ValueError: external call return type unresolved: ERC20.safeTransfer() — 'ERC20'
+web3bugs_65_H_01                   Violated     runs=1 t=0.675s
+web3bugs_70_H_04                   None         runs=0 t=1.903s ERR ValueError: library call 'None': function not found
+web3bugs_70_H_05                   Warning      runs=1 t=1.151s
+web3bugs_70_H_10                   None         runs=0 t=2.28s ERR ValueError: library call 'None': function not found
+web3bugs_77_H_01                   Violated     runs=1 t=0.409s
+web3bugs_78_H_02                   None         runs=0 t=0.413s ERR AttributeError: 'NoneType' object has no attribute 'is_bottom'
+web3bugs_79_H_02                   None         runs=0 t=-s ERR no result line
+web3bugs_83_H_01                   Violated     runs=1 t=0.579s
+
+verdicts: {'None': 14, 'Satisfied': 1, 'Violated': 21, 'Warning': 10, 'Unreachable': 2} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\p4a_legacy.json

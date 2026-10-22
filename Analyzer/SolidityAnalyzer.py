@@ -79,9 +79,9 @@ class SolidityAnalyzer:
                 return
 
             ln = start_line
-            for line in norm_lines:
-                self.full_code_lines[ln] = line
-                self.update_brace_count(ln, line)
+            for i, line in enumerate(norm_lines):
+                self.full_code_lines[ln] = self._stored_text(line, i == 0)
+                self.update_brace_count(ln, self.full_code_lines[ln])
                 if self._should_trigger_analysis(line):
                     self.analyze_context(ln, line)
                 ln += 1
@@ -169,10 +169,23 @@ class SolidityAnalyzer:
         for i in range(write_count):
             ln = write_start + i
             line = new_lines[i]
-            self.full_code_lines[ln] = line
-            self.update_brace_count(ln, line)
+            self.full_code_lines[ln] = self._stored_text(line, i == 0)
+            self.update_brace_count(ln, self.full_code_lines[ln])
             if self._should_trigger_analysis(line):
                 self.analyze_context(ln, line)
+
+    def _stored_text(self, line: str, is_first: bool) -> str:
+        """저장소(full_code_lines)에 둘 텍스트. (Phase 4b)
+
+        slice 는 `} else {` / `} catch` / `} while` 의 닫는 괄호를 떼어 record 의 `closeBefore` 로
+        옮긴다. 그 줄은 앞 블록의 `}` 자리를 재사용하므로, 떼어낸 괄호를 저장소에 되돌려 놓지 않으면
+        **앞 블록의 `}` 가 소스에서 사라진다** — 괄호 균형으로 블록을 찾는 모든 곳
+        (`_enclosing_open_brace_line`, `_function_body_range`, `_function_span` …)이 한 단계씩
+        어긋나, if/else 뒤의 줄이 if 블록 안으로, 함수 뒤의 `event` 가 함수 안 문장으로 분류됐다.
+        분석(파싱)에는 괄호를 뗀 원래 줄을 그대로 쓴다."""
+        if is_first and self.current_close_before:
+            return "} " + line.lstrip()
+        return line
 
     def _shift_source_meta(self, old_ln: int, new_ln: int):
         """소스 메타데이터(line_info) key 이동"""

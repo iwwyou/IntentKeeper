@@ -54,18 +54,24 @@ class SnapshotManager:
 
     # ───────────────────────────────────────── 전체 스냅
     # 전체 스냅-샷을 반환
+    # ★ (리팩터링 Phase 1a) 스냅샷 = 등록된 객체들의 **지금(flush 직전) 상태**.
+    #   예전엔 store(= 각 객체의 *최초 등록 시점* 상태)를 복사했다. 그래서 restore 가
+    #   등록 이후의 정상적인 구성 변경(예: 생성자 반영, modifier CFG 본문 구성)까지 되돌렸다.
     def snapshot(self):
-        return copy.deepcopy(self.store)
+        return {oid: {"snap": copy.deepcopy(info["serializer"](self.ref[oid])),
+                      "serializer": info["serializer"]}
+                for oid, info in self.store.items()}
 
     # 외부에서 받은 snap(dict) 전체를 되돌린다
+    # ★ (Phase 1a) flush 중에 **새로 등록된** 객체도 되돌린다. 이들의 등록 스냅은 디버그 값
+    #   패치 직전에 떠진 것(DebugInitializer._snapshot_once_for_debug)이므로 그게 flush 직전 상태다.
+    #   예전엔 이 객체들을 복원하지 않고 store 에서도 지워서, 디버그 값이 다음 회차까지 남았다.
     def restore_from_snap(self, snap):
-        # 실제 객체 상태 복원
-        for oid, snap_info in snap.items():
+        for oid, info in self.store.items():
             obj = self.ref.get(oid)
             if obj is None:
                 continue
-            saved_state = snap_info.get("snap")
+            saved_state = (snap.get(oid) or info).get("snap")
             if saved_state is not None:
                 obj.__dict__.clear()
                 obj.__dict__.update(copy.deepcopy(saved_state))
-        self.store = snap

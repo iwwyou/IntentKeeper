@@ -102,6 +102,49 @@ def _brace_opens_block(text: str) -> bool:
     return _paren_depth(text) <= 0
 
 
+_BODYLESS_CTRL = re.compile(r"^(?:if|for|while|else)\b")
+
+
+def _one_statement_violation(txt: str, close_before: bool) -> str | None:
+    """입력 전제(**입력 1개 = statement 1개**) 위반이면 사유, 아니면 None. (Phase 4b, 2026-10-22 결정)
+
+    위반 형태:
+      · 한 줄 블록 `if (x) { return; }` / `modifier m() { _; }` / `unchecked { x; }` — 블록 헤더와 본문이 한 입력
+      · 한 줄 다중 문장 `a = 1; b = 2;`
+      · 중괄호 없는 제어문 `if (x) return;` / `for (...) s += 1;` / `else x = 1;`
+    올바른 입력은 `if (x) {` ⏎ `}` 와 `return;` 두 입력이다. 예전엔 이런 줄이 어느 패턴에도 맞지 않아
+    **다음 줄들과 조용히 합쳐져** 엉뚱한 문장이 됐다(조용한 오분석).
+    판정은 문자열 리터럴·라인 주석을 건너뛰고 **괄호 밖** `;` 만 센다(`for (a; b; c) {` 의 `;` 는 문장 구분이 아님).
+    """
+    code, q, i, depth, semis = [], None, 0, 0, []
+    while i < len(txt):
+        c = txt[i]
+        if q:
+            if c == "\\":
+                i += 2
+                continue
+            if c == q:
+                q = None
+        elif c in "\"'":
+            q = c
+        elif txt.startswith("//", i):
+            break
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif c == ";" and depth == 0:
+            semis.append(i)
+        i += 1
+    if not semis:
+        return None
+    if len(semis) > 1 or txt[semis[0] + 1:].split("//", 1)[0].strip():
+        return "한 줄에 문장이 둘 이상(한 줄 블록 또는 다중 문장)"
+    if _BODYLESS_CTRL.match(txt) and not (close_before and txt.startswith("while")):   # `} while (c);` = do-while 꼬리
+        return "중괄호 없는 제어문 본문"
+    return None
+
+
 def slice_solidity(source: str) -> List[Dict]:
     """Solidity 소스를 라인 단위 JSON records로 변환 (soltotestjson.py와 동일)"""
     lines = source.splitlines()
@@ -195,6 +238,13 @@ def slice_solidity(source: str) -> List[Dict]:
         if txt.startswith('}') and ('else' in txt or 'catch' in txt or 'while' in txt):
             txt = txt[1:].strip()
             close_before = True
+
+        # 2.4) 입력 전제: 입력 1개 = statement 1개 (주석 줄은 제외)
+        if not _comment.match(raw):
+            why = _one_statement_violation(txt, close_before)
+            if why:
+                raise ValueError(f"line {cur_line}: 입력 전제 위반 — {why}: `{txt[:80]}` "
+                                 f"(블록 헤더와 각 문장을 별도 줄로)")
 
         # 2.5) 주석 라인
         if _comment.match(raw):

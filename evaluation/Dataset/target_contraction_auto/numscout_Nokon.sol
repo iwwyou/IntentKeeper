@@ -16,6 +16,10 @@ interface IERC20 {
 
 }
 
+library SafeMath {
+
+}
+
 contract Nokon is IERC20 {
 
     string public constant name = "Nokon";
@@ -67,9 +71,5 @@ contract Nokon is IERC20 {
         emit Transfer(address(this), msg.sender, amountToBuy);
         emit Bought(amountToBuy);
     }
-
-}
-
-library SafeMath {
 
 }

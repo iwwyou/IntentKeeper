@@ -383,6 +383,110 @@ def _expand_single_line_else(line: str):
     return [head, f"{indent}    {stmt}", f"{indent}}}"]
 
 
+# ── 일반 정규화: 입력 1개 = statement 1개 (2026-10-22, 의존성 빌드용) ─────────────────────────────
+# 위의 패턴별 확장(if/else/unchecked/빈 블록)이 다루지 않는 나머지 형태를 편다:
+#   · 한 줄 블록   `if (x) { return false; }` / `modifier m() { _; }` / `} else { a; b; }`
+#   · 한 줄 다중 문장 `uint a = f(); uint b = g();`
+#   · 중괄호 없는 for/while/else-if 본문 `for (...) x[i] = y;`
+# 엔진 슬라이서(`Dependencies.main._one_statement_violation`)는 이런 입력을 오류로 거부한다(타깃은 입력 쪽 책임,
+# 의존성은 빌드 시 여기서 정규화). 판정은 문자열 리터럴·라인 주석을 건너뛰고 **괄호 밖** `;` 와 블록 `{}` 만 본다.
+# 블록 `{` = 괄호 밖이고 짝 `}` 사이에 괄호 밖 `;` 가 있는 중괄호(호출 옵션 `{value: v}`·struct 리터럴은 `;` 가 없다).
+_CTRL_HEAD = re.compile(r"^(?:\}\s*)?(?:else\s+)?(?:if|for|while)\s*\(")
+
+
+def _scan_top(s: str):
+    """(괄호 밖 `;` 위치들, 괄호 밖 `{`→짝 `}` 위치 사전, 주석 시작 위치). 문자열 리터럴은 건너뛴다."""
+    semis, braces, stack, depth, q, i = [], {}, [], 0, None, 0
+    cut = len(s)
+    while i < len(s):
+        c = s[i]
+        if q:
+            if c == "\\":
+                i += 2
+                continue
+            if c == q:
+                q = None
+        elif c in "\"'":
+            q = c
+        elif s.startswith("//", i):
+            cut = i
+            break
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif c == ";" and depth == 0:
+            semis.append(i)
+        elif c == "{" and depth == 0:
+            stack.append(i)
+        elif c == "}" and depth == 0 and stack:
+            braces[stack.pop()] = i
+        i += 1
+    return semis, braces, cut
+
+
+def _split_one_statement(s: str) -> list[str] | None:
+    """한 줄 `s`(들여쓰기 제외)를 '1 줄 = 1 statement' 줄들로. 이미 그 형태면 None. 결과 줄은 상대 들여쓰기(4칸) 포함."""
+    s = s.strip()
+    semis, braces, cut = _scan_top(s)
+    code = s[:cut].rstrip()
+    # 중괄호 없는 제어문 본문: `if/for/while (...) stmt;` / `else if (...) stmt;` (do-while 꼬리 `} while (c);` 제외)
+    m = _CTRL_HEAD.match(code)
+    if m:
+        close = _find_matching_paren(code, m.end() - 1)
+        rest = code[close + 1:].strip() if close != -1 else ""
+        if rest and not rest.startswith("{") and rest != ";":
+            body = _split_one_statement(rest) or [rest]
+            return [code[:close + 1] + " {"] + ["    " + b for b in body] + ["}"]
+    if code.startswith(("else", "} else")) and not re.match(r"^(?:\}\s*)?else\s*(?:\{|if\b)", code):
+        rest = re.sub(r"^(?:\}\s*)?else\s*", "", code)
+        if rest.endswith(";"):
+            head = ("} " if code.startswith("}") else "") + "else {"
+            body = _split_one_statement(rest) or [rest]
+            return [head] + ["    " + b for b in body] + ["}"]
+    # 첫 블록 `{` (본문에 `;` 가 있는 것) 와 첫 `;` 중 앞선 것 기준으로 자른다
+    blk = next((o for o, c in sorted(braces.items()) if any(o < p < c for p in semis)), None)
+    first_semi = semis[0] if semis else None
+    if blk is not None and (first_semi is None or blk < first_semi):
+        close = braces[blk]
+        head = code[:blk].rstrip() + " {"
+        inner = code[blk + 1:close].strip()
+        tail = code[close + 1:].strip()
+        body = []
+        for part in (_split_one_statement(inner) or [inner]):
+            body.append("    " + part)
+        out = [head] + body
+        if tail:
+            rest = _split_one_statement(tail) or [tail]
+            if tail.startswith(("else", "catch", "while")):
+                out.append("} " + rest[0])
+                out.extend(rest[1:])
+            else:
+                out.append("}")
+                out.extend(rest)
+        else:
+            out.append("}")
+        return out
+    if first_semi is not None and code[first_semi + 1:].strip():
+        first = code[:first_semi + 1]
+        rest = code[first_semi + 1:].strip()
+        return [first] + (_split_one_statement(rest) or [rest])
+    return None
+
+
+def normalize_one_statement_per_line(lines: list[str]) -> list[str]:
+    """`_split_one_statement` 를 줄마다 적용(원래 들여쓰기 유지). 문자열 리터럴 줄바꿈이 없는 정규화된 소스 전제."""
+    out = []
+    for line in lines:
+        indent = line[:len(line) - len(line.lstrip())]
+        parts = _split_one_statement(line) if line.strip() and not line.strip().startswith("//") else None
+        if parts is None:
+            out.append(line)
+        else:
+            out.extend(indent + p for p in parts)
+    return out
+
+
 def expand_single_line_blocks(lines: list[str]) -> list[str]:
     """single-line if/unchecked 블록을 multi-line으로 확장"""
     result = []
@@ -408,7 +512,8 @@ def expand_single_line_blocks(lines: list[str]) -> list[str]:
             result.append(f"{indent}}}")
         else:
             result.append(line)
-    return result
+    # 패턴별 확장이 다루지 않는 나머지(한 줄 블록·다중 문장·중괄호 없는 for/while)
+    return normalize_one_statement_per_line(result)
 
 
 def collapse_empty_lines(lines: list[str]) -> list[str]:
