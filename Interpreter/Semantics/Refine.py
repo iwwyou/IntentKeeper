@@ -235,7 +235,8 @@ class Refine:
                                     return
 
             try:
-                self.up.update_left_var(expr, new_iv, '=', variables, None, None, False)
+                # (2026-10-23) refine 은 저장이 아니라 좁히기 — alias 전파·선택자 무효화를 하지 않는다
+                self.up.update_left_var(expr, new_iv, '=', variables, None, None, False, assume=True)
             except ValueError as e:
                 # 매핑 키를 resolve할 수 없는 경우는 조용히 무시
                 if "Cannot resolve mapping key" in str(e):

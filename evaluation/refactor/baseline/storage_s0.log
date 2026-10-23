@@ -1,0 +1,32 @@
+[OK  ] T1   m[a] (a=⊤ 주소) 디버그 50 → 읽기 50, 반복 읽기 일관
+        x=(50, 50) x2=(50, 50)
+[OK  ] T3   m[a]=80 후 m[a] 읽기 → 80 (같은 selector 강한 갱신)
+        y=(80, 80)
+[FAIL] T4   m[a]=50, m[b]=80 쓰기(a,b 모두 ⊤) 후 m[a] → {50,80} 포함해야
+        y=(50, 50) (a==b 이면 80)
+[FAIL] T5   i=[1,5], m[i]=100, m[3]=200 → m[i] 는 100 포함(첫 구체 키 200 단독 선택 금지)
+        x=(200, 200) slots=['i', 'm[3]', 'm[i]']
+[OK  ] T6   T5 와 디버그 입력 순서만 교환 → 같은 결과
+        order1 x=[200,200]  order2 x=[200,200]
+[FAIL] T7   arr[0]=arr[1]=0, i=[0,1], arr[i]=9 → arr[0] ⊇ {0,9} (weak update)
+        z=(9, 9) slots=['i', 'arr[0]', 'arr[1]', 'arr[i]']
+[FAIL] T7b  uint256[100], i=[0,50](>20), arr[0]=0, arr[i]=9 → arr[0] ⊇ {0,9} (쓰기 무시 금지)
+        z=(0, 0)
+[FAIL] T8   i=[1,5], m[i]=100, m[i]=9 쓰기 후 m[i] → 9 포함 (쓰기 무시 금지)
+        y=(100, 100)
+[FAIL] T8b  i=⊤(정수), m[i]=100, m[i]=9 쓰기 후 m[i] → 9 포함
+        y=(100, 100)
+[FAIL] T9   m[i+1], i=[0,40]: 샘플 키 전부 0, 샘플 밖 m[2]=100 → y ⊇ {0,100}
+        y=(0, 0) missing_slots=[]
+[FAIL] T10  arr[i] 디버그 5, i=[0,1] → x=5 (또는 명시적 진단). 조용한 skip 금지
+        x=(0, 115792089237316195423570985008687907853269984665640564039457584007913129639935) slots=['i', 'arr[i]'] diag=[] silent_warning=True
+[FAIL] T11  길이 미지 동적 배열: arr[5] 읽은 뒤 arr.length ≠ [6,6] (⊇ [6, 2^256-1])
+        n=(6, 6) slots=['k', 'arr[5]', 'arr.length']
+[OK  ] T12  i=⊥ 경로(i>10 ∧ i<5)의 m[i] → 크래시 없음, 도달 불가 유지, x=[1,1]
+        return x=(1, 1) inner_state_x=⊥
+[ERR ] T13  디버그 안 준 리터럴 키 m[7] 읽기 → 예외 없음(current_target_function 경로), x=⊤
+        AttributeError: 'Evaluation' object has no attribute 'current_target_function' | File "C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\Interpreter\Semantics\Evaluation.py", line 3135, in update_mapping_in_cfg
+[OK  ] T14  평가 격리: evaluate(m[a]=50) 다음 evaluate(b 만) 에 m[a]=50 이 남지 않음
+        first x=[50,50] second x=[0,115792089237316195423570985008687907853269984665640564039457584007913129639935]
+
+summary: {'OK': 5, 'FAIL': 9, 'ERR': 1}

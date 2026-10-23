@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:                                         # 타입 검사 전용
      from Analyzer.ContractAnalyzer import ContractAnalyzer
 
-from Domain.Variable import Variables, ArrayVariable, StructVariable, MappingVariable, EnumVariable, EnumDefinition
+from Domain.Variable import Variables, ArrayVariable, StructVariable, MappingVariable, EnumVariable, EnumDefinition, array_length
 from Domain.Type import SolType
 from Domain.Interval import Interval, IntegerInterval, BoolInterval, UnsignedIntegerInterval
 from Domain.AddressSet import AddressSet
@@ -13,6 +13,7 @@ from Domain.BytesSet import BytesSet
 from Domain.IR import Expression
 
 from Utils.Helper import VariableEnv
+from Interpreter.Semantics.Storage import _join_into, is_composite
 
 from decimal import Decimal, InvalidOperation
 import re
@@ -397,6 +398,60 @@ class Evaluation :
            not isinstance(top_val, (StructVariable, ArrayVariable, MappingVariable, EnumVariable)):
             return top_val.value
         return top_val
+
+    def _executing_contract_cfg(self):
+        """지금 실행 중인 함수가 속한 컨트랙트/라이브러리 CFG — using-for 조회 범위(Solidity: using 은 선언된
+        컨트랙트·라이브러리 안에서만 유효). 함수 밖(빌드 시점 상태변수 초기화식 평가 등)이면 지금 구성 중인 컨트랙트.
+        실행 중인 함수의 소속을 못 찾으면 오류 — 엉뚱한 컨트랙트의 using 목록으로 대신하지 않는다."""
+        fcfg = self.an.current_target_function_cfg
+        if fcfg is None:
+            return (self.an.contract_cfgs or {}).get(self.an.current_target_contract)
+        cname, _ = self.engine._fcfg_owner(fcfg)
+        if cname is None:
+            raise ValueError(f"using-for lookup: owner of executing function "
+                             f"'{getattr(fcfg, 'function_name', '?')}' not found")
+        return (self.an.contract_cfgs or {}).get(cname)
+
+    def _using_for_on_cast(self, type_name, member, implicit_arg):
+        """`T(x).f(...)` 에서 T 가 f 를 선언하지 않았으면 using-for 로 T 에 붙은 라이브러리 함수 호출 표현을 만든다
+        (2026-10-22 — 예전엔 무조건 외부 호출로 보내 "반환 타입 미해결" 로 멈췄다). T 가 f 를 선언했거나 T 를 못 찾으면
+        None(외부 호출 경로). 선언도 없고 using-for 라이브러리에도 없으면 오류 — 컴파일되는 코드면 둘 중 하나는 있다."""
+        if self._type_declares_member(type_name, member) is not False:
+            return None
+        ccf = self._executing_contract_cfg()
+        if ccf is None or not ccf.find_library_function(type_name, member):
+            raise ValueError(f"member '{member}' is neither declared by '{type_name}' nor attached to it "
+                             f"by a using-for library")
+        result_expr = Expression(function=Expression(identifier=member), operator='library_call',
+                                 context='LibraryFunctionCallContext')
+        result_expr._library_base_type = type_name
+        result_expr._library_contract_cfg = ccf
+        result_expr._implicit_first_arg = implicit_arg
+        return result_expr
+
+    def _type_declares_member(self, type_name, member):
+        """contract/interface 타입(부모 체인 포함)이 `member` 를 함수 또는 public getter 로 선언하는가.
+        True/False, 타입 선언 자체를 못 찾으면 None. (`_lookup_interface_return` 과 같은 조회 범위)"""
+        cfgs = getattr(self.an, 'contract_cfgs', {}) or {}
+        if type_name not in cfgs:
+            return None
+        visited, queue = set(), [type_name]
+        while queue:
+            name = queue.pop(0)
+            if name in visited or not name:
+                continue
+            visited.add(name)
+            cfg = cfgs.get(name)
+            if cfg is None:
+                continue
+            if cfg.get_function_cfg(member) is not None:
+                return True
+            svn = getattr(cfg, 'state_variable_node', None)
+            if svn is not None and member in (getattr(svn, 'variables', {}) or {}):
+                return True
+            queue.extend(list(getattr(cfg, 'parent_contracts', []) or []) +
+                         list((getattr(cfg, 'parent_cfgs', {}) or {}).keys()))
+        return False
 
     def _lookup_interface_return(self, interface_name, func_name):
         """외부 호출 `T(addr).f()` / `t.f()` 의 반환값 = 선언 반환 타입의 ⊤ (2026-10-21 재작성, 사용자 승인).
@@ -1034,9 +1089,16 @@ class Evaluation :
             # 동적 배열 크기 평가: new uint256[](size) 형태
             MAX_CONCRETE_ARRAY_LEN = 100  # 구체적으로 초기화할 최대 배열 길이
             array_length = sol_t.arrayLength
+            length_iv = None        # (2026-10-23) 추상 길이 — 위 array_length 는 구체화할 원소 개수일 뿐이다
             if expr.arguments and len(expr.arguments) > 0:
                 # arguments[0]에 길이 표현식이 있으면 평가
                 length_result = self.evaluate_expression(expr.arguments[0], variables, callerObject, callerContext)
+                if isinstance(length_result, (IntegerInterval, UnsignedIntegerInterval)) and not length_result.is_bottom():
+                    length_iv = UnsignedIntegerInterval(max(length_result.min_value, 0), length_result.max_value, 256)
+                elif isinstance(length_result, int) and not isinstance(length_result, bool):
+                    length_iv = UnsignedIntegerInterval(length_result, length_result, 256)
+                else:
+                    length_iv = UnsignedIntegerInterval.top(256)
                 # 결과가 interval이면 상한값 사용 (max_value 속성 사용)
                 if hasattr(length_result, 'max_value') and length_result.max_value is not None:
                     # 배열 길이가 너무 크면 동적 배열로 처리 (무한 루프 방지)
@@ -1060,6 +1122,8 @@ class Evaluation :
                 is_dynamic=sol_t.isDynamicArray,
                 scope="memory"
             )
+            if sol_t.isDynamicArray:
+                arr.length = length_iv if length_iv is not None else UnsignedIntegerInterval.top(256)
 
             # ★ base type이 qualified 네임스페이스 struct(예: `IPool.TokenAmount`,
             # interface 안에 정의된 struct)면 현재 컨트랙트의 struct_defs엔
@@ -1182,13 +1246,7 @@ class Evaluation :
                     callerObject.struct_defs = {**all_structs, **callerObject.struct_defs}
                     callerObject.enum_defs = {**all_enums, **callerObject.enum_defs}
 
-                key = lit
-                if key not in callerObject.mapping:
-                    # 새 엔트리 생성
-                    new_var = callerObject.get_or_create(key)
-                    # CFG 에 반영
-                    self.update_mapping_in_cfg(callerObject.identifier, key, new_var)
-                return callerObject.mapping[key]
+                return callerObject.get_or_create(lit)
 
         # ───────── 2. 상위 없음 & 인덱스/멤버 base 해결 ──────────
         if callerContext in ("IndexAccessContext", "MemberAccessContext"):
@@ -1583,10 +1641,10 @@ class Evaluation :
                         base_type = f"int{bits}"
 
             if base_type:
-                # 현재 컨트랙트의 using directive 확인
-                current_contract = self.an.current_target_contract
-                if current_contract and current_contract in self.an.contract_cfgs:
-                    contract_cfg = self.an.contract_cfgs[current_contract]
+                # using directive 확인 — (2026-10-22) **실행 중인 함수가 속한** 컨트랙트/라이브러리의 using 목록.
+                #   예전엔 타깃 컨트랙트 것을 봐서, 라이브러리 함수 안의 `using Address for address` 가 안 보였다(31_H_01).
+                contract_cfg = self._executing_contract_cfg()
+                if contract_cfg is not None:
 
                     # 라이브러리 함수 존재 여부만 확인 (overload 해소는 function call 시점에서)
                     library_function = contract_cfg.find_library_function(base_type, member)
@@ -1825,6 +1883,9 @@ class Evaluation :
             # interface cast된 address에서 interface 함수 호출 (IERC20(x).balanceOf())
             cast_ifc = getattr(baseVal, '_cast_interface', None)
             if cast_ifc and callerContext == "functionCallContext":
+                lib_call = self._using_for_on_cast(cast_ifc, member, baseVal)
+                if lib_call is not None:
+                    return lib_call
                 # interface function lookup → return type 기반 top 반환
                 result_expr = Expression(
                     function=Expression(identifier=member),
@@ -1842,29 +1903,8 @@ class Evaluation :
         # ──────────────────────────────────────────────────────────────
         if isinstance(baseVal, ArrayVariable):
             if member == "length":
-                # ★ widening으로 TOP으로 표시된 경우 (-1)
-                if baseVal.typeInfo.arrayLength == -1:
-                    return UnsignedIntegerInterval(0, 2 ** 256 - 1, 256)
-
-                # 동적 배열의 경우: 실제 elements 길이를 우선 사용
-                # (typeInfo.arrayLength는 초기 선언 시의 값이고, 실제 길이는 elements로 결정)
-                if baseVal.typeInfo.isDynamicArray:
-                    if len(baseVal.elements) > 0:
-                        # elements가 있으면 그 길이 반환
-                        ln = len(baseVal.elements)
-                        return UnsignedIntegerInterval(ln, ln, 256)
-                    else:
-                        # 빈 동적 배열: TOP 반환 (알 수 없는 길이)
-                        return UnsignedIntegerInterval(0, 2 ** 256 - 1, 256)
-
-                # 정적 배열의 경우: typeInfo.arrayLength 사용
-                elif baseVal.typeInfo.arrayLength is not None:
-                    return UnsignedIntegerInterval(baseVal.typeInfo.arrayLength, baseVal.typeInfo.arrayLength, 256)
-
-                # 기타: elements 길이 반환
-                else:
-                    ln = len(baseVal.elements)
-                    return UnsignedIntegerInterval(ln, ln, 256)
+                # (2026-10-23) 추상 길이 — 구체화한 원소 수(len(elements))가 아니다. `array_length` 참고.
+                return array_length(baseVal)
 
             # .push() / .pop()  – 동적배열만 허용
             if callerContext == "functionCallContext":
@@ -1872,47 +1912,44 @@ class Evaluation :
                     raise ValueError("push / pop available only on dynamic arrays")
                 elemType = baseVal.typeInfo.arrayBaseType
 
+                # (2026-10-23) push/pop 은 추상 길이(baseVal.length)를 갱신한다. 새 원소의 위치 = 현재 길이 —
+                #   길이가 정해져 있으면 그 원소에 strong update, 아니면(미지 길이·widening) 그 위치가 미확정이므로
+                #   겹칠 수 있는 원소와 summary 에 weak update. 예전엔 elements 에 append 해 "원소 수 = 길이" 로 취급했다.
+                L = array_length(baseVal)
+                engine = getattr(self.an, 'engine', None)
+                in_widening = bool(engine and getattr(engine, '_in_widening_mode', False))
                 if expr.member == "push":
-                    # ★ widening 모드에서는 실제 push를 수행하지 않고 length를 TOP으로 추상화
-                    engine = getattr(self.an, 'engine', None)
-                    in_widening = engine and getattr(engine, '_in_widening_mode', False)
-
-                    if in_widening:
-                        # widening 중: 배열 길이를 TOP으로 추상화
-                        # arrayLength를 특수값(-1)으로 설정하여 TOP임을 표시
-                        # (elements는 유지하되, length 평가 시 TOP 반환하도록)
-                        baseVal.typeInfo.arrayLength = -1  # -1 = TOP을 의미하는 특수값
-                        return None
-                    else:
-                        # 정상 실행 또는 widening 전: 실제로 push 수행
-                        if not expr.arguments:  # push()  – 값 없이
-                            elem = baseVal._create_new_array_element(len(baseVal.elements))
-                            baseVal.elements.append(elem)
-                        else:  # push(v)
-                            val = self.evaluate_expression(expr.arguments[0], variables)
-                            elem = baseVal._create_new_array_element(len(baseVal.elements))
+                    val = self.evaluate_expression(expr.arguments[0], variables) if expr.arguments else None
+                    if L.min_value == L.max_value and not in_widening:
+                        n = L.min_value
+                        elem = baseVal.get_or_create_element(n)
+                        if val is not None:
                             elem.value = val
-                            baseVal.elements.append(elem)
-                        return None  # Solidity push 는 값 반환 X
+                        baseVal.length = UnsignedIntegerInterval(n + 1, n + 1, 256)
+                    else:
+                        new = baseVal._create_new_array_element("*")
+                        if val is not None:
+                            new.value = val
+                        hi = L.max_value
+                        for i, e in enumerate(baseVal.elements):
+                            if L.min_value <= i <= hi:
+                                _join_into(e, new)
+                        if baseVal.summary is None:
+                            baseVal.summary = baseVal.fresh_default()
+                        _join_into(baseVal.summary, new)
+                        mx = 2 ** 256 - 1
+                        baseVal.length = (UnsignedIntegerInterval.top(256) if in_widening else
+                                          UnsignedIntegerInterval(min(L.min_value + 1, mx), min(hi + 1, mx), 256))
+                    return None  # Solidity push 는 값 반환 X
 
-                    # pop()
                 if expr.member == "pop":
-                    if not baseVal.elements:  # 빈 배열 pop  →  ⊥ 또는 revert
-                        return None  # 보수적으로 ⊥ 처리하려면 Interval.bottom(...) 반환
-                    popped = baseVal.elements.pop()
-                    return getattr(popped, "value", popped)  # 값이 있으면 값, 없으면 객체
-
-            if member == "length":
-                # 동적 배열인데 아직 push 로 단 1-개도 추가되지 않음
-                if baseVal.typeInfo.isDynamicArray and not baseVal.elements:
-                    # 원소가 구체화되지 않은 동적 배열 = 길이를 모름 → ⊤.
-                    # ★ (Phase 2, D2) 예전엔 ⊥ 를 돌려 "도달 불가" 로 오판할 수 있었다.
-                    #   (동적 배열 길이를 추상값으로 따로 들고 있지 않은 것은 별개의 미해결 과제 — D5)
-                    return UnsignedIntegerInterval.top(256)
-
-                # 그 밖의 경우 → 현재 element 수를 singleton-interval 로
-                ln = len(baseVal.elements)
-                return UnsignedIntegerInterval(ln, ln, 256)
+                    if L.max_value == 0:  # 빈 배열 pop → revert (경로 차단은 Phase 5)
+                        return None
+                    if L.min_value == L.max_value:
+                        n = L.min_value
+                        del baseVal.elements[n - 1:]
+                    baseVal.length = UnsignedIntegerInterval(max(L.min_value, 1) - 1, L.max_value - 1, 256)
+                    return None
 
         # ──────────────────────────────────────────────────────────────
         # 3. StructVariable  ( struct.field )
@@ -1992,6 +2029,9 @@ class Evaluation :
             # interface cast된 address의 함수 호출 (IERC20(x).balanceOf())
             cast_ifc = getattr(baseVal, '_cast_interface', None)
             if cast_ifc and callerContext == "functionCallContext":
+                lib_call = self._using_for_on_cast(cast_ifc, member, baseVal)
+                if lib_call is not None:
+                    return lib_call
                 result_expr = Expression(
                     function=Expression(identifier=member),
                     operator='interface_call',
@@ -2095,6 +2135,16 @@ class Evaluation :
         # 1) base 해석
         base_val = self.evaluate_expression(expr.base, variables, None, "IndexAccessContext")
 
+        # (2026-10-23) mapping / array 는 키 해석·선택을 Storage 한 곳에서 — 식별자·리터럴·멤버·이항식 인덱스마다
+        #   따로 있던 키 규칙(첫 구체 키 선택, 표본 join, 이름 키 등)이 서로 달라 unsound 했다. Storage.py 참고.
+        if isinstance(base_val, (MappingVariable, ArrayVariable)) and expr.index is not None:
+            if not base_val.struct_defs or not base_val.enum_defs:
+                all_structs, all_enums = self.an.get_full_struct_enum_defs()
+                base_val.struct_defs = {**all_structs, **base_val.struct_defs}
+                base_val.enum_defs = {**all_enums, **base_val.enum_defs}
+            cell = self.an.storage.read(base_val, expr.index, variables)
+            return cell if is_composite(cell) else cell.value
+
         if expr.index is not None:
             return self.evaluate_expression(expr.index, variables, base_val, "IndexAccessContext")
         else:
@@ -2176,7 +2226,10 @@ class Evaluation :
         elif type_name == "address":
             # ★ address 타입 변환
             if isinstance(sub_val, AddressSet):
-                addr_result = sub_val
+                # (2026-10-22) 결과의 정적 타입은 address — 인터페이스 태그를 떼어 낸 새 값. 예전엔 `address(token)` 이
+                #   IERC20 태그를 그대로 가져가 `address(token).functionCall(...)`(using Address for address) 을
+                #   인터페이스 호출로 오인했다(31_H_01).
+                addr_result = sub_val.retagged(None)
             elif isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
                 # uint → address: singleton이면 구체적 ID, 아니면 TOP
                 if sub_val.is_bottom():
@@ -2214,7 +2267,7 @@ class Evaluation :
         elif type_name == "payable" or type_name == "address payable":
             # payable은 Ether를 받을 수 있는 address - 추상 해석에서는 address와 동일
             if isinstance(sub_val, AddressSet):
-                return sub_val  # 이미 AddressSet이면 그대로
+                return sub_val.retagged(None)  # 정적 타입 = address (인터페이스 태그 제거, 새 값)
             if isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
                 if sub_val.is_bottom():
                     return AddressSet.bot()
@@ -2252,14 +2305,9 @@ class Evaluation :
 
         # interface/contract type cast: IERC20(_token), IVault(addr) 등
         elif type_name in self.an.interface_names or type_name in self.an.contract_cfgs:
-            if isinstance(sub_val, AddressSet):
-                result = sub_val
-            elif isinstance(sub_val, (UnsignedIntegerInterval, IntegerInterval)):
-                result = AddressSet.top()
-            else:
-                result = AddressSet.top()
-            result._cast_interface = type_name
-            return result
+            # (2026-10-22) 새 값에 태그 — 예전엔 sub_val 객체에 직접 태그를 써서 캐스트한 원래 변수의 값까지 바뀌었다
+            base = sub_val if isinstance(sub_val, AddressSet) else AddressSet.top()
+            return base.retagged(type_name)
 
         else:
             # 그 외( string, etc. ) => 필요 시 구현
@@ -2679,6 +2727,12 @@ class Evaluation :
 
                 fcfg = self.an.current_target_function_cfg
                 interface_name = self._get_interface_name_of_var(contract_var, variables)
+                # ★ (2026-10-22) 외부 호출은 **그 타입이 멤버를 선언했을 때만**. 선언하지 않았으면 Solidity 의 멤버 조회는
+                #   using-for 로 붙은 라이브러리 함수다(`using SafeERC20 for IERC20; token.safeTransfer(...)`).
+                #   예전엔 인터페이스 타입이면 무조건 외부 호출로 보내 "반환 타입 미해결" 로 멈췄다(31_H_01, 52_H_23).
+                #   타입 선언 자체를 못 찾으면(None) 기존대로 외부 호출 경로 — 의존성 누락 오류를 그대로 낸다.
+                if fcfg and interface_name and self._type_declares_member(interface_name, member_name) is False:
+                    interface_name = None
                 if fcfg and interface_name:
                     ret = self._resolve_ireturn_pattern_a(
                         fcfg, interface_name, contract_var, member_name, callerObject)
@@ -3049,31 +3103,6 @@ class Evaluation :
         values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
                                          variables, this_function_cfg.function_name)
         return self.engine.invoke_callee(this_function_cfg, values, variables, kind="this", call_expr=expr)
-
-    def update_mapping_in_cfg(self, mapVarName: str, key_str: str, new_var_obj: Variables):
-        """
-        mapVarName: "myMapping"
-        key_str: "someKey"
-        new_var_obj: 새로 만든 Variables(...) for the mapping value
-        여기에 state_variable_node, function_cfg 등을 업데이트
-        """
-        contract_cfg = self.an.contract_cfgs.get(self.an.current_target_contract)
-        if not contract_cfg:
-            raise ValueError(f"Unable to find contract CFG for {self.an.current_target_contract}")
-
-        # state_variable_node 갱신
-        if contract_cfg.state_variable_node and mapVarName in contract_cfg.state_variable_node.variables:
-            mapVar = contract_cfg.state_variable_node.variables[mapVarName]
-            if isinstance(mapVar, MappingVariable):
-                mapVar.mapping[key_str] = new_var_obj
-
-        # 함수 CFG 갱신
-        function_cfg = contract_cfg.get_function_cfg(self.current_target_function)
-        if function_cfg:
-            if mapVarName in function_cfg.related_variables:
-                mapVar2 = function_cfg.related_variables[mapVarName]
-                if isinstance(mapVar2, MappingVariable):
-                    mapVar2.mapping[key_str] = new_var_obj
 
     def convert_to_uint(self, sub_val, bits):
         """
@@ -3474,7 +3503,6 @@ class Evaluation :
                     val_obj = callerObject.mapping[key_str]
                 else:
                     val_obj = callerObject.get_or_create(key_str)
-                    self.update_mapping_in_cfg(callerObject.identifier, key_str, val_obj)
 
                 # 복합 타입이면 객체 반환, 기본 타입이면 value 반환
                 if isinstance(val_obj, (StructVariable, ArrayVariable, MappingVariable)):

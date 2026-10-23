@@ -105,6 +105,8 @@ class Engine:
                              f"block without a scope-exit node (bare/unchecked/do/try block) — not supported")
         if getattr(stmt, "shadows", False) and var_name in variables:
             variables[f"{var_name}{self.SHADOW_SEP}shadow@{id(stmt)}"] = variables[var_name]
+        # (2026-10-23) 새 바인딩 — 이 이름을 읽던 선택자 셀(`m[i]`)은 이제 다른 위치를 가리킨다
+        self.an.storage.on_assign(variables, var_name)
 
         # ──────────────────────────────────────────────────────────────
         # 1. 선언 = 매 실행마다 새 변수
@@ -253,6 +255,7 @@ class Engine:
                 # ★ (Phase 3a) 예전엔 구성 시점(`ContractAnalyzer.handle_delete._wipe`)에만 타입별 0 초기화가 있었고,
                 #   해석기는 피연산자에 정수 0 을 대입했다(복합 타입이면 틀린 결과). 의미를 해석기로 옮긴다.
                 self._delete_composite(target)
+                self.up.flush_resolved_write()      # (2026-10-23) `delete m[a]` 도 쓰기 — alias 전파
             else:
                 self.up.update_left_var(operand, self._zero_of(target), '=', variables, None, None,
                                         (self._record_enabled and not self._suppress_stmt_records))
@@ -291,8 +294,13 @@ class Engine:
         if isinstance(obj, MappingVariable):
             return
         if isinstance(obj, ArrayVariable):
+            # (2026-10-23) 선택자 셀은 바인딩만 버린다(원소가 다시 정해졌으므로 원소들에서 다시 만들어진다)
+            obj.sym_cells.clear()
+            obj.sym.clear()
             if obj.typeInfo.isDynamicArray:
                 obj.elements.clear()
+                obj.length = UnsignedIntegerInterval(0, 0, 256)
+                obj.summary = None
             else:
                 for e in obj.elements:
                     self._delete_composite(e) if isinstance(e, (ArrayVariable, StructVariable, MappingVariable)) \
@@ -910,6 +918,8 @@ class Engine:
         # (2026-10-22) 이 호출의 식 — callee 상태 캡처 키(호출 지점 노드 안의 몇 번째 호출인가)에 쓴다.
         #   같은 노드에서 같은 함수를 두 번 부르면(`half(a) + half(a + 1)`) 예전 키 (노드, 함수) 가 겹쳐 앞 호출이 사라졌다.
         self._pending_call_expr = call_expr
+        # (2026-10-23) 호출자 선택자 ↔ 파라미터 대응 — 호출자 프레임에서 계산 (Storage.callee_aliases)
+        self._pending_aliases = self.an.storage.callee_aliases(fcfg, call_expr, kind)
         return self.interpret_function_cfg(fcfg, caller_env, param_bindings=bindings, param_sources=sources)
 
     def interpret_function_cfg(self, fcfg: FunctionCFG, caller_env: dict[str, Variables] | None = None,
@@ -925,6 +935,8 @@ class Engine:
         _call_site_node = getattr(self, "_call_site_node", None)
         _call_expr = getattr(self, "_pending_call_expr", None)
         self._pending_call_expr = None
+        _aliases = getattr(self, "_pending_aliases", None) or {}
+        self._pending_aliases = None
 
         an.current_target_function = fcfg.function_name
         an.current_target_function_cfg = fcfg
@@ -938,6 +950,7 @@ class Engine:
                 fcfg.ireturn_registry.setdefault(key, val)
 
         _saved_node_vars = self._reset_node_vars(fcfg)
+        an.storage.push_frame(fcfg.function_name, _aliases)
         # ★ (Phase 1a) 해석 중 예외가 나도 callee 노드·컨텍스트·플래그를 반드시 복원한다.
         #   예전엔 복원이 정상 경로에만 있어서, 예외 한 번이면 `_record_enabled=False` 와
         #   callee 컨텍스트가 남아 이후 기록·During 검증이 조용히 꺼졌다.
@@ -945,6 +958,7 @@ class Engine:
             return self._interpret_callee_body(fcfg, caller_env, _call_site_node, param_bindings, param_sources,
                                                _call_expr)
         finally:
+            an.storage.pop_frame()
             for blk, saved_vars in _saved_node_vars.items():
                 blk.variables = saved_vars
                 blk.in_variables = None       # live callee 는 구성 결과로 되돌린다(IN 은 캡처본에만)
@@ -1004,6 +1018,8 @@ class Engine:
         # (Phase 4) 인자 바인딩 — invoke_callee 가 만든 새 파라미터 객체
         for pname, b in (param_bindings or {}).items():
             start_block.variables[pname] = b
+        # (2026-10-23) 이 함수 프레임의 선택자 셀은 이 호출에서 새로 묶인다 — 이전 호출(같은 함수)이 남긴 셀을 쓰지 않는다
+        an.storage.purge_scope(start_block.variables, fcfg.function_name)
 
         return_values = self._run_worklist(fcfg, start_block)
 
@@ -1013,6 +1029,9 @@ class Engine:
 
         # exit env를 node 복원 전에 캡처
         _exit_env = VariableEnv.copy_variables(fcfg.get_exit_node().variables) if caller_env is not None else None
+        if _exit_env is not None:
+            # (2026-10-23) callee 프레임의 선택자(파라미터·지역변수)는 복귀하면 사라진다 — 바인딩만 버린다(쓰기 효과는 남는다)
+            an.storage.purge_scope(_exit_env, fcfg.function_name)
 
         # (Phase 4) 복합 타입 인자의 참조 의미 — callee 가 바꾼 내용을 caller 의 원래 객체에 되쓴다.
         #   exit 가 ⊥(항상 revert)면 이후 caller 경로는 도달 불가이므로 되쓰지 않는다.
@@ -1024,10 +1043,8 @@ class Engine:
                     continue
                 if isinstance(src, StructVariable) and isinstance(final, StructVariable):
                     src.members = VariableEnv.copy_variables(final.members)
-                elif isinstance(src, ArrayVariable) and isinstance(final, ArrayVariable):
-                    src.elements = [VariableEnv.copy_single_variable(e) for e in final.elements]
-                elif isinstance(src, MappingVariable) and isinstance(final, MappingVariable):
-                    src.mapping = VariableEnv.copy_variables(final.mapping)
+                elif isinstance(src, (ArrayVariable, MappingVariable)) and type(src) is type(final):
+                    VariableEnv.adopt_storage(src, final)
 
         # ★ N4/S1. restore 로 baseline 이 복원되기 **전에** callee 노드 상태를 떠낸다.
         #   아래 restore 루프가 `_reset_node_vars` 의 백업(= 선언 시점 스냅샷)으로 되돌려
@@ -1051,10 +1068,8 @@ class Engine:
                     continue
                 if k in caller_env:
                     cv = caller_env[k]
-                    if isinstance(v, MappingVariable) and isinstance(cv, MappingVariable):
-                        cv.mapping = v.mapping
-                    elif isinstance(v, ArrayVariable) and isinstance(cv, ArrayVariable):
-                        cv.elements = v.elements
+                    if isinstance(v, (MappingVariable, ArrayVariable)) and type(cv) is type(v):
+                        VariableEnv.adopt_storage(cv, v)
                     elif isinstance(v, StructVariable) and isinstance(cv, StructVariable):
                         cv.members = v.members
                     elif isinstance(v, EnumVariable) and isinstance(cv, EnumVariable):

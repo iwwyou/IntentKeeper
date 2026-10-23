@@ -35,6 +35,7 @@ class DebugBatchManager:
         if not self._lines:
             return
         snap = self.snapman.snapshot()
+        self.analyzer.debug_initializer.begin_batch()
         try:
             for code in self._lines:
                 tree = ParserHelpers.generate_parse_tree(code, "intentUnit")

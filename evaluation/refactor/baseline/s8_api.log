@@ -1,0 +1,51 @@
+flyinointment_SwordCrowdsale       Warning      expected=Violated       t=0.577s slot_missing=1
+numscout_BoostToken_indivisible    Violated     expected=Violated       t=0.941s
+numscout_BoostToken_operator       Warning      expected=Violated       t=0.963s
+numscout_EthereumGod               Satisfied    expected=A: Violated; B t=1.036s
+numscout_HIT                       Violated     expected=Violated       t=0.584s
+numscout_Nokon                     Warning      expected=Violated       t=0.532s
+numscout_WANGMI                    Violated     expected=Violated       t=0.919s
+web3bugs_101_H_01                  Violated     expected=Violated       t=0.547s
+web3bugs_112_H_01                  Violated     expected=Violated       t=0.572s
+web3bugs_113_H_05                  Violated     expected=Violated       t=0.629s
+web3bugs_16_H_04                   Violated     expected=Violated       t=0.575s
+web3bugs_16_H_06                   Violated     expected=Warning        t=0.523s
+web3bugs_192_H_01                  Warning      expected=Violated       t=0.771s slot_missing=2
+web3bugs_29_H_08                   Warning      expected=Warning        t=0.483s
+web3bugs_29_H_11                   Warning      expected=Warning        t=0.836s
+web3bugs_31_H_01                   None         expected=Violated       t=0.695s ERR ValueError: unresolved member '.length' on Variables value <Domain.Var
+web3bugs_35_H_08                   Warning      expected=Warning        t=1.389s
+web3bugs_35_H_10                   Warning      expected=               t=1.381s slot_missing=3
+web3bugs_35_H_11                   Violated     expected=Violated       t=0.567s
+web3bugs_35_H_12                   Warning      expected=Violated       t=1.379s slot_missing=3
+web3bugs_36_H_02                   None         expected=               t=0.389s ERR IncrementalSurgeryError: 증분 분석 실패: line 4 `using SafeERC20 for IERC20;
+web3bugs_3_H_04                    Violated     expected=Violated       t=0.832s
+web3bugs_3_H_05                    Warning      expected=Violated       t=127.451s slot_missing=10
+web3bugs_42_H_01                   Warning      expected=Warning        t=0.73s
+web3bugs_45_H_01                   Warning      expected=Violated       t=1.526s slot_missing=1
+web3bugs_47_H_02                   Unreachable  expected=Violated       t=0.573s
+web3bugs_51_H_02                   None         expected=Violated       t=0.528s ERR IncrementalSurgeryError: 증분 분석 실패: line 8 `event RampTargetPrice(uint2
+web3bugs_52_H_04                   Warning      expected=Warning        t=2.169s slot_missing=3
+web3bugs_52_H_23                   None         expected=Warning        t=0.608s ERR ValueError: Argument count mismatch in function call to 'getReserves':
+web3bugs_52_H_34                   Warning      expected=Warning        t=2.118s slot_missing=3
+web3bugs_56_H_02                   Violated     expected=Violated       t=0.608s
+web3bugs_58_H_02                   None         expected=Violated       t=0.382s ERR IncrementalSurgeryError: 증분 분석 실패: line 4 `using SafeERC20 for IERC20;
+web3bugs_59_H_04                   Warning      expected=Warning        t=0.836s
+web3bugs_5_H_07                    Violated     expected=Violated       t=0.547s
+web3bugs_5_H_08                    Violated     expected=Violated       t=0.604s
+web3bugs_5_H_12                    Violated     expected=Violated       t=0.692s
+web3bugs_60_H_01                   None         expected=Violated       t=0.641s slot_missing=3
+web3bugs_62_H_03                   Unreachable  expected=Violated       t=0.618s
+web3bugs_62_H_08                   Violated     expected=Violated       t=0.704s
+web3bugs_62_H_10                   Unreachable  expected=Violated       t=0.561s slot_missing=1
+web3bugs_65_H_01                   None         expected=Violated       t=0.391s ERR IncrementalSurgeryError: 증분 분석 실패: line 4 `using SafeERC20 for IERC20;
+web3bugs_70_H_04                   None         expected=Warning        t=0.759s ERR ValueError: Member 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_70_H_05                   None         expected=Warning        t=0.606s slot_missing=1 ERR ValueError: 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_70_H_10                   None         expected=Violated       t=0.769s ERR ValueError: Member 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_77_H_01                   Violated     expected=Violated       t=0.492s
+web3bugs_78_H_02                   Unreachable  expected=Violated       t=0.524s
+web3bugs_79_H_02                   Violated     expected=Violated       t=0.706s
+web3bugs_83_H_01                   Warning      expected=Violated       t=0.55s slot_missing=2
+
+verdicts: {'Warning': 16, 'Violated': 17, 'Satisfied': 1, 'None': 10, 'Unreachable': 4}
+match expected: 23 / 48

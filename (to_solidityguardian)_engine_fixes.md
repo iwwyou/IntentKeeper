@@ -3259,3 +3259,26 @@ PRBMath* 두 파일이 `[ANTLR]` 157건(전체 187 중)을 차지한다.
   호출 식 순번 추가. ② callee 해석이 `_call_site_node` 를 자기 노드로 덮은 채 복귀 → 같은 문장의 다음 호출이 callee 의
   마지막 노드를 호출 지점으로 잡음(조건식 안 호출은 직전 문장 노드) → 복귀 시 복원, 조건 노드에서 지정.
 - **검증**: temp 16/16, micro 동일, rebuilt 48 엔진 효과 48/48 동일.
+
+## F66. mapping/array 저장소 의미론 — 이름 기반 입력 유지 + sound (2026-10-23, 사용자 승인)
+
+- **증상**(재현 `temp/test_storage_soundness.py`): `m[i] = 9`(i 범위)가 무시됨, `arr[i] = 9`(i∈[0,1])가 두 원소를 모두 9 로,
+  `m[i]`(i∈[1,5]) 읽기가 입력 `m[i]=100` 대신 기존 구체 키 `m[3]=200` 하나를 선택, ⊤ 주소 `m[b] = 80` 뒤 `m[a]` 가 입력 50
+  그대로, `arr[i]` 입력을 경고 후 버림, `arr[5]` 를 읽으면 길이가 6, 디버그 안 준 리터럴 키 읽기가 AttributeError.
+- **근본 원인**: 키 규칙이 DebugInitializer·Evaluation·Update 의 식별자/리터럴/멤버/이항식 경로마다 달랐고, 접근식 텍스트
+  ("i")·구체 키("3")·가짜 키(`symbolic_index_<id>`, `func_result_<id>`, `AddressSet(⊤)`)를 같은 dict 키 공간에 섞어
+  "같은 위치일 수 있는 셀" 관계가 없었다. 구체화한 원소 수를 배열 길이로 썼다.
+- **수정**: `Interpreter/Semantics/Storage.py` 로 일원화(REFACTOR_PLAN §6 2026-10-23 (12)). 선택자 셀 + summary +
+  must/may-alias(키 추상값 겹침) + LHS 경로 기반 weak update + 진입 제약(assume) 분리 + 선택자 무효화.
+- **함께**: `variables_equal` 복합 타입 내용 미비교, mapping/array join 의 한쪽 키 유지, `@StateVar` 입력 오류 삼킴,
+  디버그 입력 스냅샷 leaf 등록, `update_mapping_in_cfg`(읽기 중 영속 CFG 변경) 제거.
+- **검증**: storage 29/29, temp 18 종, transaction 35/35, micro 동일, api 48 판정 동일·상태 변화 11건 원인 확인.
+
+## F67. 디버그 슬롯 도출 footprint + 호출자 선택자 대응 (2026-10-23)
+
+- **증상**: 케이스 디버그 입력 172개(37 케이스)에 엔진 슬롯이 없어 프론트에서 입력할 수 없었다(api 일치 15/48 vs record 경로 20/48).
+- **근본 원인**: 슬롯 스캐너가 타깃 본문·타깃 컨트랙트 자신의 상태변수만 봤고, using-for 호출·구조체 경로·인터페이스 핸들을
+  잘못 다뤘다. 또 callee 안의 `m[param]` 은 실행 중 callee 이름 키로 따로 잡혀 호출자 이름 입력과 연결되지 않았다.
+- **수정**: footprint 기반 도출(내부 호출·modifier·라이브러리·super/this, 오버로드 전부) + 타깃 진입 이름 번역 + 조상 상태변수 +
+  구조체 leaf 전개 + IReturn 튜플 원소. 실행 쪽 `Storage.callee_aliases`(파라미터 ↔ 호출자 순수 선택자 must-alias).
+- **검증**: 누락 172 → 70(남은 것 = 구체 인덱스 48, 케이스 데이터 불일치 22), 일치 15 → 19, storage 32/32, temp 18 종 통과.

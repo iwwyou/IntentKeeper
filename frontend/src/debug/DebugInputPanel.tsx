@@ -1,6 +1,7 @@
 import { useStore, keyOf } from '../state/store'
 import type { AnalysisResult, DebugKind, DebugSlot, RangeValue } from '../types/result'
 import { emptyValue, slotToAnnotation } from './serialize'
+import { differentSelector, indexesOf, matchesTemplate, withIndexes } from './slotTemplate'
 
 // ★ 슬롯-주도: 분석이 슬롯(상태변수/파라미터/글로벌/IReturn)을 주고, 사용자는 값만 채움.
 //   StateVar=상태변수 선언 시, Param=함수 파라미터, GlobalVar=static 화이트리스트,
@@ -10,6 +11,8 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
   const activeFunction = useStore((s) => s.activeFunction)
   const debugInputs = useStore((s) => s.debugInputs)
   const setDebugValue = useStore((s) => s.setDebugValue)
+  const removeDebugValue = useStore((s) => s.removeDebugValue)
+  const renameDebugKey = useStore((s) => s.renameDebugKey)
   const applyDebug = useStore((s) => s.applyDebug)
   const analyzing = useStore((s) => s.analyzing)
 
@@ -24,6 +27,22 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
   const bySlot = (k: DebugKind) => result.debugSlots.filter((s) => s.kind === k)
 
   const valueOf = (slot: DebugSlot): RangeValue => values[slot.key] ?? emptyValue(slot)
+
+  // (2026-10-23) 구체 인덱스로 지정한 입력 — 슬롯 키가 아닌 입력 키를 템플릿 슬롯 아래에 둔다
+  const slotKeys = new Set(result.debugSlots.map((s) => s.key))
+  const extraKeys = Object.keys(values).filter((k) => !slotKeys.has(k))
+  const specOf = (slot: DebugSlot) => extraKeys.filter((k) => matchesTemplate(k, slot))
+  const orphans = extraKeys.filter((k) => !result.debugSlots.some((s) => matchesTemplate(k, s)))
+  const addSpecialized = (slot: DebugSlot) => {
+    // 인덱스 자리를 0, 1, … 로 채운 새 키 (이미 있으면 다음 번호). 값은 비워 둔다(none = 미입력).
+    for (let n = 0; ; n++) {
+      const k = withIndexes(slot.key, indexesOf(slot.key).map(() => String(n)))
+      if (!(k in values) && !slotKeys.has(k)) {
+        setDebugValue(activeFunction, k, { t: 'none' })
+        return
+      }
+    }
+  }
 
   return (
     <div
@@ -50,12 +69,25 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
         const slots = bySlot(g)
         if (slots.length === 0) return null
         const rows = slots.map((slot) => (
-          <SlotRow
-            key={slot.key}
-            slot={slot}
-            value={valueOf(slot)}
-            onChange={(v) => setDebugValue(activeFunction, slot.key, v)}
-          />
+          <div key={slot.key}>
+            <SlotRow
+              slot={slot}
+              value={valueOf(slot)}
+              onChange={(v) => setDebugValue(activeFunction, slot.key, v)}
+              onSpecialize={slot.specializable ? () => addSpecialized(slot) : undefined}
+            />
+            {specOf(slot).map((k) => (
+              <SpecializedRow
+                key={k}
+                slot={slot}
+                entryKey={k}
+                value={values[k]}
+                onChange={(v) => setDebugValue(activeFunction, k, v)}
+                onRename={(to) => renameDebugKey(activeFunction, k, to)}
+                onRemove={() => removeDebugValue(activeFunction, k)}
+              />
+            ))}
+          </div>
         ))
         // 전역(block/msg/tx)은 자주 안 건드리므로 접이식(기본 접힘) — State/Locals 전역 fold 와 일관.
         if (g === 'GlobalVar') {
@@ -74,6 +106,18 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
         )
       })}
 
+      {orphans.length > 0 && (
+        <div className="dbg-group">
+          <div className="dbg-group-title">슬롯이 아닌 입력 (적용 시 오류)</div>
+          {orphans.map((k) => (
+            <div key={k} className="input-row">
+              <span className="var bad" title={k}>{k}</span>
+              <button className="spec-btn" onClick={() => removeDebugValue(activeFunction, k)}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <button className="apply-btn" onClick={apply} disabled={analyzing}>
         {analyzing ? '적용 중…' : '▶ 적용 (Enter)'}
       </button>
@@ -90,6 +134,8 @@ export default function DebugInputPanel({ result }: { result: AnalysisResult }) 
       <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>
         값 타입은 슬롯이 결정 (numeric→interval, bool→bool, address→symbolicAddress).
         interval 은 <b>한쪽을 비우면 무제약</b>(예: <code>[5, ]</code> = ≥5, <code>[ , 10]</code> = ≤10).
+        <br />인덱스가 있는 경로는 <b>+ 원소</b>로 특정 원소(예: <code>pegObservations[0]</code>)에 값을 줄 수 있다.
+        인덱스가 함수 지역변수(루프 <code>i</code> 등)인 경로는 진입 시점 값이 없으므로 원소를 지정해야만 입력된다.
         <br />값 입력 후 <b>적용</b>을 눌러야 실행됩니다. breakpoint 있으면 그 지점까지, 없으면 함수 끝(EXIT)에서 정지.
       </div>
     </div>
@@ -100,10 +146,12 @@ function SlotRow({
   slot,
   value,
   onChange,
+  onSpecialize,
 }: {
   slot: DebugSlot
   value: RangeValue
   onChange: (v: RangeValue) => void
+  onSpecialize?: () => void
 }) {
   const sugg = slot.suggestion
   return (
@@ -112,8 +160,17 @@ function SlotRow({
         <span className="var" title={slot.label}>
           {slot.label}
         </span>
-        <ValueInput slot={slot} value={value} onChange={onChange} />
+        {slot.requiresIndex ? (
+          <span className="needs-index" title="인덱스가 함수 지역변수라 진입 시점 값이 없다">원소 지정 필요</span>
+        ) : (
+          <ValueInput slot={slot} value={value} onChange={onChange} />
+        )}
         {slot.opaque && <span className="badge opaque">opaque</span>}
+        {onSpecialize && (
+          <button className="spec-btn" title="특정 원소(구체 인덱스)에 값 지정" onClick={onSpecialize}>
+            + 원소
+          </button>
+        )}
       </div>
       {sugg && (
         <div className="ghost">
@@ -123,6 +180,59 @@ function SlotRow({
           </span>
         </div>
       )}
+    </div>
+  )
+}
+
+/** 구체 인덱스 입력 행 — 경로의 인덱스 자리만 편집(나머지는 템플릿 고정). */
+function SpecializedRow({
+  slot,
+  entryKey,
+  value,
+  onChange,
+  onRename,
+  onRemove,
+}: {
+  slot: DebugSlot
+  entryKey: string
+  value: RangeValue
+  onChange: (v: RangeValue) => void
+  onRename: (to: string) => void
+  onRemove: () => void
+}) {
+  const idx = indexesOf(entryKey)
+  const tmpl = indexesOf(slot.key)
+  const other = differentSelector(entryKey, slot)
+  return (
+    <div>
+    <div className="input-row spec-row">
+      <span className="spec-key" title={entryKey}>
+        <span className="badge custom">custom</span>
+        {idx.map((x, n) => (
+          <input
+            key={n}
+            className="num idx"
+            defaultValue={x}
+            title={`인덱스 ${n + 1} (소스: ${tmpl[n]})`}
+            onBlur={(e) => {
+              const next = idx.slice()
+              next[n] = e.target.value.trim() || tmpl[n]
+              onRename(withIndexes(slot.key, next))
+            }}
+          />
+        ))}
+      </span>
+      <ValueInput slot={slot} value={value} onChange={onChange} />
+      <button className="spec-btn" title="이 원소 입력 제거" onClick={onRemove}>
+        ×
+      </button>
+    </div>
+    {other && (
+      <div className="spec-note">
+        선택한 인덱스는 원본 코드의 인덱스와 다릅니다. 이 입력은 지정한 진입 저장 위치에 적용되며, 실제 코드의 접근 위치와
+        항상 같다는 뜻은 아닙니다.
+      </div>
+    )}
     </div>
   )
 }

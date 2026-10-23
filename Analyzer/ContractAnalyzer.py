@@ -11,6 +11,7 @@ from Interpreter.Semantics.Evaluation import Evaluation
 from Interpreter.Semantics.Update import Update
 from Interpreter.Semantics.DebugInitializer import DebugInitializer
 from Interpreter.Semantics.Refine import Refine
+from Interpreter.Semantics.Storage import Storage
 from Interpreter.Engine import Engine
 from Analyzer.GuardianVerificationEngine import GuardianVerificationEngine
 
@@ -51,6 +52,7 @@ class ContractAnalyzer:
         self.updater = Update(self)
         self.debug_initializer = DebugInitializer(self)
         self.refiner = Refine(self)
+        self.storage = Storage(self)          # (2026-10-23) mapping/array 접근 의미론
         self.engine = Engine(self)
         self.builder = DynamicCFGBuilder(self)
         self.recorder = RecordManager()
@@ -1664,7 +1666,19 @@ class ContractAnalyzer:
                 return node
         return None
 
-    def process_during(self, clauses: list[dict], logic_ops: list[str]) -> dict:
+    def _intent_function_cfg(self, fcfg=None):
+        """intent 를 붙일 함수. (2026-10-22) 명시되면 그것, 아니면 **현재 줄 문맥의 함수**(이름+파라미터 타입으로 조회).
+        예전엔 `current_target_function_cfg` 를 썼는데 이 객체는 줄 위치로 갱신되지 않고 **마지막으로 처리한 문장의
+        함수**로 남아, 코드를 다 쓴 뒤 들어온 @Post 가 파일의 마지막 함수에 붙었다(평가 12 케이스 @Post 판정 누락)."""
+        if fcfg is not None:
+            return fcfg
+        ccf = self.contract_cfgs.get(self.current_target_contract)
+        if ccf is None or not self.current_target_function:
+            return None
+        return ccf.get_function_cfg(self.current_target_function,
+                                    param_types=self.current_target_function_param_types)
+
+    def process_during(self, clauses: list[dict], logic_ops: list[str], fcfg=None) -> dict:
         """
         @During annotation 처리 (새 문법)
         clauses: list of clause dicts (kind, var, op, etc.)
@@ -1673,7 +1687,11 @@ class ContractAnalyzer:
         Intent를 CFG 노드에 저장하고, 해석 시점에 검증한다.
         """
         line_no = self.current_start_line
+        fn_cfg = self._intent_function_cfg(fcfg)
         cfg_node = self._cfg_node_at(line_no)
+        # 붙일 노드는 **대상 함수 안**의 노드여야 한다 (다른 함수의 같은 줄 번호 노드에 붙지 않게)
+        if cfg_node is not None and fn_cfg is not None and cfg_node not in fn_cfg.graph:
+            cfg_node = None
 
         # annotation 저장 (기존 호환성)
         if line_no not in self.during_annotations:
@@ -1683,6 +1701,8 @@ class ContractAnalyzer:
         # Standalone annotation: 해당 라인에 CFG 노드가 없으면 이전 코드 라인의 노드 탐색
         if cfg_node is None:
             cfg_node = self._find_prev_cfg_node(line_no)
+            if cfg_node is not None and fn_cfg is not None and cfg_node not in fn_cfg.graph:
+                cfg_node = None
 
         # CFG 노드에 intent 저장 (해석 시 검증용)
         if cfg_node is not None:
@@ -1777,20 +1797,14 @@ class ContractAnalyzer:
             "details": {"clauses": results, "logic_ops": logic_ops}
         }
 
-    def process_post(self, clauses: list[dict], logic_ops: list[str]) -> dict:
+    def process_post(self, clauses: list[dict], logic_ops: list[str], fcfg=None) -> dict:
         """
         @Post annotation 처리 (새 문법)
 
         Intent를 함수 exit 노드에 저장하고, 함수 종료 시점에 검증한다.
         """
         line_no = self.current_start_line
-        fn_cfg = self.current_target_function_cfg
-        if fn_cfg is None and self.current_target_function:
-            # (Phase 3a) 직전 문장 처리기가 current_target_function_cfg 를 비워 둔 경우 — 이름으로 찾는다.
-            ccf = self.contract_cfgs.get(self.current_target_contract)
-            if ccf is not None:
-                fn_cfg = ccf.get_function_cfg(self.current_target_function,
-                                              param_types=self.current_target_function_param_types)
+        fn_cfg = self._intent_function_cfg(fcfg)
 
         # annotation 저장 (기존 호환성)
         if line_no not in self.post_annotations:
@@ -2507,27 +2521,23 @@ class ContractAnalyzer:
 
     # ─────────────────────────────────────────────────────────────
     def process_state_var_for_debug(self, lhs_expr: Expression, value):
+        # (2026-10-23) 예전엔 여기서 예외를 출력만 하고 삼켜, 놓지 못한 @StateVar 입력이 **빠진 채로** 해석·판정됐다.
+        #   @Param 과 같이 그대로 올린다(입력 오류 = fail loud).
+        ccf  = self.contract_cfgs[self.current_target_contract]
+        self.current_target_function_cfg = ccf.get_function_cfg(self.current_target_function, param_types=self.current_target_function_param_types)
+        if self.current_target_function_cfg is None:
+            raise ValueError("@StateVar must be inside a function.")
 
-        try:
-            ccf  = self.contract_cfgs[self.current_target_contract]
-            self.current_target_function_cfg = ccf.get_function_cfg(self.current_target_function, param_types=self.current_target_function_param_types)
-            if self.current_target_function_cfg is None:
-                raise ValueError("@StateVar must be inside a function.")
+        self.debug_initializer.apply_debug_directive_enhanced(
+            scope="state",
+            lhs_expr=lhs_expr,
+            value=value,
+            variables=self.current_target_function_cfg.related_variables,
+            edit_event=self.current_edit_event,
+        )
 
-            self.debug_initializer.apply_debug_directive_enhanced(
-                scope="state",
-                lhs_expr=lhs_expr,
-                value=value,
-                variables=self.current_target_function_cfg.related_variables,
-                edit_event=self.current_edit_event,
-            )
-
-            # 함수 다시 해석하도록 배치
-            self._batch_targets.add(self.current_target_function_cfg)
-        except Exception as e:
-            print(f"ERROR in process_state_var_for_debug: {e}")
-            import traceback
-            traceback.print_exc()
+        # 함수 다시 해석하도록 배치
+        self._batch_targets.add(self.current_target_function_cfg)
 
     # ------------------------------------------------------------------
     #  @Param   debug 주석 (타깃 함수 파라미터)

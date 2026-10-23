@@ -988,9 +988,9 @@ class EnhancedSolidityVisitor(SolidityVisitor):
             if i < num_clauses - 1 and ctx.logicOp(i):
                 logic_ops.append(ctx.logicOp(i).getText())  # '&&' or '||'
 
-        # ContractAnalyzer에 한꺼번에 전달
+        # ContractAnalyzer에 한꺼번에 전달 — (2026-10-22) 대상 함수는 호출자가 명시(intent_target)
         if clauses:
-            self.contract_analyzer.process_during(clauses, logic_ops)
+            self.contract_analyzer.process_during(clauses, logic_ops, fcfg=getattr(self, "intent_target", None))
 
         return None
 
@@ -1126,9 +1126,9 @@ class EnhancedSolidityVisitor(SolidityVisitor):
             if i < num_clauses - 1 and ctx.logicOp(i):
                 logic_ops.append(ctx.logicOp(i).getText())  # '&&' or '||'
 
-        # ContractAnalyzer에 한꺼번에 전달
+        # ContractAnalyzer에 한꺼번에 전달 — (2026-10-22) 대상 함수는 호출자가 명시(intent_target)
         if clauses:
-            self.contract_analyzer.process_post(clauses, logic_ops)
+            self.contract_analyzer.process_post(clauses, logic_ops, fcfg=getattr(self, "intent_target", None))
 
         return None
 

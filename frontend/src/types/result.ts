@@ -139,6 +139,12 @@ export interface DebugSlot {
   opaque?: boolean // @IReturn/외부 등 도출 불가
   line?: number // debug는 대체로 함수-스코프 → 보통 생략
   suggestion?: Suggestion // ghost 제안 (LLM/solver)
+  signed?: boolean | null // interval 빈 경계 치환용 (엔진 Fix B)
+  bits?: number | null
+  /** (2026-10-23) 인덱스 자리가 있는 경로 — 구체 인덱스로 바꾼 키(`poolInfo[1]`)로도 입력 가능 */
+  specializable?: boolean
+  /** 인덱스가 함수 지역변수(루프 i 등) — 진입 시점 값이 없어 이 키 그대로는 입력 불가, 구체 인덱스로만 */
+  requiresIndex?: boolean
 }
 
 export type DepStatus = 'ready' | 'building' | 'error'

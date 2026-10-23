@@ -79,6 +79,16 @@ class ArrayVariable(Variables):
         self.elements: list[Variables | "ArrayVariable"] = []
         self.struct_defs = struct_defs or {}
         self.enum_defs = enum_defs or {}
+        _init_indexed_storage(self)
+        self.sym_cells: dict[str, Variables] = {}   # 선택자 셀(arr[i]) — 메타는 self.sym
+        # (2026-10-23) 추상 길이. None = 선언에서 유도(array_length) — 구체화한 원소 수와는 별개다.
+        self.length = None
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        _init_indexed_storage(self)
+        self.__dict__.setdefault("sym_cells", {})
+        self.__dict__.setdefault("length", None)
 
     # models.py ― ArrayVariable  내부
     def _create_default_value(self, eid: str):
@@ -116,12 +126,10 @@ class ArrayVariable(Variables):
         if idx < 0:
             raise IndexError("negative index")
 
-        # 동적 배열 → 필요하면 확장
+        # 동적 배열 → 필요하면 구체화 (★ 2026-10-23: 구체화는 길이를 바꾸지 않는다 — `length` 참고)
         if self.typeInfo.isDynamicArray:
-            while idx >= len(self.elements):  # auto-push
-                # ★ _create_new_array_element 사용 (struct, nested array 등을 올바르게 생성)
-                new_elem = self._create_new_array_element(len(self.elements))
-                self.elements.append(new_elem)
+            while idx >= len(self.elements):
+                self.elements.append(self.fresh_element(len(self.elements)))
 
         # 정적 배열 → 범위 검사
         if idx >= len(self.elements):
@@ -210,7 +218,20 @@ class ArrayVariable(Variables):
         배열에 실제로 추가하지 않고 가상으로 요소를 생성한다.
         범위 인덱스 join 시 사용.
         """
-        return self._create_new_array_element(idx)
+        return self.fresh_element(idx)
+
+    def fresh_element(self, idx):
+        """아직 구체화하지 않은 원소 하나. (2026-10-23) summary 가 있으면 그것에서 만든다 — 미확정 인덱스 쓰기가
+        남긴 효과를 새 원소가 잃지 않게. summary 가 없으면 선언 기본값(⊤, D5)."""
+        if self.summary is None:
+            return self._create_new_array_element(idx)
+        v = copy.deepcopy(self.summary)
+        rename_tree(v, f"{self.identifier}[{idx}]")
+        return v
+
+    def fresh_default(self):
+        """summary 가 없을 때의 기본값(선언 기본값)."""
+        return self._create_new_array_element("*")
 
 
     # ────────────────────────── public API ──────────────────────────
@@ -351,9 +372,15 @@ class MappingVariable(Variables):
         self.typeInfo.mappingKeyType   = key_type
         self.typeInfo.mappingValueType = value_type
 
+        # 구체 키 셀과 선택자 셀(키 = 선택자 식 텍스트, 메타는 self.sym)이 함께 들어 있다
         self.mapping: dict[str, Variables] = {}
         self.struct_defs = struct_defs or {}
         self.enum_defs   = enum_defs   or {}
+        _init_indexed_storage(self)
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        _init_indexed_storage(self)
 
     # ────────────────────────────────────────────────
     # 값-생성 전용 private 헬퍼
@@ -455,9 +482,7 @@ class MappingVariable(Variables):
         """
         key_val = str(key_val)
         if key_val not in self.mapping:
-            sub_id = f"{self.identifier}[{key_val}]"
-            new_var = self._make_value(sub_id, self.typeInfo.mappingValueType)
-            self.mapping[key_val] = new_var
+            self.mapping[key_val] = self.fresh_entry(key_val)
         return self.mapping[key_val]
 
     def _create_value_virtual(self, key_val):
@@ -465,8 +490,21 @@ class MappingVariable(Variables):
         매핑에 실제로 추가하지 않고 가상으로 value를 생성한다.
         범위 키 join 시 사용.
         """
+        return self.fresh_entry(key_val)
+
+    def fresh_entry(self, key_val):
+        """아직 구체화하지 않은 키의 값. (2026-10-23) summary 가 있으면 그것에서 만든다 — 미확정 키 쓰기가 남긴
+        효과를 새 엔트리가 잃지 않게. summary 가 없으면 선언 기본값(⊤, D5)."""
         sub_id = f"{self.identifier}[{key_val}]"
-        return self._make_value(sub_id, self.typeInfo.mappingValueType)
+        if self.summary is None:
+            return self._make_value(sub_id, self.typeInfo.mappingValueType)
+        v = copy.deepcopy(self.summary)
+        rename_tree(v, sub_id)
+        return v
+
+    def fresh_default(self):
+        """summary 가 없을 때의 기본값(선언 기본값)."""
+        return self._make_value(f"{self.identifier}[*]", self.typeInfo.mappingValueType)
 
     def get_default_interval_for_type(self, sol_type):
         # 예시 구현: elementary int/uint/bool만 처리
@@ -583,3 +621,51 @@ class EnumVariable(Variables):
         :return: 현재 설정된 멤버의 이름
         """
         return self.current_value
+
+
+# ──────────────────────────────────────────────────────────────────────
+# (2026-10-23) 인덱스 저장소(mapping / array) 공통 상태
+#
+#   · 구체 셀   : mapping 의 구체 키 엔트리, array 의 elements
+#   · 선택자 셀 : 소스의 접근식 `m[a]` 가 **이 프레임에서** 고르는 위치 하나(키 = 선택자 식 텍스트).
+#                 메타 sym[key] = {"scope": 함수, "deps": 선택자가 읽는 변수들, "vals": 만들 때의 키 추상값}.
+#                 mapping 은 셀을 self.mapping 에, array 는 self.sym_cells 에 둔다.
+#   · summary   : 아직 구체화하지 않은 모든 위치의 값 요약. None = 선언 기본값(⊤, D5).
+#                 미확정 위치 쓰기는 summary 에도 weak update 되고, 새 셀은 summary 에서 만들어진다.
+#   의미론(읽기·쓰기·alias·무효화)은 Interpreter/Semantics/Storage.py.
+# ──────────────────────────────────────────────────────────────────────
+def _init_indexed_storage(c):
+    c.__dict__.setdefault("sym", {})
+    c.__dict__.setdefault("summary", None)
+
+
+def rename_tree(v, new_id):
+    """복사해 온 값 트리의 식별자를 새 위치 이름으로 바꾼다 (summary → 구체 셀)."""
+    v.identifier = new_id
+    if isinstance(v, StructVariable):
+        for name, m in v.members.items():
+            rename_tree(m, f"{new_id}.{name}")
+    elif isinstance(v, ArrayVariable):
+        for i, e in enumerate(v.elements):
+            rename_tree(e, f"{new_id}[{i}]")
+        for k, e in v.sym_cells.items():
+            rename_tree(e, f"{new_id}[{k}]")
+        if v.summary is not None:
+            rename_tree(v.summary, f"{new_id}[*]")
+    elif isinstance(v, MappingVariable):
+        for k, e in v.mapping.items():
+            rename_tree(e, f"{new_id}[{k}]")
+        if v.summary is not None:
+            rename_tree(v.summary, f"{new_id}[*]")
+
+
+def array_length(arr: ArrayVariable):
+    """배열의 추상 길이. (2026-10-23) 구체화한 원소 수(len(elements))와 분리했다 — `arr[5]` 를 읽었다고 길이가 6 이 되지 않는다.
+    정적 배열 = 선언 길이 · 동적 배열 = 추적 중인 길이(arr.length: new T[](n) · 디버그 .length 입력 · push/pop 이 정한다),
+    없으면 모름(⊤, D5). 동적 배열의 typeInfo.arrayLength 는 길이가 아니다(선언 `T[]` 은 0, new 는 구체화 개수)."""
+    t = arr.typeInfo
+    if not t.isDynamicArray and isinstance(t.arrayLength, int) and t.arrayLength >= 0:
+        return UnsignedIntegerInterval(t.arrayLength, t.arrayLength, 256)
+    if arr.length is not None:
+        return arr.length.copy()
+    return UnsignedIntegerInterval.top(256)

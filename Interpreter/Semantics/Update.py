@@ -14,10 +14,56 @@ from Utils.Helper import VariableEnv
 from Interpreter.Semantics.Evaluation import coerce_to_declared
 
 
+def _path_below(top, node):
+    """top(대입 LHS) 에서 node(인덱스 접근 식) 아래로 내려가는 접근 경로 — [("member", 이름) | ("index", 인덱스 식)].
+    node 의 셀에서 이 경로를 따라간 위치가 이번 대입이 쓴 곳이다."""
+    def walk(e):
+        if e is node:
+            return []
+        if e is None:
+            return None
+        if e.context == "TupleExpressionContext":
+            for el in (e.elements or []):
+                r = walk(el)
+                if r is not None:
+                    return r
+            return None
+        if e.base is None:
+            return None
+        r = walk(e.base)
+        if r is None:
+            return None
+        if e.context == "IndexAccessContext":
+            return r + [("index", e.index)]
+        if e.member is not None:
+            return r + [("member", e.member)]
+        return None
+    path = walk(top)
+    if path is None:
+        raise ValueError(f"internal: index access {node} not found under LHS {top}")
+    return path
+
+
+def _lhs_roots(expr):
+    """대입 LHS 가 바꾸는 뿌리 변수 이름들 (선택자 셀 무효화용)."""
+    if expr is None:
+        return []
+    if expr.context == "TupleExpressionContext":
+        return [r for e in (expr.elements or []) for r in _lhs_roots(e)]
+    while expr.base is not None and expr.identifier is None:
+        expr = expr.base
+    return [expr.identifier] if expr.identifier else []
+
+
 class Update :
 
     def __init__(self, an: "ContractAnalyzer"):
         self.an = an
+        # (2026-10-23) 대입 하나(최상위 update_left_var) 동안 고른 인덱스 셀 — 쓰기가 끝난 뒤 alias 전파(Storage.propagate)
+        self._depth = 0
+        self._pending: list = []
+        self._assume = False
+        self._resolved = ([], None, None)
 
     @property
     def ev(self):
@@ -45,7 +91,7 @@ class Update :
         """
         if isinstance(dst, ArrayVariable) and isinstance(src, ArrayVariable):
             dst.typeInfo = copy.deepcopy(src.typeInfo)
-            dst.elements = [VariableEnv.copy_single_variable(e) for e in src.elements]
+            VariableEnv.adopt_storage(dst, src)
             if src.struct_defs:
                 dst.struct_defs = src.struct_defs
             if src.enum_defs:
@@ -55,12 +101,51 @@ class Update :
             dst.members = VariableEnv.copy_variables(src.members)
             return True
         if isinstance(dst, MappingVariable) and isinstance(src, MappingVariable):
-            dst.mapping = VariableEnv.copy_variables(src.mapping)
+            VariableEnv.adopt_storage(dst, src)
             return True
         return False
 
     def update_left_var(self, expr, rVal, operator, variables, callerObject=None, callerContext=None,
-                        log:bool=False, line_no:int=None, top_expr=None):
+                        log:bool=False, line_no:int=None, top_expr=None, assume: bool = False):
+        """대입 하나. (2026-10-23) 최상위 호출이 끝나면(LHS 경로 전체에 값을 쓴 뒤)
+          · 고른 인덱스 셀마다 겹칠 수 있는 다른 셀·summary 에 weak update (Storage.propagate — 안쪽 단계부터)
+          · LHS 의 뿌리 변수를 읽는 선택자 셀의 바인딩을 버린다 (Storage.on_assign)
+        assume=True 는 조건 refine — 값을 좁힐 뿐 저장이 아니므로 전파·무효화하지 않고, 미확정 위치(Range)는 건드리지 않는다.
+        rVal=None(객체 찾기만, resolve_lhs_expr)이면 전파는 호출자가 값을 바꾼 뒤 `flush_resolved_write()` 로 한다."""
+        if self._depth:
+            return self._update_left_var(expr, rVal, operator, variables, callerObject, callerContext,
+                                         log, line_no, top_expr)
+        saved = (self._pending, self._assume)
+        self._pending, self._assume = [], assume
+        self._depth += 1
+        try:
+            out = self._update_left_var(expr, rVal, operator, variables, callerObject, callerContext,
+                                        log, line_no, top_expr)
+            if rVal is None:
+                self._resolved = (self._pending, variables, expr)
+            elif not assume:
+                self._finish_write(self._pending, variables, expr)
+            return out
+        finally:
+            self._depth -= 1
+            self._pending, self._assume = saved
+
+    def _finish_write(self, pending, variables, lhs):
+        for c, res, obj, node in reversed(pending):
+            # 이 인덱스 단계 아래로 LHS 가 실제로 쓴 경로(`s[a].v` 면 .v) — alias 셀에는 그 위치에만 weak update
+            self.an.storage.propagate(c, res, obj, _path_below(lhs, node), variables)
+        for root in _lhs_roots(lhs):
+            self.an.storage.on_assign(variables, root)
+
+    def flush_resolved_write(self):
+        """resolve_lhs_expr 로 찾은 객체를 호출자가 직접 바꾼 뒤(delete 등) — 그 쓰기의 전파·무효화."""
+        pending, variables, lhs = self._resolved
+        self._resolved = ([], None, None)
+        if variables is not None:
+            self._finish_write(pending, variables, lhs)
+
+    def _update_left_var(self, expr, rVal, operator, variables, callerObject=None, callerContext=None,
+                         log:bool=False, line_no:int=None, top_expr=None):
         """
         log: True이면 recording 활성화
         line_no: recording할 라인 번호 (None이면 self.an.current_start_line 사용)
@@ -107,7 +192,7 @@ class Update :
         elif expr.context == "TupleExpressionContext":
             if len(expr.elements or []) == 1:
                 # 원소 하나 = 괄호식 `(x)` — 안쪽 식이 대상이다(refine 이 `(a * b) > 0` 의 좌변을 넘기는 경우 포함)
-                return self.update_left_var(expr.elements[0], rVal, operator, variables,
+                return self._update_left_var(expr.elements[0], rVal, operator, variables,
                                             callerObject, callerContext, log, line_no, top_expr)
             if not isinstance(rVal, (list, tuple)):
                 # ★ (Phase 3b, D4) 예전엔 우변이 튜플 값이 아니면 대입 전체를 조용히 건너뛰었다.
@@ -115,7 +200,7 @@ class Update :
             for idx, target in enumerate(expr.elements):
                 if target is None or idx >= len(rVal):
                     continue
-                self.update_left_var(target, rVal[idx], operator, variables,
+                self._update_left_var(target, rVal[idx], operator, variables,
                                       None, None, log, line_no, top_expr)
             return None
 
@@ -263,12 +348,45 @@ class Update :
                                                 callerObject=None, callerContext=None,
                                                 log:bool=False, line_no:int=None, top_expr=None):
         # base expression에 대한 재귀
-        base_obj = self.update_left_var(expr.base, rVal, operator, variables,
+        base_obj = self._update_left_var(expr.base, rVal, operator, variables,
                                         None, "IndexAccessContext", log, line_no, top_expr)
 
+        # (2026-10-23) mapping / array 는 Storage 로 — 읽기(Evaluation.evaluate_index_access_context)와 같은 키 해석·선택
+        if isinstance(base_obj, (MappingVariable, ArrayVariable)):
+            return self._update_indexed(base_obj, expr, rVal, operator, variables, callerContext,
+                                        log, line_no, top_expr)
+
         # index expression에 대한 재귀
-        return self.update_left_var(expr.index, rVal, operator, variables,
-                                    base_obj, "IndexAccessContext", log, line_no, top_expr)
+        return self._update_left_var(expr.index, rVal, operator, variables,
+                                     base_obj, "IndexAccessContext", log, line_no, top_expr)
+
+    def _update_indexed(self, c, expr, rVal, operator, variables, callerContext, log, line_no, top_expr):
+        """c[expr.index] 대입(또는 더 깊은 LHS 의 중간 단계). 고른 셀에 값을 쓰고(strong), 셀을 _pending 에 남겨
+        최상위 대입이 끝난 뒤 alias 전파를 받게 한다."""
+        if not c.struct_defs or not c.enum_defs:
+            all_structs, all_enums = self.an.get_full_struct_enum_defs()
+            c.struct_defs = {**all_structs, **c.struct_defs}
+            c.enum_defs = {**all_enums, **c.enum_defs}
+        storage = self.an.storage
+        res = storage.resolve(c, expr.index, variables)
+        if self._assume and res.kind in ("range", "bottom"):
+            return None                      # 미확정 위치는 좁힐 대상이 없다
+        cell = storage.select(c, res)
+        if not self._assume:
+            self._pending.append((c, res, cell, expr))
+        # 더 깊은 접근(m[i].x / a[i][j])의 중간 단계이거나 객체 찾기만 하는 호출 → 셀을 돌려준다
+        if callerContext is not None or rVal is None:
+            return cell
+        if isinstance(cell, (ArrayVariable, StructVariable, MappingVariable)):
+            if not self._assign_whole_composite(cell, rVal):
+                raise ValueError(f"cannot assign {type(rVal).__name__} to composite '{cell.identifier}'")
+            if log:
+                self.an.recorder.record_assignment(
+                    line_no=line_no if line_no is not None else self.an.current_start_line,
+                    expr=top_expr if top_expr is not None else expr, var_obj=cell, base_obj=c)
+            return None
+        self._write_leaf(cell, rVal, operator, c, log, line_no, top_expr, expr)
+        return None
 
     def update_left_var_of_member_access_context(
             self, expr, rVal, operator, variables,
@@ -276,7 +394,7 @@ class Update :
             log:bool=False, line_no:int=None, top_expr=None):
 
         # ① 먼저 base 부분을 재귀-업데이트
-        base_obj = self.update_left_var(expr.base, rVal, operator,
+        base_obj = self._update_left_var(expr.base, rVal, operator,
                                         variables, None, "MemberAccessContext", log, line_no, top_expr)
         member = expr.member
 
@@ -603,6 +721,66 @@ class Update :
             f"Literal context '{lit_str}' not handled for '{type(caller_object).__name__}'"
         )
 
+    def _write_leaf(self, var_obj, r_val, operator, caller_object, log, actual_line_no, top_expr, record_expr):
+        """leaf 변수에 compound-assignment 적용 + Recorder 호출 (식별자·인덱스 대입 공용)"""
+        if actual_line_no is None:
+            actual_line_no = self.an.current_start_line
+        # ★ var_obj가 이미 Interval인 경우 (배열 원소가 직접 Interval로 저장된 경우)
+        # 이는 join된 결과로, 직접 처리할 수 없으므로 skip
+        if VariableEnv.is_interval(var_obj):
+            return
+
+        # (a) r_val → Interval/AddressSet 변환(필요 시)
+        conv_val = r_val
+
+        # ★ AddressSet 직접 처리
+        if isinstance(r_val, AddressSet):
+            conv_val = r_val  # AddressSet은 그대로 사용
+        elif not VariableEnv.is_interval(r_val) and isinstance(var_obj, Variables):
+            et = var_obj.typeInfo.elementaryTypeName
+            bits = var_obj.typeInfo.intTypeLength or 256
+
+            # ① 숫자(int, bool) ------------------------------------------------
+            if isinstance(r_val, bool):
+                conv_val = BoolInterval(int(r_val), int(r_val))
+            elif isinstance(r_val, int):
+                conv_val = (
+                    IntegerInterval(r_val, r_val, bits) if et.startswith("int")
+                    else UnsignedIntegerInterval(r_val, r_val, bits)
+                )
+
+            # ② 문자열 리터럴(hex, dec, true/false) ----------------------------
+            elif isinstance(r_val, str) and (r_val.lstrip("-").isdigit() or r_val.startswith("0x")):
+                n = int(r_val, 0)
+                conv_val = (
+                    IntegerInterval(n, n, bits) if et.startswith("int")
+                    else UnsignedIntegerInterval(n, n, bits)
+                )
+            elif r_val in ("true", "false"):
+                conv_val = BoolInterval(1, 1) if r_val == "true" else BoolInterval(0, 0)
+
+        # (b) 실제 값 패치 (operator가 None이 아닐 때만)
+        if operator is not None:
+            # ★ AddressSet의 경우 compound_assignment를 거치지 않고 직접 할당
+            if isinstance(conv_val, AddressSet):
+                if operator == '=':
+                    var_obj.value = conv_val
+                else:
+                    raise ValueError(f"AddressSet does not support compound operator: {operator}")
+            else:
+                self._store(var_obj, self.compound_assignment(var_obj.value, conv_val, operator))
+
+        # (c) 기록 (log가 True이고 operator가 None이 아닐 때)
+        if log and operator is not None:
+            # top_expr을 사용하여 최상위 LHS expression 기록
+            actual_record_expr = top_expr if top_expr is not None else record_expr
+            self.an.recorder.record_assignment(
+                line_no=actual_line_no,
+                expr=actual_record_expr,
+                var_obj=var_obj,
+                base_obj=caller_object,
+            )
+
     def update_left_var_of_identifier_context(
             self,
             expr: Expression,
@@ -622,62 +800,7 @@ class Update :
 
         # ────────────────────────── 내부 헬퍼 ──────────────────────────
         def _apply_to_leaf(var_obj: Variables | EnumVariable, record_expr: Expression):
-            """leaf 변수에 compound-assignment 적용 + Recorder 호출"""
-            # ★ var_obj가 이미 Interval인 경우 (배열 원소가 직접 Interval로 저장된 경우)
-            # 이는 join된 결과로, 직접 처리할 수 없으므로 skip
-            if VariableEnv.is_interval(var_obj):
-                return
-
-            # (a) r_val → Interval/AddressSet 변환(필요 시)
-            conv_val = r_val
-
-            # ★ AddressSet 직접 처리
-            if isinstance(r_val, AddressSet):
-                conv_val = r_val  # AddressSet은 그대로 사용
-            elif not VariableEnv.is_interval(r_val) and isinstance(var_obj, Variables):
-                et = var_obj.typeInfo.elementaryTypeName
-                bits = var_obj.typeInfo.intTypeLength or 256
-
-                # ① 숫자(int, bool) ------------------------------------------------
-                if isinstance(r_val, bool):
-                    conv_val = BoolInterval(int(r_val), int(r_val))
-                elif isinstance(r_val, int):
-                    conv_val = (
-                        IntegerInterval(r_val, r_val, bits) if et.startswith("int")
-                        else UnsignedIntegerInterval(r_val, r_val, bits)
-                    )
-
-                # ② 문자열 리터럴(hex, dec, true/false) ----------------------------
-                elif isinstance(r_val, str) and (r_val.lstrip("-").isdigit() or r_val.startswith("0x")):
-                    n = int(r_val, 0)
-                    conv_val = (
-                        IntegerInterval(n, n, bits) if et.startswith("int")
-                        else UnsignedIntegerInterval(n, n, bits)
-                    )
-                elif r_val in ("true", "false"):
-                    conv_val = BoolInterval(1, 1) if r_val == "true" else BoolInterval(0, 0)
-
-            # (b) 실제 값 패치 (operator가 None이 아닐 때만)
-            if operator is not None:
-                # ★ AddressSet의 경우 compound_assignment를 거치지 않고 직접 할당
-                if isinstance(conv_val, AddressSet):
-                    if operator == '=':
-                        var_obj.value = conv_val
-                    else:
-                        raise ValueError(f"AddressSet does not support compound operator: {operator}")
-                else:
-                    self._store(var_obj, self.compound_assignment(var_obj.value, conv_val, operator))
-
-            # (c) 기록 (log가 True이고 operator가 None이 아닐 때)
-            if log and operator is not None:
-                # top_expr을 사용하여 최상위 LHS expression 기록
-                actual_record_expr = top_expr if top_expr is not None else record_expr
-                self.an.recorder.record_assignment(
-                    line_no=actual_line_no,
-                    expr=actual_record_expr,
-                    var_obj=var_obj,
-                    base_obj=caller_object,
-                )
+            self._write_leaf(var_obj, r_val, operator, caller_object, log, actual_line_no, top_expr, record_expr)
 
 
         # ======================================================================
@@ -923,12 +1046,12 @@ class Update :
                                                                  callerObject=None, callerContext=None,
                                                         log:bool=False):
         # base
-        base_obj = self.update_left_var(
+        base_obj = self._update_left_var(
             expr.base, rVal, operator, variables,
             None, "IntentIndexAccess", log
         )
         # index
-        return self.update_left_var(
+        return self._update_left_var(
             expr.index, rVal, operator, variables, base_obj, "IntentIndexAccess", log
         )
 
@@ -940,7 +1063,7 @@ class Update :
                                                          log:bool=False):
 
         # ① 먼저 base 부분을 재귀-업데이트
-        base_obj = self.update_left_var(expr.base, rVal, operator,
+        base_obj = self._update_left_var(expr.base, rVal, operator,
                                                  variables, None, "IntentMemberAccess", log)
         member = expr.member
 

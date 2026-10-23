@@ -66,6 +66,9 @@ interface AppState {
   openDebug: (contract: string, func: string) => void
   setActiveFunction: (func: string) => void
   setDebugValue: (func: string, slotKey: string, value: RangeValue) => void
+  /** 구체 인덱스로 지정한 입력 행 제거 / 키 변경(값 유지) */
+  removeDebugValue: (func: string, key: string) => void
+  renameDebugKey: (func: string, from: string, to: string) => void
   applyDebug: (func?: string) => void // Apply 버튼/Enter → 모든 슬롯 값 한 번에 evaluate
 
   // intent (코드 밖 패널, lineRef로 부착 — 코드 삽입/밀림 없음)
@@ -218,6 +221,23 @@ export const useStore = create<AppState>()(
         const fk = keyOf(get().activeContract, func)
         const cur = get().debugInputs[fk] ?? {}
         set({ debugInputs: { ...get().debugInputs, [fk]: { ...cur, [slotKey]: value } } })
+      },
+
+      removeDebugValue: (func, key) => {
+        const fk = keyOf(get().activeContract, func)
+        const cur = { ...(get().debugInputs[fk] ?? {}) }
+        delete cur[key]
+        set({ debugInputs: { ...get().debugInputs, [fk]: cur } })
+      },
+
+      renameDebugKey: (func, from, to) => {
+        if (from === to) return
+        const fk = keyOf(get().activeContract, func)
+        const cur = { ...(get().debugInputs[fk] ?? {}) }
+        const v = cur[from]
+        delete cur[from]
+        if (v !== undefined) cur[to] = v
+        set({ debugInputs: { ...get().debugInputs, [fk]: cur } })
       },
 
       applyDebug: (func) => {

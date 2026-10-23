@@ -240,12 +240,24 @@ def join_multiline_statements(lines: list[str]) -> list[str]:
 
 
 # ── 5. 충돌 식별자 rename ─────────────────────────────────────────────────
+_ASM_HEAD = re.compile(r'\bassembly\s*(?:\([^)]*\)\s*)?\{')
+
+
 def rename_grammar_clashes(text: str) -> tuple[str, dict]:
     masked = _mask_strings(text)
+    # (2026-10-22) assembly 블록 안은 건드리지 않는다 — Yul 은 별도 문법(EnhancedYulVisitor)이라 intent 키워드와
+    #   충돌하지 않고, `not` 은 Yul **내장 함수**다. 예전엔 `not(0)` 을 `_not(0)` 으로 바꿔 미지원 함수가 되었고
+    #   (값 None) PRBMath/FullMath 의 mulDiv 가 `%` 에서 터졌다(16_H_04/06, 35_H_08/10/12).
+    asm = []
+    for m in _ASM_HEAD.finditer(masked):
+        asm.append((m.end() - 1, _match_brace(masked, m.end() - 1)))
+    in_asm = lambda pos: any(a <= pos <= b for a, b in asm)
     counts = {}
     spans = []
     for w in GRAMMAR_CLASH:
         for m in re.finditer(rf"(?<![\w$]){w}(?![\w$])", masked):
+            if in_asm(m.start()):
+                continue
             spans.append((m.start(), m.end(), w))
         n = sum(1 for s in spans if s[2] == w)
         if n:

@@ -204,6 +204,11 @@ class DebugSlot:
     # interval 슬롯의 타입 정보 → 빈 경계(unbounded) 를 타입 min/max 로 치환할 때 사용(Fix B).
     signed: Optional[bool] = None  # int* → True, uint* → False, 비수치 → None
     bits: Optional[int] = None     # 정수 비트폭(uint256 → 256)
+    # (2026-10-23, 사용자 결정) 구체 인덱스 지정. 기본은 소스에 쓴 접근식 그대로(`poolInfo[_pid]`)이고, 원하면 인덱스 자리를
+    #   구체값으로 바꾼 키(`poolInfo[1]`)로 입력한다(EngineSession.match_slot 이 템플릿과 대조).
+    specializable: bool = False    # 인덱스 자리가 있는 경로 슬롯
+    requiresIndex: bool = False    # 인덱스가 타깃 **지역변수**(`pegObservations[i]` 의 루프 i) — 진입 시점에 값이 없으므로
+                                   #   이 키 그대로는 입력할 수 없고 구체 인덱스로만 입력한다
 
 
 @dataclass
@@ -804,6 +809,8 @@ def _valuekind_of(typeInfo, class_name: str = "", name: str = ""):
     cat = getattr(typeInfo, "typeCategory", None)
     et = getattr(typeInfo, "elementaryTypeName", None)
     tbits = getattr(typeInfo, "intTypeLength", None)
+    if cat in ("interface", "contract"):          # 인터페이스/컨트랙트 핸들 = 주소 값
+        return "address", False, None, None
     if cat in ("mapping", "array", "struct"):
         return "array", True, None, None
     if cat == "enum":
@@ -918,166 +925,487 @@ def _ap_node_exprs(n):
     if ce is not None: yield ce
 
 
+class _Untranslatable(Exception):
+    """callee 지역변수처럼 타깃 진입 시점 이름으로 옮길 수 없는 접근식."""
+
+
+def _parse_label(label: str):
+    """슬롯 라벨 → (root, [("member", 이름) | ("index", 텍스트) | ("call", None)]). 괄호 균형으로 자른다."""
+    m = _re.match(r"[A-Za-z_$][\w$]*", label)
+    if not m:
+        return None, []
+    root, i, accs = m.group(0), m.end(), []
+    while i < len(label):
+        c = label[i]
+        if c == ".":
+            m2 = _re.match(r"[A-Za-z_$][\w$]*", label[i + 1:])
+            if not m2:
+                return root, accs + [("call", None)]
+            accs.append(("member", m2.group(0)))
+            i += 1 + m2.end()
+        elif c in "[(":
+            close = "]" if c == "[" else ")"
+            depth, j = 0, i
+            while j < len(label):
+                if label[j] in "[(":
+                    depth += 1
+                elif label[j] in "])":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            accs.append(("index", label[i + 1:j]) if close == "]" else ("call", None))
+            i = j + 1
+        else:
+            break
+    return root, accs
+
+
+def _navigate(obj, accs):
+    """라벨 접근 경로를 따라 값 모양(타입)을 얻는다 — 키 값과 무관한 원소 하나(가상)로 내려간다."""
+    from Domain.Variable import MappingVariable, StructVariable, ArrayVariable
+    cur = obj
+    for kind, key in accs:
+        if cur is None:
+            return None
+        if kind == "member":
+            cur = cur.members.get(key) if isinstance(cur, StructVariable) else None
+        elif kind == "index":
+            if isinstance(cur, MappingVariable):
+                cur = cur._create_value_virtual("0")
+            elif isinstance(cur, ArrayVariable):
+                try:
+                    cur = cur._create_new_array_element(0)
+                except Exception:
+                    cur = None
+            else:
+                cur = None
+        else:
+            return None
+    return cur
+
+
+def _declared_locals(f) -> set:
+    """함수 안에서 선언된 지역변수 이름 (파라미터 제외)."""
+    names = set()
+    for n in f.graph.nodes():
+        for st in getattr(n, "statements", []) or []:
+            if getattr(st, "statement_type", None) == "variableDeclaration":
+                names.add(st.var_name)
+    return names
+
+
+def _index_texts(label: str) -> list:
+    return [x for k, x in _parse_label(label)[1] if k == "index"]
+
+
+def _idents_in(text: str) -> set:
+    return set(_re.findall(r"(?<![\w$])[A-Za-z_$][\w$]*", text or ""))   # 0x1a 의 x1a 는 식별자 아님
+
+
+_CAST_CALL = _re.compile(r"(address|payable|bool|string|bytes\d*|u?int\d*|[A-Z]\w*)$")
+
+
+def _entry_index_ok(text: str, locs: set) -> bool:
+    """바꾼 인덱스가 진입 시점에 부작용 없이 평가될 수 있는 식 모양인가 (지역변수·비-형변환 호출·++/대입 금지).
+    형 변환은 기본 타입과 대문자로 시작하는 타입 이름(인터페이스·컨트랙트 캐스트) — 최종 순수성 검사는 엔진 Storage.resolve."""
+    if _re.search(r"\+\+|--|(?<![=!<>])=(?!=)", text or ""):
+        return False
+    if _idents_in(text) & locs:
+        return False
+    for m in _re.finditer(r"([A-Za-z_$][\w$]*)\s*\(", text or ""):
+        if not _CAST_CALL.match(m.group(1)):
+            return False
+    return True
+
+
+def _all_state_vars(ccf, contract_cfgs) -> dict:
+    """타깃 + 상속 조상의 상태변수 (가까운 쪽 우선). 부모(의존성) 상태변수도 타깃 실행 중 읽힌다."""
+    out, seen, queue = {}, set(), [ccf] if ccf is not None else []
+    while queue:
+        c = queue.pop(0)
+        if c is None or id(c) in seen:
+            continue
+        seen.add(id(c))
+        svn = getattr(c, "state_variable_node", None)
+        for k, v in ((getattr(svn, "variables", {}) if svn is not None else {}) or {}).items():
+            out.setdefault(k, v)
+        pcs = getattr(c, "parent_cfgs", {}) or {}
+        for pn in getattr(c, "parent_contracts", []) or []:
+            queue.append(pcs.get(pn) or (contract_cfgs or {}).get(pn))
+    return out
+
+
+def _is_address_this(b) -> bool:
+    """`address(this)` — 형 변환 식이든 호출 모양이든."""
+    if getattr(b, "typeName", None) == "address":
+        return getattr(getattr(b, "expression", None), "identifier", None) == "this"
+    fn = getattr(b, "function", None)
+    args = getattr(b, "arguments", None) or []
+    return getattr(fn, "identifier", None) == "address" and len(args) == 1 and \
+        getattr(args[0], "identifier", None) == "this"
+
+
 def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
-                        interface_names=None, contract_cfgs=None) -> list[DebugSlot]:
-    """구조적 debug 슬롯 도출(값 이전). *이 함수와 관련된* 변수만, 타입별 valueKind로.
-      Param = 함수 파라미터 / StateVar = 이 함수가 참조하는 상태변수(func_src 매치)
-      GlobalVar = 이 함수가 쓰는 글로벌 / IReturn = 인터페이스 호출.
-    compound(mapping/struct/array 접근 경로)·IReturn 은 통합 접근-경로 스캐너(_ap_*, decision #34)로
-    node.statements AST 에서 도출: 슬롯 key = 경로 문자열(`_balances[u]`·`accountBorrows[k].principal`·
-    `token.balanceOf()`), valueKind = leaf 타입. compound 로 잡힌 상태변수는 opaque 통짜 슬롯 대신 경로 슬롯으로.
-    valueKind = 변수 typeInfo(SolType) 기반; signed/bits 는 Fix B 경계 치환용."""
+                        interface_names=None, contract_cfgs=None, an=None) -> list[DebugSlot]:
+    """구조적 debug 슬롯 도출(값 이전). 디버그 입력 = **타깃 함수 진입 시점**의 값이므로, 이 함수가 실행 중 읽을 수 있는
+    모든 것 — 타깃 본문 + (2026-10-23) 내부 호출·modifier·라이브러리·super/this 로 이어지는 함수들(footprint) — 을 본다.
+      Param     = 파라미터(스칼라) · 복합 파라미터의 접근 경로(`accepted.valuation`, `self.balances[account]`)
+      StateVar  = 참조되는 상태변수(스칼라·인터페이스 핸들 주소) · 접근 경로(`m[k]`, `s[k].f`) — constant 는 값이 정해져 제외
+      GlobalVar = 쓰이는 msg/block/tx · address(this).balance
+      IReturn   = view/pure 외부 호출 반환(튜플이면 원소별)
+    callee 안의 접근식은 호출 지점 인자로 **타깃 진입 이름으로 번역**한다(`_mint(foreignAsset)` 안의 `pairInfo[asset]` →
+    `pairInfo[foreignAsset]`). 엔진도 실행 중 같은 대응을 쓴다(Storage.callee_aliases) — 그래서 이 슬롯 값이 callee 접근에
+    쓰인다. 번역할 수 없는 경로(callee 지역변수 기반)는 슬롯이 아니다. 이름이 가리킬 수 있는 callee 는 오버로드까지 전부
+    따라간다(과대 근사 — 남는 슬롯은 비워 두면 되지만 빠진 슬롯은 입력할 방법이 없다).
+    구조체 값 경로는 멤버 leaf 까지 펼친다."""
     from Domain.IR import Expression
     from Domain.Variable import MappingVariable, StructVariable, ArrayVariable
     interface_names = interface_names or set()
     contract_cfgs = contract_cfgs or {}
     slots: list[DebugSlot] = []
 
-    svn = getattr(ccf, "state_variable_node", None) if ccf is not None else None
-    statevars = (getattr(svn, "variables", {}) if svn is not None else {}) or {}
-    # 외부 호출 루트 판정은 `_external_call_roots` 한 곳에만 둔다(N4 opaque 표시와 공유).
+    statevars = {k: v for k, v in _all_state_vars(ccf, contract_cfgs).items() if not getattr(v, "isConstant", False)}
     ext_roots = _external_call_roots(ccf, interface_names, contract_cfgs)
+    params = list(getattr(fcfg, "parameters", []) or [])
+    param_objs = getattr(fcfg, "related_variables", {}) or {}
+    evaluator = getattr(an, "evaluator", None) if an is not None else None
+    libs = dict(getattr(an, "library_cfgs", {}) or {}) if an is not None else {}
 
-    # ── 접근-경로 스캔 ─────────────────────────────────────────────
-    compound: dict[str, tuple] = {}        # label -> (valueKind, opaque, signed, bits)
-    compound_roots: set[str] = set()
+    compound: dict[str, str] = {}          # label -> "StateVar" | "Param"
+    scalars: set[str] = set()              # 참조된 상태변수(스칼라 후보)
+    globals_used: set[str] = set()
     ireturn_labels: set[str] = set()
-    ireturn_meta: dict[str, tuple[str, str]] = {}   # label -> (선언타입, 함수명) — S0b 게이트용
+    ireturn_meta: dict[str, tuple[str, str]] = {}
 
-    def classify(root):
-        if _ap_is_ident(root):
-            nm = root.identifier
-            if nm in ext_roots: return "IReturn"
-            if nm in statevars: return "StateVar"
+    # ── 프레임: 이 함수의 이름 → (타깃 진입 라벨, 분류). 타깃 = 파라미터 그대로.
+    declared_locals = _declared_locals
+    target_locals = _declared_locals(fcfg) - set(params)
+
+    def root_class(name, frame):
+        sub, locs = frame["sub"], frame["locs"]
+        if name in sub:
+            return sub[name][1]
+        if name in locs:
             return None
-        tn = getattr(root, "typeName", None)
-        if tn and tn in ext_roots: return "IReturn"
+        if name in ext_roots:
+            return "IReturn"
+        if name in statevars:
+            return "StateVar"
         return None
 
-    def ireturn_type_of(root):
-        """@IReturn 대상의 **선언 타입 이름** (mutability 조회용)."""
+    def lab(e, frame):
+        """접근식 → 타깃 진입 이름의 라벨 (_ap_label 과 같은 모양). 번역 불가면 _Untranslatable."""
+        if not isinstance(e, Expression):
+            return str(e)
+        if _ap_is_index(e):
+            return f"{lab(e.base, frame)}[{lab(e.index, frame)}]"
+        if _ap_is_member(e):
+            return f"{lab(_ap_member_base(e), frame)}.{e.member}"
+        if _ap_is_call(e):
+            fn = e.function
+            if _ap_is_member(fn):
+                return f"{lab(fn, frame)}()"
+            args = ",".join(lab(a, frame) for a in (getattr(e, "arguments", None) or []))
+            return f"{lab(fn, frame)}({args})"
+        if _ap_is_ident(e):
+            nm = str(e.identifier)
+            if nm in frame["sub"]:
+                if frame["sub"][nm][0] is None:
+                    raise _Untranslatable(nm)
+                return frame["sub"][nm][0]
+            if frame["strict"] and nm in frame["locs"]:
+                raise _Untranslatable(nm)
+            return nm
+        if getattr(e, "literal", None) is not None:
+            return str(e.literal)
+        if getattr(e, "typeName", None) is not None and getattr(e, "expression", None) is not None:
+            return f"{e.typeName}({lab(e.expression, frame)})"
+        if getattr(e, "left", None) is not None and getattr(e, "right", None) is not None:
+            return f"{lab(e.left, frame)} {e.operator} {lab(e.right, frame)}"
+        return str(e)
+
+    def classify(root, frame):
         if _ap_is_ident(root):
-            return ext_roots.get(root.identifier)
-        return ext_roots.get(getattr(root, "typeName", None))
+            return root_class(root.identifier, frame)
+        tn = getattr(root, "typeName", None)
+        if tn and tn in ext_roots:
+            return "IReturn"
+        return None
+
+    def label_root_name(label):
+        return _parse_label(label)[0]
+
+    def scan(e, frame):
+        if not isinstance(e, Expression):
+            return
+        # 전역(msg.sender 등)·address(this).balance
+        if _ap_is_member(e):
+            b = _ap_member_base(e)
+            if getattr(b, "identifier", None) in ("msg", "block", "tx"):
+                globals_used.add(f"{b.identifier}.{e.member}")
+            elif e.member == "balance" and _is_address_this(b):
+                globals_used.add("address(this).balance")
+        if _ap_is_ident(e) and e.identifier in statevars and root_class(e.identifier, frame) in ("StateVar", "IReturn"):
+            scalars.add(e.identifier)
+        if _ap_is_access(e):
+            root, accs = _ap_spine(e)
+            cls = classify(root, frame)
+            has_call = any(k == "call" for k, _ in accs)
+            if cls is not None and not (cls != "IReturn" and has_call):
+                try:
+                    label = lab(e, frame)
+                except _Untranslatable:
+                    label = None
+                if label is not None:
+                    if cls == "IReturn":
+                        # IReturn 값은 **호출 지점 원문**(callee 안이면 callee 의 이름)으로 조회된다(ireturn_registry 키) —
+                        #   슬롯 키는 원문, view/pure·튜플 판정용 타입만 번역된 루트로 찾는다.
+                        raw = _ap_label(e)
+                        ireturn_labels.add(raw)
+                        rn = label_root_name(label)
+                        _tn = ext_roots.get(rn) or ext_roots.get(getattr(root, "typeName", None))
+                        _fn = next((k for kind, k in reversed(accs) if kind == "member"), None)
+                        if _tn and _fn:
+                            ireturn_meta[raw] = (_tn, _fn)
+                    elif accs:
+                        compound.setdefault(label, cls)
+                for side in _ap_side_exprs(e):
+                    scan(side, frame)
+                if _ap_is_ident(root) and root.identifier in statevars and cls in ("StateVar", "IReturn"):
+                    scalars.add(root.identifier)
+                if not has_call:
+                    return
+        if _ap_is_call(e):
+            # 호출: 수신자·인자만 따로 본다 — 함수 부분(`x.add`)은 값 접근이 아니다
+            follow_call(e, frame)
+            fn = e.function
+            if _ap_is_member(fn):
+                scan(_ap_member_base(fn), frame)
+            for a in (getattr(e, "arguments", None) or []):
+                scan(a, frame)
+            for a in (getattr(e, "named_arguments", None) or {}).values():
+                scan(a, frame)
+            return
+        for c in _ap_children(e):
+            scan(c, frame)
+
+    # ── 호출 따라가기 ────────────────────────────────────────────
+    visited: set = set()
+    queue: list = []
+
+    def lib_of(f):
+        for lib in libs.values():
+            if any(g is f for _, g in lib.iter_all_functions()):
+                return lib
+        return None
+
+    def candidates(e, frame):
+        """(callee FunctionCFG, 수신자 식 | None) 후보 — 엔진(evaluate_function_call_context)이 고를 수 있는 것 전부."""
+        fn = e.function
+        out = []
+        if _ap_is_ident(fn):
+            name = fn.identifier
+            owner = frame["lib"]
+            if owner is not None and name in owner.functions:
+                out += [(g, None) for g in owner.functions[name].values()]
+            elif evaluator is not None and ccf is not None:
+                ov = evaluator.find_function_overloads_in_hierarchy(ccf, name) or {}
+                out += [(g, None) for g in ov.values()]
+        elif _ap_is_member(fn):
+            base, member = _ap_member_base(fn), fn.member
+            bname = getattr(base, "identifier", None)
+            if bname == "super" and ccf is not None:
+                for pn in getattr(ccf, "parent_contracts", []) or []:
+                    pc = (getattr(ccf, "parent_cfgs", {}) or {}).get(pn) or contract_cfgs.get(pn)
+                    if pc is not None and evaluator is not None:
+                        out += [(g, None) for g in (evaluator.find_function_overloads_in_hierarchy(pc, member) or {}).values()]
+            elif bname == "this" and evaluator is not None and ccf is not None:
+                out += [(g, None) for g in (evaluator.find_function_overloads_in_hierarchy(ccf, member) or {}).values()]
+            elif bname in libs:
+                out += [(g, None) for g in (libs[bname].functions.get(member) or {}).values()]
+            elif ccf is not None:
+                using = [l for ls in (getattr(ccf, "using_libraries", {}) or {}).values() for l in ls]
+                using += list(getattr(ccf, "using_all_libraries", []) or [])
+                if frame["lib"] is not None:
+                    using.append(frame["lib"])
+                seen = set()
+                for l in using:
+                    if id(l) in seen:
+                        continue
+                    seen.add(id(l))
+                    out += [(g, base) for g in (l.functions.get(member) or {}).values()]
+        return out
+
+    def bind(callee, recv, args, named, frame):
+        ps = list(getattr(callee, "parameters", []) or [])
+        exprs = [None] * len(ps)
+        off = 0
+        if recv is not None and len(ps) == len(args) + len(named) + 1:
+            exprs[0], off = recv, 1
+        for i, a in enumerate(args):
+            if off + i < len(exprs):
+                exprs[off + i] = a
+        for k, a in named.items():
+            if k in ps:
+                exprs[ps.index(k)] = a
+        sub = {}
+        for p, a in zip(ps, exprs):
+            if a is None:
+                sub[p] = (None, None)
+                continue
+            try:
+                lb = lab(a, frame)
+            except _Untranslatable:
+                sub[p] = (None, None)
+                continue
+            r = _ap_spine(a)[0]
+            sub[p] = (lb, classify(r, frame) if (_ap_is_ident(r) or getattr(r, "typeName", None)) else None)
+        return sub
+
+    def enqueue(f, sub, lib, depth):
+        key = (id(f), tuple(sorted((k, v) for k, v in sub.items())))
+        if key in visited or depth > 6:
+            return
+        visited.add(key)
+        locs = declared_locals(f) | {p for p, (lb, _c) in sub.items() if lb is None}
+        queue.append((f, {"sub": sub, "locs": locs, "lib": lib, "strict": depth > 0}, depth))
+
+    def follow_call(e, frame):
+        args = list(getattr(e, "arguments", None) or [])
+        named = dict(getattr(e, "named_arguments", None) or {})
+        for callee, recv in candidates(e, frame):
+            if getattr(callee, "graph", None) is None:
+                continue
+            enqueue(callee, bind(callee, recv, args, named, frame), lib_of(callee), frame_depth[0] + 1)
+
+    def modifiers_of(f, frame, depth):
+        for name, margs in (getattr(f, "modifier_invocations", None) or []):
+            mod = ccf.get_function_cfg(name) if ccf is not None else None
+            if mod is None and an is not None and ccf is not None:
+                mod = an._find_in_ancestors(ccf, name)
+            if mod is None or getattr(mod, "function_type", None) != "modifier":
+                continue
+            enqueue(mod, bind(mod, None, list(margs or []), {}, frame), None, depth + 1)
+
+    frame_depth = [0]
+    enqueue(fcfg, {p: (p, "Param") for p in params}, lib_of(fcfg), 0)
+    while queue:
+        f, frame, depth = queue.pop(0)
+        frame_depth[0] = depth
+        for n in f.graph.nodes():
+            for e in _ap_node_exprs(n):
+                scan(e, frame)
+        modifiers_of(f, frame, depth)
+
+    # ── 슬롯 만들기 ───────────────────────────────────────────────
+    def root_obj(label, cls):
+        r = label_root_name(label)
+        return statevars.get(r) if cls == "StateVar" else param_objs.get(r)
+
+    def emit_path(label, cls, obj, depth=0):
+        """경로 슬롯 + 구조체면 멤버 leaf 로 펼침."""
+        kind = "StateVar" if cls == "StateVar" else "Param"
+        if isinstance(obj, StructVariable) and depth < 3:
+            for mname, mobj in obj.members.items():
+                emit_path(f"{label}.{mname}", cls, mobj, depth + 1)
+        if obj is None:
+            vk = ("interval", False, False, 256)
+        else:
+            vk = _valuekind_of(getattr(obj, "typeInfo", None), type(obj).__name__)
+        add(kind, label, vk)
+
+    seen_keys: set = set()
+
+    def add(kind, key, vk):
+        if key in seen_keys:
+            return
+        seen_keys.add(key)
+        v, opaque, signed, bits = vk
+        idx = _index_texts(key) if kind in ("StateVar", "Param") else []
+        slots.append(DebugSlot(kind=kind, key=key, label=key, valueKind=v,
+                               opaque=bool(opaque), signed=signed, bits=bits,
+                               specializable=bool(idx),
+                               requiresIndex=any(_idents_in(t) & target_locals for t in idx)))
+
+    # 1) 파라미터 — 타입대로, 복합이면 멤버 leaf 까지
+    for p in params:
+        po = param_objs.get(p)
+        if isinstance(po, StructVariable):
+            emit_path(p, "Param", po)
+        else:
+            add("Param", p, _valuekind_of(getattr(po, "typeInfo", None), type(po).__name__, p) if po is not None
+                else ("interval", False, False, 256))
+
+    # 2) 상태변수 스칼라 — 타깃 본문 텍스트 참조 ∪ footprint 참조. 인터페이스 핸들은 주소 값 슬롯
+    compound_roots = {label_root_name(l) for l, c in compound.items() if c == "StateVar"}
+    for name, var in statevars.items():
+        if name in compound_roots and not isinstance(var, StructVariable) and \
+                getattr(getattr(var, "typeInfo", None), "typeCategory", None) in ("mapping", "array"):
+            continue
+        if not (name in scalars or (func_src and _referenced(name, func_src))):
+            continue
+        if isinstance(var, StructVariable):
+            emit_path(name, "StateVar", var)
+            continue
+        add("StateVar", name, _valuekind_of(getattr(var, "typeInfo", None), type(var).__name__, name))
+
+    # 3) 접근 경로 슬롯
+    for label, cls in compound.items():
+        r, accs = _parse_label(label)
+        ro = root_obj(label, cls)
+        if not isinstance(ro, (StructVariable, MappingVariable, ArrayVariable)):
+            continue                    # 스칼라 루트의 멤버(`to.balance` 등)는 저장소 경로가 아니다
+        emit_path(label, cls, _navigate(ro, accs))
+
+    # 4) 글로벌 — 기존 등록(usage_sites) ∪ footprint 에서 쓰인 것
+    globs = (getattr(ccf, "globals", {}) if ccf is not None else {}) or {}
+    for g, gvar in (globs.items() if hasattr(globs, "items") else ((x, None) for x in globs)):
+        sites = getattr(gvar, "usage_sites", None)
+        if (func_name in sites) if sites else _referenced(g, func_src):
+            globals_used.add(g)
+    for g in sorted(globals_used):
+        gvar = globs.get(g) if hasattr(globs, "get") else None
+        add("GlobalVar", g, _valuekind_of(getattr(gvar, "typeInfo", None), type(gvar).__name__, g))
+
+    # 5) @IReturn — 스캔 ∪ registry. 튜플 반환이면 원소별 `[k]`
+    for key in getattr(fcfg, "ireturn_registry", {}) or {}:
+        ireturn_labels.add(".".join(str(x) for x in key if x))
 
     def ireturn_rejected(label: str) -> bool:
-        """선언 mutability 가 view/pure 가 **아님이 확정**된 슬롯인가 (S0b).
+        """선언 mutability 가 view/pure 가 아님이 확정된 슬롯인가 (S0b — `process_ireturn_*` 게이트와 같은 규칙).
+        fail-open: 타입/함수를 못 찾으면 제외하지 않는다."""
+        fcs = ireturn_cands(label)
+        if not fcs:
+            return False
+        return all(getattr(c, "mutability", None) not in ("view", "pure") for c in fcs)
 
-        `@IReturn` 은 view/pure 만 허용한다 — `ContractAnalyzer.process_ireturn_*` 가
-        `mutability not in ("view","pure")` 이면 raise 한다. 그 게이트가 **슬롯 도출에는
-        없어서** 받지도 않을 슬롯을 프론트에 제시하고, 사용자가 값을 넣는 순간 거부됐다.
-        ★ 이 제한은 원리적으로 옳다: 선언이 view/pure 면 solc 가 **STATICCALL** 을 내므로
-          "부작용 없음" 은 주소에 뭐가 있든 **EVM 이 강제**한다. 보장되지 않는 것은
-          **반환값**뿐이고, 그래서 반환값만 사용자 가정으로 받는다.
-        ⚠ fail-open: 타입/함수를 못 찾으면 제외하지 않는다(기존에 되던 슬롯을 없애지 않음).
-          `mutability=None`(키워드 없음 = nonpayable)은 위 게이트와 동일하게 **거부**로 본다.
-        """
+    def ireturn_cands(label):
         meta = ireturn_meta.get(label)
         if meta is None:
-            return False
+            return []
         tn, fn = meta
         cfg = contract_cfgs.get(tn)
         if cfg is None:
-            return False
-        fc = None
+            return []
         try:
             fc = cfg.get_function_cfg(fn)
         except Exception:
             fc = (getattr(cfg, "functions", {}) or {}).get(fn)
         if fc is None:
-            return False
-        cands = list(fc.values()) if isinstance(fc, dict) else [fc]
-        # 오버로드는 하나라도 view/pure 면 허용 (어느 오버로드인지 여기선 모른다)
-        return all(getattr(c, "mutability", None) not in ("view", "pure") for c in cands)
+            return []
+        return list(fc.values()) if isinstance(fc, dict) else [fc]
 
-    def leaf_vk(root, accs):
-        cur = statevars.get(root.identifier) if _ap_is_ident(root) else None
-        for kind, key in accs:
-            if cur is None: break
-            if kind == "member":
-                cur = cur.members.get(key) if isinstance(cur, StructVariable) else None
-            elif kind == "index":
-                if isinstance(cur, MappingVariable):
-                    cur = cur._create_value_virtual("0")
-                elif isinstance(cur, ArrayVariable):
-                    try: cur = cur._create_new_array_element(0)
-                    except Exception: cur = None
-                else: cur = None
-            else:
-                cur = None
-        if cur is None:
-            return "interval", False, False, 256  # 해소 실패 → 기본 수치
-        return _valuekind_of(getattr(cur, "typeInfo", None), type(cur).__name__)
-
-    def scan(e):
-        if not isinstance(e, Expression): return
-        if _ap_is_access(e):
-            root, accs = _ap_spine(e)
-            cls = classify(root)
-            if cls is not None:
-                label = _ap_label(e)
-                if cls == "IReturn":
-                    ireturn_labels.add(label)
-                    _tn = ireturn_type_of(root)
-                    _fn = next((k for kind, k in reversed(accs) if kind == "member"), None)
-                    if _tn and _fn:
-                        ireturn_meta[label] = (_tn, _fn)
-                elif accs:  # compound = accessor 가 있을 때만(단순 스칼라 상태변수 제외)
-                    compound_roots.add(root.identifier)
-                    compound.setdefault(label, leaf_vk(root, accs))
-                for side in _ap_side_exprs(e):
-                    scan(side)
-                return
-        for c in _ap_children(e):
-            scan(c)
-
-    for n in fcfg.graph.nodes():
-        for e in _ap_node_exprs(n):
-            scan(e)
-
-    # 1) 파라미터 (Param, 스칼라)
-    for p in getattr(fcfg, "parameters", []) or []:
-        slots.append(DebugSlot(kind="Param", key=p, label=p,
-                               valueKind="interval", signed=False, bits=256))
-
-    # 2) 상태변수 — compound root 는 경로 슬롯이, 인터페이스 핸들은 IReturn 이 대체하므로 스킵, 나머지는 스칼라
-    for name, var in statevars.items():
-        # 인터페이스/컨트랙트 핸들 상태변수는 IReturn 슬롯이 대체한다.
-        #   `ext_roots` 에는 타입 이름도 들어 있으나, 여기 루프는 statevars 만 돌므로 무해하다.
-        if name in compound_roots or name in ext_roots:
-            continue
-        if func_src and not _referenced(name, func_src):
-            continue
-        vk, opaque, signed, bits = _valuekind_of(getattr(var, "typeInfo", None),
-                                                 type(var).__name__, name)
-        slots.append(DebugSlot(kind="StateVar", key=name, label=name, valueKind=vk,
-                               opaque=opaque, signed=signed, bits=bits))
-
-    # 3) compound 경로 슬롯 (StateVar)
-    for label, (vk, opaque, signed, bits) in compound.items():
-        slots.append(DebugSlot(kind="StateVar", key=label, label=label, valueKind=vk,
-                               opaque=bool(opaque), signed=signed, bits=bits))
-
-    # 4) 글로벌
-    globs = (getattr(ccf, "globals", {}) if ccf is not None else {}) or {}
-    for g, gvar in (globs.items() if hasattr(globs, "items") else ((x, None) for x in globs)):
-        sites = getattr(gvar, "usage_sites", None)
-        used = (func_name in sites) if sites else _referenced(g, func_src)
-        if not used:
-            continue
-        vk, opaque, signed, bits = _valuekind_of(getattr(gvar, "typeInfo", None),
-                                                 type(gvar).__name__, g)
-        slots.append(DebugSlot(kind="GlobalVar", key=g, label=g, valueKind=vk,
-                               opaque=opaque, signed=signed, bits=bits))
-
-    # 5) @IReturn — 코드 스캔(신규) ∪ registry(@IReturn 어노테이션 값) — label dedup
-    for key in getattr(fcfg, "ireturn_registry", {}) or {}:
-        ireturn_labels.add(".".join(str(x) for x in key if x))
     for label in sorted(ireturn_labels):
-        if ireturn_rejected(label):     # S0b: view/pure 아님이 확정된 것만 제외
+        if ireturn_rejected(label):
             continue
-        slots.append(DebugSlot(kind="IReturn", key=label, label=label,
-                               valueKind="interval", opaque=True))
+        cands = ireturn_cands(label)
+        arity = max((len(getattr(c, "return_types", []) or []) for c in cands), default=1)
+        if arity > 1 and not label.endswith("]"):
+            for k in range(arity):
+                add("IReturn", f"{label}[{k}]", ("interval", True, None, None))
+        else:
+            add("IReturn", label, ("interval", True, None, None))
     return slots
 
 
@@ -1248,7 +1576,9 @@ class EngineSession:
             code = f"{kw} {it.text}"
             try:
                 tree = ParserHelpers.generate_parse_tree(code, "intentUnit")
-                EnhancedSolidityVisitor(self._ca).visit(tree)
+                v = EnhancedSolidityVisitor(self._ca)
+                v.intent_target = fcfg          # (2026-10-22) @Post = 이 함수의 EXIT, @During = 이 함수 안의 그 줄 노드
+                v.visit(tree)
             except Exception as e:  # 파싱실패(문법위반)·처리실패 모두 흡수
                 errors.append(Diagnostic(line=(it.line or 0),
                                          message=f"intent 무시됨 ({kw} {it.text}): {e}"))
@@ -1260,8 +1590,20 @@ class EngineSession:
         self._batch.reset()
         applied = 0
         errors: list[Diagnostic] = []
-        for key, val in (debug_values or {}).items():
-            slot = self._slots.get(key)
+        # (2026-10-23) 디버그 입력은 **동시에** 성립하는 진입 제약이다 — 인덱스 슬롯(`m[i]`)이 위치를 고를 때 선택자(`i`)의
+        #   입력값이 이미 놓여 있어야 한다. 접근 경로가 얕은 것부터(`[` 개수) 놓아 입력 순서와 무관하게 만든다.
+        for key, val in sorted((debug_values or {}).items(), key=lambda kv: kv[0].count("[")):
+            slot = self.match_slot(key)
+            if _value_text(val) is None or (val.get("t") == "interval" and not str(val.get("lo", "")).strip()
+                                            and not str(val.get("hi", "")).strip()):
+                continue                                  # 빈 칸 = 입력 안 함
+            if slot is None:
+                errors.append(Diagnostic(line=0, message=f"{key}: 이 함수의 디버그 슬롯이 아니다", severity="error"))
+                continue
+            if slot.key == key and slot.requiresIndex:
+                errors.append(Diagnostic(line=0, severity="error",
+                                         message=f"{key}: 인덱스가 함수 지역변수라 진입 시점 값이 없다 — 구체 인덱스로 지정"))
+                continue
             text, err = _debug_value_text(val, slot)
             if err is not None:
                 errors.append(Diagnostic(line=(slot.line if slot and slot.line else 0),
@@ -1375,9 +1717,35 @@ class EngineSession:
                              if lo_ln <= r.get("startLine", -1) <= hi_ln)
         slots = _derive_debug_slots(fcfg, ccf, func_src, func or "",
                                     interface_names=getattr(self._ca, "interface_names", None),
-                                    contract_cfgs=getattr(self._ca, "contract_cfgs", None))
+                                    contract_cfgs=getattr(self._ca, "contract_cfgs", None), an=self._ca)
         self._slots = {s.key: s for s in slots}
+        self._slot_locals = _declared_locals(fcfg) - set(getattr(fcfg, "parameters", []) or [])
         return Structure(scope=self._scope, cfg=cfg, debug_slots=slots, diagnostics=diags)
+
+    def match_slot(self, key: str) -> Optional[DebugSlot]:
+        """디버그 입력 키 → 슬롯. 슬롯 키 그대로이거나, 경로 슬롯의 **인덱스 자리만** 바꾼 키면 그 템플릿 슬롯
+        (2026-10-23 사용자 결정 — 진입 시점 이름 허용). 바꾼 인덱스 = 타깃 함수 **진입 시점에 부작용 없이 평가되는 식**:
+        리터럴·파라미터·상태변수·전역·형 변환과 그 접근식(`[0]`, `[_token]`, `[address(vaderPairs[0])]`). 지역변수(진입 시점에
+        값이 없다)·형 변환이 아닌 호출·`++`/대입은 거부. 의미: 그 식의 **진입 시점 값**이 고르는 위치에 대한 제약이다
+        (프로그램이 뒤에 선택자를 바꿔도 제약은 원래 위치에 남는다 — Storage 의 선택자 무효화). 순수성은 값을 놓을 때
+        엔진이 실제 식으로 다시 검사한다(Storage.resolve → 부수효과면 오류)."""
+        slots = getattr(self, "_slots", {}) or {}
+        if key in slots:
+            return slots[key]
+        root, accs = _parse_label(key)
+        if root is None:
+            return None
+        locs = getattr(self, "_slot_locals", set()) or set()
+        for slot in slots.values():
+            if not slot.specializable:
+                continue
+            r2, a2 = _parse_label(slot.key)
+            if r2 != root or len(a2) != len(accs):
+                continue
+            if all(k1 == k2 and (k1 != "member" or x1 == x2) and (k1 != "index" or _entry_index_ok(x1, locs))
+                   for (k1, x1), (k2, x2) in zip(accs, a2)):
+                return slot
+        return None
 
     # ── 함수 목록(아웃라인) ────────────────────────────────────────────────
     def _function_span(self, fcfg) -> Optional[tuple[int, int]]:

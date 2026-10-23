@@ -12,6 +12,7 @@ from Domain.AddressSet import AddressSet
 from Domain.IR import Expression
 
 from Utils.Helper import VariableEnv
+from Interpreter.Semantics.Storage import is_composite as is_composite_var
 
 
 def _coerce_debug(value, var):
@@ -30,6 +31,22 @@ class DebugInitializer:
 
     def __init__(self, analyzer: "ContractAnalyzer"):
         self.an = analyzer
+        self._assumed: dict = {}     # 이번 디버깅 회차에 값을 놓은 셀 id → (슬롯, 값)  — 같은 위치 입력 모순 검사
+
+    def begin_batch(self):
+        """디버깅 1회(flush) 시작 — DebugUnitAnalyzer.flush 가 부른다."""
+        self._assumed = {}
+
+    def _assume_indexed(self, container, expr, variables):
+        """(2026-10-23) 디버그 입력의 인덱스 단계 — 진입 제약으로 셀을 고른다(Storage.assume_select). 프로그램 쓰기가 아니다.
+        컨테이너를 **고르기 전에** 스냅샷에 등록한다: 새 키 엔트리·선택자 셀·summary 변화까지 flush 후 restore 로 되돌리기 위해
+        (예전엔 leaf 만 등록돼 새로 만든 엔트리가 mapping 에 남았다)."""
+        self._snapshot_once_for_debug(container)
+        if not container.struct_defs or not container.enum_defs:
+            all_structs, all_enums = self.an.get_full_struct_enum_defs()
+            container.struct_defs = {**all_structs, **container.struct_defs}
+            container.enum_defs = {**all_enums, **container.enum_defs}
+        return self.an.storage.assume_select(container, expr.index, variables, label=str(expr))
 
     def resolve_lhs_expr_for_debug(
             self,
@@ -98,6 +115,8 @@ class DebugInitializer:
 
         if base_obj is None:
             return None
+        if isinstance(base_obj, (MappingVariable, ArrayVariable)):
+            return self._assume_indexed(base_obj, expr, variables)
 
         # index 처리 - callerObject를 base_obj로, callerContext를 IntentIndexAccess로 전달
         result = self._update_left_var_for_debug(
@@ -248,6 +267,8 @@ class DebugInitializer:
 
         if base_obj is None:
             return None
+        if isinstance(base_obj, (MappingVariable, ArrayVariable)):
+            return self._assume_indexed(base_obj, expr, variables)
 
         # index 처리
         result = self._update_left_var_for_debug(
@@ -573,10 +594,8 @@ class DebugInitializer:
             except:
                 expr_repr = "unknown"
 
-            # Don't raise error, just log warning and skip this annotation
-            print(f"[WARNING] Cannot resolve LHS expression: {expr_repr} (scope: {scope})")
-            print(f"[WARNING] Available variables: {list(variables.keys())}...")
-            return  # Skip this annotation instead of raising error
+            # (2026-10-23) 슬롯을 제공해 놓고 값을 버리면 안 된다 — 입력 오류로 올린다(예전엔 경고만 찍고 건너뛰었다)
+            raise ValueError(f"디버그 입력 `{lhs_expr}` 을 놓을 위치를 찾지 못했다: {expr_repr}")
 
         # ① snapshot & restore
         self._snapshot_once_for_debug(target)
@@ -588,6 +607,8 @@ class DebugInitializer:
 
         # ② 값 패치
         self._patch_var_with_new_value_for_debug(target, value)
+        self._check_same_location(target, lhs_expr)
+        self.an.storage.after_assume()
 
         # ③ 주소-ID 바인딩
         self._bind_if_address_for_debug(target)
@@ -595,6 +616,23 @@ class DebugInitializer:
         # ④ Recorder 기록 제거
         #   디버그 주석은 초기값 설정이므로 기록 불필요
         #   실제 assignment는 재해석 시 자동으로 기록됨
+
+    def _check_same_location(self, target, lhs_expr):
+        """(2026-10-23) 두 슬롯이 같은 위치(같은 셀)를 고르면(예: i=[3,3] 일 때 `m[i]` 와 `m[3]`) 두 제약을 모두 만족해야 한다 —
+        값의 meet. 비면 입력 모순(그런 진입 상태가 없다)."""
+        if is_composite_var(target) or not hasattr(target, "value"):
+            return
+        label = str(lhs_expr)
+        prev = self._assumed.get(id(target))
+        if prev is not None and prev[0] != label:
+            cur = target.value
+            if hasattr(cur, "meet") and type(cur) is type(prev[1]):
+                met = cur.meet(prev[1])
+                if met.is_bottom():
+                    raise ValueError(f"디버그 입력 모순: `{prev[0]}` 와 `{label}` 는 같은 위치인데 값이 겹치지 않는다 "
+                                     f"({prev[1]} / {cur})")
+                target.value = met
+        self._assumed[id(target)] = (label, target.value)
 
     def _snapshot_once_for_debug(self, target_var: Variables):
         """
@@ -616,6 +654,8 @@ class DebugInitializer:
             # 배열 요소 초기화
             base_type = target_var.typeInfo.arrayBaseType
             target_var.typeInfo.arrayLength = len(new_value)
+            if target_var.typeInfo.isDynamicArray:
+                target_var.length = UnsignedIntegerInterval(len(new_value), len(new_value), 256)
             target_var.elements.clear()
 
             for idx, val in enumerate(new_value):
@@ -817,6 +857,7 @@ class DebugInitializer:
             # 뒤쪽 요소 제거
             arr.elements = arr.elements[:target_length]
         # target_length == current_length이면 아무것도 안 함
+        arr.length = UnsignedIntegerInterval(target_length, target_length, 256)   # (2026-10-23) 추상 길이
 
     def _create_unspecified_array_element(self, arr: ArrayVariable, index: int, base_type: SolType) -> Variables:
         """

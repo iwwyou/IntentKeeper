@@ -8,6 +8,7 @@ from Domain.Variable import (
     Variables,
     StructVariable,
     ArrayVariable,
+    array_length,
     MappingVariable,
     EnumVariable,
 )
@@ -253,10 +254,11 @@ class RecordManager:
     def _flatten_var(self, var_obj: Any, prefix: str, out: Dict[str, Any]):
         # ArrayVariable ---------------------------------------------------
         if isinstance(var_obj, ArrayVariable):
-            if not var_obj.elements:
-                # 빈 배열이면 array(len=N) 형태로 표시
-                arr_len = getattr(var_obj.typeInfo, 'arrayLength', 0) or 0
+            # (2026-10-23) len 은 추상 길이(array_length) — 구체화한 원소 수가 아니다(선언 `T[]` 의 arrayLength 0 도 아니다)
+            arr_len = self._serialize_val(array_length(var_obj))
+            if not var_obj.elements and not var_obj.sym_cells:
                 out[prefix] = f"array(len={arr_len})"
+                self._flatten_summary(var_obj, prefix, out)
                 return
             # 모든 원소가 ⊤(top)이면 배열 요약 형태로 표시
             all_top = all(
@@ -265,10 +267,13 @@ class RecordManager:
                 if isinstance(elem, Variables)
             )
             if all_top and len(var_obj.elements) > 0:
-                out[prefix] = f"array(len={len(var_obj.elements)})"
+                out[prefix] = f"array(len={arr_len})"
                 return
             for idx, elem in enumerate(var_obj.elements):
                 self._flatten_var(elem, f"{prefix}[{idx}]", out)
+            for k, cell in var_obj.sym_cells.items():          # (2026-10-23) 선택자 셀 arr[i]
+                self._flatten_var(cell, f"{prefix}[{k}]", out)
+            self._flatten_summary(var_obj, prefix, out)
             return
 
         # StructVariable --------------------------------------------------
@@ -281,11 +286,23 @@ class RecordManager:
         if isinstance(var_obj, MappingVariable):
             for k, mv in var_obj.mapping.items():
                 self._flatten_var(mv, f"{prefix}[{k}]", out)
+            self._flatten_summary(var_obj, prefix, out)
             return
 
         # Leaf (Variables / EnumVariable) ---------------------------------
         val_ser = self._serialize_val(getattr(var_obj, "value", None))
         out[prefix] = val_ser
+
+    def _flatten_summary(self, c, prefix, out):
+        """(2026-10-23, 사용자 결정) 구체화하지 않은 위치들의 요약 `x[*]` — 선언 기본값에서 **바뀌었을 때만** 보인다
+        (미확정 위치 쓰기가 다른 키에 영향을 줬을 수 있다는 표시)."""
+        if c.summary is None:
+            return
+        cur, dflt = {}, {}
+        self._flatten_var(c.summary, f"{prefix}[*]", cur)
+        self._flatten_var(c.fresh_default(), f"{prefix}[*]", dflt)
+        if cur != dflt:
+            out.update(cur)
 
     # -------------------------------------- value serialisation  ---------
 

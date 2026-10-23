@@ -48,13 +48,13 @@ contract ConcentratedLiquidityPool is IPool {
     }
 
     mapping(int24 => Ticks.Tick) public ticks;
-    mapping(address => mapping(int24 => mapping(int24 => Position))) public positions;
-
     struct Position {
         uint128 liquidity;
         uint256 feeGrowthInside0Last;
         uint256 feeGrowthInside1Last;
     }
+
+    mapping(address => mapping(int24 => mapping(int24 => Position))) public positions;
 
     struct SwapCache {
         uint256 feeAmount;

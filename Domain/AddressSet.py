@@ -18,6 +18,14 @@ class AddressSet:
         """Empty set (⊥) check"""
         return not self.is_top and len(self.ids) == 0
 
+    def retagged(self, interface_name):
+        """같은 주소 집합, 다른 정적 타입 태그의 **새 객체** (2026-10-22).
+        타입 변환(`address(t)`, `IERC20(x)`)은 값의 타입만 바꾼다 — 원래 객체의 태그를 고치면 그 값을 가진 다른 변수까지
+        타입이 바뀐다(예전 `IERC20(x)` 가 `x` 의 값에 태그를 덮어썼다)."""
+        r = AddressSet(ids=self.ids, is_top=self.is_top)
+        r._cast_interface = interface_name
+        return r
+
     @staticmethod
     def top():
         return AddressSet(is_top=True)

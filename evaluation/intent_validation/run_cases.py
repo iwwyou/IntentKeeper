@@ -155,7 +155,13 @@ def expected():
         R.append({m[0]: html.unescape(re.sub(r"<[^>]+>", "", m[2]))
                   for m in re.findall(r'<c r="([A-Z]+)\d+"[^>]*?(/>|>(.*?)</c>)', row, re.S)})
     h = R[0]
-    return {r.get("A"): r.get(next(k for k, v in h.items() if v == "validation_outcome"), "") for r in R[1:]}
+    out = {r.get("A"): r.get(next(k for k, v in h.items() if v == "validation_outcome"), "") for r in R[1:]}
+    # (2026-10-23) IntentKeeper 쪽 덮어쓰기 — 원본 xlsx(Guardian)는 수정 금지. 사유·근거는 파일에 있다.
+    ov = json.loads((pathlib.Path(__file__).resolve().parent / "expected_overrides.json").read_text(encoding="utf-8"))
+    for cid, o in ov.items():
+        if not cid.startswith("_"):
+            out[cid] = o["expected"]
+    return out
 
 
 def declared_names(sol_path):

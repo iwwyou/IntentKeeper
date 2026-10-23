@@ -1,0 +1,50 @@
+flyinointment_SwordCrowdsale       Violated     runs=1 t=0.4s
+numscout_BoostToken_indivisible    Violated     runs=1 t=2.899s
+numscout_BoostToken_operator       Violated     runs=1 t=2.92s
+numscout_EthereumGod               Satisfied    runs=1 t=3.599s
+numscout_HIT                       Violated     runs=1 t=1.108s
+numscout_Nokon                     Warning      runs=1 t=0.842s
+numscout_WANGMI                    Violated     runs=1 t=3.313s
+web3bugs_101_H_01                  Violated     runs=1 t=0.723s
+web3bugs_112_H_01                  Violated     runs=1 t=0.729s
+web3bugs_113_H_05                  Violated     runs=1 t=1.328s
+web3bugs_16_H_04                   Violated     runs=1 t=0.873s
+web3bugs_16_H_06                   Violated     runs=1 t=0.658s
+web3bugs_192_H_01                  None         runs=1 t=1.44s
+web3bugs_29_H_08                   None         runs=1 t=0.568s
+web3bugs_29_H_11                   Warning      runs=1 t=2.237s
+web3bugs_31_H_01                   None         runs=0 t=1.444s ERR ValueError: unresolved member '.length' on Variables value <Domain.Variable.Vari
+web3bugs_35_H_08                   None         runs=1 t=4.295s
+web3bugs_35_H_10                   None         runs=1 t=4.391s
+web3bugs_35_H_11                   Violated     runs=1 t=0.571s
+web3bugs_35_H_12                   None         runs=1 t=4.263s
+web3bugs_36_H_02                   None         runs=0 t=0.082s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_3_H_04                    None         runs=1 t=0.622s
+web3bugs_3_H_05                    None         runs=1 t=8.722s
+web3bugs_42_H_01                   Warning      runs=1 t=177.577s
+web3bugs_45_H_01                   None         runs=1 t=2.773s
+web3bugs_47_H_02                   None         runs=1 t=0.374s
+web3bugs_51_H_02                   None         runs=0 t=0.032s ERR AttributeError: 'LibraryCFG' object has no attribute 'events'
+web3bugs_52_H_04                   Warning      runs=1 t=0.522s
+web3bugs_52_H_23                   None         runs=0 t=0.176s ERR ValueError: Argument count mismatch in function call to 'getReserves': expected 
+web3bugs_52_H_34                   Warning      runs=1 t=0.492s
+web3bugs_56_H_02                   None         runs=1 t=0.25s
+web3bugs_58_H_02                   None         runs=0 t=0.026s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_59_H_04                   None         runs=1 t=0.392s
+web3bugs_5_H_07                    Violated     runs=1 t=0.121s
+web3bugs_5_H_08                    Violated     runs=1 t=0.17s
+web3bugs_5_H_12                    Violated     runs=1 t=0.166s
+web3bugs_60_H_01                   Violated     runs=1 t=0.198s
+web3bugs_62_H_03                   Unreachable  runs=1 t=0.325s
+web3bugs_62_H_08                   None         runs=1 t=0.417s
+web3bugs_62_H_10                   Unreachable  runs=1 t=0.242s
+web3bugs_65_H_01                   None         runs=0 t=0.028s ERR ValueError: line 4: using SafeERC20 — library 'SafeERC20' 의 선언을 찾지 못함 (의존성 누락 또는
+web3bugs_70_H_04                   None         runs=0 t=0.506s ERR ValueError: Member 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_70_H_05                   None         runs=0 t=0.266s ERR ValueError: 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_70_H_10                   None         runs=0 t=0.411s ERR ValueError: Member 'nativeTokenPriceAverage' not in struct 'pairData'
+web3bugs_77_H_01                   Violated     runs=1 t=0.136s
+web3bugs_78_H_02                   Unreachable  runs=1 t=0.182s
+web3bugs_79_H_02                   Violated     runs=1 t=0.414s
+web3bugs_83_H_01                   Violated     runs=1 t=0.215s
+
+verdicts: {'Violated': 18, 'Satisfied': 1, 'Warning': 5, 'None': 21, 'Unreachable': 3} -> C:\Users\isjeon\PycharmProjects\pythonProject\IntentKeeper\evaluation\refactor\baseline\g5_rebuilt.json

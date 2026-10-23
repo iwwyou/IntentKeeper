@@ -129,6 +129,9 @@ class VariableEnv:
             new_arr.elements = [
                 VariableEnv.copy_single_variable(e) for e in v.elements
             ]
+            VariableEnv._copy_indexed_state(new_arr, v)
+            new_arr.sym_cells = VariableEnv.copy_variables(v.sym_cells)
+            new_arr.length = v.length.copy() if v.length is not None else None
             return new_arr
 
         if isinstance(v, StructVariable):
@@ -150,6 +153,7 @@ class VariableEnv:
                 enum_defs=v.enum_defs
             )
             new_mp.mapping = VariableEnv.copy_variables(v.mapping)
+            VariableEnv._copy_indexed_state(new_mp, v)
             return new_mp
 
         # ★ (Phase 3b, 성능) 일반 Variables: 값만 새로 만들고 타입 메타데이터(typeInfo)는 공유한다.
@@ -166,6 +170,24 @@ class VariableEnv:
             return nv
 
         return copy.deepcopy(v)
+
+    @staticmethod
+    def _copy_indexed_state(dst, src):
+        """(2026-10-23) 선택자 셀 메타·summary 복사 (Domain/Variable.py `_init_indexed_storage` 참고)."""
+        dst.sym = {k: dict(m) for k, m in src.sym.items()}
+        dst.summary = VariableEnv.copy_single_variable(src.summary) if src.summary is not None else None
+
+    @staticmethod
+    def adopt_storage(dst, src):
+        """dst(Array/Mapping)의 저장소 상태를 src 것으로 통째로 바꾼다 — 식별자·스코프는 dst 유지.
+        callee 복귀 되쓰기·참조 인자 되쓰기·통짜 재할당이 공유한다(필드를 하나씩 옮기면 새 필드가 빠진다)."""
+        if isinstance(dst, MappingVariable):
+            dst.mapping = VariableEnv.copy_variables(src.mapping)
+        else:
+            dst.elements = [VariableEnv.copy_single_variable(e) for e in src.elements]
+            dst.sym_cells = VariableEnv.copy_variables(src.sym_cells)
+            dst.length = src.length.copy() if src.length is not None else None
+        VariableEnv._copy_indexed_state(dst, src)
 
     @staticmethod
     def _copy_value(val):
@@ -246,51 +268,53 @@ class VariableEnv:
             if type(v1) is not type(v2):
                 return False
 
-            # ArrayVariable 특수 처리 - elements는 리스트
-            if isinstance(v1, ArrayVariable):
-                if not VariableEnv._compare_array_elements(v1.elements, v2.elements):
-                    return False
-                continue
-
-            # leaf – 값 비교
-            if hasattr(v1, "value"):
-                if hasattr(v1.value, "equals"):
-                    if type(v1.value) != type(v2.value):
-                        return False
-                    if not v1.value.equals(v2.value):
-                        return False
-                elif v1.value != v2.value:
-                    return False
-            else:
-                # 복합 타입 – 재귀 (StructVariable, MappingVariable 등)
-                attr1 = getattr(v1, "members", getattr(v1, "mapping", {}))
-                attr2 = getattr(v2, "members", getattr(v2, "mapping", {}))
-                if not VariableEnv.variables_equal(attr1, attr2):
-                    return False
+            if not VariableEnv._single_equal(v1, v2):
+                return False
         return True
+
+    @staticmethod
+    def _single_equal(v1, v2) -> bool:
+        """변수 하나 비교. (2026-10-23) 복합 타입을 **먼저** 본다 — 예전엔 Struct/Mapping 이 `.value`(항상 None)를 가져서
+        leaf 비교(None == None)로 빠져 **내용을 전혀 비교하지 않았다**. fixpoint 가 mapping·struct 의 변화만 있는 후속 노드를
+        다시 계산하지 않아(Engine._run_worklist 의 changed_succ) 루프 안의 저장소 쓰기가 반영되지 않을 수 있었다."""
+        if type(v1) is not type(v2):
+            return False
+        if not isinstance(v1, Variables):              # 원소 자리에 값이 그대로 들어 있는 경우
+            return v1.equals(v2) if hasattr(v1, "equals") else v1 == v2
+        if isinstance(v1, ArrayVariable):
+            return (VariableEnv._compare_array_elements(v1.elements, v2.elements)
+                    and VariableEnv._indexed_meta_equal(v1, v2)
+                    and VariableEnv.variables_equal(v1.sym_cells, v2.sym_cells)
+                    and VariableEnv._opt_value_equal(v1.length, v2.length))
+        if isinstance(v1, MappingVariable):
+            return (VariableEnv.variables_equal(v1.mapping, v2.mapping)
+                    and VariableEnv._indexed_meta_equal(v1, v2))
+        if isinstance(v1, StructVariable):
+            return VariableEnv.variables_equal(v1.members, v2.members)
+        if hasattr(v1.value, "equals"):
+            return type(v1.value) == type(v2.value) and v1.value.equals(v2.value)
+        return v1.value == v2.value
+
+    @staticmethod
+    def _indexed_meta_equal(c1, c2) -> bool:
+        if c1.sym.keys() != c2.sym.keys():
+            return False
+        if (c1.summary is None) != (c2.summary is None):
+            return False
+        return c1.summary is None or VariableEnv._single_equal(c1.summary, c2.summary)
+
+    @staticmethod
+    def _opt_value_equal(a, b) -> bool:
+        if a is None or b is None:
+            return a is b
+        return a.equals(b)
 
     @staticmethod
     def _compare_array_elements(els1: list, els2: list) -> bool:
         """ArrayVariable의 elements 리스트 비교"""
         if len(els1) != len(els2):
             return False
-        for e1, e2 in zip(els1, els2):
-            if type(e1) is not type(e2):
-                return False
-            # 재귀적으로 ArrayVariable 처리
-            if isinstance(e1, ArrayVariable):
-                if not VariableEnv._compare_array_elements(e1.elements, e2.elements):
-                    return False
-            # 값 비교
-            elif hasattr(e1, "value"):
-                if hasattr(e1.value, "equals"):
-                    if type(e1.value) != type(e2.value):
-                        return False
-                    if not e1.value.equals(e2.value):
-                        return False
-                elif e1.value != e2.value:
-                    return False
-        return True
+        return all(VariableEnv._single_equal(e1, e2) for e1, e2 in zip(els1, els2))
 
     @staticmethod
     def env_equal(a: dict[str, Variables] | None,
@@ -338,18 +362,21 @@ class VariableEnv:
             return new
 
         # ④ Array
+        #   (2026-10-23) 구체화한 원소 수가 다르면 짧은 쪽의 나머지를 **그쪽 summary 에서** 구체화해 join 한다.
+        #   예전엔 긴 쪽을 그대로 돌려줘(짧은 쪽 경로의 값이 빠짐) unsound 였다. 원소 수 ≠ 길이 — 길이는 따로 join.
         if isinstance(v1, ArrayVariable):
-            if len(v1.elements) != len(v2.elements):
-                # Array smashing: 길이가 다르면 더 긴 배열 반환 (over-approximation)
-                # 디버깅 주석 없을 때는 이렇게 처리, 있을 때는 정확한 분석 가능
-                longer = v1 if len(v1.elements) >= len(v2.elements) else v2
-                new_arr = copy.copy(longer)
-                new_arr.elements = longer.elements.copy()
-                return new_arr
+            n = max(len(v1.elements), len(v2.elements))
+            els1 = v1.elements + [v1.fresh_element(i) for i in range(len(v1.elements), n)]
+            els2 = v2.elements + [v2.fresh_element(i) for i in range(len(v2.elements), n)]
             new_arr = copy.copy(v1)
-            new_arr.elements = [
-                VariableEnv._merge_values(a, b, mode) for a, b in zip(v1.elements, v2.elements)
-            ]
+            new_arr.elements = [VariableEnv._merge_values(a, b, mode) for a, b in zip(els1, els2)]
+            new_arr.sym_cells, new_arr.sym = VariableEnv._merge_sym_cells(v1, v2, v1.sym_cells, v2.sym_cells, mode)
+            new_arr.summary = VariableEnv._merge_summary(v1, v2, mode)
+            if v1.length is None and v2.length is None:
+                new_arr.length = None
+            else:
+                from Domain.Variable import array_length
+                new_arr.length = VariableEnv._merge_values(array_length(v1), array_length(v2), mode)
             return new_arr
 
         # ⑤ Struct
@@ -364,17 +391,46 @@ class VariableEnv:
             return new_st
 
         # ⑥ Mapping
+        #   (2026-10-23) 한쪽에만 있는 구체 키는 다른 쪽에선 **구체화되지 않은 위치**(값 ∈ 그쪽 summary)다 — 그것과 join.
+        #   예전엔 있는 쪽 값을 그대로 가져가 다른 경로의 값(⊤ 등)이 빠졌다(unsound).
         if isinstance(v1, MappingVariable):
             new_map = copy.copy(v1)
+            con1 = {k: x for k, x in v1.mapping.items() if k not in v1.sym}
+            con2 = {k: x for k, x in v2.mapping.items() if k not in v2.sym}
             new_map.mapping = {}
-            for k in v1.mapping.keys() | v2.mapping.keys():
-                if k in v1.mapping and k in v2.mapping:
-                    new_map.mapping[k] = VariableEnv._merge_values(v1.mapping[k], v2.mapping[k], mode)
-                else:
-                    new_map.mapping[k] = copy.copy(v1.mapping.get(k, v2.mapping.get(k)))
+            for k in con1.keys() | con2.keys():
+                a = con1[k] if k in con1 else v1.fresh_entry(k)
+                b = con2[k] if k in con2 else v2.fresh_entry(k)
+                new_map.mapping[k] = VariableEnv._merge_values(a, b, mode)
+            cells, new_map.sym = VariableEnv._merge_sym_cells(
+                v1, v2, {k: v1.mapping[k] for k in v1.sym}, {k: v2.mapping[k] for k in v2.sym}, mode)
+            new_map.mapping.update(cells)
+            new_map.summary = VariableEnv._merge_summary(v1, v2, mode)
             return new_map
 
         return f"symbolic{mode.capitalize()}({v1},{v2})"
+
+    @staticmethod
+    def _merge_sym_cells(c1, c2, cells1, cells2, mode):
+        """선택자 셀 join — 양쪽 모두 **같은 바인딩**(프레임·의존 변수)으로 가진 셀만 남긴다. 한쪽에만 있으면 그 경로에선
+        선택자가 다시 대입돼 바인딩이 끊긴 것이므로 버린다(값은 이미 다른 셀·summary 에 반영돼 있다 — Storage.py 불변식)."""
+        cells, sym = {}, {}
+        for k in cells1.keys() & cells2.keys():
+            m1, m2 = c1.sym[k], c2.sym[k]
+            if m1["scope"] != m2["scope"] or m1["deps"] != m2["deps"]:
+                continue
+            cells[k] = VariableEnv._merge_values(cells1[k], cells2[k], mode)
+            sym[k] = {"scope": m1["scope"], "deps": m1["deps"],
+                      "vals": VariableEnv._merge_values(m1["vals"], m2["vals"], "join")}
+        return cells, sym
+
+    @staticmethod
+    def _merge_summary(c1, c2, mode):
+        if c1.summary is None and c2.summary is None:
+            return None
+        a = c1.summary if c1.summary is not None else c1.fresh_default()
+        b = c2.summary if c2.summary is not None else c2.fresh_default()
+        return VariableEnv._merge_values(a, b, mode)
 
     @staticmethod
     def _merge_by_mode(left, right, mode: str):

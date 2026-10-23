@@ -114,7 +114,11 @@ SolQDebug 에서 물려받은 "편집 시점 즉시 평가" CFG 구성을
 
 ## 3. 범위 밖 / limitation
 - 정밀 재귀 분석(summary fixpoint 등), 함수 포인터 정밀 dispatch, Yul 저수준 의미 전체, 정밀 alias 분석,
-  multi-transaction, 루프 본문 intent, internal callee 안의 interface 호출에 대한 @IReturn 슬롯(슬롯은 타깃 함수 본문 한정).
+  multi-transaction, 루프 본문 intent.
+- **외부 호출의 잔액 효과 미모델링** (2026-10-23, 사용자 결정 (나)): 외부 호출(라우터 swap 등)이 이 컨트랙트에 ETH 를
+  보내거나 빼도 `address(this).balance` 는 디버그 입력값(진입 시점) 그대로다. 그래서 잔액 변화에 의존하는 intent 는
+  **sound 하지 않은 Satisfied** 가 나올 수 있다(실측: numscout_EthereumGod — `fromSwap = 0` 으로 계산돼 Satisfied, 실제로는
+  swap 수령액이 있어 내림/올림 차이로 위반 가능; IntentChecker 도 같은 이유로 Satisfied). 논문 기술 시 이 판정은 limitation 사례.
 - 논문 기술 시 구분: 보수적 근사로 지원 / 정밀 분석만 미지원 / 입력이 지원 범위 밖 / intent 언어에서 의도적 금지.
 
 ## 4. 구현 순서
@@ -296,9 +300,15 @@ SolQDebug 에서 물려받은 "편집 시점 즉시 평가" CFG 구성을
   (`uintM → intN`, N>M), 정확한 상수 평가기(리터럴 임의 정밀도 + `constant` 선언, 순환 = 오류 — C-6 과 하나로),
   비교 연산 폭 처리·`1 << x`/`2 ** x` 리터럴 타입 규칙 확인.
 - B1: immutable 초기화식이 컴파일 타임 상수면 그 값(지금은 항상 ⊤ — sound·비정밀).
-- B2 (승인 순서): 다중 반환 tuple 원소별 join → 배열·매핑 구간 인덱스 weak update(매핑 미지정 키 = ⊤, D5).
+- B2: 다중 반환 tuple 원소별 join (배열·매핑 구간 인덱스 weak update 는 2026-10-23 (12) 에서 완료).
 - B3: 상수 ** 상수 정확 계산(`_pow_fits`), 구간 지수는 보수 유지.
-- 길이 모르는 동적 배열, a → (외부) b → a 재진입 모델 (논의 대기).
+- 배열 bounds: 정상 접근 뒤 `length > i` 로 좁히기·범위 밖 접근 경로 차단(지금은 ⊤ 셀) — Phase 5. a → (외부) b → a 재진입 모델 (논의 대기).
+- 저장소 후속: enum 값 mapping 의 기본값이 첫 멤버(D5 의 ⊤ 아님 — 기존), `from` 을 식별자로 쓴 줄 파싱 실패(기존 문법 한계).
+- 루프 정밀도 (원인 확인 2026-10-23, 사용자 결정: **시간 되면** 해결 — 우선순위 낮음): 한 번만 도는 루프(n=1)에서도 `total += 1` 누적 변수가 [0,MAX].
+  ① 주원인 = non-relational 구간 도메인 — 헤더 join 에서 i·total 상관(i=1 ⇒ total=101)이 사라져 본문이 매 반복 total 을
+  키운다 → widening 필수(늦춰도 수렴 안 함 — "이른 widening" 아님). 저장소·weak update 무관(`total += 1` 로 재현).
+  후보: 작은 상수 반복 횟수 unrolling / widening threshold / 관계 도메인. ② 보조 = checked 산술 오버플로를 [0,MAX] 로 근사
+  (0.8 에서 `a + 1`, a∈[100,MAX] → [101,MAX] 가 정확 — 넘치는 상태는 revert) → 하한이 0 으로 붕괴.
 
 ### 7.2 증분 편집
 - 미지원 수술(try/catch·do-while·break/continue 의 삭제·수정): 지금은 `IncrementalSurgeryError`. 구현 방향 = return/revert/
@@ -320,3 +330,161 @@ SolQDebug 에서 물려받은 "편집 시점 즉시 평가" CFG 구성을
 - 브라우저에서 실제 탐색 동작 확인(Continue 의 callee 진입·분기점 정지 포함).
 - 의존성 업로드 빌드 API(`DependencyStore` 자리), 업로드만으로 오류가 풀리는 경우 재검증.
 - solc 진단(선택): 엔진이 못 잡는 컴파일 오류(인자 타입 등)를 추가 진단으로.
+- 2026-10-22 (8): 사용자 결정 반영 — ① 컨트랙트 수준 선언 줄의 삭제·수정 = 후보를 **현재 소스 전체 재분석**(의존성만 올린
+  빈 세션 `_pristine` 사본에서; 함수 본문 편집·선언 추가는 증분 그대로) → 지운 선언이 엔진에 남던 문제 해소, 참조가
+  남으면 SourceError 로 거부. ② `_shift_cfg_meta` 는 의존성 CFG 를 옮기지 않음. ③ 입력 전제 검사 확장(`}` 뒤 문장,
+  한 줄 블록 — 호출 옵션 `{value: x}(` 제외), 위반 = SourceError(진단, `analyze_source`/update), deps 정규화에 한 줄
+  assembly 전개 추가 → deps 재빌드(보고서 동일).
+  - 회귀: temp 16/16, `temp/test_transaction.py` 35/35, micro 동일, rebuilt 45/48 동일(35_H_08/10/12 은 오류 이름만
+    ValueError→SourceError). 덤프 `baseline/g3_rebuilt.json`.
+  - **의존성 재빌드로 바뀐 10건 원인** (g1 → g3):
+    · 70_H_04/05/10: 빌드 순서 — 한정 타입 `FixedPoint.uq112x112` 이 위상정렬 간선이 아니라 FixedPoint 가
+      ILiquidityBasedTWAP 보다 나중에 빌드 → 멤버 줄 ERR → **멤버 하나 빠진 struct 가 조용히 pkl 로 저장**.
+      (예전엔 Phase 4b 에서 제거한 pkl 직접 로드 폴백이 가렸다.)
+    · 31_H_01, 52_H_23: 앞 단계 오류가 풀려 진행 → 새 정지점 = 인터페이스 타입 수신자의 멤버 호출을 using-for 라이브러리
+      (SafeERC20) 확인 없이 외부 호출로 처리하는 **분기 순서 결함**(기존).
+    · 16_H_04/06: PRBMath `mulDivFixedPoint` 의 Yul `not` 미지원 → 값 None 으로 진행 → `%` 에서 AttributeError
+      (조용한 None — D9 Yul 근사 미구현). 예전 deps 는 이 assembly 본문이 빌드 오류로 빠져 있었다.
+    · 45_H_01·47_H_02·60_H_01: 판정 동일, 상태가 더 완전·정밀(상속 `__gap`, callee 값 해석, shortfall [150,150]).
+  - 기타: 35_H_08/10/12 = 타깃 contraction 에서 `struct Position` 이 그것을 쓰는 mapping 선언(51행)보다 뒤(53행) —
+    개발 순서 전제 위반(Nokon 과 같은 유형). 의존성 빌드의 줄 단위 오류 무시: 42 중 21 프로젝트, 135 줄
+    (simpleStatement 82, functionDefinition 15, event 14, structMember 6, assembly 6 …) 이 빠진 채 pkl 저장.
+- 2026-10-22 (9): 사용자 결정 — 2(멤버 호출 분기) 수정, 3 = (b) D9 로(아래 정정 참고·보류), 4(35_H 데이터) 수정, 1·5 는 레지스트리와 함께.
+  - **멤버 호출 분기 수정**: 인터페이스/컨트랙트 타입 수신자(변수·캐스트 `T(x).f()`)의 멤버 호출은 T(부모 포함)가 그
+    멤버를 선언했을 때만 외부 호출, 아니면 using-for 라이브러리 함수(`_type_declares_member`, `_using_for_on_cast`).
+    결과: 52_H_23 진행(새 정지 = `getReserves` 인자 개수 불일치), 62_H_03/10 끝까지 실행 → **Unreachable**(이전엔 항상 오류 —
+    판정 타당성 조사 필요), 31_H_01 진행(새 정지 = SafeERC20 라이브러리 안 `address(token).functionCall(...)`:
+    `address(...)` 변환 뒤에도 인터페이스 태그가 남고, 라이브러리 함수 안 using-for 조회가 라이브러리가 아니라 타깃
+    컨트랙트의 using 목록을 본다 — 기존 결함 2건, 미수정).
+  - **35_H_08/10/12 데이터**: contraction 에서 `struct Position` 을 `positions` mapping 앞으로(원본 백업 scratchpad/bak35),
+    cases_rebuilt 재생성. Position 오류는 해소, 새 정지 = 아래 Yul `_not`.
+  - **정정 — 16_H 원인**: Yul `not` 은 지원 연산(→ `~`)이다. 실제 원인은 의존성 전처리 `rename_grammar_clashes` 가 intent
+    문법 키워드(`not` 등)와 겹치는 식별자를 `_` 접두로 바꾸면서 **assembly 안의 Yul 내장 `not` 까지 `_not` 으로** 바꾼 것.
+    `_not(0)` = 미지원 함수 → None → `%` 에서 AttributeError. 영향: 16_H_04/06, 35_H_08/10/12 (deps w16 PRBMath, w35 FullMath).
+  - 회귀: temp 16/16, transaction 35/35, micro 동일, rebuilt g3 대비 변화 7건(위 내용). 덤프 `baseline/g4_rebuilt.json`.
+- 2026-10-22 (10): 사용자 승인 3건 처리.
+  - 31_H_01 기존 결함 2건 수정: ① `address(x)`/`payable(x)` 변환은 인터페이스 태그를 뗀 **새 값**(`AddressSet.retagged`),
+    `IERC20(x)` 캐스트도 새 값에 태그(예전엔 원래 값 객체에 태그를 덮어써 x 의 값까지 바뀜). ② using-for 조회 범위 =
+    **실행 중인 함수가 속한** 컨트랙트/라이브러리(`Evaluation._executing_contract_cfg`, 소속을 못 찾으면 오류).
+    → 31_H_01 진행, 새 정지 = `unresolved member '.length'`(미조사).
+  - 전처리 `rename_grammar_clashes` 가 assembly 블록 안을 건너뜀 → deps 재빌드(보고서 동일, `_not(` 0건).
+    → 16_H_04 None→**Violated**, 16_H_06 None→**Violated**(g1 판정 복귀), 35_H_08/10/12 오류 해소.
+  - **62_H_03/10 Unreachable 원인**: solmate SafeTransferLib.safeTransfer 의 `success := and(or(...), call(gas(), ...))` —
+    미지원 Yul 내장(`call`·`returndatasize`·`mload`·`gas`)이 None 으로 평가돼 ⊥ 로 번짐 → `require(success)` 불가능 →
+    호출 이후 전부 ⊥ → @Post Unreachable(**거짓 판정**). D9(b)(미지원 Yul 값 연산 = typed ⊤, sstore/mstore havoc) 대상.
+  - **새로 드러남**: 35_H_08/10/12 은 끝까지 실행(EXIT 도달, ⊥ 없음)되지만 @Post 판정이 **기록되지 않는다**
+    (legacy 는 Warning/Warning/Violated). rebuilt 모드에선 그동안 앞 단계 오류로 이 경로에 온 적이 없다 — 조사 필요.
+  - 회귀: temp 16/16, transaction 35/35, micro 동일, rebuilt g4 대비 변화 6건(위). 덤프 `baseline/g5_rebuilt.json`.
+- 2026-10-22 (11): **@Post 판정 누락의 원인과 평가 드라이버 이전** (사용자 결정: intent 는 함수 지정으로 명시 부착, 평가는 engine_api 경로).
+  - 원인: `process_post` 가 `current_target_function_cfg`(줄 위치로 갱신되지 않고 **마지막으로 처리한 문장의 함수**)에 붙임 →
+    코드를 다 쓴 뒤 들어오는 @Post 가 파일의 마지막 함수에 붙어 record 재생 평가에서 12 케이스 @Post 판정 누락(p0 부터).
+  - 수정: `process_during/process_post(…, fcfg=)` + `_intent_function_cfg`(명시 함수, 없으면 줄 문맥의 함수 이름+파라미터
+    타입으로 조회). @During 노드도 대상 함수 안의 노드로 한정. engine_api `_attach_intents` 는 방문자에 `intent_target` 으로 명시.
+  - 새 평가 드라이버: `evaluation/intent_validation/api_driver.py` + `run_cases_api.py` (소스 = target_contraction_auto,
+    대상 = cases74 contract/function, 디버그 값 = 케이스 키 → engine_api 슬롯 키 → RangeValue, intent = IntentItem).
+    결과 `results_api_a1.json`, 덤프 `baseline/a1_api.json`. temp 16/16·transaction 35/35 통과.
+  - **드러난 도구 결함 — 디버그 슬롯 도출 범위**: 케이스가 지정한 디버그 입력 중 엔진이 슬롯을 만들지 않는 것이 172개(37 케이스)
+    → 프론트 사용자도 입력할 수 없는 값. 분류: 타깃 본문에 없는(callee·modifier 에서만 쓰는) 변수 63, 본문에 루트는 있으나
+    복합 접근 경로(mapping·struct 멤버·`address(this).balance`) 미도출 96, 기타(constant·`totalSupply` 등) 13.
+    그 결과 기대 Violated 가 Warning 으로, 디버그 값이 하나도 안 들어간 케이스는 verify 소프트 게이트로 판정 없음
+    (56_H_02, 60_H_01). 판정 일치: api 15/48 vs record 경로(g5) 20/48 — **슬롯 도출을 고치기 전엔 평가 수치로 쓰면 안 된다**.
+  - 그 밖의 api 경로 오류: 36_H_02·58_H_02·65_H_01(deps 순환으로 pkl 없음 → `using SafeERC20` 실패, 레지스트리 대상),
+    51_H_02(`event RampTargetPrice(...)` 줄 실패, 미조사), 31_H_01·52_H_23(`.length` 미해석), 70_H(레지스트리 대상).
+- 2026-10-23 (12): **mapping/array 저장소 의미론 재작성** (사용자 승인 — 이름 기반 디버그 입력 유지 + sound, 다른 LLM 검토 반영).
+  - 입력의 의미: `@StateVar m[a] = v` = "이 실행에서 선택자 a 가 고르는 위치의 진입 값" (∀σ⊨D: σ(m)[σ(a)] ∈ v). 모든 키를 지정할
+    필요 없이 소스의 접근식에 값을 준다. 엔진은 그 제약을 만족하는 모든 실행을 보수적으로 분석한다.
+  - 재현(`temp/test_storage_soundness.py`, 수정 전 15 중 FAIL 9·ERR 1): 정수 범위 키 mapping 쓰기 무시, 범위 인덱스 정적 배열
+    강한 갱신·20 초과 범위 쓰기 무시, 범위 키 읽기가 첫 구체 키 하나 선택(입력값 무시), 표본 21개만 join, ⊤ 주소 두 선택자
+    alias 무시, 미확정 인덱스 배열 입력을 경고 후 버림, 동적 배열 길이 = 구체화한 원소 수, 리터럴 키 읽기 크래시
+    (`update_mapping_in_cfg` 의 없는 속성 — 읽기가 영속 CFG 를 바꾸던 경로).
+  - 구현: `Interpreter/Semantics/Storage.py` 하나로 키 해석(Concrete/Symbolic(순수 선택자 식)/Range(부수효과)/Bottom)·선택·
+    읽기·쓰기 후 전파·진입 제약. 읽기(`evaluate_index_access_context`)·쓰기(`Update._update_indexed`)·디버그 입력
+    (`DebugInitializer._assume_indexed`)이 같은 경로. 도메인(`Domain/Variable.py`): 선택자 셀 메타 `sym`, `summary`(구체화
+    안 된 위치 요약 — 새 셀은 여기서 만든다), 배열 `sym_cells`·추상 `length`(`array_length`).
+    · 쓰기 = 고른 위치 strong, 최상위 대입이 끝난 뒤 겹칠 수 있는 다른 셀의 **같은 LHS 경로 위치**(`s[a].v` 면 .v)에 weak,
+      미확정 선택자면 summary 에도 weak. refine 은 assume 모드(전파·무효화 없음, Range 는 안 건드림).
+    · 진입 제약은 쓰기와 별개(서로 weak 하지 않음). 같은 위치로 해석되는 두 슬롯은 meet, 비면 입력 모순 오류. 슬롯은 접근
+      경로가 얕은 것부터 적용(선택자 값이 먼저 놓이도록 — 입력 순서 무관).
+    · 무효화: 선택자가 읽는 변수에 대입·선언하면 그 셀의 바인딩만 버림(쓰기 효과는 다른 셀·summary 에 이미 있음 —
+      불변식 "구체화 안 된 위치의 값 ∈ summary"). callee 진입·복귀 때 그 함수 프레임의 셀을 버림. 분기 join 에서 한쪽에만
+      있는 셀은 버림.
+    · push/pop 은 추상 길이 갱신(길이 미정이면 새 원소 위치가 미확정 → weak). `new T[](k)` 길이 = k 의 구간(예전엔 상한).
+  - 함께 고친 기존 결함: ① `VariableEnv.variables_equal` 이 Struct/Mapping 을 `.value`(None) 로만 비교 → **내용 비교 안 함**
+    → fixpoint 가 저장소만 바뀐 후속 노드를 재계산하지 않을 수 있었다. ② mapping join 에서 한쪽에만 있는 키를 그 값
+    그대로 유지(다른 경로의 ⊤ 누락), 배열 join 에서 길이가 다르면 긴 쪽만 반환. ③ `@StateVar` 입력 오류를 출력만 하고
+    삼킴(@Param 은 올림) → 올림. ④ 디버그 입력 스냅샷이 leaf 만 등록 → 새로 만든 키 엔트리가 restore 뒤 mapping 에 남음
+    → 컨테이너 등록(디버깅 후 초기 상태 복원 메커니즘은 그대로). ⑤ 배열 표시 `array(len=N)` 이 원소 수/선언 0 → 추상 길이.
+    ⑥ callee 복귀·참조 인자 되쓰기·통짜 재할당이 필드를 하나씩 옮김 → `VariableEnv.adopt_storage` 하나로.
+  - 표시: summary 는 선언 기본값에서 바뀌었을 때만 `x[*]` 행으로 보인다(사용자 결정 (나)).
+  - 검증: storage 29/29(재현 15 + 다른 LLM 제안 11 + 이력 무관·push·new 길이), temp 18 종 통과, transaction 35/35,
+    micro 47 동일(기대 실패 3건 traceback 줄 번호만). api 48 판정 48/48 동일(s0 → s1), 상태 변화 11건 = 모두 기존 unsound
+    해소 또는 표시 정리 — Nokon `balances[address(this)] -= x` 쓰기가 예전엔 다른 키로 가 사라짐(→ [1,2e12]), callee 프레임
+    셀(`spender`·`token`·`lower/upper`)이 caller 에 남던 것 제거, 호출 결과 키(`ticks[func_result_<id>]`)·⊤ 주소 문자열 키
+    (`_aggregators[AddressSet(⊤)]`) 같은 가짜 구체 키 제거, bytes32 상수 키가 이름 대신 값. 덤프 `baseline/s1_api.json`,
+    `results_api_s1.json` (s0 = 수정 직전 기준선).
+- 2026-10-23 (13): **디버그 슬롯 도출 확장 + 호출 대응** (사용자 승인 순서: 저장소 → 슬롯 도출).
+  - 원인(172 누락, 37 케이스): ① 스캐너가 **타깃 본문만** 봄(callee·modifier·부모 함수의 상태변수·전역·경로 누락),
+    ② **상속 조상(의존성) 상태변수**를 보지 않음(`totalSupply`·`balanceOf`·`isPaused`·`pairInfo` …), ③ using-for 호출
+    `x.add(y)` 가 스칼라 `x` 를 경로 루트로 잡아 `x.add()` 슬롯만 냄, ④ 구조체 값 경로·구조체 파라미터를 멤버로 펼치지 않음
+    (`tokenLoanParams[tokenId].valuation`, `accepted.valuation`, `self.balances[account]`), ⑤ 인터페이스 핸들 상태변수의 주소
+    슬롯 없음(`nativeAsset`), ⑥ 파라미터 슬롯 valueKind 가 타입과 무관하게 interval.
+  - 수정 `engine_api._derive_debug_slots`: 타깃 + 내부 호출·modifier·라이브러리(using-for 포함)·super/this 를 따라가는
+    footprint(이름이 가리킬 수 있는 오버로드 전부 — 과대 근사), callee 접근식은 호출 지점 인자로 **타깃 진입 이름으로 번역**
+    (`_mint(foreignAsset)` 안 `pairInfo[asset]` → `pairInfo[foreignAsset]`, callee 지역변수 기반 경로는 슬롯 아님),
+    조상 상태변수 포함, constant 제외(값 확정), 구조체 경로·파라미터 멤버 leaf 전개, 스칼라 루트의 멤버(`to.balance`)는 경로 아님,
+    IReturn 튜플 반환은 원소별 `[k]`, IReturn 키는 호출 지점 **원문**(ireturn_registry 가 원문 텍스트로 조회하므로).
+  - 호출 대응(실행): `Storage.callee_aliases` — 파라미터가 호출자의 순수 선택자 식을 받았으면 callee 의 `m[param]` = 호출자
+    프레임 `m[식]` 같은 셀(must-alias). 파라미터 재대입·의존 변수 대입이면 대응 끊김. 프레임 스택은 Engine 이 push/pop.
+    → 타깃 이름으로 준 입력이 callee 접근에 그대로 쓰인다(예전엔 callee 이름 키가 따로 생겨 ⊤).
+  - 결과(api 48, s2 → s4): 누락 172 → 70, 기대 일치 15 → 19. 판정 변화 11건 — HIT·WANGMI·101_H_01·113_H_05·62_H_08·56_H_02
+    Warning/None → Violated(기대 일치), **16_H_04·3_H_04 Warning → Violated(기대 Warning 과 다름, 그러나 계산상 정확**:
+    16_H_04 long 에서 fee 를 더해 newQuote 980.2e18 > 980e18, 3_H_04 반환 1000+2000 ≠ 2000 원금 이중 합산 — 기대값은 예전 도구가
+    입력을 못 넣어 나온 Warning), **EthereumGod Warning → Satisfied = sound 하지 않음**(외부 호출 뒤 address(this).balance 불변 — §3 limitation 으로 결정).
+  - 남은 누락 70 (최종 s5 — s4 와 판정 동일): 구체 인덱스 입력 48(배열 원소 `x[0]`·`details[2].debt` 등 — 소스엔 `x[i]` 만 있음,
+    제공 방식 결정 대기, 70_H 16 은 레지스트리 오류도 겹침), 케이스 데이터 불일치 22(52_H_04/34 IReturn 6 은 케이스가 옛 판
+    텍스트 `chainlinkFeed`, 소스는 `_aggregators[pairData.token1]`; 192_H_01 `_asset` 은 대상 함수 파라미터 아님, 5_H_12 소스는
+    `[_pool]`, 62_H_10·SwordCrowdsale·35_H_10/12 는 대상이 읽지 않는 변수, 47_H_02 소스는 `_msgSender()`, 60_H_01 cases74 의
+    contract 가 Collateral 이지만 함수는 `library OptimisticLedgerLib`, 45_H_01 `WAD` 는 constant).
+  - 회귀: temp 18 종, storage 32/32(호출 대응 A14~16 추가), transaction 35/35, micro 상태 동일·슬롯 변화 3건(인터페이스 핸들
+    `foo`, 부모 상태변수 `s` 추가, constant `K` 제외).
+  - 사용자 결정(2026-10-23): "끝까지 분석됐고 결과 자체가 맞으면 기대값 갱신" → 16_H_04·3_H_04 기대 Warning → Violated.
+    재검토: 오류·진단 없음, EXIT 도달, 입력 전부 적용, 손 계산 일치(본문 위). 원본 xlsx(Guardian)는 수정 금지라
+    `evaluation/intent_validation/expected_overrides.json`(사유·근거 포함) + `run_cases.expected()` 가 반영. s5 일치 19 → 21/48.
+- 2026-10-23 (14): **구체 인덱스 디버그 입력** (사용자 결정: 기본 = 소스에 쓴 접근식, 원하면 인덱스를 구체값으로; 범위 = (A)
+  타깃 함수 진입 상태만 — callee 지역 인덱스 경로는 슬롯 아님, IReturn 은 callee 포함).
+  - 엔진: `DebugSlot.specializable`(인덱스 자리 있는 경로) / `requiresIndex`(인덱스가 타깃 지역변수 — `pegObservations[index]`
+    의 루프 변수처럼 진입 시점 값이 없어 이 키 그대로는 입력 불가). `EngineSession.match_slot(key)` = 슬롯 키 그대로 또는
+    인덱스 자리만 바꾼 키(바꾼 인덱스에 지역변수 금지). `_queue_debug_values`: 슬롯이 아닌 키·지역 인덱스 템플릿 그대로 =
+    진단 오류(예전엔 슬롯 아닌 키를 조용히 @Param 으로 넣었다), 빈 칸은 미입력.
+  - 드라이버: `api_driver` 가 같은 `match_slot` 으로 케이스 키 매칭.
+  - 프론트: `slotTemplate.ts`(엔진과 같은 라벨 파서·대조), `DebugInputPanel` 경로 슬롯에 `+ 원소` → 인덱스 자리만 편집하는 행
+    (값 유지 키 변경 `renameDebugKey`, 제거 `removeDebugValue`), 지역 인덱스 슬롯은 값 입력 대신 "원소 지정 필요",
+    슬롯 아닌 입력은 별도 표시. `tsc` 통과(브라우저 확인은 아직).
+  - 테스트 `temp/test_slot_template.py` 11/11.
+  - (검토 반영) 바꾼 인덱스 허용 범위 = **진입 시점 이름 허용**: 진입 시점에 부작용 없이 평가되는 식(리터럴·파라미터·
+    상태변수·전역·형 변환과 그 접근식 — `[0]`, `[_token]`, `[address(vaderPairs[0])]`). 지역변수·형 변환 아닌 호출·`++`/대입
+    거부(`_entry_index_ok`), 최종 순수성은 값을 놓을 때 Storage.resolve 가 실제 식으로 검사. 의미 = 그 식의 진입 시점 값이
+    고르는 위치(선택자가 뒤에 바뀌어도 제약은 원래 위치 — 선택자 무효화로 보장, 테스트). 식이 정의되지 않는 진입 상태(길이 0
+    배열의 `[0]` 등)에 대해선 함의 의미론(그 상태에선 이 제약이 쓰이지 않음 — sound)으로 진단하지 않는다(bounds 는 Phase 5).
+    프론트: 추가 행 `custom` 표시, 소스 인덱스가 진입 시점 값인데 다른 이름을 쓰면 설명성 안내(지역 인덱스 구체화는 안내 없음).
+    테스트 `test_slot_template` 23/23(파라미터 치환·`i++`·호출 거부·중첩 인덱스·선택자 변경 후 비고정·입력 순서 독립·
+    같은 위치 모순). 한계(sound·비정밀): 지역 복사 `p = pairs[0]` 뒤의 `tw[p]` 는 입력 셀 `tw[pairs[0]]` 과 다른 이름이라
+    pairs[0] 이 ⊤ 이면 연결되지 않는다(값 identity 아님 — 이름 기반 입력 모델의 범위).
+- 2026-10-23 (15): **남은 구현 1~4 원인 조사·수정안 (수정 없음, 사용자 지시)** — 결정 대기.
+  - 레지스트리: 순환 = `_type_refs_in` 타입 참조 간선(w36/w65 IAuction↔IBasket↔IFactory, w58 IVault↔IVaultGovernance↔
+    IVaultFactory), 70_H = `_typedecl_re` 가 한정 타입(`FixedPoint.uq112x112 x;`)을 간선으로 못 봐 FixedPoint 가 나중에
+    빌드 → structMember ERR. 조용히 빠지는 줄 166(ERR 135 + UPDATE_CODE 31): 레지스트리로 풀릴 것(한정 타입·struct 미정의·
+    상수 `N_COINS` 14) vs 엔진 결함(library event, function 타입 6, catch 5, ExpressionContext 11, 메시지 None 30).
+    `get_full_struct_enum_defs`(ContractAnalyzer:1273) 직속 부모만 + 병합 우선순위 반대. 설계: sourceUnit 전체 파싱 1A 등록 →
+    1B 해석(C3·한정 이름·상수·커버리지 검사) → 2 CFG 구성(상속 순서만), 폐기 `_topo_order` 타입/라이브러리 간선 등.
+  - 실패 케이스: 47_H_02·78_H_02 거짓 Unreachable = **빈 본문 callee**(`_beforeTokenTransfer`)의 EXIT 를 force_join 이
+    ENTRY(env 없음)만 보고 ⊥ 로 → 되쓰기로 호출자 storage ⊥(Engine.py:979/982/1861-1886). 51_H_02 = `LibraryCFG.events` 없음
+    (+ cases74 contract 가 Swap 인데 소스는 library SwapUtils). 52_H_23 = 상속 탐색이 소스 순서 깊이 우선이라 인터페이스의
+    본문 없는 선언을 구현으로 고름 + 인터페이스 함수 CFG 에 파라미터 미기록(시그니처 전부 `()`). 31_H_01 = `address(x).f()`
+    수신자 타입을 값(AddressSet)으로 못 정해 using-for 를 놓치고 `return f"address.{member}"` 문자열 폴백(Evaluation:2045),
+    이어 동적 bytes `.length` 분기 없음.
+  - Phase 5/B/A: Yul 미지원 내장 → None(YulUnsupportedContext 분기 없음 — 62_H 원인, 마이크로는 크래시), Yul 문장
+    (sstore/mstore/if/for/switch/return/revert) 조용히 무시(**unsound**), 재귀 n=⊤ RecursionError, 정적 배열 범위 밖 디버그 입력
+    조용히 사라짐, B2 다중 반환 tuple 첫 경로만(**unsound**, Engine:1755-1776), checked 오버플로 [0,MAX](Interval:737-746),
+    `_pow_fits` 비트수 과대(2**200 → ⊤), immutable 상수 초기화식 버림, 함수 포인터 크래시, D10 루프 본문 intent 허용,
+    `1 << x`/`2 ** x` 리터럴 mobile type 의심(solc 확인 필요), 부호 혼합 항목은 폐기 후보(Solidity 가 암묵 변환 불허).
