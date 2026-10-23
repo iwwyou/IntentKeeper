@@ -10,6 +10,7 @@ from Utils.Helper import VariableEnv
 from Domain.Interval import UnsignedIntegerInterval, IntegerInterval, BoolInterval
 from Domain.Variable import GlobalVariable, Variables, ArrayVariable, StructVariable, EnumVariable, MappingVariable
 from Domain.AddressSet import AddressSet
+from Domain.FunctionRef import FunctionRef
 from Domain.Type import SolType
 
 class StaticCFGFactory:
@@ -252,6 +253,15 @@ class StaticCFGFactory:
         return cfg
 
     @staticmethod
+    def param_type_str(p_type) -> str:
+        """파라미터 타입 → 시그니처 문자열 (오버로드 구분용)."""
+        return (getattr(p_type, 'elementaryTypeName', None) or
+                getattr(p_type, 'structTypeName', None) or
+                getattr(p_type, 'enumTypeName', None) or
+                getattr(p_type, 'interfaceName', None) or
+                str(p_type.typeCategory or "unknown"))
+
+    @staticmethod
     def make_function_cfg(an: ContractAnalyzer,
                           name: str,
                           params,
@@ -262,12 +272,7 @@ class StaticCFGFactory:
 
         for p_type, p_name in params:
             # parameter_types에 타입 기록 (overloading signature용)
-            type_str = getattr(p_type, 'elementaryTypeName', None) or \
-                       getattr(p_type, 'structTypeName', None) or \
-                       getattr(p_type, 'enumTypeName', None) or \
-                       getattr(p_type, 'interfaceName', None) or \
-                       str(p_type.typeCategory or "unknown")
-            fcfg.parameter_types.append(type_str)
+            fcfg.parameter_types.append(StaticCFGFactory.param_type_str(p_type))
 
             if p_name:  # 이름이 있는 것만 변수화
                 var = StaticCFGFactory.make_param_variable(
@@ -398,6 +403,15 @@ class StaticCFGFactory:
             v = Variables(identifier=ident, scope=scope)
             v.typeInfo = sol_type
             v.value = AddressSet.top()
+            an.register_var(v)
+            return v
+
+        # ──────────────────────────── ④-b 함수 타입 (2026-10-23) ─────────
+        #   함수 포인터 값은 ⊤ 만 표현한다(Domain/FunctionRef.py).
+        if sol_type.typeCategory == "function":
+            v = Variables(identifier=ident, scope=scope)
+            v.typeInfo = sol_type
+            v.value = FunctionRef.top()
             an.register_var(v)
             return v
 

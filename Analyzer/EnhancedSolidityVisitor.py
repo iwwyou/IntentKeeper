@@ -496,7 +496,8 @@ class EnhancedSolidityVisitor(SolidityVisitor):
             parameters=params,
             modifiers=mods,
             returns=rets,
-            mutability=mutability
+            mutability=mutability,
+            has_body=ctx.block() is not None,    # (2026-10-23) `function f() virtual;` 는 선언뿐
         )
 
     # Visit a parse tree produced by SolidityParser#eventDefinition.
@@ -670,9 +671,17 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
     # Visit a parse tree produced by SolidityParser#FunctionType.
     def visitFunctionType(self, ctx: SolidityParser.FunctionTypeNameContext, type_obj):
-        # 함수 타입 처리 (필요한 경우)
+        # (2026-10-23) 함수 타입: 파라미터·반환 타입·가시성을 기록한다 — 함수 포인터 호출의 반환값 ⊤ 와
+        #   효과 범위(internal = 같은 컨트랙트 상태를 바꿀 수 있음 / external = 외부 호출)를 정하는 데 쓴다.
         type_obj.typeCategory = "function"
-        # 추가적인 정보 처리 필요 시 여기서 처리
+        ftn = ctx.functionTypeName() if hasattr(ctx, "functionTypeName") else ctx
+        lists = list(ftn.parameterList() or [])
+        has_returns = any(getattr(ch, "getText", lambda: "")() == "returns" for ch in ftn.children or [])
+        ret_list = lists.pop() if has_returns else None
+        type_obj.functionParamTypes = [t for t, _ in self.visitParameterList(lists[0])] if lists else []
+        type_obj.functionReturnTypes = [t for t, _ in self.visitParameterList(ret_list)] if ret_list is not None else []
+        vis = [v.getText() for v in (ftn.visibility() or [])]
+        type_obj.functionVisibility = "external" if "external" in vis else "internal"
         return type_obj
 
     # Visit a parse tree produced by SolidityParser#StructType.

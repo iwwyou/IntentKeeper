@@ -10,6 +10,7 @@ from Domain.IR import Expression
 from Domain.Interval import UnsignedIntegerInterval, IntegerInterval, BoolInterval
 from Domain.AddressSet import AddressSet
 from Domain.BytesSet import BytesSet
+from Domain.FunctionRef import FunctionRef
 from Domain.Annotation import CompoundDuringAnnotation, CompoundPostAnnotation
 from Utils.CFG import CFGNode, FunctionCFG
 from Utils.Helper import VariableEnv
@@ -152,6 +153,8 @@ class Engine:
                 vobj.value = AddressSet.top()
                 if ifc_name:
                     vobj.value._cast_interface = ifc_name
+            elif var_type.typeCategory == "function":     # (2026-10-23) 함수 포인터 = ⊤ (Domain/FunctionRef.py)
+                vobj.value = FunctionRef.top()
             else:
                 et = var_type.elementaryTypeName
                 if et and et.startswith("uint"):
@@ -178,7 +181,7 @@ class Engine:
                 var.valueIndex = 0
                 if isinstance(getattr(var, "members", None), dict) and var.members:
                     var.value = next(iter(var.members))
-            elif not isinstance(var, MappingVariable) and not isinstance(getattr(var, "value", None), str):
+            elif not isinstance(var, MappingVariable) and not isinstance(getattr(var, "value", None), (str, FunctionRef)):
                 zero = self._zero_of(var)
                 if isinstance(zero, AddressSet) and isinstance(getattr(var, "value", None), AddressSet):
                     zero._cast_interface = getattr(var.value, "_cast_interface", None)
@@ -881,6 +884,192 @@ class Engine:
             return True
         return getattr(var, "scope", None) == "state"
 
+    # ── (2026-10-23) 재귀 호출 요약 ─────────────────────────────────────────
+    #   내부 호출은 callee 본문을 매번 펼쳐 해석하므로, 재귀는 깊이에 끝이 없다(n=⊤ 이면 Python RecursionError).
+    #   이미 실행 중인 함수를 다시 부르면 본문을 펼치지 않고 그 호출의 **효과를 요약**한다:
+    #     · 그 함수(와 그 함수가 부를 수 있는 함수들, 전이적으로)가 대입하는 상태변수 → ⊤ (쓰지 않는 상태변수는 유지)
+    #       매핑·배열 원소에 쓰면 그 컨테이너 전체 ⊤ — 재귀 프레임마다 인덱스가 달라 "같은 셀" 이라는 근거가 없다.
+    #     · 그 함수가 대입하는 복합 타입 파라미터에 넘긴 인자(참조 의미) → ⊤
+    #     · 반환값 = 선언 반환 타입의 ⊤
+    #   어느 경로가 실행될지 모르므로 쓰기 집합은 모든 경로의 합집합이다(sound 에 필요한 만큼).
+    _ASSIGN_OPS = frozenset({"=", "+=", "-=", "*=", "/=", "%=", "|=", "&=", "^=", "<<=", ">>="})
+
+    def _call_stack(self) -> list:
+        st = getattr(self, "_call_frames", None)
+        if st is None:
+            st = self._call_frames = []
+        return st
+
+    @staticmethod
+    def _func_key(fcfg) -> tuple:
+        f = getattr(fcfg, "_live_origin", fcfg)
+        return (getattr(f, "owner_contract", None), f.function_name,
+                tuple(getattr(f, "parameter_types", None) or ()))
+
+    @staticmethod
+    def _lhs_roots(e) -> set:
+        """대입 좌변 식의 루트 변수 이름들 (`a[i].b` → a, `(x, y)` → x, y)."""
+        if e is None:
+            return set()
+        elems = getattr(e, "elements", None)
+        if isinstance(elems, (list, tuple)):
+            out = set()
+            for x in elems:
+                out |= Engine._lhs_roots(x)
+            return out
+        while e is not None:
+            if getattr(e, "context", None) == "IdentifierExpContext":
+                return {e.identifier}
+            e = getattr(e, "base", None) if getattr(e, "base", None) is not None else getattr(e, "expression", None)
+        return set()
+
+    def _scan_writes(self, fcfg) -> tuple[set, set, set]:
+        """함수 하나의 (대입 루트 이름, 호출하는 함수 이름, 한정 라이브러리 호출 (lib, 이름))."""
+        writes, calls, lib_calls = set(), set(), set()
+        seen = set()
+
+        def walk(e):
+            if isinstance(e, (list, tuple)):
+                for x in e:
+                    walk(x)
+                return
+            if isinstance(e, dict):
+                for x in e.values():
+                    walk(x)
+                return
+            if not isinstance(e, Expression) or id(e) in seen:
+                return
+            seen.add(id(e))
+            op = getattr(e, "operator", None)
+            if op in self._ASSIGN_OPS and getattr(e, "left", None) is not None:
+                writes.update(self._lhs_roots(e.left))
+            if op in ("++", "--", "delete"):
+                writes.update(self._lhs_roots(getattr(e, "expression", None)))
+            fn = getattr(e, "function", None)
+            if isinstance(fn, Expression):
+                if fn.context == "IdentifierExpContext":
+                    calls.add(fn.identifier)
+                elif fn.context == "MemberAccessContext":
+                    calls.add(fn.member)
+                    if fn.member in ("push", "pop"):
+                        writes.update(self._lhs_roots(fn.base))
+                    b = getattr(fn, "base", None)
+                    if getattr(b, "context", None) == "IdentifierExpContext":
+                        lib_calls.add((b.identifier, fn.member))
+            for v in vars(e).values():
+                if isinstance(v, (Expression, list, tuple, dict)):
+                    walk(v)
+
+        for n in fcfg.graph.nodes:
+            for st in getattr(n, "statements", None) or []:
+                if st.statement_type == "assignment":
+                    writes.update(self._lhs_roots(st.left))
+                elif st.statement_type == "unary" and st.operator in ("++", "--", "delete"):
+                    writes.update(self._lhs_roots(st.operand))
+                for v in vars(st).values():
+                    if isinstance(v, (Expression, list, tuple, dict)):
+                        walk(v)
+            if getattr(n, "condition_expr", None) is not None:
+                walk(n.condition_expr)
+        for name, _args in getattr(fcfg, "modifier_invocations", None) or []:
+            calls.add(name)
+        return writes, calls, lib_calls
+
+    def _callee_pool(self, fcfg) -> list:
+        """`fcfg` 안의 이름 호출이 갈 수 있는 함수들이 있는 곳: 소유 컨트랙트·타깃 컨트랙트의 상속 체인 + 그들의 using 라이브러리."""
+        an = self.an
+        cfgs = {**(an.library_cfgs or {}), **(an.contract_cfgs or {})}
+        pool, seen = [], set()
+
+        def add(c):
+            if c is None or id(c) in seen:
+                return
+            seen.add(id(c))
+            pool.append(c)
+            for p in (getattr(c, "parent_cfgs", None) or {}).values():
+                add(p)
+            for libs in (getattr(c, "using_libraries", None) or {}).values():
+                for lib in libs:
+                    add(lib)
+            for lib in getattr(c, "using_all_libraries", None) or []:
+                add(lib)
+
+        add(cfgs.get(getattr(getattr(fcfg, "_live_origin", fcfg), "owner_contract", None)))
+        add(cfgs.get(an.current_target_contract))
+        return pool
+
+    def _write_set(self, fcfg) -> tuple[set, set]:
+        """(전이적 대입 루트 이름 전체, `fcfg` 자신이 대입하는 루트 이름)."""
+        an = self.an
+        cfgs = {**(an.library_cfgs or {}), **(an.contract_cfgs or {})}
+        own, _, _ = self._scan_writes(fcfg)
+        allw, todo, done = set(), [fcfg], set()
+        while todo:
+            f = todo.pop()
+            if id(f) in done:
+                continue
+            done.add(id(f))
+            w, calls, lib_calls = self._scan_writes(f)
+            allw |= w
+            for c in self._callee_pool(f):
+                for name in calls:
+                    subs = (getattr(c, "functions", None) or {}).get(name)
+                    if subs:
+                        todo.extend(subs.values() if isinstance(subs, dict) else [subs])
+            for lib, name in lib_calls:
+                subs = (getattr(cfgs.get(lib), "functions", None) or {}).get(name) if lib in cfgs else None
+                if subs:
+                    todo.extend(subs.values() if isinstance(subs, dict) else [subs])
+        return allw, own
+
+    def _owner_cfg(self, fcfg):
+        owner = getattr(getattr(fcfg, "_live_origin", fcfg), "owner_contract", None)
+        return (self.an.contract_cfgs or {}).get(owner) or (self.an.library_cfgs or {}).get(owner)
+
+    def _havoc(self, v, owner_cfg) -> None:
+        """변수 v 를 제자리에서 ⊤ 로 (복합 타입은 모든 위치)."""
+        if isinstance(v, MappingVariable):
+            v.mapping.clear()
+            v.sym.clear()
+            v.summary = None                      # None = 선언 기본값(⊤, D5)
+            return
+        if isinstance(v, ArrayVariable):
+            for el in v.elements:
+                self._havoc(el, owner_cfg)
+            v.sym_cells.clear()
+            v.sym.clear()
+            v.summary = None
+            if v.typeInfo.isDynamicArray:
+                v.length = None                   # 미지 길이(⊤)
+            return
+        if isinstance(v, StructVariable):
+            for m in v.members.values():
+                self._havoc(m, owner_cfg)
+            return
+        if isinstance(v, EnumVariable):
+            raise ValueError(f"recursive-call summary: enum variable '{v.identifier}' cannot be set to ⊤ "
+                             f"(enum 값 도메인에 ⊤ 표현이 없다)")
+        v.value = self.eval._top_of_type(v.typeInfo, owner_cfg, v.identifier)
+
+    def _recursive_call_summary(self, fcfg, arg_values, caller_env, kind):
+        owner_cfg = self._owner_cfg(fcfg)
+        allw, own = self._write_set(fcfg)
+        if caller_env is not None:
+            for name in sorted(allw):
+                v = caller_env.get(name)
+                if v is not None and "." not in name and getattr(v, "scope", None) == "state":
+                    self._havoc(v, owner_cfg)
+        if kind != "this":                        # this.f() 는 외부 호출 — 인자는 ABI 복사라 호출자 객체가 바뀌지 않는다
+            params = list(getattr(fcfg, "parameters", []) or [])
+            for pname, val in zip(params, arg_values):
+                if pname in own and isinstance(val, (StructVariable, ArrayVariable, MappingVariable)):
+                    self._havoc(val, owner_cfg)
+        rts = self.eval.declared_return_types(fcfg)
+        tops = [self.eval._top_of_type(t, owner_cfg, f"{fcfg.function_name}_ret{i}") for i, t in enumerate(rts)]
+        if not tops:
+            return None
+        return tops[0] if len(tops) == 1 else tops
+
     def invoke_callee(self, fcfg: FunctionCFG, arg_values: list, caller_env: dict | None, *, kind: str,
                       call_expr=None):
         """(Phase 4, D3) 모든 내부 호출(일반·library·super·this)의 공통 진입점.
@@ -894,6 +1083,9 @@ class Engine:
         params = list(getattr(fcfg, "parameters", []) or [])
         if len(arg_values) != len(params):
             raise ValueError(f"call to '{fcfg.function_name}': expected {len(params)} arguments, got {len(arg_values)}")
+        # (2026-10-23) 재귀 — 이미 실행 중인 함수를 다시 부르면 본문을 펼치지 않고 요약한다(예전엔 Python RecursionError)
+        if self._func_key(fcfg) in self._call_stack():
+            return self._recursive_call_summary(fcfg, arg_values, caller_env, kind)
         bindings, sources = {}, {}
         for pname, val in zip(params, arg_values):
             proto = (fcfg.related_variables or {}).get(pname)
@@ -951,6 +1143,7 @@ class Engine:
 
         _saved_node_vars = self._reset_node_vars(fcfg)
         an.storage.push_frame(fcfg.function_name, _aliases)
+        self._call_stack().append(self._func_key(fcfg))
         # ★ (Phase 1a) 해석 중 예외가 나도 callee 노드·컨텍스트·플래그를 반드시 복원한다.
         #   예전엔 복원이 정상 경로에만 있어서, 예외 한 번이면 `_record_enabled=False` 와
         #   callee 컨텍스트가 남아 이후 기록·During 검증이 조용히 꺼졌다.
@@ -958,6 +1151,7 @@ class Engine:
             return self._interpret_callee_body(fcfg, caller_env, _call_site_node, param_bindings, param_sources,
                                                _call_expr)
         finally:
+            self._call_stack().pop()
             an.storage.pop_frame()
             for blk, saved_vars in _saved_node_vars.items():
                 blk.variables = saved_vars
@@ -975,8 +1169,10 @@ class Engine:
         """interpret_function_cfg 의 본체(진입 env 구성 → worklist → exit 처리 → caller 되쓰기).
         노드/컨텍스트 복원은 호출자(interpret_function_cfg)의 finally 가 맡는다."""
         an = self.an
-        entry = fcfg.get_entry_node()
-        (start_block,) = fcfg.graph.successors(entry)
+        # (2026-10-23) 진입 환경은 ENTRY 에 둔다. 예전엔 ENTRY 의 후속 노드에 두어 ENTRY 가 빈 채였고, 빈 본문 함수
+        #   (ENTRY → EXIT)는 `_force_join_before_exit` 가 유일한 정상 종료 선행인 ENTRY 를 "도달 불가"로 보고 EXIT 를 ⊥ 로 만들었다
+        #   → 호출자의 상태변수가 전부 ⊥ (47_H_02·78_H_02).
+        start_block = fcfg.get_entry_node()
 
         # callee env 초기화: callee 자체 정의(파라미터, 로컬) 기반
         start_block.variables = VariableEnv.copy_variables(fcfg.related_variables)
@@ -1138,8 +1334,7 @@ class Engine:
             run.assign_env = VariableEnv.copy_variables(run.related_variables)
             run.entry_env = VariableEnv.copy_variables(run.related_variables)
 
-            entry = run.get_entry_node()
-            (start_block,) = run.graph.successors(entry)
+            start_block = run.get_entry_node()     # (2026-10-23) 진입 환경 = ENTRY (_interpret_callee_body 주석 참조)
 
             start_block.variables = VariableEnv.copy_variables(run.related_variables)
 
@@ -1148,7 +1343,11 @@ class Engine:
                     if k not in start_block.variables:
                         start_block.variables[k] = VariableEnv.copy_single_variable(v)
 
-            return_values = self._run_worklist(run, start_block)
+            self._call_frames = [self._func_key(run)]     # (2026-10-23) 재귀 감지 — 타깃 함수가 바닥 프레임
+            try:
+                return_values = self._run_worklist(run, start_block)
+            finally:
+                self._call_frames = []
 
             self._force_join_before_exit(run)
             self._restore_all_shadows(run.get_exit_node().variables)   # (Phase 3b, D8)
@@ -1180,26 +1379,17 @@ class Engine:
     def _fcfg_owner(self, fcfg) -> tuple:
         """`fcfg` 가 속한 (컨트랙트명, 함수명).
 
-        ⚠ `FunctionCFG` 에는 소속 컨트랙트 역참조가 **없다**(`ContractCFG.contract_name` 만
-          있다). 그리고 의존성 CFG 는 이미 pkl 로 피클돼 있어 필드를 추가해 줄 수도 없다.
-          그래서 `contract_cfgs` 를 런타임에 훑어 **역색인**을 만든다.
-          색인은 `interpret_function_cfg_for_debug` 진입마다 무효화되므로 evaluate 1회당
-          최대 한 번 구축된다.
+        (2026-10-23) 등록 시점에 `ContractCFG/LibraryCFG.add_function_cfg` 가 단 `owner_contract` 를 읽는다.
+          예전엔 `contract_cfgs` 를 훑어 **객체 identity 역색인**을 만들었는데, 의존성 pkl 은 컨트랙트마다 따로 저장돼
+          부모(`parent_cfgs`)·using 라이브러리 CFG 가 **사본으로 중복** 로드되므로, 그 사본으로 실행되는 callee 는
+          색인에 없어 조용히 (None, 함수명) 이 됐다(callee Step Into 누락, library 안 using-for 조회 실패 — 31_H_01).
         """
-        an = self.an
-        idx = getattr(an, "_fcfg_owner_index", None)
-        if idx is None:
-            idx = {}
-            for cname, ccf in (getattr(an, "contract_cfgs", None) or {}).items():
-                for fname, subs in (getattr(ccf, "functions", {}) or {}).items():
-                    for f in (subs.values() if isinstance(subs, dict) else [subs]):
-                        idx[id(f)] = (cname, fname)
-                ctor = getattr(ccf, "constructor", None)
-                if ctor is not None:
-                    idx[id(ctor)] = (cname, "constructor")
-            an._fcfg_owner_index = idx
         fcfg = getattr(fcfg, "_live_origin", fcfg)
-        return idx.get(id(fcfg), (None, getattr(fcfg, "function_name", "?")))
+        owner = getattr(fcfg, "owner_contract", None)
+        if owner is None:
+            raise ValueError(f"function '{getattr(fcfg, 'function_name', '?')}' has no owner_contract "
+                             f"(의존성 pkl 이 2026-10-23 이전 빌드 — build_project_deps 로 다시 빌드)")
+        return owner, fcfg.function_name
 
     @staticmethod
     def _call_ordinal(site, call_expr) -> int:
@@ -1755,25 +1945,38 @@ class Engine:
                 if exit_retvals:
                     joined = exit_retvals[0]
                     for v in exit_retvals[1:]:
-                        if hasattr(joined, 'join') and hasattr(v, 'join'):
-                            joined = joined.join(v)
-                        else:
-                            return joined
+                        joined = self._join_return_value(joined, v, fcfg)
                     return joined
                 return None
         elif len(return_values) == 1:
             return return_values[0]
         else:
-            filtered_values = [rv for rv in return_values if rv != "__STOP__"]
+            filtered_values = [rv for rv in return_values if not (isinstance(rv, str) and rv == "__STOP__")]
             if not filtered_values:
                 return None
             joined_ret = filtered_values[0]
             for rv in filtered_values[1:]:
-                if hasattr(joined_ret, 'join') and hasattr(rv, 'join'):
-                    joined_ret = joined_ret.join(rv)
-                else:
-                    return joined_ret
+                joined_ret = self._join_return_value(joined_ret, rv, fcfg)
             return joined_ret
+
+    def _join_return_value(self, a, b, fcfg: FunctionCFG):
+        """(2026-10-23) 두 `return` 경로의 반환값 join.
+        예전엔 `.join` 이 없는 값(tuple = 파이썬 list, 복합 변수)을 만나면 **첫 경로 값을 그대로** 돌려줬다 —
+        `return (1, a)` / `return (2, b)` 인 함수가 늘 첫 tuple 만 반환했다."""
+        if a is None and b is None:
+            return None
+        if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+            if len(a) != len(b):
+                raise ValueError(f"return join in '{fcfg.function_name}': tuple arity {len(a)} vs {len(b)}")
+            return [self._join_return_value(x, y, fcfg) for x, y in zip(a, b)]
+        if isinstance(a, (StructVariable, ArrayVariable, MappingVariable)) and type(a) is type(b):
+            return VariableEnv._merge_values(a, b, "join")
+        if isinstance(a, Variables) and isinstance(b, Variables):
+            a, b = a.value, b.value
+        if type(a) is type(b) and hasattr(a, "join"):
+            return a.join(b)
+        raise ValueError(f"return join in '{fcfg.function_name}': cannot join "
+                         f"{type(a).__name__} with {type(b).__name__}")
 
     # =================================================================
     #  Helpers (branch feasible, bottom, EXIT sync, line utils)

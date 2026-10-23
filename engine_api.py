@@ -549,7 +549,8 @@ def _build_callees(fcfg, ca, ext_roots):
     captured = getattr(ca, "_frozen_callee_states", None) or {}
     # ── 1차: CalleeRef 를 전부 만든다 (직렬화는 2차에서) ──────────────
     for (site, ordinal, cname, cfunc), states in captured.items():
-        ccf = (getattr(ca, "contract_cfgs", None) or {}).get(cname)
+        ccf = ((getattr(ca, "contract_cfgs", None) or {}).get(cname)
+               or (getattr(ca, "library_cfgs", None) or {}).get(cname))     # (2026-10-23) library callee 도 소유자가 잡힌다
         callee_fcfg = ccf.get_function_cfg(cfunc) if ccf is not None else None
         if callee_fcfg is None or isinstance(callee_fcfg, dict):
             continue        # 못 찾음 / 오버로드 모호 → 들어갈 대상에서 제외

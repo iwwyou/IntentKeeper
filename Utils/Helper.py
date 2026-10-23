@@ -543,6 +543,13 @@ class VariableEnv:
                 ev.value = defn.members[0]
             return ev
 
+        if sol_t.typeCategory == "function":          # (2026-10-23) 함수 포인터 = ⊤ (Domain/FunctionRef.py)
+            from Domain.FunctionRef import FunctionRef
+            v = Variables(identifier=identifier)
+            v.typeInfo = sol_t
+            v.value = FunctionRef.top()
+            return v
+
         if sol_t.typeCategory == "interface":
             ifc_name = getattr(sol_t, 'interfaceName', None)
             v = Variables(identifier=identifier)

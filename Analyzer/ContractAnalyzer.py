@@ -1224,15 +1224,22 @@ class ContractAnalyzer:
             modifiers: list,          # [(이름, [인자 Expression])] (Phase 4)
             returns: list[Variables] | None,
             mutability: str | None = None,
+            has_body: bool = True,
     ):
         contract_cfg = self.contract_cfgs[self.current_target_contract]
         if contract_cfg is None:
             raise ValueError(f"Contract CFG for {self.current_target_contract} not found.")
 
-        # Interface 함수: body 없이 entry→exit + return_types만 등록
+        # Interface 함수: body 없이 entry→exit + 시그니처(파라미터 타입·이름)·return_types 만 등록
+        #   (2026-10-23) 예전엔 파라미터를 버려 모든 interface 함수가 "인자 0개" 로 보였다 — 오버로드 해소가
+        #   선언을 후보로 볼 때 시그니처가 틀렸다(52_H_23 `getReserves(IERC20)`).
         if getattr(contract_cfg, 'is_interface', False):
             fcfg = FunctionCFG(function_type="function", function_name=function_name)
             fcfg.mutability = mutability
+            fcfg.has_body = False
+            for p_type, p_name in (parameters or []):
+                fcfg.parameter_types.append(StaticCFGFactory.param_type_str(p_type))
+                fcfg.parameters.append(p_name)
             for r_type, r_name in (returns or []):
                 fcfg.return_types.append(r_type)
             contract_cfg.add_function_cfg(function_name, fcfg)
@@ -1242,6 +1249,7 @@ class ContractAnalyzer:
 
         fcfg = StaticCFGFactory.make_function_cfg(self, function_name, parameters, modifiers, returns)
         fcfg.mutability = mutability
+        fcfg.has_body = has_body
         self._narrow_msg_value_for_nonpayable(fcfg)
 
         contract_cfg.add_function_cfg(function_name, fcfg)

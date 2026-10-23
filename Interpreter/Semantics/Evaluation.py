@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:                                         # 타입 검사 전용
      from Analyzer.ContractAnalyzer import ContractAnalyzer
 
+from Domain.FunctionRef import FunctionRef
 from Domain.Variable import Variables, ArrayVariable, StructVariable, MappingVariable, EnumVariable, EnumDefinition, array_length
 from Domain.Type import SolType
 from Domain.Interval import Interval, IntegerInterval, BoolInterval, UnsignedIntegerInterval
@@ -24,6 +25,10 @@ def _is_yul_ctx(expr) -> bool:
     EnhancedYulVisitor 가 컨텍스트 이름에 'Yul' 접두를 단다."""
     c = getattr(expr, "context", None)
     return isinstance(c, str) and c.startswith("Yul")
+
+
+# 값이 아닌 이름 — `X.f()` 의 X 로 오면 using-for 대상이 아니다 (Evaluation._is_non_typed_receiver)
+_NON_VALUE_NAMES = frozenset({"super", "this", "msg", "block", "tx", "abi"})
 
 
 def _reinterpret_as(iv, target_cls):
@@ -410,7 +415,7 @@ class Evaluation :
         if cname is None:
             raise ValueError(f"using-for lookup: owner of executing function "
                              f"'{getattr(fcfg, 'function_name', '?')}' not found")
-        return (self.an.contract_cfgs or {}).get(cname)
+        return (self.an.contract_cfgs or {}).get(cname) or (self.an.library_cfgs or {}).get(cname)
 
     def _using_for_on_cast(self, type_name, member, implicit_arg):
         """`T(x).f(...)` 에서 T 가 f 를 선언하지 않았으면 using-for 로 T 에 붙은 라이브러리 함수 호출 표현을 만든다
@@ -622,6 +627,8 @@ class Evaluation :
                 ctx == "IdentifierExpContext"
                 and (getattr(expr, "arguments", None) is not None
                      or getattr(expr, "named_arguments", None))):
+            if getattr(getattr(expr, "function", None), "context", None) == "MemberAccessContext":
+                return self._return_type_of_member_call(expr, variables)
             return self._return_type_of_call(expr, variables)
 
         # ── 식별자: 선언 타입 그대로
@@ -652,13 +659,26 @@ class Evaluation :
                 t.intTypeLength = int(digits) if digits else 256
             return t
 
-        # ── 멤버 접근: struct 필드의 선언 타입
+        # ── 멤버 접근: 전역 멤버 / struct 필드의 선언 타입 / 내장 멤버
         if ctx == "MemberAccessContext":
-            base_t = self._static_type_of(getattr(expr, "base", None), variables)
             member = getattr(expr, "member", None)
+            base_e = getattr(expr, "base", None)
+            gname = (getattr(base_e, "identifier", None)
+                     if getattr(base_e, "context", None) == "IdentifierExpContext" else None)
+            if gname in ("msg", "block", "tx") and gname not in variables:
+                ety = self._GLOBAL_MEMBER_TYPES.get(f"{gname}.{member}")
+                return self._elementary_type(ety) if ety else None
+            base_t = self._static_type_of(base_e, variables)
             if base_t is None or member is None:
                 return None
-            if getattr(base_t, "typeCategory", None) == "struct":
+            cat = getattr(base_t, "typeCategory", None)
+            ety = getattr(base_t, "elementaryTypeName", None)
+            # (2026-10-23) 내장 멤버 — using-for 수신자 타입을 정적 타입으로 정하면서 필요해졌다
+            if member == "length" and (cat == "array" or ety in ("bytes", "string")):
+                return self._elementary_type("uint256")
+            if member == "balance" and ety in ("address", "address payable"):
+                return self._elementary_type("uint256")
+            if cat == "struct":
                 sname = base_t.structTypeName
                 structs, _ = self.an.get_full_struct_enum_defs()
                 sdef = structs.get(sname) or (structs.get(sname.split('.')[-1])
@@ -698,6 +718,112 @@ class Evaluation :
         # ── 리터럴: Solidity 의미론상 독립 타입이 없다
         return None
 
+    _GLOBAL_MEMBER_TYPES = {
+        "msg.sender": "address", "msg.value": "uint256", "msg.data": "bytes", "msg.sig": "bytes4",
+        "tx.origin": "address", "tx.gasprice": "uint256",
+        "block.timestamp": "uint256", "block.number": "uint256", "block.difficulty": "uint256",
+        "block.prevrandao": "uint256", "block.gaslimit": "uint256", "block.chainid": "uint256",
+        "block.basefee": "uint256", "block.coinbase": "address",
+    }
+
+    @staticmethod
+    def _elementary_type(name: str):
+        t = SolType()
+        t.typeCategory = "elementary"
+        t.elementaryTypeName = name
+        if name.startswith(("int", "uint")):
+            digits = "".join(c for c in name if c.isdigit())
+            t.intTypeLength = int(digits) if digits else 256
+        return t
+
+    @staticmethod
+    def _using_type_key(t) -> str | None:
+        """SolType → using-for 등록 키(`using L for <키>`). `_get_variable_type_string` 과 같은 표기
+        (별칭이 있으면 별칭 이름 — `using UFixed18Lib for UFixed18`)."""
+        if t is None:
+            return None
+        cat = getattr(t, "typeCategory", None)
+        if cat == "elementary":
+            return getattr(t, "aliasName", None) or getattr(t, "elementaryTypeName", None)
+        if cat == "array":
+            base = Evaluation._type_name(getattr(t, "arrayBaseType", None))
+            return f"{base}[]" if base else None
+        if cat == "mapping":
+            return "mapping"
+        if cat == "struct":
+            return getattr(t, "structTypeName", None)
+        if cat == "enum":
+            return getattr(t, "enumTypeName", None)
+        if cat == "interface":
+            return getattr(t, "interfaceName", None)
+        return None
+
+    def _is_non_typed_receiver(self, base_expr, base_val) -> bool:
+        """`X.f(...)` 의 X 가 **값이 아닌 이름**(super/this/전역 네임스페이스/라이브러리·컨트랙트 이름/enum 정의/type(...))인가.
+        이것들은 using-for 대상이 아니고 member access 의 각 전용 분기가 처리한다."""
+        if isinstance(base_val, (dict, EnumDefinition)):
+            return True
+        if getattr(base_expr, "context", None) == "IdentifierExpContext":
+            name = getattr(base_expr, "identifier", None)
+            if name in _NON_VALUE_NAMES:
+                return True
+        return isinstance(base_val, str) and base_val in _NON_VALUE_NAMES
+
+    @staticmethod
+    def declared_return_types(fcfg) -> list:
+        """선언 반환 타입 목록. 이름 없는 반환은 `return_types`, 이름 있는 반환은 `return_vars` 에 들어 있다
+        (StaticCFGFactory.make_function_cfg). 둘이 섞인 선언은 순서를 복원할 수 없어 오류."""
+        rts = list(getattr(fcfg, "return_types", None) or [])
+        rvs = list(getattr(fcfg, "return_vars", None) or [])
+        if rts and rvs:
+            raise ValueError(f"'{fcfg.function_name}': mixed named/unnamed return parameters are not supported")
+        return rts or [rv.typeInfo for rv in rvs]
+
+    @staticmethod
+    def _single_return_type(fcfg):
+        rts = Evaluation.declared_return_types(fcfg)
+        return rts[0] if len(rts) == 1 else None
+
+    def _return_type_of_member_call(self, expr, variables):
+        """(2026-10-23) `x.f(args)` 호출의 리턴 타입(SolType). 모르면 None.
+        - `Lib.f(args)` (라이브러리 한정 호출)
+        - x 의 정적 타입에 using-for 로 붙은 라이브러리 함수 (`a.mul(b).div(c)` 체인)
+        - x 가 interface/contract 타입이면 그 선언 함수 (부모 체인 포함)"""
+        fn = getattr(expr, "function", None)
+        member = getattr(fn, "member", None)
+        base_e = getattr(fn, "base", None)
+        if member is None or base_e is None:
+            return None
+        n_explicit = len(getattr(expr, "arguments", None) or []) + len(getattr(expr, "named_arguments", None) or {})
+        bname = (getattr(base_e, "identifier", None)
+                 if getattr(base_e, "context", None) == "IdentifierExpContext" else None)
+        if bname is not None and bname not in variables and bname in (self.an.library_cfgs or {}):
+            subs = (self.an.library_cfgs[bname].functions or {}).get(member) or {}
+            cands = [f for f in subs.values() if len(getattr(f, "parameters", None) or []) == n_explicit]
+            return self._single_return_type(cands[0]) if len(cands) == 1 else None
+        base_t = self._static_type_of(base_e, variables)
+        key = self._using_type_key(base_t)
+        if key is not None:
+            ccf = self._executing_contract_cfg()
+            lib_f = ccf.find_library_function(key, member, n_args=1 + n_explicit) if ccf is not None else None
+            if lib_f is not None:
+                return self._single_return_type(lib_f)
+        if getattr(base_t, "typeCategory", None) == "interface":
+            visited, queue = set(), [getattr(base_t, "interfaceName", None)]
+            while queue:
+                name = queue.pop(0)
+                if not name or name in visited:
+                    continue
+                visited.add(name)
+                cfg = (self.an.contract_cfgs or {}).get(name)
+                if cfg is None:
+                    continue
+                f = cfg.get_function_cfg(member)
+                if f is not None:
+                    return self._single_return_type(f)
+                queue.extend(getattr(cfg, "parent_contracts", None) or [])
+        return None
+
     def _return_type_of_call(self, expr, variables):
         """이름만으로 하는 함수 호출의 **리턴 타입**(SolType). 모르면 None.
 
@@ -716,27 +842,26 @@ class Evaluation :
             name = getattr(expr, "identifier", None)
         if not name:
             return None
-        target = self.an.current_target_contract
-        ccf = (self.an.contract_cfgs.get(target)
-               or self.an.library_cfgs.get(target)) if target else None
-        if ccf is None:
+        # (2026-10-23) 실행 중인 함수가 속한 컨트랙트/라이브러리 기준 — 예전엔 타깃 컨트랙트라 library callee 안에서 틀렸다
+        #   (2026-10-23) 후보 = 디스패치와 같은 범위(가장 파생된 컨트랙트의 선형화 전체, 라이브러리면 그 라이브러리)
+        if self._executing_contract_cfg() is None:
             return None
-        subs = self.find_function_overloads_in_hierarchy(ccf, name)
+        subs = {sig: fs[0] for sig, fs in
+                self._functions_named(self.linearize(self._dispatch_root_cfg()), name).items()}
         if not subs:
             return None
-        with_rt = [f for f in subs.values() if getattr(f, "return_types", None)]
+        with_rt = [f for f in subs.values() if self.declared_return_types(f)]
         if not with_rt:
             return None
         # ① 리턴 타입이 하나로 수렴하면 오버로드 선택 불필요
-        names = {self._type_name(f.return_types[0]) for f in with_rt}
+        names = {self._type_name(self.declared_return_types(f)[0]) for f in with_rt}
         if len(names) == 1 and next(iter(names)) is not None:
-            return with_rt[0].return_types[0]
+            return self.declared_return_types(with_rt[0])[0]
         # ② 인자 개수로 유일하면 그것
         n_args = len(getattr(expr, "arguments", None) or [])
-        cands = [f for f in with_rt
-                 if len(getattr(f, "parameters", None) or []) == n_args]
+        cands = [f for f in with_rt if self._arity(f) == n_args]
         if len(cands) == 1:
-            return cands[0].return_types[0]
+            return self.declared_return_types(cands[0])[0]
         return None
 
     def find_function_overloads_in_hierarchy(self, contract_cfg, function_name: str):
@@ -800,8 +925,7 @@ class Evaluation :
         상황이므로 조용히 첫 것을 집지 않고 raise 한다.
         """
         total_args = len(arguments) + len(named_arguments)
-        cands = [f for f in overloads.values()
-                 if len(getattr(f, 'parameters', None) or []) == total_args]
+        cands = [f for f in overloads.values() if self._arity(f) == total_args]
         if len(cands) == 1:
             return cands[0]
         if not cands:
@@ -833,6 +957,104 @@ class Evaluation :
             f"Cannot resolve overload for '{function_name}': "
             f"arg types={arg_names}, candidates={[_ptypes(f) for f in cands]}"
         )
+
+    # ── (2026-10-23) 상속 선형화와 디스패치 ────────────────────────────────
+    @staticmethod
+    def _cfg_name(c):
+        return getattr(c, "contract_name", None) or getattr(c, "library_name", None)
+
+    @staticmethod
+    def _arity(f) -> int:
+        """함수의 파라미터 수 — 이름 없는 파라미터도 센다(`parameter_types`)."""
+        return len(getattr(f, "parameter_types", None) or [])
+
+    def linearize(self, ccf) -> list:
+        """Solidity C3 선형화: `contract C is B1, …, Bn` → [C] + merge(L(Bn), …, L(B1), [Bn, …, B1]).
+        (`is` 목록의 오른쪽이 더 파생된 쪽.) 컨트랙트는 **이름**으로 식별한다 — 의존성 pkl 이 컨트랙트마다 따로 저장돼
+        같은 조상이 부모마다 다른 사본으로 들어오기 때문. 객체는 세션에 로드된 것(`contract_cfgs`)을 우선한다."""
+        cfgs = self.an.contract_cfgs or {}
+        by_name: dict = {}
+        memo: dict = {}
+
+        def lin(c, stack):
+            name = self._cfg_name(c)
+            by_name.setdefault(name, cfgs.get(name) or c)
+            if name in memo:
+                return memo[name]
+            if name in stack:
+                raise ValueError(f"inheritance cycle through '{name}'")
+            parents = []
+            for pname in getattr(c, "parent_contracts", None) or []:
+                p = cfgs.get(pname) or (getattr(c, "parent_cfgs", None) or {}).get(pname)
+                if p is None:
+                    raise ValueError(f"inheritance: parent '{pname}' of '{name}' is not loaded")
+                parents.append(p)
+            rev = [self._cfg_name(p) for p in reversed(parents)]
+            seqs = [list(lin(p, stack | {name})) for p in reversed(parents)] + [rev]
+            out = [name]
+            seqs = [s for s in seqs if s]
+            while seqs:
+                for s in seqs:
+                    head = s[0]
+                    if not any(head in t[1:] for t in seqs):
+                        break
+                else:
+                    raise ValueError(f"linearization of '{name}' is impossible (Solidity 도 컴파일 오류)")
+                out.append(head)
+                seqs = [[x for x in t if x != head] for t in seqs]
+                seqs = [s for s in seqs if s]
+            memo[name] = out
+            return out
+
+        return [by_name[n] for n in lin(ccf, frozenset())]
+
+    def _dispatch_root_cfg(self):
+        """가상 디스패치의 기준 = 가장 파생된 컨트랙트(타깃). 실행 중인 함수가 타깃의 선형화에 없으면
+        (라이브러리 등) 그 함수의 소유 컨트랙트."""
+        cfgs = self.an.contract_cfgs or {}
+        target = cfgs.get(self.an.current_target_contract)
+        fcfg = self.an.current_target_function_cfg
+        own = self.engine._fcfg_owner(fcfg)[0] if fcfg is not None else None
+        if target is not None and (own is None or own in [self._cfg_name(c) for c in self.linearize(target)]):
+            return target
+        own_cfg = cfgs.get(own) or (self.an.library_cfgs or {}).get(own)
+        if own_cfg is None:
+            raise ValueError(f"dispatch root: contract '{own}' of executing function not loaded")
+        return own_cfg
+
+    @staticmethod
+    def _functions_named(L, name) -> dict:
+        """선형화 순서대로 이름이 같은 함수들 — {시그니처: [가장 파생된 것부터]}."""
+        by_sig: dict = {}
+        for c in L:
+            for sig, f in ((getattr(c, "functions", None) or {}).get(name) or {}).items():
+                by_sig.setdefault(sig, []).append(f)
+        return by_sig
+
+    def _dispatch(self, L, name, arguments, named_arguments, variables):
+        """① 오버로드 해소: 선형화 전체의 시그니처(선언 포함) 중 인자에 맞는 것 하나.
+        ② 디스패치: 그 시그니처의 **본문 있는** 첫 함수(가장 파생된 override). 없으면 추상 → 오류."""
+        by_sig = self._functions_named(L, name)
+        where = [self._cfg_name(c) for c in L]
+        if not by_sig:
+            raise ValueError(f"call to '{name}': no function of that name in {where}")
+        reps = {sig: fs[0] for sig, fs in by_sig.items()}
+        n_args = len(arguments) + len(named_arguments)
+        if len(reps) == 1:
+            chosen = next(iter(reps.values()))
+            if self._arity(chosen) != n_args:
+                raise ValueError(f"call to '{name}': no overload takes {n_args} arguments "
+                                 f"(candidates {list(reps)} in {where})")
+        else:
+            chosen = self._select_overload(reps, arguments, named_arguments, variables, name)
+            if chosen is None:
+                raise ValueError(f"call to '{name}': no overload takes {n_args} arguments "
+                                 f"(candidates {list(reps)} in {where})")
+        sig = next(s for s, f in reps.items() if f is chosen)
+        impl = next((f for f in by_sig[sig] if f.has_body), None)
+        if impl is None:
+            raise ValueError(f"call to '{name}{sig}': no implementation in {where} (선언만 있음 — 추상)")
+        return impl
 
     def find_function_in_hierarchy(self, contract_cfg, function_name: str):
         """
@@ -1603,6 +1825,12 @@ class Evaluation :
         if ident_str in self.an.library_cfgs:
             return {"isLibrary": True, "libraryName": ident_str}
 
+        # (2026-10-23) 함수 이름을 값으로 쓴 것(`g = inc;`, `apply(inc, a)`) → 함수 포인터 ⊤ (대상은 추적하지 않는다)
+        ccf = self._executing_contract_cfg()
+        if ccf is not None and (self.find_function_overloads_in_hierarchy(ccf, ident_str)
+                                or ident_str in (getattr(ccf, "functions", None) or {})):
+            return FunctionRef.top()
+
         raise ValueError(f"This '{ident_str}' is may be elementary variable but may not be declared")
 
     def evaluate_member_access_context(
@@ -1622,23 +1850,14 @@ class Evaluation :
         # callerContext가 "functionCallContext"인 경우 - a.mul(b)에서 a.mul 부분이 호출될 때
         if callerContext == "functionCallContext":
             # baseVal이 Variables, mapping, Struct, 또는 interval인 경우 라이브러리 함수 호출 처리
-            base_type = None
             implicit_arg = baseVal
 
-            # 타입 추출
-            if isinstance(baseVal, Variables):
-                base_type = self._get_variable_type_string(baseVal)
-            elif isinstance(baseVal, (UnsignedIntegerInterval, IntegerInterval)):
-                # interval인 경우: expr.base에서 원래 타입(aliasName) 복원 시도
-                alias_type = self._resolve_alias_from_expr(expr.base, variables)
-                if alias_type:
-                    base_type = alias_type
-                else:
-                    bits = baseVal.type_length   # interval 은 비트폭을 type_length 에 둔다('bits' 속성은 없음 → 늘 256 이던 잠복 버그)
-                    if isinstance(baseVal, UnsignedIntegerInterval):
-                        base_type = f"uint{bits}"
-                    else:
-                        base_type = f"int{bits}"
+            # (2026-10-23) 수신자 타입 = 식의 **정적 타입**. Solidity 의 `using L for T` 는 수신자 식의 정적 타입으로 붙는다.
+            #   예전엔 값으로 추측했다(변수 객체면 선언 타입, 구간이면 비트폭으로 uintN, 그 밖의 값이면 타입 없음) —
+            #   `address(token).functionCall(...)` 의 값이 AddressSet 이라 타입을 못 정해 using-for 를 건너뛰었다(31_H_01).
+            base_type = self._using_type_key(self._static_type_of(expr.base, variables))
+            if base_type is None and not self._is_non_typed_receiver(expr.base, baseVal):
+                raise ValueError(f"using-for lookup: static type of receiver of '.{member}(...)' is unknown")
 
             if base_type:
                 # using directive 확인 — (2026-10-22) **실행 중인 함수가 속한** 컨트랙트/라이브러리의 using 목록.
@@ -1699,25 +1918,18 @@ class Evaluation :
         # ──────────────────────────────────────────────────────────────
         if isinstance(baseVal, str) and baseVal == "super":
             if callerContext == "functionCallContext":
-                # super.foo() 형태의 함수 호출
-                current_contract = self.an.current_target_contract
-                if current_contract and current_contract in self.an.contract_cfgs:
-                    contract_cfg = self.an.contract_cfgs[current_contract]
-
-                    # 부모 컨트랙트에서만 함수 검색
-                    parent_function = self.find_function_in_parent_only(contract_cfg, member)
-                    if parent_function:
-                        # super 함수 호출 Expression 반환
-                        result_expr = Expression(
-                            function=Expression(identifier=member),
-                            operator='super_call',
-                            context='SuperFunctionCallContext'
-                        )
-                        result_expr._super_function_cfg = parent_function
-                        return result_expr
-
-            # super를 함수 호출 외의 컨텍스트에서 사용한 경우
-            return f"super.{member}"
+                # (2026-10-23) super.f() = 가장 파생된 컨트랙트의 C3 선형화에서 **f 를 정의한 컨트랙트 다음**부터 디스패치.
+                #   예전엔 타깃 컨트랙트의 부모를 깊이 우선으로 찾아, 부모 함수 안의 super 가 엉뚱한 곳으로 갔다.
+                L = self.linearize(self._dispatch_root_cfg())
+                own = self.engine._fcfg_owner(self.an.current_target_function_cfg)[0]
+                names = [self._cfg_name(c) for c in L]
+                if own not in names:
+                    raise ValueError(f"super.{member}(): executing contract '{own}' is not in the linearization {names}")
+                result_expr = Expression(function=Expression(identifier=member), operator='super_call',
+                                         context='SuperFunctionCallContext')
+                result_expr._dispatch_L = L[names.index(own) + 1:]
+                return result_expr
+            raise ValueError(f"'super.{member}' used outside a call")
 
         # ──────────────────────────────────────────────────────────────
         # 0-1b. 명시적 base-contract-qualified 호출 (ParentName.foo())
@@ -1730,41 +1942,28 @@ class Evaluation :
         if isinstance(baseVal, dict) and baseVal.get("isBaseContract"):
             contract_name = baseVal["contractName"]
             if callerContext == "functionCallContext":
+                # (2026-10-23) `Base.f()` = Base 에서 시작하는 정적(비가상) 호출 — Base 의 선형화로 디스패치
                 base_cfg = self.an.contract_cfgs.get(contract_name)
-                if base_cfg:
-                    base_function = self.find_function_in_hierarchy(base_cfg, member)
-                    if base_function:
-                        result_expr = Expression(
-                            function=Expression(identifier=member),
-                            operator='super_call',
-                            context='SuperFunctionCallContext'
-                        )
-                        result_expr._super_function_cfg = base_function
-                        return result_expr
+                if base_cfg is None:
+                    raise ValueError(f"'{contract_name}.{member}()': contract '{contract_name}' not loaded")
+                result_expr = Expression(function=Expression(identifier=member), operator='super_call',
+                                         context='SuperFunctionCallContext')
+                result_expr._dispatch_L = self.linearize(base_cfg)
+                return result_expr
 
-            return f"{contract_name}.{member}"
+            raise ValueError(f"'{contract_name}.{member}' used outside a call (base-contract member)")
 
         # ──────────────────────────────────────────────────────────────
         # 0-2. this 키워드 처리 (this.foo(), this.balance, address(this).balance 등)
         # ──────────────────────────────────────────────────────────────
         if isinstance(baseVal, str) and baseVal == "this":
             if callerContext == "functionCallContext":
-                # this.foo() 형태의 함수 호출 → 현재 컨트랙트의 함수 호출
-                current_contract = self.an.current_target_contract
-                if current_contract and current_contract in self.an.contract_cfgs:
-                    contract_cfg = self.an.contract_cfgs[current_contract]
-                    this_function = self.find_function_in_hierarchy(contract_cfg, member)
-                    if this_function:
-                        # this 함수 호출 Expression 반환
-                        result_expr = Expression(
-                            function=Expression(identifier=member),
-                            operator='this_call',
-                            context='ThisFunctionCallContext'
-                        )
-                        result_expr._this_function_cfg = this_function
-                        return result_expr
-                # 함수를 찾지 못함 → Top 반환
-                return UnsignedIntegerInterval.top()
+                # (2026-10-23) this.f() = 자기 자신에 대한 외부 호출 — 가장 파생된 컨트랙트 기준 가상 디스패치.
+                #   예전엔 못 찾으면 uint ⊤ 를 돌려줬다(반환 타입 무시).
+                result_expr = Expression(function=Expression(identifier=member), operator='this_call',
+                                         context='ThisFunctionCallContext')
+                result_expr._dispatch_L = self.linearize(self._dispatch_root_cfg())
+                return result_expr
 
             # this.balance → GlobalVar에 값이 있으면 사용, 없으면 Top
             if member == "balance":
@@ -1773,6 +1972,17 @@ class Evaluation :
 
             # 기타 this 멤버 접근은 심볼릭으로 처리
             return f"this.{member}"
+
+        # ──────────────────────────────────────────────────────────────
+        # 0-2b. 동적 bytes / string 의 `.length` (2026-10-23)
+        #   동적 bytes·string 의 내용·길이는 모델링하지 않는다(값은 심볼) → 길이는 uint256 ⊤.
+        #   판정은 값이 아니라 수신자 식의 정적 타입으로 한다.
+        # ──────────────────────────────────────────────────────────────
+        if member == "length" and callerContext != "functionCallContext":
+            st = self._static_type_of(expr.base, variables)
+            if getattr(st, "typeCategory", None) == "elementary" \
+                    and getattr(st, "elementaryTypeName", None) in ("bytes", "string"):
+                return UnsignedIntegerInterval.top(256)
 
         # ──────────────────────────────────────────────────────────────
         # 0-3. address 변수 (Phase 4b)
@@ -2041,8 +2251,10 @@ class Evaluation :
                 result_expr._cast_address = baseVal
                 return result_expr
 
-            # 기타 address 멤버는 심볼릭 처리
-            return f"address.{member}"
+            # (2026-10-23) 예전엔 `"address.<member>"` 문자열을 값으로 돌려줬다 — `address(token).functionCall(...)` 의
+            #   결과가 그 문자열이 되어 다음 줄 `returndata.length` 에서 엉뚱하게 터졌다(31_H_01).
+            raise ValueError(f"unresolved address member '.{member}' "
+                             f"(내장 멤버도, using-for 라이브러리 함수도 아님)")
 
         # ──────────────────────────────────────────────────────────────
         # 4. EnumDefinition  (EnumType.RED)
@@ -2846,7 +3058,7 @@ class Evaluation :
                 # super 함수 호출로 처리
                 return self._mapping_lookup_if_needed(
                     self.evaluate_super_function_call_context(
-                        expr, variables, function_result._super_function_cfg),
+                        expr, variables, function_result._dispatch_L),
                     callerObject)
 
             # this 함수 호출인 경우 (this.foo())
@@ -2857,7 +3069,7 @@ class Evaluation :
                 # this 함수 호출로 처리 (일반 함수 호출과 동일)
                 return self._mapping_lookup_if_needed(
                     self.evaluate_this_function_call_context(
-                        expr, variables, function_result._this_function_cfg),
+                        expr, variables, function_result._dispatch_L),
                     callerObject)
 
             # 일반적인 member access 결과 반환 (dynamic array push/pop 등)
@@ -2938,8 +3150,34 @@ class Evaluation :
 
         return new_struct
 
+    def _call_function_pointer(self, fp, expr, variables, callerObject):
+        """(2026-10-23) 함수 포인터 호출 — 대상을 추적하지 않으므로(값 = FunctionRef ⊤) **대상을 모르는 호출**로 요약한다.
+          · internal 함수 타입: 같은 컨트랙트의 어떤 함수든 될 수 있다 → 상태변수 전체 ⊤, 복합 타입 인자(참조 의미) ⊤
+          · external 함수 타입: 외부 호출 — 이 엔진의 외부 호출 모델(반환값만 주고받음)과 같게 상태는 유지
+          · 반환값 = 함수 타입에 선언된 반환 타입의 ⊤"""
+        ft = fp.typeInfo
+        args = [self.evaluate_expression(a, variables, None, None) for a in (expr.arguments or [])]
+        args += [self.evaluate_expression(a, variables, None, None) for a in (expr.named_arguments or {}).values()]
+        owner_cfg = self._executing_contract_cfg()
+        if getattr(ft, "functionVisibility", "internal") == "internal":
+            for name, v in list(variables.items()):
+                if "." not in name and getattr(v, "scope", None) == "state" and not getattr(v, "isConstant", False):
+                    self.engine._havoc(v, owner_cfg)
+            for a in args:
+                if isinstance(a, (StructVariable, ArrayVariable, MappingVariable)):
+                    self.engine._havoc(a, owner_cfg)
+        rts = list(getattr(ft, "functionReturnTypes", None) or [])
+        tops = [self._top_of_type(t, owner_cfg, f"{fp.identifier}_ret{i}") for i, t in enumerate(rts)]
+        if not tops:
+            return None
+        return self._mapping_lookup_if_needed(tops[0], callerObject) if len(tops) == 1 else tops
+
     def _resolve_and_call_internal(self, expr, variables, callerObject, callerContext, function_name, contract_cfg):
         """이름 호출 `f(args)` — 정적 스코프로 callee 를 찾아 공통 진입점으로 해석 (Phase 4)."""
+        # (2026-10-23) 함수 타입 변수를 통한 호출 — 지역 이름이 함수 이름을 가린다(Solidity 스코프)
+        fp = variables.get(function_name)
+        if fp is not None and getattr(getattr(fp, "typeInfo", None), "typeCategory", None) == "function":
+            return self._call_function_pointer(fp, expr, variables, callerObject)
         # 3) 함수 CFG 가져오기
         # ★ 지금 라이브러리 함수 몸체 안에서 이름만으로 호출하는 중이라면(예:
         # SafeMathUpgradeable의 `sub(a,b) { return sub(a,b,errorMsg); }`처럼
@@ -2981,11 +3219,14 @@ class Evaluation :
             functions_source = owning_lib.functions.get(function_name)
             function_cfg = next(iter(functions_source.values())) if functions_source else None
         else:
-            function_cfg = self.find_function_in_hierarchy(contract_cfg, function_name)
-            # ★ F34. overload 집합은 function_cfg 와 **같은 탐색 범위**(부모 체인 포함)
-            #   에서 가져와야 한다 — 예전엔 현재 컨트랙트만 봐서 상속 오버로드를 놓쳤다.
-            functions_source = self.find_function_overloads_in_hierarchy(
-                contract_cfg, function_name)
+            # (2026-10-23) 이름 호출 = 가장 파생된 컨트랙트의 C3 선형화 전체에서 오버로드 해소 → 본문 있는 첫 구현으로
+            #   디스패치(`_dispatch`). 예전엔 소스 순서 깊이 우선으로 **이름이 처음 나온 곳**을 골라, 본문 없는 interface
+            #   선언(파라미터 미기록 → "인자 0개")을 호출 대상으로 잡았다(52_H_23 `getReserves(foreignAsset)`).
+            L = self.linearize(self._dispatch_root_cfg())
+            function_cfg = (self._dispatch(L, function_name, expr.arguments or [], expr.named_arguments or {},
+                                           variables)
+                            if self._functions_named(L, function_name) else None)
+            functions_source = None
 
         if not function_cfg:
             # ★ (Phase 4, D3/D4) 예전엔 여기서 `pending_callee_name` 을 남기고 uint256 ⊤ 를 반환했다(반환 타입 무시).
@@ -2997,10 +3238,7 @@ class Evaluation :
                                   expression=(expr.arguments[0] if expr.arguments else None),
                                   operator='typecast', context='TypeConversion')
                 return self.evaluate_expression(conv, variables, callerObject, callerContext)
-            # (2) 함수 타입 변수 → 간접 호출(D9: 보수적 근사, Phase 5)
-            if function_name in variables:
-                raise ValueError(f"call through function-type variable '{function_name}' is not supported yet")
-            # (3) 그 외 = 존재하지 않는 함수 (컴파일 오류급)
+            # (2) 그 외 = 존재하지 않는 함수 (컴파일 오류급)
             raise ValueError(f"call to undefined function '{function_name}'")
 
         # 4) 함수 파라미터와 인자 매핑
@@ -3086,19 +3324,21 @@ class Evaluation :
                 break
         return self.engine.invoke_callee(library_function_cfg, values, caller_env, kind="library", call_expr=expr)
 
-    def evaluate_super_function_call_context(self, expr, variables, super_function_cfg):
-        """super.f(...) / Base.f(...) — (Phase 4) 공통 진입점으로. 못 찾으면 예외(예전엔 ⊤)."""
-        if not super_function_cfg:
-            raise ValueError("super call: parent function not found")
+    def evaluate_super_function_call_context(self, expr, variables, dispatch_L):
+        """super.f(...) / Base.f(...) — (Phase 4) 공통 진입점으로. 못 찾으면 예외(예전엔 ⊤).
+        (2026-10-23) 대상은 호출 시점에 인자로 오버로드를 해소하고 선형화 구간에서 디스패치한다."""
+        super_function_cfg = self._dispatch(dispatch_L, expr.function.member if expr.function.context ==
+                                            "MemberAccessContext" else expr.function.identifier,
+                                            expr.arguments or [], expr.named_arguments or {}, variables)
         param_names = list(getattr(super_function_cfg, 'parameters', []) or [])
         values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
                                          variables, super_function_cfg.function_name)
         return self.engine.invoke_callee(super_function_cfg, values, variables, kind="super", call_expr=expr)
 
-    def evaluate_this_function_call_context(self, expr, variables, this_function_cfg):
+    def evaluate_this_function_call_context(self, expr, variables, dispatch_L):
         """this.f(...) — 외부 호출이므로 인자는 복사(참조 의미 없음). (Phase 4) 못 찾으면 예외(예전엔 ⊤/문자열)."""
-        if not this_function_cfg:
-            raise ValueError("this-call: function not found in the current contract")
+        this_function_cfg = self._dispatch(dispatch_L, expr.function.member, expr.arguments or [],
+                                           expr.named_arguments or {}, variables)
         param_names = list(getattr(this_function_cfg, 'parameters', []) or [])
         values = self._ordered_call_args(expr.arguments or [], expr.named_arguments or {}, param_names,
                                          variables, this_function_cfg.function_name)

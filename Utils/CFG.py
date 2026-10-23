@@ -362,6 +362,7 @@ class ContractCFG(CFG):
             self.graph.add_edge(self.entry_node, constructor_cfg.entry_node)
 
         # 2. ContractCFG에 생성자 CFG 추가
+        constructor_cfg.owner_contract = self.contract_name
         self.constructor = constructor_cfg
 
     #def get_modifier_cfg(self, modifier_name):
@@ -369,6 +370,9 @@ class ContractCFG(CFG):
     #    return self.modifiers.get(modifier_name)
 
     def add_function_cfg(self, function_name, function_cfg):
+        # (2026-10-23) 함수가 자기 소유 컨트랙트 이름을 갖는다 — 의존성 pkl 은 컨트랙트마다 따로 저장돼 부모(parent_cfgs)·
+        #   using 라이브러리 CFG 가 사본으로 중복 로드되므로, 객체 identity 로는 소유자를 찾을 수 없다(Engine._fcfg_owner).
+        function_cfg.owner_contract = self.contract_name
         sig = self._build_signature(function_cfg)
         if function_name not in self.functions:
             self.functions[function_name] = {}
@@ -379,6 +383,7 @@ class ContractCFG(CFG):
         if function_name not in self.functions:
             self.add_function_cfg(function_name, function_cfg)
             return
+        function_cfg.owner_contract = getattr(self, "contract_name", None) or self.library_name
         sub = self.functions[function_name]
         sig = self._build_signature(function_cfg)
         if sig in sub:
@@ -586,6 +591,8 @@ class FunctionCFG(CFG):
         self.related_variables: dict[str, Variables] = {}
         self.parameters: list[str] = []
         self.parameter_types: list[str] = []  # overloading 지원: ["uint256", "address", ...]
+        # (2026-10-23) 본문이 있는가 — interface 함수·`function f() virtual;` 는 선언뿐이라 호출 대상(디스패치)이 될 수 없다
+        self.has_body: bool = True
         self.return_types: list[SolType] = []
         self.return_vars: list[Variables] = []
         self.assign_env: dict[str, Variables] = {}   # 최초 스냅샷 전용
@@ -770,6 +777,7 @@ class LibraryCFG(CFG):
         self.enumDefs = {}   # name -> EnumDefinition 객체
 
         self.globals: dict[str, 'GlobalVariable'] = {}
+        self.events = {}     # (2026-10-23) library 도 event 를 선언할 수 있다 (51_H_02 SwapUtils)
 
         # Library 내부의 using directive 지원 (e.g., using Address for address;)
         self.using_libraries: dict[str, list['LibraryCFG']] = {}
@@ -777,6 +785,7 @@ class LibraryCFG(CFG):
 
     def add_function_cfg(self, function_name, function_cfg):
         """라이브러리 함수 CFG 추가"""
+        function_cfg.owner_contract = self.library_name    # ContractCFG.add_function_cfg 주석 참조
         sig = ContractCFG._build_signature(function_cfg)
         if function_name not in self.functions:
             self.functions[function_name] = {}
@@ -832,6 +841,7 @@ class LibraryCFG(CFG):
         if function_name not in self.functions:
             self.add_function_cfg(function_name, function_cfg)
             return
+        function_cfg.owner_contract = getattr(self, "contract_name", None) or self.library_name
         sub = self.functions[function_name]
         sig = ContractCFG._build_signature(function_cfg)
         if sig in sub:

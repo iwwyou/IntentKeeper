@@ -292,6 +292,15 @@ class Storage:
             raise ValueError(f"디버그 입력 `{label}`: 인덱스 `{index_expr}` 는 부수효과가 있는 식이라 위치를 정할 수 없다")
         if res.kind == "bottom":
             raise ValueError(f"디버그 입력 `{label}`: 인덱스 `{index_expr}` 의 값이 ⊥ 이다")
+        # (2026-10-23) 정적 배열의 **존재하지 않는 위치**에 놓은 입력 = 잘못된 디버깅 입력(그런 진입 상태가 없다).
+        #   예전엔 저장하지 않는 가상 셀에 써서 입력이 조용히 사라졌다. 인덱스 값 일부만 범위 밖인 경우는 미결정이라 그대로 둔다.
+        if isinstance(c, ArrayVariable) and not c.typeInfo.isDynamicArray:
+            n = len(c.elements)
+            lo = (int(res.key) if res.kind == "concrete"
+                  else getattr(res.vals, "min_value", None) if isinstance(res.vals, _INTERVALS) else None)
+            if lo is not None and lo >= n:
+                raise ValueError(f"잘못된 디버깅 입력 `{label}`: 인덱스 `{index_expr}` 가 길이 {n} 인 정적 배열 "
+                                 f"`{c.identifier}` 의 범위 밖이다 (그런 위치가 없다)")
         obj = self.select(c, res)
         if res.kind == "symbolic":
             self._assume_pending.append((c, res, obj))
