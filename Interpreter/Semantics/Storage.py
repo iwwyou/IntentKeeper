@@ -172,7 +172,7 @@ class Storage:
                 meta = c.sym.get(k)
                 out.append(("sym", k, obj, meta["vals"]) if meta else ("con", k, obj, _key_point(k)))
         else:
-            for i, obj in enumerate(c.elements):
+            for i, obj in sorted(c.elements.items()):
                 out.append(("con", str(i), obj, i))
             for k, obj in c.sym_cells.items():
                 out.append(("sym", k, obj, c.sym[k]["vals"]))
@@ -182,10 +182,18 @@ class Storage:
     def _has_unmaterialized(c, res: KeyRes) -> bool:
         """res 가 고를 수 있는 위치 중 구체 셀이 없는 위치가 있는가 (없으면 summary 를 join 할 필요가 없다)."""
         if isinstance(c, ArrayVariable):
-            if not c.typeInfo.isDynamicArray:
-                return False                      # 정적 배열은 전 원소가 구체화돼 있다
+            # (2026-10-23, 희소 배열) 정적 배열도 구체화되지 않은 원소가 있다 — res 범위 안 위치 수 > 구체 셀 수 이면 True
             hi = _hi(res.vals)
-            return hi is None or hi >= len(c.elements)
+            n = c.static_length()
+            if n is not None:
+                hi = n - 1 if hi is None else min(hi, n - 1)
+            if hi is None:
+                return True
+            lo = max(0, getattr(res.vals, "min_value", 0) if isinstance(res.vals, _INTERVALS) else 0)
+            if hi < lo:
+                return False
+            have = sum(1 for k in c.elements if lo <= k <= hi)
+            return have < hi - lo + 1
         v = res.vals
         if isinstance(v, _INTERVALS) and v.max_value - v.min_value < 64:
             have = {k for k in c.mapping if k not in c.sym}
@@ -218,7 +226,7 @@ class Storage:
             idx = int(res.key)
             if idx < 0:
                 raise IndexError(f"negative index {idx} for array '{c.identifier}'")
-            if not c.typeInfo.isDynamicArray and idx >= len(c.elements):
+            if not c.in_static_range(idx):
                 # 정적 배열 범위 밖 = 이 상태에선 revert(Panic 0x32). 경로 차단은 Phase 5 — 지금은 저장하지 않는 ⊤ 셀.
                 return c._create_new_array_element(idx)
             return c.get_or_create_element(idx)
@@ -295,7 +303,7 @@ class Storage:
         # (2026-10-23) 정적 배열의 **존재하지 않는 위치**에 놓은 입력 = 잘못된 디버깅 입력(그런 진입 상태가 없다).
         #   예전엔 저장하지 않는 가상 셀에 써서 입력이 조용히 사라졌다. 인덱스 값 일부만 범위 밖인 경우는 미결정이라 그대로 둔다.
         if isinstance(c, ArrayVariable) and not c.typeInfo.isDynamicArray:
-            n = len(c.elements)
+            n = c.static_length()
             lo = (int(res.key) if res.kind == "concrete"
                   else getattr(res.vals, "min_value", None) if isinstance(res.vals, _INTERVALS) else None)
             if lo is not None and lo >= n:
@@ -363,7 +371,7 @@ def _containers(variables):
                 walk(v.summary)
         elif isinstance(v, ArrayVariable):
             out.append(v)
-            for e in v.elements:
+            for e in list(v.elements.values()):
                 walk(e)
             for e in list(v.sym_cells.values()):
                 walk(e)

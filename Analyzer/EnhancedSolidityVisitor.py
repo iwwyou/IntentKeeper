@@ -271,12 +271,36 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         )
 
     # Visit a parse tree produced by SolidityParser#fallbackFunctionDefinition.
+    # (2026-10-23) fallback/receive 를 함수로 등록한다. 예전엔 visitChildren 뿐이라 CFG 가 없었고 본문 문장이 전부
+    #   "No active function CFG" 로 실패했다(n_Nokon·w61 CreditLine·w79 LaunchEvent receive). 이름 `fallback`/`receive` 는
+    #   Solidity 키워드라 사용자 함수 이름과 겹치지 않는다.
     def visitFallbackFunctionDefinition(self, ctx:SolidityParser.FallbackFunctionDefinitionContext):
-        return self.visitChildren(ctx)
+        has_returns = any(isinstance(ch, TerminalNodeImpl) and ch.getText() == "returns" for ch in ctx.getChildren())
+        plists = list(ctx.parameterList())
+        params_ctx = plists[0] if (plists and not (has_returns and len(plists) == 1)) else None
+        returns_ctx = plists[-1] if has_returns else None
+        mutability = next((ch.getText() for ch in ctx.getChildren()
+                           if isinstance(ch, SolidityParser.StateMutabilityContext)), None)
+        mods = self._modifier_invocations(
+            [m for m in ctx.getChildren() if isinstance(m, SolidityParser.ModifierInvocationContext)])
+        self.contract_analyzer.process_function_definition(
+            function_name="fallback",
+            parameters=self.visitParameterList(params_ctx) if params_ctx else [],
+            modifiers=mods,
+            returns=self.visitParameterList(returns_ctx) if returns_ctx else [],
+            mutability=mutability,
+            has_body=ctx.block() is not None,
+        )
 
     # Visit a parse tree produced by SolidityParser#receiveFunctionDefinition.
     def visitReceiveFunctionDefinition(self, ctx:SolidityParser.ReceiveFunctionDefinitionContext):
-        return self.visitChildren(ctx)
+        mods = self._modifier_invocations(
+            [m for m in ctx.getChildren() if isinstance(m, SolidityParser.ModifierInvocationContext)])
+        self.contract_analyzer.process_function_definition(
+            function_name="receive", parameters=[], modifiers=mods, returns=[],
+            mutability="payable",                      # receive 는 언제나 payable
+            has_body=ctx.block() is not None,
+        )
 
     # Visit a parse tree produced by SolidityParser#stateVariableDeclaration.
     # EnhancedSolidityVisitor.py
@@ -328,7 +352,10 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
     # Visit a parse tree produced by SolidityParser#errorDefinition.
     def visitErrorDefinition(self, ctx:SolidityParser.ErrorDefinitionContext):
-        return self.visitChildren(ctx)
+        # (2026-10-23) 엔진은 `revert E(...)` 를 ERROR 로만 모델링하므로 error 정의에서 기록할 정보가 없다.
+        #   예전엔 visitChildren 이 파라미터 타입을 기본 방문해 `visitBasicType(type_obj 없음)` 으로 죽었다
+        #   (Fixed18/UFixed18 라이브러리 안 error, PRBMath 파일 수준 error).
+        return None
 
     # Visit a parse tree produced by SolidityParser#errorParameter.
     def visitErrorParameter(self, ctx:SolidityParser.ErrorParameterContext):
@@ -621,7 +648,12 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         # 배열 크기 확인
         if ctx.expression():
             array_size_expr = ctx.expression()
-            array_size = self.evaluate_literal_expression(array_size_expr)  # 배열 크기를 평가 (정수 값이어야 함)
+            # (2026-10-23) 길이 = 컴파일 타임 상수식(리터럴·`constant` 상태변수·`Lib.CONST`·산술). 예전엔 리터럴만 받아
+            #   `uint256[N_COINS]`(w17)·`Observation[MAX_CARDINALITY]`(w34) 가 "Unsupported literal type" 이었다.
+            if array_size_expr.getText().isdigit():
+                array_size = self.evaluate_literal_expression(array_size_expr)
+            else:
+                array_size = self.contract_analyzer.compile_time_constant(self.visitExpression(array_size_expr))
             is_dynamic = False
         else:
             array_size = 0
@@ -703,21 +735,26 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
         # 타입이 enum인지 struct인지 확인 (contract scope + parent chain)
         def _find_in_chain(cfg, name, attr):
-            """contract CFG + parent chain에서 struct/enum 검색"""
+            """contract CFG + parent chain에서 struct/enum 정의 검색 (없으면 None)"""
             defs = getattr(cfg, attr, {})
             if name in defs:
-                return True
+                return defs[name]
             for pcfg in getattr(cfg, 'parent_cfgs', {}).values():
-                if _find_in_chain(pcfg, name, attr):
-                    return True
-            return False
+                d = _find_in_chain(pcfg, name, attr)
+                if d is not None:
+                    return d
+            return None
 
-        if contract_cfg and _find_in_chain(contract_cfg, type_name, 'enumDefs'):
+        _enum_def = _find_in_chain(contract_cfg, type_name, 'enumDefs') if contract_cfg else None
+        _struct_def = _find_in_chain(contract_cfg, type_name, 'structDefs') if contract_cfg and _enum_def is None else None
+        if _enum_def is not None:
             type_obj.typeCategory = "enum"
             type_obj.enumTypeName = type_name
-        elif contract_cfg and _find_in_chain(contract_cfg, type_name, 'structDefs'):
+            type_obj.enumOwner = getattr(_enum_def, "owner", None)       # 파일 수준 enum 사본은 None
+        elif _struct_def is not None:
             type_obj.typeCategory = "struct"
             type_obj.structTypeName = type_name
+            type_obj.structOwner = getattr(_struct_def, "owner", None)
         elif type_name in self.contract_analyzer.interface_names:
             # Interface 타입: 원본 이름 보존 + address 하위 호환
             type_obj.typeCategory = "interface"
@@ -777,22 +814,26 @@ class EnhancedSolidityVisitor(SolidityVisitor):
                     if isinstance(resolved, EnumDefinition):
                         type_obj.typeCategory = "enum"
                         type_obj.enumTypeName = type_name
+                        type_obj.enumOwner = getattr(resolved, "owner", None)
                         if contract_cfg and type_name not in contract_cfg.enumDefs:
                             contract_cfg.enumDefs[type_name] = resolved
                     elif isinstance(resolved, StructDefinition):
                         type_obj.typeCategory = "struct"
                         type_obj.structTypeName = type_name
+                        type_obj.structOwner = getattr(resolved, "owner", None)
                         # struct 정의를 현재 CFG에 등록 (qualified name으로, 이후 멤버 접근용)
                         if contract_cfg and type_name not in contract_cfg.structDefs:
                             contract_cfg.structDefs[type_name] = resolved
                     else:
-                        raise ValueError(f"Qualified type '{type_name}': '{member_name}' not found in library '{lib_name}'.")
+                        # (2026-10-23, 레지스트리) 한정자 쪽 선언이 아직 없거나 그 선언에 멤버가 없다 — 이름 = 한정자
+                        from Utils.Errors import UnresolvedName
+                        raise UnresolvedName(lib_name, f"Qualified type '{type_name}': '{member_name}' not found in library '{lib_name}'.")
                 else:
                     scope = f"contract '{contract_name}'" if contract_name else "file level"
                     # (2026-10-22) 사용자 소스 오류 — 현재 소스·로드된 의존성 어디에도 선언이 없다(편집 중 흔함).
                     #   SourceError 면 증분 업데이트가 이 변경만 반영하지 않고 진단으로 돌려준다(세션 유지).
-                    from Utils.Errors import SourceError
-                    raise SourceError(f"Type '{type_name}' is not defined as struct, enum, or type alias in {scope}.")
+                    from Utils.Errors import UndefinedType
+                    raise UndefinedType(type_name, f"Type '{type_name}' is not defined as struct, enum, or type alias in {scope}.")
 
         return type_obj
 
@@ -1642,7 +1683,8 @@ class EnhancedSolidityVisitor(SolidityVisitor):
         elif isinstance(expr_ctx, SolidityParser.IdentifierExpContext) :
             self.contract_analyzer.process_identifier_expression(expr)
         else:
-            raise ValueError(f"Unsupported expression context in interactiveExpressionStatement: {ctx}")
+            # (2026-10-23) 값만 있는 식 문장(비교·멤버 접근·산술 등). 예전엔 미지원 예외였다(w71 `insurances[_id].status == false;`).
+            self.contract_analyzer.process_expression_statement(expr)
 
     # Visit a parse tree produced by SolidityParser#interactiveStateVariableElement.
     def visitInteractiveStateVariableElement(self, ctx:SolidityParser.InteractiveStateVariableElementContext):
@@ -2032,18 +2074,18 @@ class EnhancedSolidityVisitor(SolidityVisitor):
 
     # Visit a parse tree produced by SolidityParser#interactiveTryStatement.
     def visitInteractiveTryStatement(self, ctx:SolidityParser.InteractiveTryStatementContext):
-        return self.visitChildren(ctx)
+        # (2026-10-23) 예전엔 visitChildren 뿐이라 try 가 CFG 에 없었다(본문 줄은 try 밖 문장처럼 붙었다).
+        #   `ContractAnalyzer.process_try_statement` → try_cond(성공/실패 두 분기 모두 진행) + returns 지역(⊤).
+        function_expr = self.visitExpression(ctx.expression())
+        returns = self.visitParameterList(ctx.parameterList()) if ctx.parameterList() else []
+        self.contract_analyzer.process_try_statement(function_expr, returns)
 
     # Visit a parse tree produced by SolidityParser#interactiveCatchClause.
     def visitInteractiveCatchClause(self, ctx:SolidityParser.InteractiveCatchClauseContext):
-        catch_node = f"Catch_{ctx.start.line}"
-        self.contract_analyzer.add_control_flow_node(catch_node, ctx)
-
-        # Catch 블록 내의 매개변수 목록 처리
-        if ctx.parameterList():
-            self.visit(ctx.parameterList())
-
-        return self.visitChildren(ctx)
+        # (2026-10-23) 예전엔 존재하지 않는 `add_control_flow_node` 를 불러 빌드가 실패했다(ERC721·ERC1155Upgradeable).
+        ident = ctx.identifier().getText() if ctx.identifier() else None
+        params = self.visitParameterList(ctx.parameterList()) if ctx.parameterList() else []
+        self.contract_analyzer.process_catch_clause(ident, params)
 
     # Visit a parse tree produced by SolidityParser#elementaryTypeName.
     def visitElementaryTypeName(self, ctx:SolidityParser.ElementaryTypeNameContext):

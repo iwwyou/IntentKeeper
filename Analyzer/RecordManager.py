@@ -263,13 +263,13 @@ class RecordManager:
             # 모든 원소가 ⊤(top)이면 배열 요약 형태로 표시
             all_top = all(
                 isinstance(getattr(elem, 'value', None), AddressSet) and getattr(elem, 'value', None).is_top
-                for elem in var_obj.elements
+                for elem in var_obj.elements.values()
                 if isinstance(elem, Variables)
             )
             if all_top and len(var_obj.elements) > 0:
                 out[prefix] = f"array(len={arr_len})"
                 return
-            for idx, elem in enumerate(var_obj.elements):
+            for idx, elem in sorted(var_obj.elements.items()):      # (2026-10-23) 희소 — 구체화된 원소만, 나머지는 [*]
                 self._flatten_var(elem, f"{prefix}[{idx}]", out)
             for k, cell in var_obj.sym_cells.items():          # (2026-10-23) 선택자 셀 arr[i]
                 self._flatten_var(cell, f"{prefix}[{k}]", out)
@@ -322,10 +322,14 @@ class RecordManager:
 
         # ArrayVariable – return에서는 실제 원소 값을 리스트로 표시
         if isinstance(v, ArrayVariable):
-            if v.elements:
-                elem_vals = [self._serialize_val(getattr(e, 'value', e)) for e in v.elements]
+            # (2026-10-23, 희소 배열) 길이가 정해져 있고 작으면 전 원소(Read), 아니면 길이만
+            n = v.static_length()
+            if n is None and v.length is not None and v.length.min_value == v.length.max_value:
+                n = v.length.min_value
+            if n is not None and n <= 64:
+                elem_vals = [self._serialize_val(getattr(e, 'value', e)) for e in (v.read_element(k) for k in range(n))]
                 return f"[{', '.join(elem_vals)}]"
-            return f"array(len=0)"
+            return f"array(len={self._serialize_val(array_length(v))})"
 
         # StructVariable / MappingVariable – brief summary only
         if isinstance(v, StructVariable):

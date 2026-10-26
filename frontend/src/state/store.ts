@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AnalysisResult, RangeValue, DepItem, IntentItem } from '../types/result'
-import { analyzeStructure, evaluate, verify, outline as fetchOutline } from '../engine/analyzeClient'
+import { analyzeStructure, evaluate, verify, setIntents, outline as fetchOutline } from '../engine/analyzeClient'
 import workspace from '../mock/workspace.json'
 
 export interface FunctionMeta {
@@ -309,6 +309,11 @@ export const useStore = create<AppState>()(
         let syntaxErrors = get().syntaxErrors
 
         try {
+          if (!needStructure && tier === 'verify') {
+            // (M8) intent 변경 → 슬롯 재도출(intent 가 참조하는 상태변수·글로벌도 입력 대상). CFG·문법 상태는 불변.
+            const st = await setIntents(req)
+            debugSlots = st.debugSlots
+          }
           if (needStructure) {
             const st = await analyzeStructure(req)
             if (!st) return

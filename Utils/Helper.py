@@ -5,6 +5,7 @@ from antlr4 import *
 from Parser.SolidityLexer  import SolidityLexer
 from Parser.SolidityParser import SolidityParser
 from antlr4.error.ErrorListener import ErrorListener, ConsoleErrorListener
+from Utils.Errors import AnnotationSyntaxError
 
 from Domain.Variable import (Variables, ArrayVariable, GlobalVariable,
                              StructVariable, MappingVariable, EnumVariable)
@@ -57,7 +58,30 @@ class ParserHelpers:
 
     # --------------------------- 파싱
     @staticmethod
+    def annotation_syntax_errors(src: str) -> list:
+        """어노테이션 한 줄(intentUnit)의 문법 오류 목록 — 빈 리스트면 문법에 맞다. (2026-10-25)"""
+        errors = []
+
+        class _Collect(ErrorListener):
+            def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+                errors.append(f"{column}: {msg}")
+
+        lexer = SolidityLexer(InputStream(src))
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(_Collect())
+        parser = SolidityParser(CommonTokenStream(lexer))
+        parser.removeErrorListeners()
+        parser.addErrorListener(_Collect())
+        parser.intentUnit()
+        return errors
+
+    @staticmethod
     def generate_parse_tree(src: str, ctx_type: str, verbose=False):
+        # (2026-10-25) 어노테이션은 문법 오류가 있으면 해석하지 않는다 — 복구된 트리는 입력의 일부가 빠진 다른 문장이다.
+        if ParserHelpers.map_context_type(ctx_type) == 'intentUnit':
+            errs = ParserHelpers.annotation_syntax_errors(src)
+            if errs:
+                raise AnnotationSyntaxError(src, errs)
         input_stream  = InputStream(src)
         lexer         = SolidityLexer(input_stream)
         token_stream  = CommonTokenStream(lexer)
@@ -126,9 +150,7 @@ class VariableEnv:
                 struct_defs=v.struct_defs,
                 enum_defs=v.enum_defs
             )
-            new_arr.elements = [
-                VariableEnv.copy_single_variable(e) for e in v.elements
-            ]
+            new_arr.elements = {i: VariableEnv.copy_single_variable(e) for i, e in v.elements.items()}
             VariableEnv._copy_indexed_state(new_arr, v)
             new_arr.sym_cells = VariableEnv.copy_variables(v.sym_cells)
             new_arr.length = v.length.copy() if v.length is not None else None
@@ -184,7 +206,7 @@ class VariableEnv:
         if isinstance(dst, MappingVariable):
             dst.mapping = VariableEnv.copy_variables(src.mapping)
         else:
-            dst.elements = [VariableEnv.copy_single_variable(e) for e in src.elements]
+            dst.elements = {i: VariableEnv.copy_single_variable(e) for i, e in src.elements.items()}
             dst.sym_cells = VariableEnv.copy_variables(src.sym_cells)
             dst.length = src.length.copy() if src.length is not None else None
         VariableEnv._copy_indexed_state(dst, src)
@@ -241,8 +263,8 @@ class VariableEnv:
                 m.identifier = f"{new_name}.{tail}"
 
         # ── 배열 요소 식별자 업데이트 ─────────────────────────────
-        if hasattr(new_var, "elements"):  # ArrayVariable
-            for i, e in enumerate(new_var.elements):
+        if isinstance(new_var, ArrayVariable):
+            for i, e in new_var.elements.items():
                 e.identifier = f"{new_name}[{i}]"
 
         # ── 매핑 value 식별자 업데이트 ───────────────────────────
@@ -282,7 +304,7 @@ class VariableEnv:
         if not isinstance(v1, Variables):              # 원소 자리에 값이 그대로 들어 있는 경우
             return v1.equals(v2) if hasattr(v1, "equals") else v1 == v2
         if isinstance(v1, ArrayVariable):
-            return (VariableEnv._compare_array_elements(v1.elements, v2.elements)
+            return (VariableEnv._compare_array_elements(v1, v2)
                     and VariableEnv._indexed_meta_equal(v1, v2)
                     and VariableEnv.variables_equal(v1.sym_cells, v2.sym_cells)
                     and VariableEnv._opt_value_equal(v1.length, v2.length))
@@ -310,11 +332,12 @@ class VariableEnv:
         return a.equals(b)
 
     @staticmethod
-    def _compare_array_elements(els1: list, els2: list) -> bool:
-        """ArrayVariable의 elements 리스트 비교"""
-        if len(els1) != len(els2):
-            return False
-        return all(VariableEnv._single_equal(e1, e2) for e1, e2 in zip(els1, els2))
+    def _compare_array_elements(a1, a2) -> bool:
+        """(2026-10-23, 희소 배열) 원소 비교 = 키 합집합에서 의미상 값(Read) 비교 — 한쪽만 구체화했어도 값이 같으면 같다."""
+        for k in set(a1.elements) | set(a2.elements):
+            if not VariableEnv._single_equal(a1.read_element(k), a2.read_element(k)):
+                return False
+        return True
 
     @staticmethod
     def env_equal(a: dict[str, Variables] | None,
@@ -365,11 +388,10 @@ class VariableEnv:
         #   (2026-10-23) 구체화한 원소 수가 다르면 짧은 쪽의 나머지를 **그쪽 summary 에서** 구체화해 join 한다.
         #   예전엔 긴 쪽을 그대로 돌려줘(짧은 쪽 경로의 값이 빠짐) unsound 였다. 원소 수 ≠ 길이 — 길이는 따로 join.
         if isinstance(v1, ArrayVariable):
-            n = max(len(v1.elements), len(v2.elements))
-            els1 = v1.elements + [v1.fresh_element(i) for i in range(len(v1.elements), n)]
-            els2 = v2.elements + [v2.fresh_element(i) for i in range(len(v2.elements), n)]
+            #   (희소 배열) 키 합집합에서 Read₁(k) ⊔ Read₂(k) — 한쪽에 구체화되지 않은 원소는 그쪽 D(summary)에서 만든다.
             new_arr = copy.copy(v1)
-            new_arr.elements = [VariableEnv._merge_values(a, b, mode) for a, b in zip(els1, els2)]
+            new_arr.elements = {k: VariableEnv._merge_values(v1.read_element(k), v2.read_element(k), mode)
+                                for k in sorted(set(v1.elements) | set(v2.elements))}
             new_arr.sym_cells, new_arr.sym = VariableEnv._merge_sym_cells(v1, v2, v1.sym_cells, v2.sym_cells, mode)
             new_arr.summary = VariableEnv._merge_summary(v1, v2, mode)
             if v1.length is None and v2.length is None:

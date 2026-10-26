@@ -16,34 +16,8 @@ from Domain.IR import Expression
 
 
 class EnhancedYulVisitor(YulVisitor):
-    # ★ 컨텍스트 이름에 Yul 표식을 단다(`Yul...OperationContext`).
-    #   Evaluation 의 디스패치는 좌/우 존재 여부로만 라우팅하고 이 이름을 조건으로
-    #   쓰는 곳이 없으므로(전수 확인) 이름만 바꿔도 평가 경로는 그대로다.
-    #   대신 evaluate_binary_operator 가 "이 연산이 Yul 문맥인지" 를 알 수 있게 되어,
-    #   **Yul 은 타입이 없다**(모든 값이 256-bit word)는 사실을 반영할 수 있다.
-    #   Solidity 소스 경로의 타입 검사는 그대로 유지된다 — `int256 & uint256` 은
-    #   애초에 컴파일되지 않는 코드이고, 그 검사가 16진 리터럴 버그(F4)를 잡았다.
-
-    # Yul built-in → Solidity 연산자 매핑 (2인자)
-    _BINARY_OPS = {
-        'add': '+', 'sub': '-', 'mul': '*', 'div': '/',
-        'sdiv': '/', 'mod': '%', 'smod': '%', 'exp': '**',
-        'lt': '<', 'gt': '>', 'slt': '<', 'sgt': '>',
-        'eq': '==',
-        'and': '&', 'or': '|', 'xor': '^',
-        'shl': '<<', 'shr': '>>',
-        'sar': '>>',
-    }
-
-    # Yul 비교 연산. ★ Yul 에는 bool 타입이 없다 — lt/gt/slt/sgt/eq/iszero 는
-    #   **1 또는 0 인 256-bit word** 를 반환하고 그대로 산술·시프트에 쓰인다.
-    #   예: `let f := shl(7, gt(r, C))` = 조건이 참이면 128, 거짓이면 0 (흔한 관용구).
-    #   예전엔 'gt'→'>' 로만 매핑해 BoolInterval 이 나왔고, `shl(7, <Bool>)` 이
-    #   Shift dispatch 에서 거부돼 `let f` 선언 자체가 실패 → 뒤따르는
-    #   `or(msb, f)` / `shr(f, r)` 가 "'f' may not be declared" 로 연쇄 실패했다
-    #   (TickMath 41건 중 40건이 이 3줄 묶음 × 8회 반복).
-    #   ※ and/or/xor 는 Yul 에서 **비트 연산**이므로 여기 넣지 않는다.
-    _CMP_OPS = {'lt', 'gt', 'slt', 'sgt', 'eq'}
+    # (2026-10-23, Yul P0-a) Yul 식은 `Yul*Context` 컨텍스트로 만들고 `Evaluation._evaluate_yul` → `YulEval` 이
+    #   256-bit word 의미로 평가한다. Solidity 연산 IR 로 낮추지 않는다.
 
     def __init__(self, contract_analyzer: "ContractAnalyzer"):
         self.contract_analyzer = contract_analyzer
@@ -51,11 +25,27 @@ class EnhancedYulVisitor(YulVisitor):
     # ── Statement visitors ──────────────────────────────────
 
     def visitYulUnit(self, ctx: YulParser.YulUnitContext):
+        # (2026-10-23) 미지원 Yul 블록(if/switch/for/function)의 본문 줄 — 머리 줄의 표식이 실행을 멈추므로 만들지 않는다
+        ca = self.contract_analyzer
+        if ca.in_nested_yul_block(ca.current_start_line):
+            return None
+        # `assembly {` 머리 줄 레코드도 문맥이 assembly 라 이리로 온다 — Yul 문장이 아니다(예전엔 파싱 오류를 무시해서 드러나지 않았다)
+        if ca.sa.full_code_lines.get(ca.current_start_line, "").strip().startswith("assembly"):
+            return None
+        # (2026-10-23) 파싱 실패(대부분 여러 줄에 걸친 Yul 식 — 줄 단위 입력이 식을 자른다)는 조용히 넘기지 않는다.
+        #   예전엔 오류 리스너를 꺼 둔 채 부분 트리를 그대로 방문해 `success := and(` 가 인자 없는 `and()` 가 됐다.
+        parser = getattr(ctx, "parser", None)
+        if parser is not None and parser.getNumberOfSyntaxErrors() > 0:
+            return self._unsupported("statement that does not parse on its own line (여러 줄에 걸친 Yul 식)")
         for stmt in ctx.yulStatement():
             self.visitYulStatement(stmt)
         return None
 
     def visitYulStatement(self, ctx: YulParser.YulStatementContext):
+        # (2026-10-23) leave/break/continue 는 하위 규칙이 없는 토큰 대안이라 여기서 잡는다
+        txt = ctx.getText()
+        if txt in ("leave", "break", "continue"):
+            return self._unsupported(txt)
         return self.visitChildren(ctx)
 
     def visitYulBlock(self, ctx: YulParser.YulBlockContext):
@@ -68,6 +58,8 @@ class EnhancedYulVisitor(YulVisitor):
         identifiers = ctx.IDENTIFIER()
         if not identifiers:
             return None
+        if len(identifiers) > 1:
+            return self._unsupported("let a, b := f(...)")       # 다중 반환 = 사용자 정의 Yul 함수
         var_name = identifiers[0].getText()
 
         # := 이후 expression (없을 수도 있음: let x;)
@@ -100,27 +92,47 @@ class EnhancedYulVisitor(YulVisitor):
         else:
             return None
 
-        # 단일 대입 (첫 번째 identifier)
+        if len(identifiers) > 1:
+            return self._unsupported("a, b := f(...)")
         var_name = identifiers[0].getText()
         lhs = Expression(identifier=var_name, context="IdentifierExpContext")
         self.contract_analyzer.process_yul_assignment(lhs, rhs)
         return None
 
     def visitYulExpressionStatement(self, ctx: YulParser.YulExpressionStatementContext):
-        # standalone function call (side effect only, e.g., log0(...))
+        """(2026-10-23, Yul P0-a) builtin 호출 문장. 예전엔 전부 무시했다(sstore·mstore·call 효과, revert 경로가 사라졌다).
+          · revert / invalid → ERROR (Solidity revert 와 같은 CFG 배선)
+          · return / stop / selfdestruct (실행 컨텍스트 종료) → 아직 미지원 — 실행되면 명시적으로 멈춘다
+          · 그 밖 → 문장 노드(효과는 YulEval 의 효과 표)"""
+        call = ctx.yulFunctionCall()
+        name = call.IDENTIFIER().getText()
+        if name in ("revert", "invalid"):
+            self.contract_analyzer.process_revert_statement(None, None, None)
+            return None
+        if name in ("return", "stop", "selfdestruct"):
+            return self._unsupported(name)
+        self.contract_analyzer.process_yul_statement(self._build_function_call(call))
         return None
 
+    # (2026-10-23) Yul 제어 흐름은 아직 CFG 로 만들지 않는다. 예전엔 조건을 버리고 **본문 줄을 무조건 실행**했다
+    #   (`if iszero(a) { r := 7 }` 가 a=5 에서도 r=7, switch 는 모든 case 를 순서대로). 블록 단위 해석(P0-b) 전까지는
+    #   그 자리에 미지원 표식을 둬서, 실행되면 명시적으로 멈춘다(표식이 본문보다 앞에 있으므로 본문은 실행되지 않는다).
     def visitYulIfStatement(self, ctx: YulParser.YulIfStatementContext):
-        # 현재 미지원 (control flow)
-        return None
+        return self._unsupported("if")
 
     def visitYulForStatement(self, ctx: YulParser.YulForStatementContext):
-        return None
+        return self._unsupported("for")
 
     def visitYulSwitchStatement(self, ctx: YulParser.YulSwitchStatementContext):
-        return None
+        return self._unsupported("switch")
 
     def visitYulFunctionDefinition(self, ctx: YulParser.YulFunctionDefinitionContext):
+        return self._unsupported("function")
+
+    def _unsupported(self, what: str):
+        ca = self.contract_analyzer
+        where = f"{ca.current_target_contract}.{ca.current_target_function} line {ca.current_start_line}"
+        ca.process_yul_statement(Expression(identifier=f"{what}` at `{where}", context="YulUnsupportedStatement"))
         return None
 
     # ── Expression IR builders ──────────────────────────────
@@ -136,84 +148,14 @@ class EnhancedYulVisitor(YulVisitor):
             return self._build_literal(ctx.yulLiteral())
         return Expression(literal=0, context="LiteralExpContext")
 
-    @staticmethod
-    def _word(literal: str) -> Expression:
-        """0/1 같은 uint256 word 리터럴. (문자열 규약 — _build_literal 주석 참조)"""
-        return Expression(literal=literal, expr_type='uint', type_length=256,
-                          context="LiteralExpContext")
-
-    def _as_word(self, cond: Expression) -> Expression:
-        """비교식(BoolInterval) → 0/1 uint word.
-
-        `cond ? 1 : 0` 삼항으로 감싼다. evaluate_conditional_expression_context 가
-        BoolInterval [1,1]/[0,0] 이면 해당 분기로 **정확히 접고**, [0,1] 이면 두 분기를
-        join 해 [0,1] 을 준다 — ⊤ 로 뭉개지 않으므로 정밀도 손실이 없다.
-
-        ※ Yul 경로에만 적용한다. Solidity 에선 bool 이 산술에 쓰일 수 없으므로
-          Evaluation 쪽에서 BoolInterval 을 승격하면 진짜 타입 오류를 덮게 된다.
-        """
-        return Expression(condition=cond,
-                          true_expr=self._word('1'), false_expr=self._word('0'),
-                          operator='?:', context="ConditionalExpContext")
-
     def _build_function_call(self, ctx: YulParser.YulFunctionCallContext) -> Expression:
-        """yulFunctionCall → Expression IR"""
+        """yulFunctionCall → Expression IR.
+        (2026-10-23, Yul P0-a) builtin 을 Solidity 연산으로 낮추지 않는다 — 이름과 인자를 그대로 두고
+        `Interpreter/Semantics/YulEval.py` 가 EVM word 의미(mod 2^256, 0 나누기 = 0, 부호 있는 연산, 인자 순서)로 평가한다.
+        예전엔 `add`→`+`(checked), `div`→`/`(0 나누기 → ⊥), `slt`→`<`(부호 없음), `shl(s, v)`→`s << v`(순서 뒤바뀜)였다."""
         func_name = ctx.IDENTIFIER().getText()
         args = [self._build_expression(e) for e in ctx.yulExpression()]
-
-        # 2인자 binary op
-        if func_name in self._BINARY_OPS and len(args) == 2:
-            e = Expression(
-                left=args[0],
-                operator=self._BINARY_OPS[func_name],
-                right=args[1],
-                context="YulBinaryOperationContext"
-            )
-            # 비교 계열은 Yul 에서 0/1 word 다 (_CMP_OPS 주석 참조)
-            return self._as_word(e) if func_name in self._CMP_OPS else e
-
-        # not(x) → bitwise NOT
-        if func_name == 'not' and len(args) == 1:
-            return Expression(
-                operator='~',
-                expression=args[0],
-                context="YulUnaryOperationContext"
-            )
-
-        # iszero(x) → (x == 0) ? 1 : 0  — 결과도 0/1 word 다
-        #   (우변 리터럴도 int 가 아닌 문자열 + expr_type 규약을 따라야 한다)
-        if func_name == 'iszero' and len(args) == 1:
-            return self._as_word(Expression(
-                left=args[0],
-                operator='==',
-                right=self._word('0'),
-                context="YulBinaryOperationContext"
-            ))
-
-        # mulmod(a, b, n) → (a * b) % n
-        if func_name == 'mulmod' and len(args) == 3:
-            mul_expr = Expression(
-                left=args[0], operator='*', right=args[1],
-                context="YulBinaryOperationContext"
-            )
-            return Expression(
-                left=mul_expr, operator='%', right=args[2],
-                context="YulBinaryOperationContext"
-            )
-
-        # addmod(a, b, n) → (a + b) % n
-        if func_name == 'addmod' and len(args) == 3:
-            add_expr = Expression(
-                left=args[0], operator='+', right=args[1],
-                context="YulBinaryOperationContext"
-            )
-            return Expression(
-                left=add_expr, operator='%', right=args[2],
-                context="YulBinaryOperationContext"
-            )
-
-        # 미지원 built-in → TOP placeholder
-        return Expression(identifier=f"__yul_{func_name}__", context="YulUnsupportedContext")
+        return Expression(identifier=func_name, arguments=args, context="YulBuiltinContext")
 
     def _build_literal(self, ctx: YulParser.YulLiteralContext) -> Expression:
         """yulLiteral → Expression IR

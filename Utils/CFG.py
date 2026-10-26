@@ -131,6 +131,10 @@ class CFGNode:
         )
         self.statements.append(function_call_stmt)
 
+    def add_expression_statement(self, expr: Expression, line_no):
+        """값만 있는 식 문장(`a == b;`). (2026-10-23) 예전엔 visitor 가 미지원 예외를 냈다(w71 PoolTemplate)."""
+        self.statements.append(Statement(statement_type='expression', expression=expr, src_line=line_no))
+
     def add_emit_statement(self, event_name, arguments, line_no):
         """emit 문(Phase 2). 이벤트 자체는 상태를 바꾸지 않지만 인자 식은 평가된다."""
         self.statements.append(Statement(statement_type='emit', event_name=event_name,
@@ -255,6 +259,14 @@ class CFG:
         }
 
 
+def _reject_redeclared_inherited(defs: dict, name: str, me: str) -> None:
+    """(A-2) 상속으로 가져온 정의와 같은 이름을 자식이 다시 선언 — Solidity 오류(같은 이름 재선언)."""
+    cur = defs.get(name)
+    owner = getattr(cur, "owner", None)
+    if cur is not None and owner is not None and owner != me:
+        raise ValueError(f"'{me}': '{name}' 은 부모 '{owner}' 에 이미 선언돼 있다")
+
+
 class ContractCFG(CFG):
     def __init__(self, contract_name):
         super().__init__('contract')
@@ -305,13 +317,33 @@ class ContractCFG(CFG):
     # Enum 정의 추가
     def define_enum(self, enum_name, enum_def):
         if enum_name not in self.enumDefs:
+            enum_def.owner = self.contract_name          # (2026-10-23, A-2) 선언한 컨트랙트
             self.enumDefs[enum_name] = enum_def
         else:
             raise ValueError(f"Enum {enum_name} is already defined.")
 
     # Struct 정의 추가
     def define_struct(self, struct_def_obj):
+        _reject_redeclared_inherited(self.structDefs, struct_def_obj.struct_name, self.contract_name)
+        struct_def_obj.owner = self.contract_name        # (2026-10-23, A-2) 선언한 컨트랙트
         self.structDefs[struct_def_obj.struct_name] = struct_def_obj
+
+    def inherit_definitions(self, parent_cfg):
+        """(2026-10-23, A-2 사용자 승인) 부모의 struct·enum 정의를 자식 정의 표에 **가져온다**(소유자 표시는 정의 객체의 `owner`).
+        예전엔 타입 판정만 부모 체인을 훑고, 변수 초기화(`ContractAnalyzer` 상태변수·파라미터)는 자기 표만 봐서
+        `contract Basket is IBasket { PendingPublisher public p; }` 가 "struct def PendingPublisher is undefined" 로 실패했다.
+        부모는 의존성이라 바뀌지 않는다는 전제(바뀌면 레지스트리가 자식을 다시 분석한다).
+        같은 이름을 다른 부모가 서로 다른 선언(소유자가 다름)으로 주면 Solidity 에서도 오류다(다이아몬드로 같은 선언이 두 번 오는 것은 허용)."""
+        for attr in ("structDefs", "enumDefs"):
+            mine = getattr(self, attr)
+            for name, d in (getattr(parent_cfg, attr, None) or {}).items():
+                cur = mine.get(name)
+                if cur is None:
+                    mine[name] = d
+                elif cur is not d and getattr(cur, "owner", None) != getattr(d, "owner", None):
+                    # 같은 소유자면 같은 선언이다 — 파일 수준 enum 은 컨트랙트마다 정의 객체를 따로 만든다(owner 없음)
+                    raise ValueError(f"'{self.contract_name}': '{name}' 이 여러 부모({getattr(cur, 'owner', None)}, "
+                                     f"{getattr(d, 'owner', None)})에서 서로 다른 정의로 상속된다")
 
     def add_enum_member(self, enum_name, member_name):
         if enum_name in self.enumDefs:
@@ -529,12 +561,12 @@ class ContractCFG(CFG):
                 "struct_name": def_obj.struct_name,
                 "members": [
                     {
-                        "member_name": m["member_name"],
-                        "member_type": getattr(m["member_type"], "elementaryTypeName", None)
-                                       or getattr(m["member_type"], "typeCategory", None)
-                                       or str(m["member_type"])
+                        "member_name": m_name,
+                        "member_type": getattr(m_type, "elementaryTypeName", None)
+                                       or getattr(m_type, "typeCategory", None)
+                                       or str(m_type)
                     }
-                    for m in def_obj.members
+                    for m_name, m_type in def_obj.members.items()
                 ]
             }
 
@@ -809,6 +841,7 @@ class LibraryCFG(CFG):
         
     def define_struct(self, struct_def_obj):
         """라이브러리 내 구조체 정의 추가"""
+        struct_def_obj.owner = self.library_name          # (2026-10-23, A-2)
         self.structDefs[struct_def_obj.struct_name] = struct_def_obj
 
     def add_struct_member(self, struct_def_name, var_name, var_obj):
@@ -894,6 +927,7 @@ class LibraryCFG(CFG):
     def define_enum(self, enum_name, enum_def):
         """라이브러리 내 열거형 정의 추가"""
         if enum_name not in self.enumDefs:
+            enum_def.owner = self.library_name            # (2026-10-23, A-2)
             self.enumDefs[enum_name] = enum_def
         else:
             raise ValueError(f"Enum {enum_name} is already defined in library {self.library_name}.")
@@ -957,12 +991,12 @@ class LibraryCFG(CFG):
                 "struct_name": def_obj.struct_name,
                 "members": [
                     {
-                        "member_name": m["member_name"],
-                        "member_type": getattr(m["member_type"], "elementaryTypeName", None)
-                                       or getattr(m["member_type"], "typeCategory", None)
-                                       or str(m["member_type"])
+                        "member_name": m_name,
+                        "member_type": getattr(m_type, "elementaryTypeName", None)
+                                       or getattr(m_type, "typeCategory", None)
+                                       or str(m_type)
                     }
-                    for m in def_obj.members
+                    for m_name, m_type in def_obj.members.items()
                 ]
             }
 

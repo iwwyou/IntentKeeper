@@ -155,8 +155,8 @@ class DebugInitializer:
                         if caller_object.typeInfo.isDynamicArray:
                             return caller_object.get_or_create_element(idx)
                         else:
-                            if idx < len(caller_object.elements):
-                                return caller_object.elements[idx]
+                            if caller_object.in_static_range(idx):
+                                return caller_object.get_or_create_element(idx)
                         return None
                     except (IndexError, ValueError):
                         return None
@@ -174,8 +174,8 @@ class DebugInitializer:
                     if caller_object.typeInfo.isDynamicArray:
                         return caller_object.get_or_create_element(idx)
                     else:
-                        if idx < len(caller_object.elements):
-                            return caller_object.elements[idx]
+                        if caller_object.in_static_range(idx):
+                            return caller_object.get_or_create_element(idx)
                     return None
                 except (IndexError, ValueError):
                     return None
@@ -411,8 +411,8 @@ class DebugInitializer:
                         return elem
                     else:
                         # 정적 배열은 범위 내에서만
-                        if idx < len(callerObject.elements):
-                            return callerObject.elements[idx]
+                        if callerObject.in_static_range(idx):
+                            return callerObject.get_or_create_element(idx)
                         return None
                 except (IndexError, ValueError):
                     return None
@@ -653,10 +653,14 @@ class DebugInitializer:
         if isinstance(target_var, ArrayVariable) and isinstance(new_value, list):
             # 배열 요소 초기화
             base_type = target_var.typeInfo.arrayBaseType
-            target_var.typeInfo.arrayLength = len(new_value)
             if target_var.typeInfo.isDynamicArray:
+                target_var.typeInfo.arrayLength = len(new_value)
                 target_var.length = UnsignedIntegerInterval(len(new_value), len(new_value), 256)
-            target_var.elements.clear()
+            elif target_var.static_length() != len(new_value):
+                # (2026-10-23) 정적 배열의 길이는 선언으로 정해진다 — 다른 길이의 값 목록은 그런 진입 상태가 없다
+                raise ValueError(f"잘못된 디버깅 입력 `{target_var.identifier}`: 길이 {target_var.static_length()} 인 "
+                                 f"정적 배열에 원소 {len(new_value)} 개")
+            target_var.elements = {}
 
             for idx, val in enumerate(new_value):
                 # Variables 객체 생성
@@ -687,7 +691,7 @@ class DebugInitializer:
                 else:
                     elem.value = val
 
-                target_var.elements.append(elem)
+                target_var.elements[idx] = elem
             return
 
         # EnumVariable: _parse_debug_value가 만든 "Member" / "Enum.Member" /
@@ -845,18 +849,8 @@ class DebugInitializer:
         - 현재 크기보다 크면 지정되지 않은 원소(typed ⊤)로 채움
         - 현재 크기보다 작으면 뒤쪽 요소 제거
         """
-        current_length = len(arr.elements)
-
-        if target_length > current_length:
-            # 부족한 만큼 '지정되지 않은 원소' = typed ⊤ 로 채우기 (Phase 2, D2: ⊥ 는 도달 불가 전용)
-            base_type = arr.typeInfo.arrayBaseType
-            for i in range(current_length, target_length):
-                elem = self._create_unspecified_array_element(arr, i, base_type)
-                arr.elements.append(elem)
-        elif target_length < current_length:
-            # 뒤쪽 요소 제거
-            arr.elements = arr.elements[:target_length]
-        # target_length == current_length이면 아무것도 안 함
+        # (2026-10-23, 희소 배열) 지정되지 않은 원소 = D(구체화하지 않음, typed ⊤). 길이 밖의 구체 셀만 버린다.
+        arr.elements = {k: v for k, v in arr.elements.items() if k < target_length}
         arr.length = UnsignedIntegerInterval(target_length, target_length, 256)   # (2026-10-23) 추상 길이
 
     def _create_unspecified_array_element(self, arr: ArrayVariable, index: int, base_type: SolType) -> Variables:

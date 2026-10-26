@@ -40,10 +40,11 @@ $env:IQ_DEPS_ROOT = "evaluation\Dataset\deps\w5"
 # 프론트가 붙는 엔진 HTTP 서버 (uvicorn, 127.0.0.1:8000)
 .venv\Scripts\python.exe engine_server.py
 
-# 의존성: 프로젝트 단위로만 빌드 (deps/<p>/{interfaces,libraries,contracts} → deps/<p>/objectfile/*.pkl)
-#   전역 공용 트리(Dependencies/{interfaces,libraries,contracts,objectfile}, Libraries/)는 2026-10-22 폐기됐다.
-.venv\Scripts\python.exe evaluation\Dataset\build_project_deps.py [--only w62]
-.venv\Scripts\python.exe Dependencies\main.py --root evaluation\Dataset\deps\<p> [--file X.sol]
+# 의존성: 프로젝트 단위 레지스트리 (2026-10-23). 원본 소스 파일 하나 = 단위 하나(전처리본 deps/<p>/sources/*.sol)
+#   → deps/<p>/builds/build_NNN/{manifest.json, units/*.pkl}, deps/<p>/CURRENT 가 현재 빌드를 가리킨다.
+.venv\Scripts\python.exe evaluation\Dataset\build_project_deps.py [--only w62]      # 전처리 + 전체 빌드
+.venv\Scripts\python.exe Dependencies\registry.py --root evaluation\Dataset\deps\<p>  # sources/ 재빌드
+.venv\Scripts\python.exe Dependencies\registry.py --root <deps> --add X.sol --remove <단위id>  # 증분(R4)
 
 # 파서 재생성 (Parser/ 에서; CLI antlr4 4.13.2 = runtime 버전과 반드시 일치)
 antlr4 -Dlanguage=Python3 -visitor Solidity.g4
@@ -62,7 +63,9 @@ npx tsc --noEmit           # 타입체크
 정식 테스트 프레임워크(pytest 등)가 없다. 회귀 스크립트는 `temp/`(gitignored)의 단독 실행 파일이며
 각자 `sys.path` 를 조정하고 자체 `check()` 로 pass/fail 을 센다:
 `.venv\Scripts\python.exe temp\test_session_flow.py` (analyze→update→evaluate→verify e2e),
-`temp\test_update.py`·`test_delete_cfg.py`(증분 편집), `temp\smoke_engine_api.py`(스모크).
+`temp\test_update.py`·`test_delete_cfg.py`(증분 편집), `temp\test_transaction.py`(증분 트랜잭션),
+`temp\test_registry.py`(의존성 레지스트리), `temp\test_try_catch.py`, `temp\test_blank_during.py`(빈 줄 @During 지점), `temp\test_sparse_array.py`(희소 배열), `temp\test_set_intents.py`(intent → 슬롯, 서버), `temp	est_slot_roundtrip.py`(슬롯 키 ↔ 입력 문법, 48 케이스), `temp	est_ireturn_cast.py`(IReturn 캐스트 조회),
+`temp\smoke_engine_api.py`(스모크).
 
 ⚠ **과거 회귀 게이트였던 `evaluation\RQ1\run_all.py` → 20/20 VIOLATED 는 더 이상 유효하지 않다**
 (decision #37 문법 변경으로 의도된 0/20 회귀). 현재 e2e 회귀 스위트는 사실상 없으므로,
@@ -90,7 +93,7 @@ CFG·환경이 라인 이벤트마다 수술되므로, 라인 좌표·`closeBefo
    `simulate_inputs(records)`. `run_case.py` 가 이를 감싸 verdict 요약을 낸다. 어노테이션이 소스에
    섞인 레거시 경로이며 `// @Debugging BEGIN/END` 로 디버그 배치를 구분한다.
 2. **서버/API**: `engine_api.EngineSession` (analyze / update / structure / evaluate / verify) 를
-   `engine_server.py`(FastAPI)가 `/analyze /evaluate /verify /analyze_once` 로 노출 →
+   `engine_server.py`(FastAPI)가 `/analyze /set_intents /evaluate /verify /analyze_once` 로 노출 →
    `frontend/src/engine/analyzeClient.ts`. 이쪽이 현재 개발 주력이다.
 
 ### engine_api 레이어 계약
@@ -131,10 +134,14 @@ transfer function 은 `Interpreter/Semantics/`(`Evaluation`=식 평가, `Update`
   `engine_server._build` 는 항상 새 세션을 만든다.
 - `sess.structure()` 를 스코프 없이 호출하면 `_resolve_fcfg(None, None)` 폴백이 **컨트랙트의 마지막
   함수**를 집어 엉뚱한 CFG/슬롯을 돌려준다. 항상 `contract`, `func` 를 명시할 것.
-- 의존성 로드는 `Dependencies.main.load_project_deps(sa, ca, deps_root, exclude)` 하나다(CLI `main.load_dependencies`
-  = env `IQ_DEPS_ROOT`/`IQ_DEPS_EXCLUDE`, 서버 `EngineSession(deps_root, exclude)` 가 공용). deps 루트를 안 주면
-  의존성 없이 돈다 — 타깃이 의존성을 참조하면 분석 중 명시적 오류가 난다.
-- `Dependencies/main.py` 의 분석 순서는 **위상정렬**(`_topo_order`, 상속·라이브러리 호출·using·타입 참조 기준)이다.
-  예전의 `_con_order` 하드코딩은 대체됐다. 순환 참조·이름 충돌은 폴백 없이 예외를 던진다.
+- 의존성 로드는 `Dependencies.main.load_project_deps(sa, ca, deps_root, exclude)` 하나다(본체 `Dependencies/registry.load`;
+  CLI `main.load_dependencies` = env `IQ_DEPS_ROOT`/`IQ_DEPS_EXCLUDE`, 서버 `EngineSession(deps_root, exclude)` 가 공용).
+  `exclude` = 타깃이 선언하는 이름 — 그 선언 집합과 **같은** 단위를 타깃 파일이 통째로 대신하고 그 의존 폐포만 올린다
+  (집합이 다르면 오류). deps 루트를 안 주면 의존성 없이 돈다 — 타깃이 의존성을 참조하면 분석 중 명시적 오류가 난다.
+- 의존성 빌드(`Dependencies/registry.py`)는 순서에 의존하지 않는다: 단위 의존(본문에 나오는 다른 단위의 선언 이름) SCC
+  순서로 분석하고, 의존 폐포의 결과가 바뀌면 다시 분석하는 고정점. 단위 상태 = Pending(미해석 이름 `UnresolvedName`)/
+  Invalid(그 밖 오류·이름 충돌)/Complete — `manifest.json` 에서 확인. pkl 의 CFG 참조는 이름으로 저장돼 로드 때
+  선언당 객체 하나로 연결된다. 같은 이름을 두 단위가 선언하면 둘 다 Invalid(프로젝트 전역 이름 공간).
+  같은 파일 안의 전방 참조는 아직 전처리 재배치(`reorder_members`·`reorder_top_level`)로 피한다(F1 (b) 전까지).
 - 분석 실패가 예외가 아니라 **조용한 오분석**으로 나타나는 경우가 많다(pkl 로드 `except: pass`,
   SyntaxValid 게이트 거부 등). 결과가 이상하면 diagnostics 부터 확인할 것.

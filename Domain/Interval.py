@@ -447,14 +447,19 @@ class IntegerInterval(Interval):
         """
         &, |, ^ – 매우 보수적: 동일 폭 signed top 으로 환원.
         """
-        def _top_like(x: "IntegerInterval", _: "IntegerInterval") -> "IntegerInterval":
+        def _impl(x: "IntegerInterval", y: "IntegerInterval") -> "IntegerInterval":
             w = x.type_length
+            # (2026-10-23) 단일값끼리는 정확히 — 파이썬 정수의 비트 연산은 무한 2의 보수라 같은 폭 안에서 결과가 맞다
+            if x.min_value == x.max_value and y.min_value == y.max_value:
+                a, b = x.min_value, y.min_value
+                v = a & b if op == '&' else (a | b if op == '|' else a ^ b)
+                return IntegerInterval(v, v, w)
             lo, hi = -(1 << (w - 1)), (1 << (w - 1)) - 1
             return IntegerInterval(lo, hi, w)
 
         if op not in {'&', '|', '^'}:
             raise ValueError(f"bad bit-op {op}")
-        return Interval._bottom_propagate(self, other, _top_like)
+        return Interval._bottom_propagate(self, other, _impl)
 
     # ---------- 단항 연산 ----------
     def negate(self) -> "IntegerInterval":
@@ -868,11 +873,26 @@ class UnsignedIntegerInterval(Interval):
         return UnsignedIntegerInterval(smin, smax, self.type_length)
 
     def bitwise(self, op: str, other: "UnsignedIntegerInterval") -> "UnsignedIntegerInterval":
+        """(2026-10-23) 예전 `|`·`^` 상한 = max(hi) 는 **unsound** 였다(1 | 2 = 3 > 2, 1 ^ 2 = 3).
+        단일값끼리도 계산하지 않아 `1 ^ 1` 이 [0,1] 이었다(16_H_04 PRBMathSD59x18.mul 부호 복원 `sx ^ sy`).
+          · 둘 다 단일값 → 정확
+          · `&` → [0, min hi]            (각 비트가 양쪽 모두 1 이어야 함)
+          · `|` → [max lo, 2^k − 1]      (k = max hi 의 비트 길이; 결과 ≥ 각 피연산자)
+          · `^` → [0, 2^k − 1]"""
+        if op not in {'&', '|', '^'}:
+            raise ValueError(f"bad bit-op {op}")
+
         def _impl(a, b):
+            w = a.type_length
+            if a.min_value == a.max_value and b.min_value == b.max_value:
+                x, y = a.min_value, b.min_value
+                v = x & y if op == '&' else (x | y if op == '|' else x ^ y)
+                return UnsignedIntegerInterval(v, v, w)
             if op == '&':
-                return UnsignedIntegerInterval(0, min(a.max_value, b.max_value), a.type_length)
-            else:  # '|' 또는 '^'
-                return UnsignedIntegerInterval(0, max(a.max_value, b.max_value), a.type_length)
+                return UnsignedIntegerInterval(0, min(a.max_value, b.max_value), w)
+            cap = min((1 << max(a.max_value, b.max_value).bit_length()) - 1, (1 << w) - 1)
+            lo = max(a.min_value, b.min_value) if op == '|' else 0
+            return UnsignedIntegerInterval(lo, cap, w)
 
         return Interval._bottom_propagate(self, other, _impl)
 

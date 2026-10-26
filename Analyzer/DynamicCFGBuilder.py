@@ -183,6 +183,15 @@ class DynamicCFGBuilder:
 
         return new_block
 
+    def build_expression_statement(self, *, cur_block: CFGNode, expr, line_no: int,
+                                   fcfg: FunctionCFG, line_info: dict) -> CFGNode:
+        """값만 있는 식 문장 — 함수 호출문과 같은 배선(새 문장 블록)."""
+        new_block = self.insert_new_statement_block(
+            pred_block=cur_block, fcfg=fcfg, line_no=line_no, line_info=line_info, tag="Expr")
+        new_block.add_expression_statement(expr, line_no)
+        fcfg.update_block(new_block)
+        return new_block
+
     def build_emit_statement(self, *, cur_block: CFGNode, event_name, arguments, line_no: int,
                              fcfg: FunctionCFG, line_info: dict) -> CFGNode:
         """emit 문 블록(Phase 2) — 함수 호출문과 같은 삽입 전략."""
@@ -1003,7 +1012,7 @@ class DynamicCFGBuilder:
 
     def build_try_skeleton(
             self, *, cur_block: CFGNode, function_expr, line_no: int,
-            fcfg: FunctionCFG, line_info: dict
+            fcfg: FunctionCFG, line_info: dict, end_line: int | None = None
     ):
         """
         cur_block → try_cond ──True──▶ try_true ─▶ join
@@ -1025,7 +1034,10 @@ class DynamicCFGBuilder:
 
         t_blk = CFGNode(f"try_true_{line_no}", branch_node=True, is_true_branch=True, src_line=line_no)
         f_stub = CFGNode(f"try_false_stub_{line_no}", branch_node=True, is_true_branch=False, src_line=line_no)
-        join = CFGNode(f"try_join_{line_no}", join_point_node=True, src_line=line_no)
+        # (2026-10-23) if 와 같게: join 은 닫는 줄(end_line)에 둔다 — 본문 문장이 "다음 줄 노드 = join" 을 보고
+        #   try_true 안에 들어간다. 예전엔 등록이 없어 본문과 catch 본문이 모두 join **뒤에** 차례로 붙었다.
+        join = CFGNode(f"try_join_{line_no}", join_point_node=True,
+                       src_line=end_line if end_line is not None else line_no)
 
         # env
 
@@ -1041,12 +1053,15 @@ class DynamicCFGBuilder:
         for s in old_succs:
             G.add_edge(join, s)
 
-        # 4) 표시
-        cond.__catch_attached = False
+        # 4) 표시 — catch 가 붙을 합류점. (2026-10-23) 예전엔 `cond.__catch_attached` 였는데 클래스 안이라 이름이
+        #   `_DynamicCFGBuilder__catch_attached` 로 바뀌어(name mangling) `getattr(n, "__catch_attached")` 검사가 늘 False 였다.
+        cond.try_join = join
 
-        # 5) line_info: start line에는 cond만 추가
+        # 5) line_info: start line 에는 cond, end line 에는 join (build_if_statement 와 같다)
         bc = line_info.setdefault(line_no, {"open": 0, "close": 0, "cfg_nodes": []})
         bc["cfg_nodes"].append(cond)
+        if end_line is not None:
+            line_info.setdefault(end_line, {"open": 0, "close": 0, "cfg_nodes": []})["cfg_nodes"].append(join)
 
         return cond, t_blk, f_stub, join
 
@@ -1056,7 +1071,6 @@ class DynamicCFGBuilder:
             n for n in G.nodes
             if getattr(n, "condition_node", False)
                and getattr(n, "condition_node_type", "") == "try"
-               and not getattr(n, "__catch_attached", False)
                and (getattr(n, "src_line", -1) < line_no)
         ]
         if not candidates:
@@ -1081,19 +1095,18 @@ class DynamicCFGBuilder:
         return (cond, f_stub, join)
 
     def attach_catch_clause(
-            self, *, cond: CFGNode, false_stub: CFGNode, join: CFGNode,
-            line_no: int, fcfg: FunctionCFG, line_info: dict
+            self, *, cond: CFGNode, false_stub: CFGNode | None, join: CFGNode,
+            line_no: int, fcfg: FunctionCFG, line_info: dict, end_line: int | None = None
     ):
+        """catch 절 하나 = try_cond 의 실패(False) 분기 하나. (2026-10-23) catch 가 여럿이면(`catch Error(..)`,
+        `catch Panic(..)`, `catch (bytes ..)`) 각각 False 분기로 붙는다 — 엔진은 try 의 False 분기를 모두 진행한다
+        (어느 catch 가 잡는지는 revert 데이터에 달렸고, 외부 호출 결과는 모델링하지 않는다).
+        false_stub = catch 가 아직 없을 때의 빈 실패 경로(첫 catch 가 대신한다), 두 번째부터는 None."""
         G = fcfg.graph
 
-        # 1) false_stub 제거
-        if G.has_edge(cond, false_stub):
-            G.remove_edge(cond, false_stub)
-        for s in list(G.successors(false_stub)):
-            if G.has_edge(false_stub, s):
-                G.remove_edge(false_stub, s)
-        # 필요 시 그래프에서 f_stub 노드를 완전히 제거해도 됨
-        # G.remove_node(false_stub)
+        # 1) 첫 catch: false_stub 제거
+        if false_stub is not None:
+            G.remove_node(false_stub)
 
         # 2) catch 블록 생성
         c_entry = CFGNode(f"catch_entry_{line_no}", src_line=line_no)
@@ -1106,11 +1119,11 @@ class DynamicCFGBuilder:
         G.add_edge(c_entry, c_end)
         G.add_edge(c_end, join)
 
-        cond.__catch_attached = True
-
-        # line_info: catch 시작 라인에는 c_entry만 추가
+        # line_info: catch 시작 줄에는 c_entry, 닫는 줄에는 join (build_else_statement 와 같다)
         bc = line_info.setdefault(line_no, {"open": 0, "close": 0, "cfg_nodes": []})
         bc["cfg_nodes"].append(c_entry)
+        if end_line is not None:
+            line_info.setdefault(end_line, {"open": 0, "close": 0, "cfg_nodes": []})["cfg_nodes"].append(join)
 
         return c_entry, c_end
 

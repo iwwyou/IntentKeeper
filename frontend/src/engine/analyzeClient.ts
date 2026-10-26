@@ -2,7 +2,7 @@
 // 인터랙티브 = 3콜(analyze/evaluate/verify), dirty 신호는 호출 tier가 곧 전달.
 //   코드 편집 → analyzeStructure (+ 하위 evaluate/verify)
 //   값 변경   → evaluate (+ verify)
-//   intent 변경 → verify
+//   intent 변경 → setIntents(슬롯 재도출, M8) + verify
 // navigation 은 로컬(0콜). 실험/격리용 1콜 = analyzeOnce.
 // 서버 세션("contract.func")이 3콜을 묶어 states 캐시/standalone P2 활용.
 
@@ -99,6 +99,11 @@ export async function outline(source: string): Promise<OutlineResult> {
 /** 코드 편집 tier — CFG 구조 + debug 슬롯 + diagnostics. [코드 변경 트리거] */
 export async function analyzeStructure(req: AnalyzeRequest): Promise<StructureResult | null> {
   return post<StructureResult>('/analyze', req)
+}
+
+/** intent tier(슬롯) — CFG 는 그대로, intent 가 참조하는 진입 값까지 debug 슬롯 재도출. (M8) */
+export async function setIntents(req: AnalyzeRequest): Promise<StructureResult> {
+  return post<StructureResult>('/set_intents', req)
 }
 
 /** 값 tier — debug 값 seed → fixpoint → CFG-with-states. [값 변경 트리거] */

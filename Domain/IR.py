@@ -35,6 +35,10 @@ class Statement:
             self.event_name = kwargs.get("event_name")
             self.arguments  = kwargs.get("arguments") or []   # list[Expression]
 
+        # ------ 값만 있는 식 문장 `a == b;` (2026-10-23) — 식을 평가하고 결과를 버린다(solc: "statement has no effect")
+        elif statement_type == "expression":
+            self.expression = kwargs.get("expression")
+
         # ------ 흐름 제어(break / continue) ------
         elif statement_type in {"break", "continue"}:
             # 별도 데이터 필요 없음 – src_line 만 기록

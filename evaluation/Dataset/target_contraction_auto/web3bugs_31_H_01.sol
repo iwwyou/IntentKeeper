@@ -30,9 +30,9 @@ contract MyStrategy is BaseStrategy {
     bool public processLocksOnReinvest = true;
     bool public processLocksOnRebalance = true;
 
-    function wantToCVX(uint256 want) public view returns (uint256) {
+    function wantToCVX(uint256 _want) public view returns (uint256) {
         uint256 bCVXToCVX = CVX_VAULT.getPricePerFullShare();
-        return want.mul(bCVXToCVX).div(10**18);
+        return _want.mul(bCVXToCVX).div(10**18);
     }
 
     function harvest() public whenNotPaused returns (uint256 harvested) {

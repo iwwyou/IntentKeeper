@@ -71,7 +71,7 @@ class Engine:
         elif typ == 'unary':
             return self._interpret_unary(stmt, current_variables)
         elif typ == 'functionCall':
-            return self._interpret_func_call(stmt, current_variables)
+            return self._interpret_func_call(stmt, current_variables, node=node)
         elif typ == 'return':
             return self._interpret_return(stmt, current_variables, ret_acc)
         elif typ == 'revert':
@@ -84,6 +84,10 @@ class Engine:
             return self._interpret_assembly(stmt, current_variables)
         elif typ == 'emit':
             return self._interpret_emit(stmt, current_variables)
+        elif typ == 'expression':
+            if not self._is_bottom_env(current_variables):
+                self.eval.evaluate_expression(stmt.expression, current_variables, None, None)
+            return current_variables
         else:
             raise ValueError(f"Statement '{typ}' is not implemented.")
 
@@ -305,9 +309,13 @@ class Engine:
                 obj.length = UnsignedIntegerInterval(0, 0, 256)
                 obj.summary = None
             else:
-                for e in obj.elements:
-                    self._delete_composite(e) if isinstance(e, (ArrayVariable, StructVariable, MappingVariable)) \
-                        else setattr(e, "value", self._zero_of(e))
+                # (2026-10-23, 희소 배열) 모든 원소 = 0 → 구체 셀을 버리고 D(summary) = 0 셀. 초기화식 없는 지역 정적 배열도
+                #   이 경로로 0 이 된다(예전엔 원소 list 가 비어 있어 아무것도 안 했고, 이후 접근이 범위 오류였다).
+                z = obj.fresh_default()
+                self._delete_composite(z) if isinstance(z, (ArrayVariable, StructVariable, MappingVariable)) \
+                    else setattr(z, "value", self._zero_of(z))
+                obj.elements = {}
+                obj.summary = z
             return
         if isinstance(obj, StructVariable):
             for m in obj.members.values():
@@ -319,12 +327,21 @@ class Engine:
                 else:
                     m.value = self._zero_of(m)
 
-    def _interpret_func_call(self, stmt, variables):
+    def _interpret_func_call(self, stmt, variables, node=None):
         # ★ infeasible branch(BOTTOM env)에서는 함수 호출 스킵
         #   → caller_env 반영이 BOTTOM 값을 TOP으로 오염시키는 것을 방지
         if self._is_bottom_env(variables):
             return variables
-        self.eval.evaluate_function_call_context(stmt.function_expr, variables, None, None)
+        # (2026-10-23, M1) 호출 직전 상태 — 인자 intent(`@During transfer.arg[0] …`)는 인자가 평가되는 이 상태로 검증한다
+        #   (예전엔 호출 **후** 상태로 인자식을 다시 평가했다). 대입문의 before_envs 와 같은 장치.
+        line_num = getattr(stmt, 'src_line', None)
+        if self._record_enabled and not self._suppress_stmt_records and line_num is not None and node is not None:
+            node.before_envs[line_num] = VariableEnv.copy_variables(variables)
+        fe = stmt.function_expr
+        if str(getattr(fe, "context", "")).startswith("Yul"):   # (2026-10-23) Yul 문장(builtin 호출·미지원 구문)
+            self.eval.evaluate_expression(fe, variables, None, None)
+            return variables
+        self.eval.evaluate_function_call_context(fe, variables, None, None)
         return variables
 
     def _interpret_return(self, stmt, variables, ret_acc=None):
@@ -478,71 +495,44 @@ class Engine:
         except Exception:
             return False
 
+    # (2026-10-23, 사용자 결정) widening 지연(delayed widening):
+    #   d(L) = 조건에서 반복 규모 N̂ 를 얻으면 min(N̂, LOOP_DELAY_MAX), 얻지 못하면 LOOP_DELAY_UNKNOWN.
+    #   N̂ 는 최소 실행 횟수가 아니라 "widening 을 허용하기 전 최대 지연" 이다 — 그 전에 수렴하면 바로 끝난다.
+    #   예전엔 [1,20] 으로 잘라, 길이가 ⊤ 인 `i < tokens.length - 1` 이 20(지연 최대)이 되고 `i < 1000` 은 20 으로 줄었다.
+    LOOP_DELAY_MAX = 300
+    LOOP_DELAY_UNKNOWN = 2
+
     def _estimate_loop_iterations(self, head: CFGNode, start_env: dict) -> int:
-        """
-        Loop 조건식을 평가해서 예상 반복 횟수 추정
-
-        Args:
-            head: Loop head node
-            start_env: Loop 진입 시점의 변수 환경
-
-        Returns:
-            추정 반복 횟수 (기본값: 1, 최대값: 20)
-        """
-        # Loop head가 condition node가 아니면 기본값
+        """루프 widening 지연 d(L). 조건 `a < b`(<=, >, >=) 를 진입 환경에서 평가해 N̂ = 상한 − 하한 (+1).
+        평가할 수 없거나(이항 비교 아님·구간 아님·⊥·예외), 경계가 정보가 없는 구간(폭이 타입 범위의 절반 이상 — ⊤ 에서
+        유도된 `tokens.length - 1` 등)이거나 `!=` 이면 "모름" → LOOP_DELAY_UNKNOWN."""
+        unknown = self.LOOP_DELAY_UNKNOWN
         if not getattr(head, 'condition_node', False):
-            return 1
-
+            return unknown
         cond_expr = getattr(head, 'condition_expr', None)
-        if cond_expr is None:
-            return 1
-
-        # 조건식 평가
+        if cond_expr is None or getattr(cond_expr, 'operator', None) not in ('<', '<=', '>', '>='):
+            return unknown
         try:
-            # Binary expression인지 확인
-            if not hasattr(cond_expr, 'operator') or cond_expr.operator not in ['<', '<=', '>', '>=', '!=']:
-                return 1
-
-            # 좌변/우변 평가 (Evaluation.py 활용)
             left_val = self.eval.evaluate_expression(cond_expr.left, start_env, None, None)
             right_val = self.eval.evaluate_expression(cond_expr.right, start_env, None, None)
+        except Exception:
+            return unknown
+        if not (VariableEnv.is_interval(left_val) and VariableEnv.is_interval(right_val)):
+            return unknown
+        if left_val.is_bottom() or right_val.is_bottom():
+            return unknown
 
-            # Interval인지 확인
-            if not (VariableEnv.is_interval(left_val) and VariableEnv.is_interval(right_val)):
-                return 1
+        def uninformative(iv):
+            bits = getattr(iv, "type_length", 256) or 256
+            return iv.max_value - iv.min_value >= (1 << (bits - 1))
 
-            # bottom 체크
-            if left_val.is_bottom() or right_val.is_bottom():
-                return 1
-
-            # 반복 횟수 계산
-            if cond_expr.operator in ['<', '<=']:
-                # left < right: right의 상한 - left의 하한
-                iterations = right_val.max_value - left_val.min_value
-                if cond_expr.operator == '<=':
-                    iterations += 1
-            elif cond_expr.operator in ['>', '>=']:
-                # left > right: left의 상한 - right의 하한
-                iterations = left_val.max_value - right_val.min_value
-                if cond_expr.operator == '>=':
-                    iterations += 1
-            elif cond_expr.operator == '!=':
-                # != 조건은 예측 어려움, 보수적으로 처리
-                return 10
-            else:
-                return 1
-
-            # 합리적인 범위로 제한: [1, 20]
-            if iterations <= 0:
-                return 1
-            elif iterations > 20:
-                return 20
-            else:
-                return int(iterations)
-
-        except Exception as e:
-            # 평가 실패 시 기본값
-            return 1
+        if uninformative(left_val) or uninformative(right_val):
+            return unknown
+        if cond_expr.operator in ('<', '<='):
+            n = right_val.max_value - left_val.min_value + (1 if cond_expr.operator == '<=' else 0)
+        else:
+            n = left_val.max_value - right_val.min_value + (1 if cond_expr.operator == '>=' else 0)
+        return max(1, min(int(n), self.LOOP_DELAY_MAX))
 
     # =================================================================
     #  Fixpoint (루프 중 문장기록 억제)
@@ -643,11 +633,22 @@ class Engine:
         widening_threshold = (self._estimate_loop_iterations(head, in_vars[head]))
 
         # ★ widening - 초기 WL은 head만 (join 노드는 predecessor가 준비되면 자동으로 추가됨)
+        # (2026-10-23) 자원 상한 W_MAX 에 닿아도 수렴 전 상태를 결과로 내지 않는다(예전엔 작업 목록이 남은 채 빠져나와 narrowing 으로
+        #   넘어갔다 — 고정점이 아닌 환경 = unsound). 상한에 닿으면 모든 루프 join 에서 강제 widening 으로 바꿔 수렴할 때까지 계속하고,
+        #   그래도 W_FORCED_MAX 를 넘기면 명시적 오류.
         W_MAX = 300
+        W_FORCED_MAX = 2 * W_MAX
+        forced = False
         WL = deque([head])
         iteration = 0
 
-        while WL and max(visit_cnt.values(), default=0) < W_MAX:
+        while WL:
+            top_visits = max(visit_cnt.values(), default=0)
+            if top_visits >= W_FORCED_MAX:
+                raise ValueError(f"loop fixpoint at '{head.name}' did not converge within {W_FORCED_MAX} visits "
+                                 f"even with forced widening")
+            if not forced and top_visits >= W_MAX:
+                forced = True
             node = WL.popleft()
             visit_cnt[node] += 1
             iteration += 1
@@ -668,7 +669,7 @@ class Engine:
 
             # ★ widening 모드 설정 (후속 노드들도 widening threshold 넘으면 추상화)
             old_widening = self._in_widening_mode
-            if visit_cnt[node] > widening_threshold:
+            if forced or visit_cnt[node] > widening_threshold:
                 self._in_widening_mode = True
 
             out_raw = self.transfer_function(node, in_vars[node])
@@ -697,7 +698,7 @@ class Engine:
                 if flow is None:
                     continue
                 if getattr(succ, "fixpoint_evaluation_node", False):
-                    succ_widen = (visit_cnt[succ] > widening_threshold)
+                    succ_widen = forced or (visit_cnt[succ] > widening_threshold)
                 else:
                     succ_widen = False
 
@@ -1034,8 +1035,7 @@ class Engine:
             v.summary = None                      # None = 선언 기본값(⊤, D5)
             return
         if isinstance(v, ArrayVariable):
-            for el in v.elements:
-                self._havoc(el, owner_cfg)
+            v.elements = {}                       # 모든 원소 ⊤ = 구체 셀 없음 + D 기본값(⊤)
             v.sym_cells.clear()
             v.sym.clear()
             v.summary = None
@@ -2002,7 +2002,8 @@ class Engine:
     def _is_bottom_var(self, v) -> bool:
         """Variable 하나(또는 하위 원소)가 BOTTOM인지 재귀 검사."""
         if isinstance(v, ArrayVariable):
-            return any(self._is_bottom_var(e) for e in v.elements)
+            return any(self._is_bottom_var(e) for e in v.elements.values()) or \
+                (v.summary is not None and self._is_bottom_var(v.summary))
         if isinstance(v, StructVariable):
             return any(self._is_bottom_var(m) for m in v.members.values())
         if isinstance(v, MappingVariable):
@@ -2018,8 +2019,11 @@ class Engine:
 
     def _make_bottom(self, v: Variables) -> None:
         if isinstance(v, ArrayVariable):
-            for elem in v.elements:
+            for elem in v.elements.values():
                 self._make_bottom(elem)
+            z = v.summary if v.summary is not None else v.fresh_default()
+            self._make_bottom(z)
+            v.summary = z
             return
         if isinstance(v, StructVariable):
             for m in v.members.values():
@@ -2259,8 +2263,11 @@ class Engine:
 
         # 각 during annotation 검증
         for annot in during_annotations:
+            # (2026-10-23, M1) intent 검증은 실행이 아니다 — 평가 중 callee 를 부르더라도(인자식 `amount.div(12)`) UI 용 callee
+            #   상태 캡처를 하지 않는다. 예전엔 캡처가 호출 지점 노드에서 그 호출식을 못 찾아 internal error 가 됐다(BoostToken).
             try:
-                result = self._verify_during_annotation(annot, node, cur_vars)
+                with self._no_callee_capture():
+                    result = self._verify_during_annotation(annot, node, cur_vars)
 
                 # 결과를 analysis_per_line에 기록
                 if line_no not in self.an.analysis_per_line:
@@ -2285,6 +2292,16 @@ class Engine:
                         'message': f'During annotation processing error: {str(e)}'
                     }
                 })
+
+    @__import__("contextlib").contextmanager
+    def _no_callee_capture(self):
+        """intent 평가 동안 callee 상태 캡처(UI Step Into 용)를 끈다."""
+        old = getattr(self.an, "_capture_debug_fcfg", False)
+        self.an._capture_debug_fcfg = False
+        try:
+            yield
+        finally:
+            self.an._capture_debug_fcfg = old
 
     def _process_node_intents(self, node, cur_vars, line_no):
         """
@@ -2332,9 +2349,10 @@ class Engine:
             try:
                 # 각 clause 검증
                 results = []
-                for clause in clauses:
-                    result = self._verify_during_clause_dynamic(clause, node, cur_vars, guardian, line_no)
-                    results.append(result)
+                with self._no_callee_capture():      # (2026-10-23, M1) intent 검증은 실행이 아니다 — 위 주석 참고
+                    for clause in clauses:
+                        result = self._verify_during_clause_dynamic(clause, node, cur_vars, guardian, line_no)
+                        results.append(result)
 
                 # 논리 연산자로 조합
                 combined_result = self._combine_logic_results(results, logic_ops)

@@ -338,13 +338,13 @@ class Evaluation :
                 elif step[0] == "index":
                     if isinstance(target, ArrayVariable):
                         idx = step[1]
-                        if idx < len(target.elements):
+                        if target.in_static_range(idx):
                             if is_last:
-                                elem = target.elements[idx]
+                                elem = target.get_or_create_element(idx)
                                 if hasattr(elem, 'value'):
                                     elem.value = val
                             else:
-                                target = target.elements[idx]
+                                target = target.get_or_create_element(idx)
                     else:
                         break
                 elif step[0] == "call":
@@ -679,10 +679,7 @@ class Evaluation :
             if member == "balance" and ety in ("address", "address payable"):
                 return self._elementary_type("uint256")
             if cat == "struct":
-                sname = base_t.structTypeName
-                structs, _ = self.an.get_full_struct_enum_defs()
-                sdef = structs.get(sname) or (structs.get(sname.split('.')[-1])
-                                              if sname and '.' in sname else None)
+                sdef = self.an.struct_def_of_type(base_t)
                 members = getattr(sdef, "members", None) if sdef is not None else None
                 if isinstance(members, dict):
                     return members.get(member)
@@ -758,6 +755,31 @@ class Evaluation :
             return getattr(t, "interfaceName", None)
         return None
 
+    def _evaluate_yul(self, expr, variables):
+        """Yul 문맥의 식/문장.
+          · YulBuiltinContext   builtin 호출 (값 또는 None = 문장)
+          · YulWordContext      `let x := e` 의 초기화식 — word 그대로(Yul 지역은 uint256)
+          · YulAssignValue      `x := e` 의 우변 — 대상 Solidity 변수 타입으로 cleanup
+          · YulUnsupportedStatement  아직 해석하지 않는 Yul 구문 — 실행되면 명시적으로 멈춘다(본문을 무조건 실행하지 않도록)"""
+        from Interpreter.Semantics.YulEval import YulEvaluator
+        yul = getattr(self, "_yul", None)
+        if yul is None:
+            yul = self._yul = YulEvaluator(self)
+        ctx = expr.context
+        if ctx == "YulBuiltinContext":
+            return yul.builtin(expr, variables)
+        if ctx == "YulWordContext":
+            return yul.word_of(expr.expression, variables)
+        if ctx == "YulAssignValue":
+            target = variables.get(expr.identifier)
+            if target is None:
+                raise ValueError(f"Yul assignment to undeclared variable '{expr.identifier}'")
+            return yul.cleanup(yul.word_of(expr.expression, variables), target)
+        if ctx == "YulUnsupportedStatement":
+            raise ValueError(f"inline assembly: Yul `{expr.identifier}` is not supported yet "
+                             f"(Yul 제어 흐름·종료는 블록 단위 해석 단계에서 지원 — 지금 실행하면 결과가 sound 하지 않다)")
+        raise ValueError(f"unknown Yul expression context '{ctx}'")
+
     def _is_non_typed_receiver(self, base_expr, base_val) -> bool:
         """`X.f(...)` 의 X 가 **값이 아닌 이름**(super/this/전역 네임스페이스/라이브러리·컨트랙트 이름/enum 정의/type(...))인가.
         이것들은 using-for 대상이 아니고 member access 의 각 전용 분기가 처리한다."""
@@ -800,7 +822,19 @@ class Evaluation :
         if bname is not None and bname not in variables and bname in (self.an.library_cfgs or {}):
             subs = (self.an.library_cfgs[bname].functions or {}).get(member) or {}
             cands = [f for f in subs.values() if len(getattr(f, "parameters", None) or []) == n_explicit]
-            return self._single_return_type(cands[0]) if len(cands) == 1 else None
+            if len(cands) == 1:
+                return self._single_return_type(cands[0])
+            if not cands:
+                return None
+            # (2026-10-23) 오버로드 여럿: 반환 타입이 모두 같으면 그 타입(고를 필요 없음 — `Fixed18Lib._from(UFixed18)`/
+            #   `_from(int256)` 둘 다 Fixed18, 60_H_01), 다르면 인자 정적 타입으로 해소(`_select_overload`, 못 고르면 오류)
+            rts = [self._single_return_type(f) for f in cands]
+            names = {(getattr(t, "typeCategory", None), getattr(t, "aliasName", None) or self._type_name(t)) for t in rts}
+            if None not in rts and len(names) == 1:
+                return rts[0]
+            chosen = self._select_overload({i: f for i, f in enumerate(cands)}, list(getattr(expr, "arguments", None) or []),
+                                           dict(getattr(expr, "named_arguments", None) or {}), variables, member)
+            return self._single_return_type(chosen) if chosen is not None else None
         base_t = self._static_type_of(base_e, variables)
         key = self._using_type_key(base_t)
         if key is not None:
@@ -1175,10 +1209,7 @@ class Evaluation :
         joined = None
         for idx in sample_indices:
             # 기존 요소가 있으면 사용, 없으면 가상으로 생성
-            if idx < len(array.elements):
-                elem = array.elements[idx]
-            else:
-                elem = array._create_element_virtual(idx)
+            elem = array.read_element(idx)          # (희소 배열) 구체 셀 또는 D
 
             # join 로직
             if isinstance(elem, StructVariable):
@@ -1234,6 +1265,9 @@ class Evaluation :
         return joined
 
     def evaluate_expression(self, expr: Expression, variables, callerObject=None, callerContext=None):
+        # (2026-10-23, Yul P0-a) Yul 식은 256-bit word 의미로 따로 평가한다 (Interpreter/Semantics/YulEval.py)
+        if str(expr.context).startswith("Yul"):
+            return self._evaluate_yul(expr, variables)
         if expr.context == "LiteralExpContext":
             return self.evaluate_literal_context(expr, variables, callerObject, callerContext)
         elif expr.context == "NumLiteralContext":
@@ -1363,6 +1397,7 @@ class Evaluation :
                     arr.enum_defs = {**ifc_enum_defs, **arr.enum_defs}
 
             # ⬇ Solidity default: new array elements are zero-initialized
+            #   (2026-10-23, 희소 배열) D = 0 셀 — 길이가 미지여도 모든 원소가 0 이다(원소를 만들지 않는다)
             if ArrayVariable._is_abstractable(sol_t.arrayBaseType):
                 et = str(sol_t.arrayBaseType.elementaryTypeName)
                 bits = sol_t.arrayBaseType.intTypeLength or 256
@@ -1372,7 +1407,8 @@ class Evaluation :
                     dummy = BoolInterval(0, 0)
                 else:
                     dummy = UnsignedIntegerInterval(0, 0, bits)
-                arr.initialize_elements(dummy)
+                arr.elements = {}
+                arr.summary = arr._uniform_cell("*", sol_t.arrayBaseType, dummy)
             else:
                 arr.initialize_not_abstracted_type()
 
@@ -1457,9 +1493,9 @@ class Evaluation :
                     if idx < 0:
                         raise IndexError(f"Negative index {idx} for array '{callerObject.identifier}'")
                     return callerObject.get_or_create_element(idx)
-                if idx < 0 or idx >= len(callerObject.elements):
+                if idx < 0 or not callerObject.in_static_range(idx):
                     raise IndexError(f"Index {idx} out of range for array '{callerObject.identifier}'")
-                return callerObject.elements[idx]  # element (Variables | …)
+                return callerObject.get_or_create_element(idx)  # element (Variables | …)
 
             # 1-B) 매핑 키 – 문자열·hex·decimal 모두 허용
             if isinstance(callerObject, MappingVariable):
@@ -1585,8 +1621,8 @@ class Evaluation :
                     if idx < 0:
                         raise IndexError(f"Negative index {idx} for array '{callerObject.identifier}'")
 
-                    if idx >= len(callerObject.elements):
-                        # ❗ 요소가 아직 없음 → base-type 의 TOP 값 (알 수 없는 값)
+                    if not callerObject.in_static_range(idx):
+                        # ❗ 정적 배열 범위 밖 → base-type 의 TOP 값 (경로 차단은 Phase 5)
                         base_t = callerObject.typeInfo.arrayBaseType
                         if base_t.elementaryTypeName and base_t.elementaryTypeName.startswith("uint"):
                             bits = base_t.intTypeLength or 256
@@ -1625,7 +1661,7 @@ class Evaluation :
                             # 기타 (bytes/string 등)는 symbol
                             return f"symbolic_{callerObject.identifier}[{idx}]"
 
-                    elem = callerObject.elements[idx]
+                    elem = callerObject.read_element(idx)      # (희소 배열) 구체 셀 또는 D
                     # 구조체나 배열 등 복합 타입이면 객체 자체 반환, 기본 타입이면 .value 반환
                     if isinstance(elem, (StructVariable, ArrayVariable, MappingVariable)):
                         return elem
@@ -1633,19 +1669,28 @@ class Evaluation :
 
                 # ── (B) 불확정(bottom 또는 [l,r] 범위) ─────────────────
                 #      ⇒  배열 모든 요소의 join 을 반환 (구조체 포함)
-                if callerObject.elements:
-                    first_elem = callerObject.elements[0]
+                # (희소 배열) 후보 = 범위 안 구체 셀 + (구체화 안 된 위치가 있으면) D
+                _lo = iv.min_value if VariableEnv.is_interval(iv) and not iv.is_bottom() else None
+                _hi = iv.max_value if _lo is not None else None
+                _cands = [e for k, e in sorted(callerObject.elements.items())
+                          if _lo is None or _lo <= k <= _hi]
+                _n = callerObject.static_length()
+                _span = None if _lo is None else (min(_hi, _n - 1) if _n is not None else _hi) - _lo + 1
+                if _span is None or len(_cands) < _span:
+                    _cands.append(callerObject.read_element("*"))
+                if _cands:
+                    first_elem = _cands[0]
 
                     # 구조체 배열: 각 필드를 join하여 필드마다 TOP으로 만든 구조체 반환
                     if isinstance(first_elem, StructVariable):
-                        return self._join_struct_fields(callerObject.elements)
+                        return self._join_struct_fields(_cands)
 
                     # 기본 타입: 모든 값 join
                     elif not isinstance(first_elem, (ArrayVariable, MappingVariable)):
                         # # DEBUG: Check array access with interval index
                         # print(f"[ARRAY DEBUG] Accessing {callerObject.identifier} with interval index {ident_str}={iv}, elements count={len(callerObject.elements)}")
                         joined = None
-                        for i, elem in enumerate(callerObject.elements):
+                        for i, elem in enumerate(_cands):
                             val = getattr(elem, "value", elem)
                             # print(f"[ARRAY DEBUG]   element[{i}] = {val}")
                             joined = val if joined is None else joined.join(val)
@@ -1688,7 +1733,7 @@ class Evaluation :
                 # ★ 중첩 배열 / mapping / enum → 도메인 헬퍼에 위임 (위 (a) 와 동일 이유)
                 if isinstance(base_t, SolType) and \
                         base_t.typeCategory in ("array", "mapping", "enum"):
-                    return callerObject._create_element_virtual(len(callerObject.elements))
+                    return callerObject._create_element_virtual("*")
 
                 # 기타
                 return f"symbolic_{callerObject.identifier}[<unk>]"
@@ -1806,7 +1851,8 @@ class Evaluation :
                     # (super.foo()와 비슷하지만 조상 하나를 이름으로 못박는 문법)
                     return {"isBaseContract": True, "contractName": ident_str}
                 else:
-                    raise ValueError(f"This '{ident_str}' is may be array or struct but may not be declared")
+                    from Utils.Errors import UnresolvedName
+                    raise UnresolvedName(ident_str, f"This '{ident_str}' is may be array or struct but may not be declared")
             elif callerContext == "IndexAccessContext":  # base에 대한 접근
                 if ident_str in variables:
                     return variables[ident_str]  # ArrayVariable, MappingVariable 자체를 리턴
@@ -1831,7 +1877,8 @@ class Evaluation :
                                 or ident_str in (getattr(ccf, "functions", None) or {})):
             return FunctionRef.top()
 
-        raise ValueError(f"This '{ident_str}' is may be elementary variable but may not be declared")
+        from Utils.Errors import UnresolvedName
+        raise UnresolvedName(ident_str, f"This '{ident_str}' is may be elementary variable but may not be declared")
 
     def evaluate_member_access_context(
             self,
@@ -2141,7 +2188,7 @@ class Evaluation :
                         if val is not None:
                             new.value = val
                         hi = L.max_value
-                        for i, e in enumerate(baseVal.elements):
+                        for i, e in baseVal.elements.items():
                             if L.min_value <= i <= hi:
                                 _join_into(e, new)
                         if baseVal.summary is None:
@@ -2157,7 +2204,7 @@ class Evaluation :
                         return None
                     if L.min_value == L.max_value:
                         n = L.min_value
-                        del baseVal.elements[n - 1:]
+                        baseVal.elements = {k: v for k, v in baseVal.elements.items() if k < n - 1}
                     baseVal.length = UnsignedIntegerInterval(max(L.min_value, 1) - 1, L.max_value - 1, 256)
                     return None
 
@@ -2960,21 +3007,21 @@ class Evaluation :
                     return self._mapping_lookup_if_needed(result, callerObject) if result is not None else None
 
             # ★ @IReturn Pattern B: explicit cast — IERC20(want).balanceOf() 등
-            if (hasattr(base_expr, 'context') and base_expr.context == 'FunctionCallContext'
-                    and hasattr(base_expr, 'function') and hasattr(base_expr.function, 'identifier')):
-                cast_interface = base_expr.function.identifier
+            #   (2026-10-25) visitor 는 인터페이스·컨트랙트 캐스트를 `TypeConversion(typeName, expression)` 으로 만든다 — 예전 조건
+            #   (`FunctionCallContext`)은 한 번도 참이 아니어서 이 조회가 죽어 있었고, 아래의 "주소를 보지 않는" 대체 조회가 모든
+            #   캐스트 호출을 처리했다(`IF(a).f()` 에 준 값이 `IF(b).f()` 에도 들어감). 키 = (인터페이스, 주소 이름, 함수) — 주소가
+            #   식별자가 아닌 식이면 입력 키로 쓸 수 없으므로(문법 확장 = future work) 조회하지 않는다(반환 ⊤).
+            if (getattr(base_expr, 'context', None) == 'TypeConversion'
+                    and getattr(base_expr, 'typeName', None) in self.an.interface_names):
+                cast_interface = base_expr.typeName
                 fcfg = self.an.current_target_function_cfg
-                if fcfg and cast_interface in self.an.interface_names:
-                    addr_var = None
-                    if base_expr.arguments and len(base_expr.arguments) == 1:
-                        arg = base_expr.arguments[0]
-                        if hasattr(arg, 'identifier'):
-                            addr_var = arg.identifier
-                    if addr_var:
-                        ret = self._resolve_ireturn_pattern_b(
-                            fcfg, cast_interface, addr_var, member_name, callerObject)
-                        if ret is not None:
-                            return ret
+                addr_var = getattr(base_expr.expression, 'identifier', None) \
+                    if getattr(base_expr.expression, 'context', None) == 'IdentifierExpContext' else None
+                if fcfg and addr_var:
+                    ret = self._resolve_ireturn_pattern_b(
+                        fcfg, cast_interface, addr_var, member_name, callerObject)
+                    if ret is not None:
+                        return ret
 
             # member access를 평가하여 라이브러리 함수인지 확인
             function_result = self.evaluate_expression(expr.function, variables, None, "functionCallContext")
@@ -3025,27 +3072,7 @@ class Evaluation :
                 getattr(function_result, 'context', '') == 'InterfaceFunctionCallContext'):
                 cast_ifc = function_result._cast_interface
                 func_name = function_result.function.identifier
-                cast_addr = getattr(function_result, '_cast_address', None)
-
-                # IReturn registry 조회 (Pattern A/B에서 못 잡힌 경우)
-                fcfg = self.an.current_target_function_cfg
-                if fcfg and fcfg.ireturn_registry:
-                    # cast_ifc 기반으로 entries 수집 시도
-                    for prefix_len in (3, 2):  # Pattern B (4-tuple prefix 3) or A (3-tuple prefix 2)
-                        for key in fcfg.ireturn_registry:
-                            if len(key) >= prefix_len + 1 and \
-                               key[0] == cast_ifc and key[prefix_len - 1] == func_name:
-                                # 매칭되는 entries 수집
-                                match_prefix = key[:prefix_len]
-                                entries = self._collect_ireturn_entries(
-                                    fcfg.ireturn_registry, match_prefix)
-                                if entries:
-                                    ret = self._assemble_ireturn_value(
-                                        cast_ifc, func_name, entries, callerObject)
-                                    if ret is not None:
-                                        return ret
-                                break
-
+                # (2026-10-25) IReturn 값은 위 Pattern B(주소 이름까지 비교)에서만 — 인터페이스·함수 이름만 맞추던 대체 조회 삭제.
                 # 반환 타입 ⊤ (못 찾으면 _lookup_interface_return 이 예외, void 면 None)
                 result = self._lookup_interface_return(cast_ifc, func_name)
                 return self._mapping_lookup_if_needed(result, callerObject) if result is not None else None

@@ -372,33 +372,15 @@
   "event": "add"
  },
  {
-  "code": "// @IReturn AggregatorV3Interface(chainlinkFeed).latestRoundData()[0] = [1, 1]",
+  "code": "// @IReturn IERC20Metadata(token).decimals() = [18, 18]",
   "startLine": 41,
   "endLine": 41,
   "event": "add"
  },
  {
-  "code": "// @IReturn AggregatorV3Interface(chainlinkFeed).latestRoundData()[1] = [200000000, 200000000]",
+  "code": "// @Debugging END",
   "startLine": 42,
   "endLine": 42,
-  "event": "add"
- },
- {
-  "code": "// @IReturn AggregatorV3Interface(chainlinkFeed).latestRoundData()[4] = [1, 1]",
-  "startLine": 43,
-  "endLine": 43,
-  "event": "add"
- },
- {
-  "code": "// @IReturn IERC20Metadata(token).decimals() = [18, 18]",
-  "startLine": 44,
-  "endLine": 44,
-  "event": "add"
- },
- {
-  "code": "// @Debugging END",
-  "startLine": 45,
-  "endLine": 45,
   "event": "add"
  }
 ]

@@ -16,6 +16,7 @@ from Interpreter.Engine import Engine
 from Analyzer.GuardianVerificationEngine import GuardianVerificationEngine
 
 import re
+from Utils.Errors import UnsupportedShadowing
 
 class ContractAnalyzer:
 
@@ -213,7 +214,9 @@ class ContractAnalyzer:
             # 여러 줄짜리 함수/modifier/constructor 정의의 마지막 줄일 수 있음
             # 예: "    ) external isAllowed {"
             # 이 경우 위로 올라가서 function/modifier/constructor를 찾아야 함
-            if ')' in stripped_code and not stripped_code.startswith(('function', 'constructor', 'modifier', 'contract', 'struct', 'enum', 'if', 'for', 'while', 'else')):
+            # (2026-10-23) try/catch 도 제외 — `try IR(r).ping(a) returns (uint256 v) {` 가 함수 헤더 연속 줄로 오분류돼
+            #   try 가 CFG 에 들어가지 않았다
+            if ')' in stripped_code and not stripped_code.startswith(('function', 'constructor', 'modifier', 'contract', 'struct', 'enum', 'if', 'for', 'while', 'else', 'try', 'catch')):
                 # 위로 올라가서 function/modifier/constructor 키워드 찾기
                 for check_line in range(start_line - 1, 0, -1):
                     check_code = self.sa.full_code_lines.get(check_line, '').strip()
@@ -352,6 +355,14 @@ class ContractAnalyzer:
             unsupported = (not is_fn) and (inner == "{" or inner.startswith(("unchecked", "do", "try", "catch")))
         return shadows, unsupported
 
+    @staticmethod
+    def _reject_param_shadowing(fcfg, name: str) -> None:
+        """(2026-10-25) 나중에 선언된 상태변수를 기존 함수에 넣을 때 — 파라미터·named return 과 이름이 같으면 명시적 미지원."""
+        if name in (getattr(fcfg, "parameters", None) or []):
+            raise UnsupportedShadowing(fcfg.function_name, name, "parameter")
+        if any(getattr(r, "identifier", None) == name for r in (getattr(fcfg, "return_vars", None) or [])):
+            raise UnsupportedShadowing(fcfg.function_name, name, "named return")
+
     def _mark_shadowing(self, fcfg, stmt) -> None:
         """선언 Statement 에 shadowing 표시(해석기가 바깥 binding 을 보관·복원)."""
         stmt.shadows, stmt.shadow_unsupported = self.shadowing_info(fcfg, stmt.var_name, stmt.src_line)
@@ -420,6 +431,16 @@ class ContractAnalyzer:
             if ctx in self._ASM_BOUNDARY:
                 return False
         return False
+
+    def in_nested_yul_block(self, line_number: int) -> bool:
+        """(2026-10-23, Yul P0-a) `line_number` 가 assembly 안의 **중첩 Yul 블록**(if/switch case/for/function 본문) 안인가.
+        그 블록의 머리 줄에 미지원 표식이 놓이므로, 본문 줄은 CFG 에 만들지 않는다 — 만들면 조건 없이 실행되는 문장
+        (특히 `if c { revert(0,0) }` 의 revert 가 무조건 revert)이 되어 뒤 코드를 죽은 코드로 만든다."""
+        line = self._enclosing_open_brace_line(line_number, inclusive=False)
+        if line is None:
+            return False
+        return self.determine_top_level_context(self.sa.full_code_lines.get(line, "")) != "assembly" \
+            and self.is_inside_assembly(line_number)
 
     def find_contract_context(self, line_number):
         # 위로 거슬러 올라가면서 해당 라인이 속한 컨트랙트를 찾습니다.
@@ -497,17 +518,60 @@ class ContractAnalyzer:
                 param_types.append(tokens[0])
         return param_types
 
+    _FUNC_HEAD = re.compile(r"(?:function\b|constructor\s*\(|modifier\b|fallback\s*\(|receive\s*\()")
+    _NON_FUNC_HEAD = re.compile(r"(?:abstract\s+)?(?:contract|library|interface)\b|struct\b|enum\b")
+
+    def _function_registered_at(self, line: int):
+        """(2026-10-23) 블록 시작 줄 `line` 에 **등록된** 함수(FunctionCFG) — 그 헤더 레코드가 ENTRY 노드를 줄에 등록한다
+        (`process_function_definition` 등). 여러 줄 헤더면 텍스트가 레코드 끝 줄에 쓰이고 ENTRY 는 시작 줄에 있으므로
+        위쪽의 빈 자리 줄까지 본다."""
+        ccf = self.contract_cfgs.get(self.find_contract_context(line))
+        if ccf is None:
+            return None
+        fcfgs = [f for _, f in ccf.iter_all_functions()]
+        if getattr(ccf, "constructor", None) is not None:
+            fcfgs.append(ccf.constructor)
+        by_entry = {id(f.get_entry_node()): f for f in fcfgs}
+        ln = line
+        while ln >= 1:
+            for n in self.sa.line_info.get(ln, {}).get("cfg_nodes", []) or []:
+                f = by_entry.get(id(n))
+                if f is not None:
+                    return f
+            ln -= 1
+            if ln < 1 or self.sa.full_code_lines.get(ln, "").strip():
+                break
+        return None
+
     def find_function_context(self, line_number):
-        """위로 거슬러 올라가면서 해당 라인이 속한 함수를 찾고,
-        (함수이름, 파라미터타입리스트) 튜플을 반환한다.
-        overload 구분을 위해 파라미터 타입 정보도 추출한다."""
+        """해당 줄이 속한 함수의 (이름, 파라미터 타입 목록).
 
-        # 먼저 나를 감싸는 '{' 가 있는 라인을 찾기 (F27 — `_enclosing_open_brace_line` 주석 참고)
+        (2026-10-23) 감싸는 블록을 한 단계씩 올라가며, 블록 시작 줄에 **등록된 함수**(ENTRY 노드)가 있으면 그 함수의
+        등록 키(이름, `parameter_types`)를 돌려준다 — `get_function_cfg` 가 같은 키로 찾는다.
+        예전엔 위쪽 **모든 줄**을 텍스트로 훑어 첫 키워드를 함수 헤더로 삼았다:
+          · `received = 1;` 이 `startswith("receive")` 로 receive 함수가 됐다(w61 YearnYield)
+          · 헤더 텍스트의 타입(`bytes32[]`, `IERC20`)과 등록 시그니처(`array`, `address`)가 달라 오버로드를 못 찾았다
+            (w110 StakedCitadel, w51 SwapUtils, w52 VaderRouter)
+        아직 등록 전인 헤더 줄 자체(헤더 레코드를 처리하는 중)만 헤더 텍스트에서 이름·타입을 읽는다."""
         open_brace_line = self._enclosing_open_brace_line(line_number, inclusive=True)
-        if open_brace_line is None:
-            return None, None
+        while open_brace_line is not None:
+            head = self.sa.full_code_lines.get(open_brace_line, "").strip().lstrip("}").strip()
+            if self._NON_FUNC_HEAD.match(head):
+                return None, None
+            f = self._function_registered_at(open_brace_line)
+            if f is not None:
+                if f.function_type == "constructor":
+                    return "constructor", list(f.parameter_types)
+                if f.function_type == "modifier":
+                    return f.function_name, None
+                return f.function_name, list(f.parameter_types)
+            if self._FUNC_HEAD.match(head):
+                return self._function_context_from_header(open_brace_line)
+            open_brace_line = self._enclosing_open_brace_line(open_brace_line, inclusive=False)
+        return None, None
 
-        # '{' 문자가 있는 라인부터 위로 올라가면서 function/constructor/modifier 키워드를 찾기
+    def _function_context_from_header(self, open_brace_line):
+        """아직 등록되지 않은 함수 헤더 줄(헤더 레코드 처리 중)의 (이름, 파라미터 타입)."""
         for line in range(open_brace_line, 0, -1):
             code_line = self.sa.full_code_lines.get(line, "").strip()
             if not code_line:
@@ -566,7 +630,11 @@ class ContractAnalyzer:
             if brace_info['open'] > 0 and cfg_nodes:
                 context_type = self.determine_top_level_context(self.sa.full_code_lines[line])
                 if context_type == "struct":
-                    return self.sa.full_code_lines[line].split()[1]
+                    # (2026-10-23) 정규식으로 — 공백 분리는 `struct DebtDetails{` 의 이름을 `DebtDetails{` 로 만들었다(w5 Router)
+                    m = re.match(r"\s*\}?\s*struct\s+([A-Za-z_]\w*)", self.sa.full_code_lines[line])
+                    if m is None:
+                        raise ValueError(f"line {line}: struct header without a name: {self.sa.full_code_lines[line]!r}")
+                    return m.group(1)
 
     def determine_top_level_context(self, code_line):
         try:
@@ -651,8 +719,8 @@ class ContractAnalyzer:
         if parent_contracts:
             cfg.parent_contracts = parent_contracts
             for pname in parent_contracts:
-                if pname in self.contract_cfgs:
-                    cfg.parent_cfgs[pname] = self.contract_cfgs[pname]
+                cfg.parent_cfgs[pname] = self._parent_cfg(contract_name, pname)
+                cfg.inherit_definitions(cfg.parent_cfgs[pname])     # (2026-10-23, A-2)
             self._inherit_using_libraries(cfg)
 
         if self.current_start_line and self.current_start_line in self.sa.line_info:
@@ -669,12 +737,76 @@ class ContractAnalyzer:
         if parent_contracts:
             cfg.parent_contracts = parent_contracts
             for pname in parent_contracts:
-                if pname in self.contract_cfgs:
-                    cfg.parent_cfgs[pname] = self.contract_cfgs[pname]
+                cfg.parent_cfgs[pname] = self._parent_cfg(contract_name, pname)
+                cfg.inherit_definitions(cfg.parent_cfgs[pname])     # (2026-10-23, A-2)
             self._inherit_using_libraries(cfg)
 
         if self.current_start_line and self.current_start_line in self.sa.line_info:
             self.sa.line_info[self.current_start_line]['cfg_nodes'] = [cfg]
+
+    def _constant_var(self, cfg, name: str, seen=None):
+        """cfg(컨트랙트/라이브러리)와 그 부모 체인에서 `constant` 상태변수 `name`."""
+        if cfg is None:
+            return None
+        seen = seen if seen is not None else set()
+        if id(cfg) in seen:
+            return None
+        seen.add(id(cfg))
+        svn = getattr(cfg, "state_variable_node", None)
+        v = svn.variables.get(name) if svn is not None else None
+        if v is not None:
+            return v
+        for p in (getattr(cfg, "parent_cfgs", None) or {}).values():
+            v = self._constant_var(p, name, seen)
+            if v is not None:
+                return v
+        return None
+
+    def compile_time_constant(self, expr) -> int:
+        """(2026-10-23) 컴파일 타임 정수 상수식의 값 — 정적 배열 길이용. 리터럴, `constant` 상태변수(현재 컨트랙트와
+        부모 체인), `L.CONST`(다른 컨트랙트·라이브러리), + − * / % ** << >>, 괄호. 상수는 선언 때 단일값으로 평가돼 있다.
+        상수가 아니거나 값이 정해지지 않으면 오류(길이를 추측하지 않는다). 못 찾은 이름 = UnresolvedName."""
+        from Utils.Errors import UnresolvedName
+        ctx = getattr(expr, "context", None)
+        if ctx == "LiteralExpContext":
+            return int(str(expr.literal).replace("_", ""), 0)
+        if ctx in ("ParenthesizedExpContext", "ParenExpContext", "TupleExpressionContext") and getattr(expr, "expression", None) is not None:
+            return self.compile_time_constant(expr.expression)
+        if ctx in ("IdentifierExpContext", "MemberAccessContext"):
+            if ctx == "IdentifierExpContext":
+                name, owner = expr.identifier, self.contract_cfgs.get(self.current_target_contract)
+                v = self._constant_var(owner, name)
+            else:
+                base = getattr(expr.base, "identifier", None)
+                name, owner = expr.member, (self.contract_cfgs.get(base) or self.library_cfgs.get(base))
+                if owner is None:
+                    raise UnresolvedName(base, f"constant '{base}.{expr.member}': '{base}' 의 선언을 찾지 못함")
+                v = self._constant_var(owner, name)
+            if v is None:
+                raise UnresolvedName(name, f"compile-time constant '{name}' 의 선언을 찾지 못함")
+            val = getattr(v, "value", None)
+            if not getattr(v, "isConstant", False) or val is None or getattr(val, "min_value", None) is None \
+                    or val.min_value != val.max_value:
+                raise ValueError(f"'{name}' 은 값이 정해진 컴파일 타임 상수가 아니다 (배열 길이)")
+            return int(val.min_value)
+        op = getattr(expr, "operator", None)
+        if getattr(expr, "left", None) is not None and getattr(expr, "right", None) is not None and op:
+            a, b = self.compile_time_constant(expr.left), self.compile_time_constant(expr.right)
+            ops = {"+": lambda: a + b, "-": lambda: a - b, "*": lambda: a * b, "/": lambda: a // b,
+                   "%": lambda: a % b, "**": lambda: a ** b, "<<": lambda: a << b, ">>": lambda: a >> b}
+            if op not in ops:
+                raise ValueError(f"compile-time constant: unsupported operator '{op}'")
+            return ops[op]()
+        raise ValueError(f"compile-time constant: unsupported expression context '{ctx}'")
+
+    def _parent_cfg(self, child: str, pname: str):
+        """(2026-10-23, 레지스트리) 부모 선언 CFG. 예전엔 없으면 **조용히 건너뛰어** 부모의 상태변수·함수·타입이 빠진 채
+        분석이 진행됐다. Solidity 는 부모 정의가 자식보다 먼저 보여야 하므로(같은 파일이면 앞, 아니면 import) 없으면 오류다."""
+        p = self.contract_cfgs.get(pname)
+        if p is None:
+            from Utils.Errors import UnresolvedName
+            raise UnresolvedName(pname, f"'{child} is {pname}': 부모 '{pname}' 의 선언을 찾지 못함")
+        return p
 
     def _inherit_using_libraries(self, cfg):
         """부모 contract의 using_libraries / using_all_libraries를 자식 cfg에 상속"""
@@ -719,9 +851,8 @@ class ContractAnalyzer:
         if parent_interfaces:
             cfg.parent_contracts = parent_interfaces
             for p in parent_interfaces:
-                self.interface_names.add(p)
-                if p in self.contract_cfgs:
-                    cfg.parent_cfgs[p] = self.contract_cfgs[p]
+                cfg.parent_cfgs[p] = self._parent_cfg(interface_name, p)
+                cfg.inherit_definitions(cfg.parent_cfgs[p])         # (2026-10-23, A-2)
 
         if self.current_start_line and self.current_start_line in self.sa.line_info:
             self.sa.line_info[self.current_start_line]['cfg_nodes'] = [cfg]
@@ -787,8 +918,9 @@ class ContractAnalyzer:
         #   `except: pass` 로 읽어 들였고(프로젝트 deps 와 다른 판이 섞임), 그래도 없으면 using 지시자를 조용히 버렸다.
         library_cfg = self.library_cfgs.get(library_name)
         if library_cfg is None:
-            raise ValueError(f"line {self.current_start_line}: using {library_name} — library '{library_name}' "
-                             f"의 선언을 찾지 못함 (의존성 누락 또는 선언 순서)")
+            from Utils.Errors import UnresolvedName
+            raise UnresolvedName(library_name, f"line {self.current_start_line}: using {library_name} — library '{library_name}' "
+                                               f"의 선언을 찾지 못함 (의존성 누락 또는 선언 순서)")
 
         # LibraryCFG를 using_libraries/using_all_libraries에 등록
         # 자식 contract가 명시적으로 선언한 using은 부모로부터 상속된 것보다 우선되어야 하므로
@@ -1001,8 +1133,8 @@ class ContractAnalyzer:
                     None,
                     None)
 
-                for value in inlineArrayValues :
-                    variable_obj.elements.append(value)
+                for i, value in enumerate(inlineArrayValues):
+                    variable_obj.elements[i] = value
             elif isinstance(variable_obj, StructVariable) : # 관련된 경우 없을듯
                 pass
             elif isinstance(variable_obj, MappingVariable) : # 관련된 경우 없을 듯
@@ -1025,6 +1157,7 @@ class ContractAnalyzer:
         # 5. ContractCFG에 있는 모든 FunctionCFG에 상태 변수 추가
         #    copy를 저장하여 분석 중 _make_bottom() in-place mutation이 전파되지 않도록 함
         for _, function_cfg in contract_cfg.iter_all_functions():
+            self._reject_param_shadowing(function_cfg, variable_obj.identifier)
             function_cfg.add_related_variable(variable_obj.identifier, VariableEnv.copy_single_variable(variable_obj))
 
         # 6. contract_cfg를 contract_cfgs에 반영
@@ -1127,6 +1260,7 @@ class ContractAnalyzer:
 
         # 4. 이미 생성된 모든 FunctionCFG 에 read-only 변수로 연동
         for _, fn_cfg in contract_cfg.iter_all_functions():
+            self._reject_param_shadowing(fn_cfg, variable_obj.identifier)
             fn_cfg.add_related_variable(variable_obj.identifier, VariableEnv.copy_single_variable(variable_obj))
 
         # 5. 전역 map 업데이트
@@ -1302,6 +1436,24 @@ class ContractAnalyzer:
                 all_enums.update(getattr(pcfg, 'enumDefs', {}))
         return all_structs, all_enums
 
+    def struct_def_of_type(self, t):
+        """(2026-10-23) struct 타입(SolType)의 정의. 선언 스코프(`structOwner`)가 있으면 **그 컨트랙트**의 정의 표
+        (A-2 로 상속 정의 포함)에서, 없으면 그 이름이 쓰인 스코프 = 실행 중인 컨트랙트 체인 + 파일 수준에서 찾는다.
+        소유자가 있는데 정의가 없으면 오류(소유자 표시와 정의 표가 어긋났다)."""
+        name = getattr(t, "structTypeName", None)
+        if not name:
+            return None
+        owner = getattr(t, "structOwner", None)
+        short = name.split('.')[-1]
+        if owner is not None:
+            cfg = self.contract_cfgs.get(owner) or self.library_cfgs.get(owner)
+            d = (getattr(cfg, "structDefs", None) or {}).get(short) if cfg is not None else None
+            if d is None:
+                raise ValueError(f"struct '{name}': 선언 컨트랙트 '{owner}' 에 정의가 없다")
+            return d
+        structs, _ = self.get_full_struct_enum_defs()
+        return structs.get(name) or (structs.get(short) if '.' in name else None)
+
     def _create_variable_object(
             self,
             type_obj: SolType,
@@ -1333,6 +1485,7 @@ class ContractAnalyzer:
                 struct_type=type_obj.structTypeName,
                 scope="local",
             )
+            v.typeInfo.structOwner = getattr(type_obj, "structOwner", None)
             # ★ 정의를 붙여 멤버를 채운다.
             #   예전엔 빈 StructVariable 을 그대로 뒀다. 그래서
             #     `Ticks.Tick storage previous = ticks[current.previousTick];`
@@ -1524,9 +1677,11 @@ class ContractAnalyzer:
             raise ValueError("No active function CFG.")
         fcfg = self.current_target_function_cfg
         cur_blk = self.builder.get_current_block()
+        # (2026-10-23, Yul P0-a) 우변은 word — 대상 Solidity 변수 타입으로의 cleanup 은 실행 때(YulAssignValue)
+        value = Expression(expression=rhs, identifier=lhs.identifier, context="YulAssignValue")
         self.builder.build_assignment_statement(
             cur_block=cur_blk,
-            expr=Expression(left=lhs, operator='=', right=rhs, context="YulAssignmentContext"),
+            expr=Expression(left=lhs, operator='=', right=value, context="YulAssignmentContext"),
             line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info,
         )
         ccf.update_function_cfg(self.current_target_function, fcfg)
@@ -1545,8 +1700,23 @@ class ContractAnalyzer:
         t.typeCategory = "elementary"
         t.elementaryTypeName = "uint256"
         t.intTypeLength = 256
+        init = Expression(expression=rhs, context="YulWordContext") if rhs is not None else None
         self.builder.build_variable_declaration(
-            cur_block=cur_blk, var_name=var_name, type_obj=t, init_expr=rhs,
+            cur_block=cur_blk, var_name=var_name, type_obj=t, init_expr=init,
+            line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info,
+        )
+        ccf.update_function_cfg(self.current_target_function, fcfg)
+        self.contract_cfgs[self.current_target_contract] = ccf
+
+    def process_yul_statement(self, expr: Expression) -> None:
+        """(2026-10-23, Yul P0-a) Yul 문장 하나(builtin 호출 문장 / 미지원 구문 표식)를 문장 노드로. 실행은 Evaluation._evaluate_yul."""
+        ccf = self.contract_cfgs[self.current_target_contract]
+        fcfg = ccf.get_function_cfg(self.current_target_function, param_types=self.current_target_function_param_types)
+        if fcfg is None:
+            raise ValueError("No active function CFG.")
+        self.current_target_function_cfg = fcfg
+        self.builder.build_function_call_statement(
+            cur_block=self.builder.get_current_block(), expr=expr,
             line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info,
         )
         ccf.update_function_cfg(self.current_target_function, fcfg)
@@ -1646,6 +1816,18 @@ class ContractAnalyzer:
         ccf.update_function_cfg(self.current_target_function, fcfg)
         self.contract_cfgs[self.current_target_contract] = ccf
 
+    def process_expression_statement(self, expr: Expression) -> None:
+        """값만 있는 식 문장(`a == b;`, `x.y;`). 식을 평가하고 결과를 버린다 — 부수효과 있는 하위 호출은 평가가 실행한다."""
+        ccf = self.contract_cfgs[self.current_target_contract]
+        fcfg = ccf.get_function_cfg(self.current_target_function, param_types=self.current_target_function_param_types)
+        if fcfg is None:
+            raise ValueError("No active function CFG.")
+        self.current_target_function_cfg = fcfg
+        self.builder.build_expression_statement(
+            cur_block=self.builder.get_current_block(), expr=expr,
+            line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info)
+        ccf.update_function_cfg(self.current_target_function, fcfg)
+
     def process_payable_function_call(self, expr):
         # `payable(x);` 단독 문장 — 효과 없는 변환식(solc: "statement has no effect" 경고). 노드를 만들지 않는다.
         # (`to.call{value: v}("")` 같은 옵션 호출 문장은 FunctionCallContext 로 와서 process_function_call 이 처리한다.)
@@ -1666,13 +1848,49 @@ class ContractAnalyzer:
         nodes = info.get("cfg_nodes", [])
         return nodes[0] if nodes else None
 
-    def _find_prev_cfg_node(self, line_no: int):
-        """Standalone annotation용: 이전 코드 라인의 CFG 노드 반환"""
-        for ln in range(line_no - 1, 0, -1):
-            node = self._cfg_node_at(ln)
-            if node is not None:
-                return node
-        return None
+    def _find_prev_cfg_node(self, line_no: int, fcfg=None):
+        """빈 줄 annotation 의 **프로그램 지점** 노드 (2026-10-23, 사용자 결정). 노드는 실행 후 상태를 담는다.
+          · 같은 블록에서 앞 문장이 있으면 그 문장 노드        → a 실행 후 = b 실행 전
+          · 앞 형제가 블록 문장(`}` 로 끝남)이면 그 합류·출구 노드 → 분기·루프가 끝난 뒤
+          · 블록의 첫 줄이면 블록 진입 노드(if/else 분기·루프 본문·함수 ENTRY) → 블록에 들어온 직후
+        예전엔 "바로 앞 줄의 첫 노드" 라 블록 첫 줄이면 if 조건 노드(분기 전 상태), `}` 뒤면 분기 안 노드에 붙을 수 있었다."""
+        G = fcfg.graph if fcfg is not None else None
+
+        def ok(n):
+            return n is not None and (G is None or n in G)
+
+        block = self._enclosing_open_brace_line(line_no, inclusive=True)
+        ln = line_no - 1
+        while block is not None and ln > block:
+            txt = self.sa.full_code_lines.get(ln, "").strip()
+            if not txt or txt.startswith("//"):
+                ln -= 1
+                continue
+            nodes = [n for n in self.sa.line_info.get(ln, {}).get("cfg_nodes", []) or [] if ok(n)]
+            if txt.startswith("}"):
+                # 앞 형제 = 이 `}` 로 닫히는 블록 문장 — 그 합류/루프 출구 노드(닫는 줄에 등록된다)
+                for n in nodes:
+                    if getattr(n, "join_point_node", False) or getattr(n, "loop_exit_node", False):
+                        return n
+                raise ValueError(f"line {line_no}: 앞 블록 문장(줄 {ln})의 합류 노드를 찾지 못함")
+            if nodes:
+                return nodes[-1]
+            ln -= 1
+        if block is None:
+            return None
+        # 블록 첫 줄 — 블록 진입 노드
+        for n in self.sa.line_info.get(block, {}).get("cfg_nodes", []) or []:
+            if not ok(n):
+                continue
+            if getattr(n, "condition_node", False) and G is not None:
+                t = next((x for x in G.successors(n) if G[n][x].get("condition") is True), None)
+                if t is not None:
+                    return t
+            if getattr(n, "name", "") == "ENTRY" or n is getattr(fcfg, "entry_node", None):
+                return n
+            if getattr(n, "branch_node", False) or n.name.startswith(("else_block", "catch_entry")):
+                return n
+        raise ValueError(f"line {line_no}: 블록(줄 {block})의 진입 노드를 찾지 못함")
 
     def _intent_function_cfg(self, fcfg=None):
         """intent 를 붙일 함수. (2026-10-22) 명시되면 그것, 아니면 **현재 줄 문맥의 함수**(이름+파라미터 타입으로 조회).
@@ -1706,9 +1924,9 @@ class ContractAnalyzer:
             self.during_annotations[line_no] = []
         self.during_annotations[line_no].append({"clauses": clauses, "logic_ops": logic_ops})
 
-        # Standalone annotation: 해당 라인에 CFG 노드가 없으면 이전 코드 라인의 노드 탐색
+        # Standalone annotation(빈 줄): 그 위치의 프로그램 지점 노드
         if cfg_node is None:
-            cfg_node = self._find_prev_cfg_node(line_no)
+            cfg_node = self._find_prev_cfg_node(line_no, fn_cfg)
             if cfg_node is not None and fn_cfg is not None and cfg_node not in fn_cfg.graph:
                 cfg_node = None
 
@@ -2405,7 +2623,8 @@ class ContractAnalyzer:
         # returns 로컬 생성(⊥) 후 true 블록 env 에 심기
         cond, true_blk, false_stub, join = self.builder.build_try_skeleton(
             cur_block=pred, function_expr=function_expr,
-            line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info
+            line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info,
+            end_line=self.current_end_line
         )
 
         for i, (ty, nm) in enumerate(returns or []):
@@ -2444,30 +2663,20 @@ class ContractAnalyzer:
         if result is None:
             raise ValueError("`catch` without preceding `try`.")
 
-        # catch는 튜플 또는 단일 노드를 반환할 수 있음
-        if isinstance(result, tuple):
-            cond, join = result
-        else:
-            cond = result
-            # join을 find_open_try_for_catch로 찾기
-            found = self.builder.find_open_try_for_catch(line_no=self.current_start_line, fcfg=fcfg)
-            if found is None:
-                raise ValueError("`catch`: try found but join not found.")
-            _, false_stub, join = found
-
-        # false_stub 찾기 (attach_catch_clause에서 필요)
-        false_stub = None
-        for s in fcfg.graph.successors(cond):
-            if fcfg.graph[cond][s].get("condition") is False:
-                false_stub = s
-                break
-
-        if false_stub is None:
-            raise ValueError("`catch`: false stub not found for try condition.")
+        # catch 는 가장 가까운 try 의 실패 분기다 — 합류점은 try 를 만들 때 기록해 둔다(`build_try_skeleton`)
+        cond = result[0] if isinstance(result, tuple) else result
+        join = getattr(cond, "try_join", None)
+        if join is None or join not in fcfg.graph:
+            raise ValueError("`catch`: try join not found.")
+        # 첫 catch 면 빈 실패 경로(false_stub)를 대신한다. 두 번째부터는 새 False 분기를 더한다.
+        false_stub = next((s for s in fcfg.graph.successors(cond)
+                           if fcfg.graph[cond][s].get("condition") is False
+                           and s.name.startswith("try_false_stub_")), None)
 
         c_entry, c_end = self.builder.attach_catch_clause(
             cond=cond, false_stub=false_stub, join=join,
-            line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info
+            line_no=self.current_start_line, fcfg=fcfg, line_info=self.sa.line_info,
+            end_line=self.current_end_line
         )
 
         # catch 파라미터 로컬
@@ -2604,8 +2813,12 @@ class ContractAnalyzer:
         access_chain: tuple of ("member", name) or ("index", int), e.g.:
           () → 단일 return,  (("index", 0),) → [0],  (("member", "fee"),) → .fee
         """
-        # 1) contract_var가 interface type 변수인지 검증
+        # 1) contract_var가 interface type 변수인지 검증 — (2026-10-23) 진짜 인터페이스만(컨트랙트 타입도 typeCategory 가
+        #   "interface" 로 적혀 있다). IReturn 은 본문 없는 인터페이스 호출 전용(사용자 결정, F49 폐기).
         interface_name = self._find_interface_name_for_var(contract_var)
+        if interface_name is not None and interface_name not in self.interface_names:
+            raise ValueError(f"@IReturn: '{contract_var}' 의 타입 '{interface_name}' 은 본문이 있는 컨트랙트다 — "
+                             f"IReturn 은 인터페이스 호출 전용")
         if interface_name is None:
             raise ValueError(
                 f"@IReturn: '{contract_var}' is not an interface-typed variable."
@@ -2649,25 +2862,16 @@ class ContractAnalyzer:
         """
         @IReturn Pattern B annotation 처리: IInterface(addrVar).funcName().<chain>
         """
-        # 1) interface_name 이 **외부 호출 대상 타입**인지 검증
-        #    = 알려진 interface  또는  (라이브러리가 아닌) 알려진 contract.
-        #
-        # ★ 구체 컨트랙트도 허용한다(S0). `Vault(a).f()` 는 런타임 타입 검사가 없는
-        #   **순수 캐스트**이므로 주소에 배포된 임의의 코드가 실행된다 → callee 코드가
-        #   타입으로 정해지지 않고, `IFoo(a).f()` 와 의미론적으로 동일하다.
-        #   ⚠ Pattern A(변수 형태 `v.f()`)는 **이미 허용됐다** —
-        #     `_find_interface_name_for_var` 가 `typeInfo.typeCategory == "interface"` 로
-        #     판정하고 비주얼라이저가 구체 컨트랙트 타입 변수에도 그 값을 붙이기 때문이다.
-        #     Pattern B 만 `interface_names` 로 막아 **두 패턴이 비대칭**이었다.
-        #   ⚠ 라이브러리는 제외 — `Lib.f()` 는 external call 이 아니라 하강 해석 대상이다.
-        #   아래 2)·3) 검증(함수 존재·view/pure)은 이미 `contract_cfgs` 기준이라 그대로 동작한다.
-        from Utils.CFG import LibraryCFG
+        # 1) interface_name 이 인터페이스인지 검증 — (2026-10-25) IReturn 은 본문 없는 인터페이스 호출 전용(사용자 결정, F49 폐기).
+        #   예전엔 구체 컨트랙트 캐스트도 받았으나(S0) 실행 시 조회는 인터페이스만 보므로 값이 조용히 무시됐다. 본문 있는
+        #   컨트랙트 타입 호출은 그 본문을 실행해야 한다(다른 인스턴스 storage 모델 = future work). Pattern A 와 같은 오류.
         _cfg = self.contract_cfgs.get(interface_name)
-        _is_callable_type = (interface_name in self.interface_names
-                             or (_cfg is not None and not isinstance(_cfg, LibraryCFG)))
-        if not _is_callable_type:
+        if interface_name not in self.interface_names:
+            if _cfg is not None:
+                raise ValueError(f"@IReturn: '{interface_name}' 은 본문이 있는 컨트랙트(또는 라이브러리)다 — "
+                                 f"IReturn 은 인터페이스 호출 전용")
             raise ValueError(
-                f"@IReturn: '{interface_name}' is not a known interface or contract. "
+                f"@IReturn: '{interface_name}' is not a known interface. "
                 f"Known interfaces: {list(self.interface_names)}"
             )
 

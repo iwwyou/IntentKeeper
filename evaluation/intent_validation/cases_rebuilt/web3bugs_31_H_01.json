@@ -192,7 +192,7 @@
   "event": "add"
  },
  {
-  "code": "function wantToCVX(uint256 want) public view returns (uint256) {\n}",
+  "code": "function wantToCVX(uint256 _want) public view returns (uint256) {\n}",
   "startLine": 33,
   "endLine": 34,
   "event": "add"
@@ -204,7 +204,7 @@
   "event": "add"
  },
  {
-  "code": "return want.mul(bCVXToCVX).div(10**18);",
+  "code": "return _want.mul(bCVXToCVX).div(10**18);",
   "startLine": 35,
   "endLine": 35,
   "event": "add"
@@ -692,8 +692,8 @@
  },
  {
   "code": "// @During currentLockRatio == balanceInLock",
-  "startLine": 100,
-  "endLine": 100,
+  "startLine": 102,
+  "endLine": 102,
   "event": "add"
  },
  {

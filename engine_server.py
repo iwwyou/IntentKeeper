@@ -69,7 +69,8 @@ def _build(r: Req):
     (analyze 를 같은 세션에 두 번 호출하면 records 이중 적용으로 손상 → 항상 fresh.)"""
     sess = EngineSession()
     _sessions[_key(r)] = sess
-    st = sess.analyze_source(r.source, contract=r.contract, func=r.func)
+    # (2026-10-24, M8) intent 도 함께 — 슬롯 도출이 intent 가 참조하는 진입 값(상태변수·글로벌·경로)을 포함한다.
+    st = sess.analyze_source(r.source, contract=r.contract, func=r.func, intents=_to_intents(r.intents))
     return sess, st
 
 
@@ -127,14 +128,26 @@ def analyze(r: Req) -> dict:
             raise
         # ★ 스코프 명시 필수: 생략하면 structure() → _resolve_fcfg(None, None) 폴백이
         #   "컨트랙트의 마지막 함수"를 집어 다른 함수의 슬롯/CFG 를 돌려준다(_slots 도 오염).
-        st = sess.structure(r.contract, r.func)  # 갱신(또는 거부 시 직전) 구조 재직렬화
+        #   (M8) 요청의 intent 로 슬롯을 도출한다(세션 기억 대신 요청이 진실의 원천).
+        st = sess.set_intents(_to_intents(r.intents), r.contract, r.func)  # 갱신(또는 거부 시 직전) 구조 재직렬화
         diags = res["diagnostics"]          # [{line, column, message, severity}]
+    return _structure_dict(st, diags)
+
+
+def _structure_dict(st, diags: list) -> dict:
     return {
         "scope": asdict(st.scope),
         "cfg": _cfg_to_dict(st.cfg),
         "debugSlots": [asdict(s) for s in st.debug_slots],
         "diagnostics": diags,
     }
+
+
+@app.post("/set_intents")
+def set_intents(r: Req) -> dict:
+    """(2026-10-24, M8) intent 만 바뀌었을 때 — CFG 는 그대로, debug 슬롯만 다시 도출(intent 가 참조하는 진입 값)."""
+    st = _session(r).set_intents(_to_intents(r.intents), r.contract, r.func)
+    return _structure_dict(st, [asdict(d) for d in st.diagnostics])
 
 
 @app.post("/evaluate")

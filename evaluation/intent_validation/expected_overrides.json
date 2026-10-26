@@ -13,5 +13,19 @@
     "date": "2026-10-23",
     "evidence": "results_api_s5.json — 오류·진단 없음, EXIT 도달, 디버그 입력 전부 적용(slot_missing 0)",
     "reason": "예전 Warning 은 hourlyBondAccounts/hourlyBondMetadata 경로 입력을 넣지 못해 나온 값. 입력을 모두 넣으면 cumulativeYield = 2^32*2^34*1800/(2^32*3600) = 2^33, applyInterest = 1000*2^33/2^32 = 2000, 반환 = bond.amount + 2000 = 3000 ≠ @Post 기대식 2000 — 원금을 두 번 더하는 버그."
+  },
+  "web3bugs_16_H_06": {
+    "expected": "Violated",
+    "was": "Warning",
+    "date": "2026-10-23",
+    "evidence": "results_api_s17.json — 오류·진단 없음, slot_missing 0, 디버그 입력이 모두 구체값",
+    "reason": "입력 latestAnswer = 5e9(gas), 3e9(eth) 단일값이라 실행이 하나뿐이다. PRBMathUD60x18.mul 결과 result = 5e9·3e9/1e18 … = 15 (엔진 [15,15] 와 손계산 일치). @Post 우변 = 5e9·1e9·3e9·1e12/1e18 = 1.5e22 ≠ 15 — 유일한 실행이 위반하므로 Violated. 예전 Warning 은 이전 엔진 결과(사용자 결정: 손계산과 맞으면 덮어쓴다)."
+  },
+  "web3bugs_36_H_02": {
+    "expected": "Violated",
+    "was": "",
+    "date": "2026-10-23",
+    "evidence": "xlsx validation_outcome 칸 비어 있음(2026-09-05 Inexpressible→Expressible 재분류 뒤 미기입), case_notes 의 수치",
+    "reason": "xlsx case_notes: 'RQ1-B … VIOLATED, confirmed cleanly — LHS=4e20, RHS=2e20'. @Post ibRatio(Entry)·_totalSupply(Entry) == ibRatio·_totalSupply 의 양변이 다르다(손계산 근거가 노트에 있음) → Violated."
   }
 }

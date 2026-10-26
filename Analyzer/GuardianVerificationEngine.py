@@ -395,7 +395,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringBeforeAfter", f"internal error: {e}", line_no)
+            return self._err("duringBeforeAfter", self._exc_msg(e), line_no)
 
     def verify_during_assign_current(self, *, var_ref, comp_op,
                                      line_no, cfg_node):
@@ -482,7 +482,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringRetExpr", f"internal error: {e}", line_no)
+            return self._err("duringRetExpr", self._exc_msg(e), line_no)
 
     # ────────────────────────────────────────────────────────────────
     #  DURING : return[idx] 비교
@@ -552,7 +552,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringRetIndex", f"internal error: {e}", line_no)
+            return self._err("duringRetIndex", self._exc_msg(e), line_no)
 
     # ────────────────────────────────────────────────────────────────
     #  DURING : return var  비교
@@ -623,7 +623,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringRetVar", f"internal error: {e}", line_no)
+            return self._err("duringRetVar", self._exc_msg(e), line_no)
 
     # ────────────────────────────────────────────────────────────────
     #  DURING :  valueExpr  op  valueExpr
@@ -666,7 +666,7 @@ class GuardianVerificationEngine:
 
         except Exception as e:
             return self._err("duringDirectCmp",
-                             f"internal error: {e}", line_no)
+                             self._exc_msg(e), line_no)
 
     def verify_during_implication(self, *, antecedent: dict, consequent: dict, line_no: int, cfg_node: CFGNode) -> dict:
         try:
@@ -705,7 +705,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringImplication", f"internal error: {e}", line_no)
+            return self._err("duringImplication", self._exc_msg(e), line_no)
 
     # ────────────────────────────────────────────────────────────────
     #  DURING : funcName.arg[index] op value
@@ -740,8 +740,11 @@ class GuardianVerificationEngine:
 
             arg_expr = arguments[arg_index]
 
-            # ③ 인자 값 evaluate
-            vars_env = cfg_node.variables
+            # ③ 인자 값 evaluate — (2026-10-23, M1) 호출 **직전** 상태(인자가 평가되는 상태)에서.
+            #   예전엔 노드 해석 후 상태(cfg_node.variables)로 다시 평가해, 호출의 효과가 인자 값에 섞일 수 있었다.
+            vars_env = (getattr(cfg_node, "before_envs", None) or {}).get(line_no)
+            if vars_env is None:
+                raise ValueError(f"line {line_no}: 호출 직전 상태가 기록되지 않았다 (호출문이 실행되지 않음)")
             arg_val = self.analyzer.evaluator.evaluate_expression(arg_expr, vars_env, None, None)
 
             # ④ RHS evaluate 및 비교
@@ -771,7 +774,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringFunctionArg", f"internal error: {e}", line_no)
+            return self._err("duringFunctionArg", self._exc_msg(e), line_no)
 
     def _find_function_call_in_expr(self, expr, target_name: str):
         """
@@ -857,7 +860,7 @@ class GuardianVerificationEngine:
                 "message": f'{self._pretty_expr(var_ref)}(Entry {comp_op} Exit) → {cmp["message"]}{msg_tail}',
             }
         except Exception as e:
-            return self._err("postEntryExit", f"internal error: {e}", line_no)
+            return self._err("postEntryExit", self._exc_msg(e), line_no)
 
     def verify_post_return_expression(self, *, comp_op: str, value_expr, line_no: int, fn_cfg):
         try:
@@ -895,7 +898,7 @@ class GuardianVerificationEngine:
                 "message": f'returnExpression {comp_op} {self._pretty_expr(value_expr)} → {cmp["message"]}{msg_tail}',
             }
         except Exception as e:
-            return self._err("postRetExpr", f"internal error: {e}", line_no)
+            return self._err("postRetExpr", self._exc_msg(e), line_no)
 
     def verify_post_return_index(self, *, index: int, comp_op: str, value_expr, line_no: int, fn_cfg):
         """
@@ -953,7 +956,7 @@ class GuardianVerificationEngine:
                 "message": f'return[{index}] {comp_op} {self._pretty_expr(value_expr)} → {cmp["message"]}{msg_tail}',
             }
         except Exception as e:
-            return self._err("postRetIndex", f"internal error: {e}", line_no)
+            return self._err("postRetIndex", self._exc_msg(e), line_no)
 
     def verify_post_return_variable(self, *, var_ref, comp_op: str, value_expr, line_no: int, fn_cfg):
         try:
@@ -993,7 +996,7 @@ class GuardianVerificationEngine:
                 "message": f'return {self._pretty_expr(var_ref)} {comp_op} {self._pretty_expr(value_expr)} → {cmp["message"]}{msg_tail}',
             }
         except Exception as e:
-            return self._err("postRetVar", f"internal error: {e}", line_no)
+            return self._err("postRetVar", self._exc_msg(e), line_no)
 
     def verify_post_direct_comparison(self, *, lhs_expr, comp_op: str, rhs_expr, line_no: int, fn_cfg):
         try:
@@ -1020,7 +1023,7 @@ class GuardianVerificationEngine:
                 "message": f'{self._pretty_expr(lhs_expr)} {comp_op} {self._pretty_expr(rhs_expr)} → {cmp["message"]}{msg_tail}',
             }
         except Exception as e:
-            return self._err("postDirectCmp", f"internal error: {e}", line_no)
+            return self._err("postDirectCmp", self._exc_msg(e), line_no)
 
     def verify_post_changed(self, *, var_ref, expect_changed: bool, line_no: int, fn_cfg):
         """
@@ -1067,7 +1070,7 @@ class GuardianVerificationEngine:
                 "message": f'changed({self._pretty_expr(var_ref)}, {str(expect_changed).lower()}) → {label}: {cmp["message"]}{msg_tail}',
             }
         except Exception as e:
-            return self._err("postChanged", f"internal error: {e}", line_no)
+            return self._err("postChanged", self._exc_msg(e), line_no)
 
     def verify_during_changed(self, *, var_ref, expect_changed: bool, line_no: int, cfg_node, cur_vars=None):
         """
@@ -1111,7 +1114,7 @@ class GuardianVerificationEngine:
                 "message": f'changed({self._pretty_expr(var_ref)}, {str(expect_changed).lower()}) → {label}: {cmp["message"]}',
             }
         except Exception as e:
-            return self._err("duringChanged", f"internal error: {e}", line_no)
+            return self._err("duringChanged", self._exc_msg(e), line_no)
 
     def verify_post_implication(self, *, antecedent: dict, consequent: dict, line_no: int, fn_cfg) -> dict:
         try:
@@ -1148,7 +1151,7 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("postImplication", f"internal error: {e}", line_no)
+            return self._err("postImplication", self._exc_msg(e), line_no)
 
     # ----------------------------------------------------------------
     # helper: uniform ok / error payloads
@@ -1222,7 +1225,16 @@ class GuardianVerificationEngine:
             }
 
         except Exception as e:
-            return self._err("duringFeasible", f"internal error: {e}", line_no)
+            return self._err("duringFeasible", self._exc_msg(e), line_no)
+
+    @staticmethod
+    def _exc_msg(e: Exception) -> str:
+        """(2026-10-23) intent 평가 실패 메시지. 그 지점에서 선언되지 않은 이름을 참조한 경우는 **사용자 입력 문제**라
+        엔진 내부 오류로 표시하지 않는다(예: 31_H_01 — 선언보다 앞에 붙은 @During 이 그 변수를 참조)."""
+        from Utils.Errors import UnresolvedName
+        if isinstance(e, UnresolvedName):
+            return f"intent error: '{e.name}' is not declared at this point of the function"
+        return f"internal error: {e}"
 
     def _err(self, kind: str, msg: str, ln: int) -> dict[str, Any]:
         return {"status": "error", "kind": kind, "line": ln, "message": msg}
@@ -1619,8 +1631,15 @@ class GuardianVerificationEngine:
         """
         if v is None:
             return None
-        if hasattr(v, "elements") and isinstance(getattr(v, "elements"), list):  # ArrayVariable
-            return [self._materialize(getattr(e, "value", e)) for e in v.elements]
+        from Domain.Variable import ArrayVariable
+        if isinstance(v, ArrayVariable):
+            # (2026-10-23, 희소 배열) 값 목록 = 길이만큼의 Read(k). 길이를 모르거나 매우 크면 목록으로 만들 수 없다.
+            n = v.static_length()
+            if n is None and v.length is not None and v.length.min_value == v.length.max_value:
+                n = v.length.min_value
+            if n is None or n > 4096:
+                raise ValueError(f"intent: 배열 `{v.identifier}` 의 길이가 정해지지 않았거나 너무 커 값 목록으로 비교할 수 없다")
+            return [self._materialize(getattr(e, "value", e)) for e in (v.read_element(k) for k in range(n))]
         if hasattr(v, "members") and isinstance(getattr(v, "members"), dict):  # StructVariable
             return {k: self._materialize(getattr(m, "value", m)) for k, m in v.members.items()}
         if hasattr(v, "mapping") and isinstance(getattr(v, "mapping"), dict):  # MappingVariable

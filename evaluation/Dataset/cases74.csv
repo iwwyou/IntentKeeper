@@ -25,7 +25,7 @@ web3bugs_3_H_05,web3bugs,CrossMarginAccounts,belowMaintenanceThreshold,,,erroneo
 web3bugs_42_H_01,web3bugs,MochiVault,borrow,,,erroneous_accounting,Yes,phase_reviews_expressible,,
 web3bugs_45_H_01,web3bugs,UToken,borrow,,,erroneous_accounting,Yes,baseline20,,
 web3bugs_47_H_02,web3bugs,WrappedIbbtcEth,transferFrom,,,erroneous_accounting,Yes,baseline20,,
-web3bugs_51_H_02,web3bugs,Swap,rampTargetPrice,,,erroneous_accounting,Yes,baseline20,,
+web3bugs_51_H_02,web3bugs,SwapUtils,rampTargetPrice,,,erroneous_accounting,Yes,baseline20,,
 web3bugs_52_H_04,web3bugs,TwapOracle,consult,,,erroneous_accounting,Yes,phase_reviews_expressible,,
 web3bugs_52_H_23,web3bugs,VaderPoolV2,mintSynth,,,erroneous_accounting,Yes,phase_reviews_expressible,,
 web3bugs_52_H_34,web3bugs,TwapOracle,consult,,,erroneous_accounting,Yes,phase_reviews_expressible,,
@@ -35,7 +35,7 @@ web3bugs_59_H_04,web3bugs,AuctionBurnReserveSkew,getPegDeltaFrequency,,,erroneou
 web3bugs_5_H_07,web3bugs,Utils,calcAsymmetricShare,,,erroneous_accounting,Yes,baseline20,,
 web3bugs_5_H_08,web3bugs,Utils,calcLiquidityUnits,,,erroneous_accounting,Yes,baseline20,,
 web3bugs_5_H_12,web3bugs,Pools,getAddedAmount,,,erroneous_accounting,Yes,baseline20,,
-web3bugs_60_H_01,web3bugs,Collateral,settleAccount,,,erroneous_accounting,Yes,baseline20,,
+web3bugs_60_H_01,web3bugs,OptimisticLedgerLib,settleAccount,,,erroneous_accounting,Yes,baseline20,,
 web3bugs_62_H_03,web3bugs,Stream,claimReward,,,erroneous_accounting,Yes,phase_reviews_expressible,,"Guardian RQ1/cases 어노테이션 위치 기준 타깃=claimReward (cases48.csv/RQ3 표 function=recoverTokens 와 불일치, 2026-10-20 정정)"
 web3bugs_62_H_08,web3bugs,Stream,updateStreamInternal,,,inconsistent_state_updates,Yes,baseline20,,
 web3bugs_62_H_10,web3bugs,Stream,creatorClaimSoldTokens,,,erroneous_accounting,Yes,phase_reviews_expressible,,"Guardian RQ1/cases 어노테이션 위치 기준 타깃=creatorClaimSoldTokens (cases48.csv/RQ3 표 function=recoverTokens 와 불일치, 2026-10-20 정정)"

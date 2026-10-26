@@ -432,9 +432,15 @@
   "event": "add"
  },
  {
-  "code": "// @Debugging END",
+  "code": "// @StateVar ethRateFix = [10000000000, 10000000000]",
   "startLine": 65,
   "endLine": 65,
+  "event": "add"
+ },
+ {
+  "code": "// @Debugging END",
+  "startLine": 66,
+  "endLine": 66,
   "event": "add"
  }
 ]

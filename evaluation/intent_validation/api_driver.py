@@ -88,7 +88,9 @@ def run_case(cid: str, deps_root: pathlib.Path) -> dict:
     try:
         source, debug, intents = case_inputs(cid)
         sess = engine_api.EngineSession(str(deps_root), tuple(declared_names(source)))
-        st = sess.analyze_source(source, contract=contract, func=func)
+        items = [engine_api.IntentItem(scopeKind=k, text=t, line=(ln if k == "During" else None))
+                 for k, t, ln in intents]
+        st = sess.analyze_source(source, contract=contract, func=func, intents=items)   # (2026-10-23, M8)
         if st.diagnostics:
             raise RuntimeError("analyze diagnostics: " + "; ".join(f"L{d.line}: {d.message}" for d in st.diagnostics))
         values = {}
@@ -105,8 +107,6 @@ def run_case(cid: str, deps_root: pathlib.Path) -> dict:
             if s.kind != kind:
                 out["kind_mismatch"].append(f"@{kind} {key} → slot {s.kind}")
             values[key] = val
-        items = [engine_api.IntentItem(scopeKind=k, text=t, line=(ln if k == "During" else None))
-                 for k, t, ln in intents]
         ev = sess.evaluate(values, contract=contract, func=func)
         vr = sess.verify(items, contract=contract, func=func, debug_values=values)
         diags = list(getattr(ev, "diagnostics", []) or [])

@@ -126,18 +126,15 @@ class SolidityAnalyzer:
             first_new_line = new_lines[0].strip() if new_lines else ""
 
             for node in cfg_nodes:
+                # (2026-10-23) catch 도 else 와 같다 — 앞 블록(try 또는 앞 catch)의 닫는 줄에는 try_join 이 있다.
+                #   예전엔 line_info 에 등록된 적 없는 `try_false_stub` 이름을 찾아 catch 마다 줄이 하나씩 더 밀렸다.
                 if (getattr(node, 'join_point_node', False) and
-                    (first_new_line.startswith('else if') or first_new_line.startswith('else')) and
+                    first_new_line.startswith(('else if', 'else', 'catch')) and
                     self.current_close_before):
                     skip_shift_at_start = True
                     break
                 if (getattr(node, 'is_do_end', False) and
                     first_new_line.startswith('while') and
-                    self.current_close_before):
-                    skip_shift_at_start = True
-                    break
-                if (node.name.startswith('try_false_stub') and
-                    first_new_line.startswith('catch') and
                     self.current_close_before):
                     skip_shift_at_start = True
                     break
@@ -333,6 +330,16 @@ class SolidityAnalyzer:
         # type alias: type Fixed18 is int256;
         if stripped.startswith("type ") and " is " in stripped and stripped.endswith(";"):
             ca.current_context_type = "fileLevelTypeAlias"
+            ca.current_target_contract = None
+            ca.current_target_function = None
+            ca.current_target_struct = None
+            return True
+
+        # (2026-10-23) file-level error/event: `error E(uint256 a);` (0.8.4+) / `event Ev(...);` (0.8.22+)
+        #   이 분기가 없어 CA 로 위임됐고 "Contract context not found" → 문장(simpleStatement)으로 파싱 실패했다
+        #   (PRBMath.sol 의 file-level error 21개). 선언 자체는 해석에 쓰는 정보가 없다(contract 안의 error 정의와 같다).
+        if re.match(r"(?:error|event)\s+[A-Za-z_]\w*\s*\(", stripped) and stripped.endswith(";"):
+            ca.current_context_type = "error" if stripped.startswith("error") else "event"
             ca.current_target_contract = None
             ca.current_target_function = None
             ca.current_target_struct = None

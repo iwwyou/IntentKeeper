@@ -290,6 +290,90 @@ RQ2(절대: 기대 판정 일치)와 RQ4(상대: 타 기법 비교)의 경계를
 - 논문 문장·framing 은 ChatGPT 담당, 구현 담당은 구현·실험·데이터·확정 LaTeX 삽입·PROGRESS 유지.
 
 ---
+
+## 6. 디버깅 조작(navigation) 명세 — 확정본 (2026-10-23 정리)
+
+> 출처 대조: `PROMPT_frontend_impl.md` §2(확정 결정 1–13)·§3(미결 U1–U6), `REFACTOR_PLAN.md` §6 2026-10-22 (6)
+> (사용자 결정 F1–F4, U2–U6), 구현 `frontend/src/debug/{navGraph.ts, useNavigation.ts, DebuggerControls.tsx, CodePane.tsx}`.
+> 결정과 구현이 다른 곳은 **⚠ 불일치**로 표시했다(고치지 않음 — 결정 필요). 출처에서 내용을 확인할 수 없는 항목은 **❓**.
+
+### 6.1 기본 전제
+- **탐색은 전부 로컬**이다(탐색 중 엔진 호출 0). 엔진은 analyze → evaluate → verify 에서 노드별 상태를 미리 계산해 내려주고,
+  프론트는 그 위에서 커서만 옮긴다. 탐색은 상태를 바꾸지 않는다.
+- **커서 = "이 노드 실행 직전"**, 표시 상태 = 엔진이 내려준 실행 전 상태 `in_state`(U1). 노드 식별은 불변 `uid`.
+- **루프 헤더의 실행 전 상태 = 루프 밖에서 들어오는 상태**(F2). 루프 효과는 헤더의 loop delta 와 loop exit 상태로 본다.
+- if/else-if join 의 표시 줄 = 체인을 닫는 `}` 줄(`display_line`, U3).
+
+### 6.2 착지 규칙 (`navGraph.isLandable`)
+- 착지 가능: 문장 노드, 조건 노드, join(merge), loop exit, 함수 EXIT(= 최종 상태).
+- 착지 불가: ENTRY, 분기 더미(then/else 블록 시작), 루프 φ(fixpoint_evaluation), **루프 본문 전체**, RETURN/ERROR sink,
+  **바로 다음이 또 join 인 join**(else-if 체인의 안쪽 join — 연속 join 은 한 step 으로 접는다).
+- `return` 뒤 RETURN sink 는 함수 EXIT 로 착지한다(정상 반환 = 함수 끝).
+- 도달 불가(⊥) 노드에는 착지하지 않는다.
+
+### 6.3 연산 집합 (`DebuggerControls`)
+| 연산 | 동작 |
+|---|---|
+| Step Forward | back edge 를 뺀 feasible 후속의 착지 노드로. 루프 헤더에서는 **loop exit 으로**(루프에 들어가지 않는다). 후보가 여럿이면 첫 후보(엔진 edge 순서 = true 먼저)로 가고 나머지를 하이라이트 |
+| Step Backward | feasible 선행의 착지 노드로. 여럿이면 첫째로 가고 나머지 하이라이트. EXIT 의 선행에는 `return` 경로(RETURN sink 의 선행)도 포함 |
+| Select Successor / Select Predecessor | 후보가 2개 이상일 때만 표시. 그 간선을 따라 처음 나오는 착지 노드(분기 첫 문장)로. **초점 선택**이며 "그 분기가 실행됐다"는 뜻이 아니다. 선택 기록에 의존하지 않는다 |
+| Step Into | 노드의 진입 가능한 callee 로 프레임 push(callee 첫 착지 노드). 같은 노드에서 반복하면 **엔진의 평가 순서대로 다음 호출**. 다 지나면 "이 줄의 호출을 모두 지났습니다" |
+| Step Out | pop — **호출 지점 노드**로 복귀(그 노드 상태 = 호출 효과 반영) |
+| Continue | 다음 도달 가능한 breakpoint 로. **진입 가능한 callee 안의 breakpoint 까지 내려간다**. callee 를 다 지나면 부모의 호출 지점(다음 callee 순번)에서 이어서 찾는다. 없으면 함수 끝(타깃 EXIT) |
+| Next Breakpoint | Continue 와 같되, 없으면 이동하지 않고 안내만 |
+| Prev Breakpoint | **현재 프레임 안에서** 선행을 거슬러 처음 만나는 breakpoint. 여럿이면 첫째로 가고 하이라이트 |
+| Next / Prev Intent | 타깃 프레임 기준, 판정이 있는 intent 줄을 **줄 번호 순서**로 |
+| Restart | 타깃 함수 첫 착지 노드로, 스택은 타깃 하나로 리셋 |
+| (패널) Call Stack 프레임 클릭 | 그 깊이까지 pop(`popToFrame`) |
+| (패널) Verdict 클릭 | 그 줄의 착지 노드로, 스택은 타깃 하나로(`jumpToLine`) |
+
+- 제외: Step Over Branch(F3), 기록 기반 Navigate Back/Forward, Run to Line(breakpoint 와 동치), Select Call, 루프 진입.
+
+### 6.4 분기점과 Continue (U2)
+- 각 feasible 경로에서 처음 만나는 멈출 곳을 모은다. 하나면 그곳으로.
+- **여러 feasible 분기에 서로 다른 breakpoint 가 있으면 분기가 갈라지는 지점에서 멈추고** Select Successor 를 요구한다
+  (고정 순서로 하나를 고르지 않는다 — 다른 분기의 breakpoint 를 조용히 놓치지 않기 위해).
+- breakpoint 가 join 이후에만 있으면 경로와 무관하게 그곳에 도달한다.
+
+### 6.5 breakpoint
+- 키 = **(소스 파일, 줄)**(U6). 프레임별이 아니라 파일별이라 Continue 가 callee 안에서도 멈춘다
+  (파일 키: 편집 중 파일 = `''`, 의존성 = `dep:<컨트랙트>`).
+- **착지 노드가 있는 줄에만** 걸 수 있다(`canBreakpointOnLine`). 따라서 **루프 본문 줄에는 걸 수 없다**(U5),
+  `}`·구조적 줄에도 걸 수 없다.
+- 도달 불가 줄의 breakpoint 는 막지 않고 표시만 바꾼다(그 줄의 착지 노드가 전부 ⊥ 이면 `isLineUnreachable`). 거기서 멈추지 않는다.
+
+### 6.6 evaluate(Apply) 직후
+- 스택을 타깃 프레임 하나로 리셋하고, entry 에서 Continue 한 위치(첫 도달 breakpoint)로. breakpoint 가 없으면 **함수 EXIT(최종 상태)**.
+- 코드 편집(analyze)만 바뀐 경우: uid 가 그대로인 노드는 커서를 유지하고, 사라진 노드·callee 를 가리키는 프레임이 있으면 타깃 첫 착지로.
+
+### 6.7 호출 범위
+- Step Into 대상 = 같은 컨트랙트 internal 호출, 상속(부모·`super`·`Parent.f()`) 함수, 라이브러리 호출.
+  **실제로 해석(하강)한 호출만** 진입 가능 목록에 오른다(엔진 `_capture_callee_states` 적재분).
+- 주소/인터페이스/컨트랙트 타입 변수를 통한 외부 호출 = **opaque**(진입 불가, 사유 표시). 반환값 = 선언 타입 ⊤ 또는 `@IReturn`.
+- 재귀: 재진입 지점은 엔진이 요약(⊤·havoc, 2026-10-23 D7 구현)하므로 해석되지 않고, 따라서 진입 목록에 오르지 않는다(첫 호출은 진입 가능).
+  프론트에는 안전 상한 `MAX_CALL_DEPTH = 16` 이 따로 있다.
+- 함수 포인터 호출(2026-10-23, ⊤ 요약)도 해석하지 않으므로 진입 불가.
+
+### 6.8 ⚠ 결정과 구현이 다른 곳 (결정 필요)
+1. **Step Forward 의 다중 후보**: `PROMPT_frontend_impl.md` §2-7 은 "feasible 후속이 2개 이상이면 **이동하지 않고** 후보를 제시 →
+   Select Successor 로 고른다"인데, 구현은 **첫 후보로 이동**하고 나머지를 하이라이트한다(Select 로 형제 후보로 갈 수 있음).
+   Step Backward 도 같다.
+2. **feasibility 판정**: §2-13 은 "문자열 탐지가 아니라 엔진이 노드 상태 분류(reachable / unreachable / error-sink)를 명시적으로
+   내려준다"인데, 구현 `isDead` 는 여전히 상태 문자열에 `'⊥'` 가 있는지로 판정한다.
+3. **왜 도달 불가인가**: §2-12 는 "엔진이 원인을 기록"인데, 구현 `whyUnreachable` 은 프론트에서 죽은 구간을 거슬러 올라가
+   처음 만나는 살아 있는 조건 노드를 찾는다(엔진 기록 없음).
+4. **Next/Prev Intent**: §2-9 는 "판정별(예: Violated/Warning)"인데, 구현은 판정 종류 필터 없이 intent 줄 순서로만 이동하고,
+   타깃 프레임에서만 동작한다(callee 안 intent 는 대상 아님).
+5. **callee 첫 문장에서 Step Backward**: 선행이 ENTRY 뿐이라 이동하지 않는다(자동 Step Out 없음). §2 에 규정 없음 — 의도 확인 필요.
+
+### 6.9 ❓ 출처에서 내용을 확인할 수 없는 것
+- **F1·F4**: REFACTOR_PLAN 에 "사용자 결정 F1~F4" 로만 남아 있고 내용이 없다(F2 = 루프 헤더 IN, F3 = Step Over Branch 제외는 확인).
+  engine_fixes F65 제목의 "F1" 은 노드 uid 또는 실행 전 상태로 보이나 단정할 수 없다.
+- **U4 (modifier 흐름 모델)**: 구현은 modifier 를 별도 프레임으로 두지 않고 합성 CFG(`modifier::노드`)를 평평하게 따라간다.
+  §2-6 "modifier 코드가 화면에 보여야 한다"가 충족되는지(다른 파일의 modifier 소스 전환), modifier 본문 intent 허용 여부는
+  문서에서 확인되지 않는다.
+
+---
 ---
 
 # 부록 — 이전 기록 (2026-10-05 이전, 참고용)

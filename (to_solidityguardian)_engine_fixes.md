@@ -3282,3 +3282,96 @@ PRBMath* 두 파일이 `[ANTLR]` 157건(전체 187 중)을 차지한다.
 - **수정**: footprint 기반 도출(내부 호출·modifier·라이브러리·super/this, 오버로드 전부) + 타깃 진입 이름 번역 + 조상 상태변수 +
   구조체 leaf 전개 + IReturn 튜플 원소. 실행 쪽 `Storage.callee_aliases`(파라미터 ↔ 호출자 순수 선택자 must-alias).
 - **검증**: 누락 172 → 70(남은 것 = 구체 인덱스 48, 케이스 데이터 불일치 22), 일치 15 → 19, storage 32/32, temp 18 종 통과.
+
+## F68. 남은 구현 묶음 + Yul P0-a (2026-10-23, 사용자 승인)
+
+- **빈 본문 callee ⊥** (47_H_02·78_H_02): 진입 환경을 ENTRY 의 후속에 두어 ENTRY 가 빈 채였고, `_force_join_before_exit` 가 빈 본문
+  (ENTRY → EXIT)의 유일한 정상 종료 선행 ENTRY 를 도달 불가로 보고 EXIT = ⊥ → 되쓰기로 호출자 상태변수 ⊥. → 진입 환경 = ENTRY.
+- **다중 return tuple**: `_extract_return_value` 가 `.join` 없는 값(list)에서 첫 경로 값을 반환 → 원소별 join, 모양 불일치는 예외.
+- **재귀**(D7): `invoke_callee` 가 호출 스택(`_func_key` = 소유·이름·시그니처)에 있는 함수면 요약 — 전이적 쓰기 집합의 상태변수 ⊤
+  (컨테이너 단위), 쓰는 복합 파라미터 인자 ⊤, 반환 = 선언 반환 타입 ⊤. enum 은 ⊤ 표현이 없어 예외.
+- **함수 포인터**(D9): 함수 타입 파싱(파라미터·반환·가시성), 변수 값 `FunctionRef ⊤`, 함수 이름 = 값, 호출 = internal 이면 상태변수
+  전체 ⊤ + 복합 인자 ⊤, 반환 ⊤.
+- **정적 배열 범위 밖 디버그 입력**: 인덱스가 전부 범위 밖이면 "잘못된 디버깅 입력" 오류(예전: 저장 안 되는 가상 셀 → 입력 소실).
+- **library event**: `LibraryCFG.events`.
+- **using-for 수신자 = 정적 타입** (31_H_01): 값으로 추측하던 것을 `_static_type_of` 로. 모르면 오류. 확장: 전역 멤버, `.length`,
+  `.balance`, `x.f()`/`Lib.f()` 반환 타입. `"address.<member>"` 문자열 폴백 → 예외. 동적 bytes/string `.length` = ⊤.
+- **함수 소유자 `owner_contract`**: `add_function_cfg`/`update_function_cfg`/생성자 등록 시 기록. `_fcfg_owner` 의 identity 역색인은
+  pkl 사본(부모·using 라이브러리) 때문에 실패했다 — library 안 using-for 조회 실패, callee Step Into 누락(조용히).
+- **상속 디스패치** (52_H_23): 인터페이스 함수 파라미터 미기록(전부 `()`), 탐색 = 소스 순서 깊이 우선(본문 없는 선언 선택).
+  → `has_body`, `linearize`(C3, 이름 기준), `_dispatch` = 선형화 전체 오버로드 해소(선언 포함, 인자 수 = `parameter_types`) →
+  본문 있는 첫 구현. super = 정의 컨트랙트 다음부터, `Base.f()` = Base 선형화, `this.f()` = 가장 파생된 것 기준.
+- **StructDefinition.members** = {이름: SolType}: `_static_type_of` 의 struct 멤버 분기가 dict 를 기대해 늘 None 이었다.
+- **Yul P0-a** (`YulEval.py`, `EnhancedYulVisitor`): 실측 결함 — `div(a,0)`·`mod(a,0)`·`sub(0,1)` = ⊥(경로 소멸), `slt` 부호 없음,
+  `shl(s,v)` 순서 뒤바뀜, `uint8 r := 300` 예외, 미지원 builtin 대입이 조용히 사라짐(`size := extcodesize(a)` → size=0 →
+  `isContract` false → 52_H_23 Unreachable), `if/switch` 조건 무시하고 본문 무조건 실행, `revert` 무시, 파싱 실패 줄(여러 줄 식,
+  `assembly {` 머리 줄) 부분 트리로 조용히 진행. → EVM word 평가, 효과 표, revert = ERROR, cleanup, 제어 흐름·종료·파싱 실패 =
+  실행 시 명시적 미지원 오류(본문 줄 미생성), 슬라이서 여러 줄 식 결합.
+- **검증**: 프로브(빈 본문·tuple·재귀·함수 포인터·디스패치 4종·Yul 산술 8종·효과 6종), temp 전 스크립트 통과,
+  rebuilt 48 일치 23 → 26 (`results_api_s13.json`).
+
+## F69. 의존성 레지스트리 + 부모 정의 상속 (2026-10-23, 사용자 승인)
+
+- **빌드 순서 의존 제거**: 선언별 조각 + 위상정렬 → 파일 단위 + 의존 폐포 고정점 재분석(`Dependencies/registry.py`). 순환 프로젝트
+  (w34·w36·w58·w65) 빌드 성공. 단위 pkl 의 CFG 참조는 이름으로 저장, 로드 때 선언당 객체 하나.
+- **조용한 건너뛰기 → 오류**: 부모 컨트랙트 미발견(`make_contract_cfg`·`make_abstract_contract_cfg`·`make_interface_cfg`),
+  using 라이브러리 미발견 → `UnresolvedName(name)`. 미정의 타입 → `UndefinedType`(SourceError + UnresolvedName).
+- **부모 struct·enum 정의 상속(A-2)**: 타입 판정은 부모 체인을 봤지만 변수 초기화는 자기 표만 봐서 `contract Basket is IBasket
+  { PendingPublisher public p; }` 가 "struct def PendingPublisher is undefined". → 자식 생성 시 부모 정의를 가져옴(정의 `owner`),
+  소유자가 다른 같은 이름은 오류.
+- **의존성 전처리 최상위 재배치**: 같은 파일 뒤쪽의 enum·interface 를 앞에서 쓰는 경우.
+- **검증**: rebuilt 48 일치 26 → 30, temp 전부 통과.
+
+## F70. 의존성 Invalid·불일치 케이스 정리 (2026-10-23, 사용자 승인)
+
+- **구간 비트 연산 unsound**: `|`·`^` 상한 = max(hi) (1|2 = 3 > 2). → 단일값 정확, `|` [max lo, 2^k−1], `^` [0, 2^k−1].
+- **함수 문맥을 헤더 텍스트로 추측**: 위쪽 모든 줄을 훑어 `received = 1;` 을 receive 함수로, 헤더 텍스트 타입(`bytes32[]`)과
+  등록 시그니처(`array`) 불일치로 오버로드를 못 찾음. → 블록 시작 줄에 등록된 함수의 ENTRY 로 식별. receive/fallback 등록.
+- **try/catch 미연결**: 방문자 빈 껍데기, 없는 메서드 호출, try 줄이 함수 헤더로 분류, catch 1개만, `cond.__catch_attached`
+  name mangling, join 미등록(본문이 join 뒤에 순차로), catch 줄 밀림.
+- **문법**: `errorDefinition` 의 `*` 누락(파라미터 1·3개 error 불가), `revert()` 빈 괄호. 파일 수준 error/event.
+- **정적 배열 길이**: 이름 상수(`uint256[N_COINS]`) 미지원 → 컴파일 타임 상수식 평가.
+- **값만 있는 식 문장**(`a.status == false;`), **struct 이름 공백 분리**(`struct X{`), **여러 줄 for 헤더**(슬라이서가 괄호 안 `;` 에서 자름).
+- **인자 intent** 를 호출 후 상태로 재평가 + 검증 중 callee 캡처 → internal error. **intent 미선언 이름** = internal error.
+- **IReturn**: 지역 인터페이스 핸들 누락(SolidityGuardian 케이스에 있던 입력), using-for 함수 오분류(fail-open), struct 반환 미펼침, 값 종류 고정.
+- **슬롯**: intent 만 참조하는 상태변수의 진입 값 슬롯 없음 → analyze 가 intent 를 받는다.
+- **조용한 빈 결과**: 없는 타깃 컨트랙트 → 노드 0개 결과 → 오류.
+- **검증**: rebuilt 48 일치 30 → 39, temp 전부 통과.
+
+## F71. 희소 원소별 배열 + 지연 widening (2026-10-23, 사용자 승인)
+
+- **정적 배열 전 원소 구체화**: 선언 때 `range(length)` 로 원소를 모두 만들었다 — `Observation[16777215]`(storage ring buffer, 쓰기 전엔
+  비용 없음)에서 메모리 폭증. → 구체화된 원소만 `{index: 셀}`, 나머지는 summary(D). Read/join/비교를 의미상 값으로.
+- **지연 생성 struct 원소**: qualified 이름(`Lib.S`)으로만 정의를 찾아 못 찾으면 조용히 멤버 없는 struct. → 마지막 이름까지, 없으면 오류.
+- **지역 정적 배열**: 초기화식이 없으면 원소가 비어 접근이 범위 오류였다. → 0 (D = 0 셀).
+- **widening 지연 상한 [1,20]**: 길이 ⊤ 루프가 20 회 지연(의도와 반대), `i < 1000` 도 20. → N̂ 를 얻으면 min(N̂, 300), 못 얻으면 2.
+- **W_MAX 도달 시 비고정점 반환**: 작업 목록이 남은 채 루프를 빠져나와 narrowing → unsound 가능. → 강제 widening 으로 계속, 2·W_MAX 에서 오류.
+- **검증**: rebuilt 48 판정 동일(41), 총 시간 640 s → 55 s, temp 전부 통과.
+
+## F72. 어노테이션 문법 오류의 조용한 복구 (2026-10-25, 사용자 승인)
+
+- **증상**: 디버그 입력·intent 한 줄이 문법에 맞지 않으면 `generate_parse_tree` 가 ANTLR 오류를 콘솔에 출력만 하고 복구된(일부 토큰이
+  빠진) 트리를 돌려줬다 → visitor 가 `None.getText()` 로 죽거나, 복구 결과에 따라 다른 문장으로 조용히 처리될 수 있었다.
+- **수정**: `ParserHelpers.annotation_syntax_errors(src)`(lexer·parser 오류 수집) 추가, `intentUnit` 파싱은 오류가 있으면
+  `AnnotationSyntaxError`(Utils/Errors.py). engine_api `_queue_debug_values` 는 미리 검사해 그 슬롯의 입력 오류 Diagnostic 으로.
+- **검증**: rebuilt 48 판정 동일(41), temp 전부 통과, 새 `temp/test_slot_roundtrip.py`.
+
+## F73. IReturn 캐스트 조회가 주소를 보지 않음 (2026-10-25, 사용자 승인)
+
+- **증상**: `IF(a).f()` 에 준 @IReturn 값이 같은 함수의 `IF(b).f()` 에도 들어갔다(조용한 오적용).
+- **원인**: visitor 가 `IF(x)` 캐스트를 `TypeConversion(typeName, expression)` 으로 만든다. Pattern B 조회(`Evaluation.py`)는
+  `FunctionCallContext` 형태를 기대해 죽은 코드였고, `InterfaceFunctionCallContext` 의 대체 조회가 키의 인터페이스·함수 이름만
+  비교해 모든 캐스트 호출을 처리했다.
+- **수정**: Pattern B 조건을 `TypeConversion` + 인터페이스로, 주소 = 캐스트 인자 식별자(식이면 조회 안 함 → ⊤). 대체 조회 삭제.
+  호출 인자는 키에 넣지 않는다(함수당 값 하나 — 사용자 결정).
+- **슬롯**: 호출 없는 함수 멤버 참조(`I.f.selector`)를 IReturn 슬롯으로 내던 것 제거(engine_api 스캐너).
+- **입력 검증**: `process_ireturn_cast` 가 구체 컨트랙트 캐스트도 받던 것(S0) → 인터페이스가 아니면 명시적 오류(Pattern A 와 동일).
+- **검증**: rebuilt 48 판정·메시지 동일(41), temp 전부 통과, 새 `temp/test_ireturn_cast.py`.
+
+## F74. 파라미터·named return 이 상태변수를 가림 (2026-10-25, 사용자 결정)
+
+- **증상**: `function f(uint256 want)` 와 상태변수 `address want` — 함수 CFG 생성 때 상태변수 주입이 파라미터를 같은 이름 키로 덮어써
+  파라미터가 address 가 됐다(31_H_01 `.mul` 미해결). 타입이 같으면 오류 없이 조용히 틀린 값.
+- **수정**: 근본 해법(선언 정체성 기반 환경)은 future work. 그 전까지 `UnsupportedShadowing` 명시적 오류(`make_function_cfg`,
+  늦게 선언된 상태변수·상수 주입). 31_H_01 은 소스 rename(`want` → `_want`).
+- **검증**: rebuilt 48 일치 42(31_H_01 Violated), 재빌드에서 부모 private 상태변수 충돌 4 단위 Invalid(케이스 영향 없음).

@@ -20,10 +20,14 @@ class Variables:
 class StructDefinition:
     def __init__(self, struct_name):
         self.struct_name = struct_name
-        self.members = []
+        # (2026-10-23) 멤버 이름 → SolType. 선언 순서(위치 인자 생성자 `S(a, b)`)는 dict 삽입 순서가 보존한다.
+        #   예전 형식은 [{'member_name', 'member_type'}] list 였고, dict 로 읽는 쪽(정적 타입 계산)이 조용히 늘 실패했다.
+        self.members: dict = {}
 
     def add_member(self, var_name, type_obj):
-        self.members.append({'member_name' : var_name, 'member_type' : type_obj})
+        if var_name in self.members:
+            raise ValueError(f"struct '{self.struct_name}': duplicate member '{var_name}'")
+        self.members[var_name] = type_obj
 
 class EnumDefinition:
     def __init__(self, enum_name):
@@ -62,6 +66,15 @@ class ArrayVariable(Variables):
     ▸ 정적/동적 배열 래퍼
     ▸ int·uint·bool 은 interval 로,
       address·string·bytes 등은 심볼/AddressManager 를 이용해 초기화
+
+    (2026-10-23, 사용자 승인) **희소 원소별 표현** — A = (N, D, M, S):
+      · N = 길이: 정적 = 선언 길이(`typeInfo.arrayLength`), 동적 = `length`(추상 길이, None = 선언에서 유도)
+      · M = `elements: {index: 셀}` — 구체화된 원소만. 원소 수 ≠ 길이
+      · D = `summary` — 구체화되지 않은 원소의 값(None = 선언 기본값 ⊤). 0 으로 초기화되는 배열은 0 셀
+      · S = `sym_cells` — 미확정 인덱스 선택자 셀(`arr[i]`)
+      Read(k) = M[k] 이 있으면 그것, 없으면 D 에서 만든 셀. CFG join = 키 합집합에서 Read₁(k) ⊔ Read₂(k), D₁ ⊔ D₂.
+    예전엔 정적 배열을 선언 때 원소 단위로 전부 만들었다(`_init_recursive`) — `Observation[16777215]`(PoolTogether
+    TWAB ring buffer, w34) 에서 메모리 8GB 초과. storage 는 쓰기 전엔 비용이 없어서 이런 선언이 흔하다.
     """
 
     def __init__(self, identifier=None, base_type=None,
@@ -76,7 +89,7 @@ class ArrayVariable(Variables):
         self.typeInfo.arrayBaseType = base_type
         self.typeInfo.arrayLength = array_length  # None → 동적
         self.typeInfo.isDynamicArray = is_dynamic
-        self.elements: list[Variables | "ArrayVariable"] = []
+        self.elements: dict[int, Variables] = {}          # 구체화된 원소만 (index → 셀)
         self.struct_defs = struct_defs or {}
         self.enum_defs = enum_defs or {}
         _init_indexed_storage(self)
@@ -89,6 +102,21 @@ class ArrayVariable(Variables):
         _init_indexed_storage(self)
         self.__dict__.setdefault("sym_cells", {})
         self.__dict__.setdefault("length", None)
+        if isinstance(self.__dict__.get("elements"), list):      # 예전 pkl (조밀한 list)
+            self.elements = dict(enumerate(self.elements))
+
+    def static_length(self):
+        """정적 배열의 선언 길이(정적이 아니면 None)."""
+        return None if self.typeInfo.isDynamicArray else self.typeInfo.arrayLength
+
+    def in_static_range(self, idx: int) -> bool:
+        n = self.static_length()
+        return n is None or 0 <= idx < n
+
+    def read_element(self, idx: int):
+        """Read(k) — 구체화된 원소면 그것, 아니면 D 에서 만든 셀(저장하지 않는다)."""
+        v = self.elements.get(idx)
+        return v if v is not None else self.fresh_element(idx)
 
     # models.py ― ArrayVariable  내부
     def _create_default_value(self, eid: str):
@@ -119,23 +147,16 @@ class ArrayVariable(Variables):
 
     # -----------------------------------------------------------------
     def get_or_create_element(self, idx: int):
-        """
-        동적 배열이면 idx 위치까지 0‥idx 의 모든 요소를 채워 넣으며,
-        정적 배열이면 범위 체크만 수행한다.
-        """
+        """원소 idx 를 구체화해 돌려준다(그 칸만 — 0‥idx 를 채우지 않는다). 정적 배열은 선언 길이로 범위 검사.
+        구체화는 길이를 바꾸지 않는다(`length` 참고)."""
         if idx < 0:
             raise IndexError("negative index")
-
-        # 동적 배열 → 필요하면 구체화 (★ 2026-10-23: 구체화는 길이를 바꾸지 않는다 — `length` 참고)
-        if self.typeInfo.isDynamicArray:
-            while idx >= len(self.elements):
-                self.elements.append(self.fresh_element(len(self.elements)))
-
-        # 정적 배열 → 범위 검사
-        if idx >= len(self.elements):
-            raise IndexError(f"index {idx} out of range ({len(self.elements)})")
-
-        return self.elements[idx]
+        if not self.in_static_range(idx):
+            raise IndexError(f"index {idx} out of range ({self.static_length()})")
+        v = self.elements.get(idx)
+        if v is None:
+            v = self.elements[idx] = self.fresh_element(idx)
+        return v
 
     def _create_new_array_element(self, idx: int):
         """
@@ -173,10 +194,13 @@ class ArrayVariable(Variables):
         # ─ struct ───────────────────────────────────────────────────
         if isinstance(btype, SolType) and btype.typeCategory == "struct":
             sv = StructVariable(eid, btype.structTypeName, scope=self.scope)
-            # ★ struct 정의가 있으면 초기화
-            if btype.structTypeName in self.struct_defs:
-                sv.initialize_struct(self.struct_defs[btype.structTypeName],
-                                     struct_defs=self.struct_defs, enum_defs=self.enum_defs)
+            # (2026-10-23) 정의 조회 = 전체 이름, 없으면 마지막 이름(`ObservationLib.Observation` → `Observation`) —
+            #   예전엔 전체 이름만 봐서 qualified struct 원소가 **조용히 멤버 없는 struct** 로 만들어졌다. 못 찾으면 오류.
+            sdef = self.struct_defs.get(btype.structTypeName) \
+                or self.struct_defs.get(btype.structTypeName.rsplit(".", 1)[-1])
+            if sdef is None:
+                raise ValueError(f"array element {eid}: struct '{btype.structTypeName}' 의 정의가 없다")
+            sv.initialize_struct(sdef, struct_defs=self.struct_defs, enum_defs=self.enum_defs)
             return sv
 
         # ─ enum ─────────────────────────────────────────────────────
@@ -236,37 +260,34 @@ class ArrayVariable(Variables):
 
     # ────────────────────────── public API ──────────────────────────
     def initialize_elements(self, init_iv: Interval):
-        """int / uint / bool 전용 (추상화 도메인 사용)"""
-        # 동적 배열이지만 arrayLength가 설정된 경우(new uint256[](size))는 초기화 필요
+        """int / uint / bool 원소 배열 — 모든 원소가 init_iv (D = init_iv 셀). 원소를 만들지 않는다."""
+        # 동적 배열이고 길이도 없으면(선언만) 초기화할 원소가 없다
         if self.typeInfo.isDynamicArray and self.typeInfo.arrayLength is None:
             return
-        self._init_recursive(
-            baseT=self.typeInfo.arrayBaseType,
-            length=self.typeInfo.arrayLength or 0,
-            build_val=lambda eid, et:
-            Variables(eid, init_iv.copy() if hasattr(init_iv, "copy") else init_iv,
-                      scope=self.scope, typeInfo=et)
-        )
+        self.elements = {}
+        self.summary = self._uniform_cell("*", self.typeInfo.arrayBaseType, init_iv)
 
     def initialize_not_abstracted_type(self):
-        """address / bytes / string 등 — address 는 fresh interval, 나머진 심볼"""
-        # 동적 배열이지만 arrayLength가 설정된 경우(new address[](size))는 초기화 필요
+        """address / bytes / string / struct 등 — 선언 기본값(⊤·심볼). D = None(기본값) 이면 충분하다."""
         if self.typeInfo.isDynamicArray and self.typeInfo.arrayLength is None:
             return
+        self.elements = {}
+        self.summary = None
 
-        def builder(eid, et):
-            # address
-            if (isinstance(et, SolType) and et.elementaryTypeName == "address") or et == "address":
-                top = AddressSet.top()
-                return Variables(eid, top, scope=self.scope, typeInfo=et)
-            # 그 외 string/bytes … → 심볼
-            return Variables(eid, f"symbol_{eid}", scope=self.scope, typeInfo=et)
-
-        self._init_recursive(
-            baseT=self.typeInfo.arrayBaseType,
-            length=self.typeInfo.arrayLength or 0,
-            build_val=builder
-        )
+    def _uniform_cell(self, idx, baseT, init_iv):
+        """모든 원소가 같은 값일 때의 D 셀. 중첩 배열이면 그 배열도 같은 방식(희소)으로."""
+        eid = f"{self.identifier}[{idx}]"
+        if isinstance(baseT, SolType) and baseT.typeCategory == "array":
+            sub = ArrayVariable(identifier=eid, base_type=baseT.arrayBaseType, array_length=baseT.arrayLength,
+                                scope=self.scope, is_dynamic=baseT.isDynamicArray,
+                                struct_defs=self.struct_defs, enum_defs=self.enum_defs)
+            if self._is_abstractable(baseT.arrayBaseType):
+                sub.initialize_elements(init_iv)
+            return sub
+        if self._is_abstractable(baseT):
+            return Variables(eid, init_iv.copy() if hasattr(init_iv, "copy") else init_iv,
+                             scope=self.scope, typeInfo=baseT)
+        return self._create_new_array_element(idx)
 
     def initialize_default_by_base_type(self, is_return_param: bool = False):
         """base_type을 보고 numeric/bool이면 initialize_elements(TOP 또는 0),
@@ -291,55 +312,6 @@ class ArrayVariable(Variables):
             self.initialize_elements(val)
         else:
             self.initialize_not_abstracted_type()
-
-    # ──────────────────────── private helper ────────────────────────
-    def _init_recursive(self, *, baseT, length: int, build_val):
-        """
-        baseT : SolType 또는 문자열
-        length: 정적 배열 길이
-        build_val(eid:str, et) ➜ Variables 객체를 생성해 주는 콜백
-        """
-        for i in range(length):
-            eid = f"{self.identifier}[{i}]"
-
-            # ─ nested array -----------------------------------------------------------------
-            if isinstance(baseT, SolType) and baseT.typeCategory == "array":
-                sub_arr = ArrayVariable(
-                    identifier=eid,
-                    base_type=baseT.arrayBaseType,
-                    array_length=baseT.arrayLength,
-                    scope=self.scope
-                )
-                # recursion – baseT.arrayBaseType 에 따라 분기
-                if self._is_abstractable(baseT.arrayBaseType):
-                    base_elem = baseT.arrayBaseType
-                    bits = getattr(base_elem, 'intTypeLength', 256) or 256
-                    dummy = IntegerInterval.top(bits) \
-                        if str(base_elem.elementaryTypeName).startswith("int") \
-                        else UnsignedIntegerInterval.top(bits)
-                    sub_arr.initialize_elements(dummy)
-                else:
-                    sub_arr.initialize_not_abstracted_type()
-                self.elements.append(sub_arr)
-                continue
-            # ─ struct element ---------------------------------------------------------------
-            # build_val(elementary 전용 콜백)은 struct를 몰라서 raw 문자열
-            # (`symbol_{eid}`)로 바텀아웃시킴 — `new <StructType>[](n)`처럼
-            # struct 타입 배열을 미리(정적으로) 할당할 때 걸림
-            # (web3bugs_35_H_08/35_H_12에서 발견). `_create_new_array_element`
-            # 의 struct 분기와 동일한 패턴으로 진짜 StructVariable을 만든다.
-            if isinstance(baseT, SolType) and baseT.typeCategory == "struct":
-                sv = StructVariable(eid, baseT.structTypeName, scope=self.scope)
-                # qualified 네임스페이스 struct(예: "IPool.TokenAmount")는
-                # struct_defs에 마지막 "." 뒤 bare 이름으로 등록돼 있음
-                bare_name = baseT.structTypeName.rsplit(".", 1)[-1]
-                if bare_name in self.struct_defs:
-                    sv.initialize_struct(self.struct_defs[bare_name],
-                                         struct_defs=self.struct_defs, enum_defs=self.enum_defs)
-                self.elements.append(sv)
-                continue
-            # ─ leaf element -----------------------------------------------------------------
-            self.elements.append(build_val(eid, baseT))
 
     @staticmethod
     def _is_abstractable(bt):
@@ -558,8 +530,7 @@ class StructVariable(Variables):
             enum_defs: dict[str, "EnumDefinition"] | None = None
     ):
         """
-        struct_def.members :
-            [{ "member_name": str, "member_type": SolType }, ... ]
+        struct_def.members : { 멤버 이름: SolType } (선언 순서)
 
         멤버 하나하나의 top-value 생성은 VariableEnv.top_from_soltype에 위임한다
         (array/mapping/struct/interface/enum/elementary 전 타입 지원 - 이 함수가
@@ -578,9 +549,7 @@ class StructVariable(Variables):
         if enum_defs is None:
             enum_defs = {}
 
-        for mem in struct_def.members:
-            m_name: str = mem["member_name"]
-            m_type: SolType = mem["member_type"]
+        for m_name, m_type in struct_def.members.items():
             var_id = f"{self.identifier}.{m_name}"
 
             member_var = VariableEnv.top_from_soltype(
@@ -646,7 +615,7 @@ def rename_tree(v, new_id):
         for name, m in v.members.items():
             rename_tree(m, f"{new_id}.{name}")
     elif isinstance(v, ArrayVariable):
-        for i, e in enumerate(v.elements):
+        for i, e in v.elements.items():
             rename_tree(e, f"{new_id}[{i}]")
         for k, e in v.sym_cells.items():
             rename_tree(e, f"{new_id}[{k}]")

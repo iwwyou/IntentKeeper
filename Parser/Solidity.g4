@@ -128,7 +128,7 @@ stateVariableDeclaration
     identifier ('=' expression)? ';' ;
 
 errorDefinition
-  : 'error' identifier '(' (errorParameter (',' errorParameter))? ')' ';' ;
+  : 'error' identifier '(' (errorParameter (',' errorParameter)*)? ')' ';' ;
 
 errorParameter
   : typeName identifier? ;
@@ -521,7 +521,7 @@ emitStatement
   : 'emit' expression callArgumentList ';' ;
 
 revertStatement // must be modified in solidity language grammar
-  : 'revert' ( identifier ( callArgumentList )? | '(' expression ')')? ';' ;
+  : 'revert' ( identifier ( callArgumentList )? | '(' expression? ')')? ';' ;
 
 requireStatement
   : 'require' '(' expression (',' expression)? ')' ';' ;

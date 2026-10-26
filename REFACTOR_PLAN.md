@@ -289,47 +289,6 @@ SolQDebug 에서 물려받은 "편집 시점 즉시 평가" CFG 구성을
     enum 을 한 줄로 접으므로 deps 영향 가능). ③ `}    function f(...) {` 처럼 한 줄 두 문장을 1-statement 검사가 못 잡고,
     ANTLR 오류는 출력만 하고 진행해 본문 없는 함수가 조용히 생긴다.
 
-## 7. 추후 구현·결정 대기 목록 (2026-10-22 정리 — §6 에 흩어진 항목을 모음, 완료 시 여기서 지운다)
-
-### 7.1 엔진 의미론 (Phase 5~7)
-- Phase 5: D7 재귀 근사, D9 함수 포인터·Yul 근사, D10 루프 본문 intent 거부.
-- Phase 6: try/catch·do-while **빌드 경로 복구**(마이크로 실패: do-while 루프변수 미선언, try `add_control_flow_node` 부재),
-  do-while 안 continue/break, 다중 `_` modifier.
-- Phase 7: 생성자 pre-state(D5 예외), 생성자 CFG 에 부모 상태변수 미주입(함수·modifier 는 주입).
-- 정수(A): 오류 3분류(리터럴 = 컴파일 오류 / 디버그 입력 = 입력 검증 오류 / 그 외 = 엔진 불변식 위반), 부호 혼합 공통 타입
-  (`uintM → intN`, N>M), 정확한 상수 평가기(리터럴 임의 정밀도 + `constant` 선언, 순환 = 오류 — C-6 과 하나로),
-  비교 연산 폭 처리·`1 << x`/`2 ** x` 리터럴 타입 규칙 확인.
-- B1: immutable 초기화식이 컴파일 타임 상수면 그 값(지금은 항상 ⊤ — sound·비정밀).
-- B2: 다중 반환 tuple 원소별 join (배열·매핑 구간 인덱스 weak update 는 2026-10-23 (12) 에서 완료).
-- B3: 상수 ** 상수 정확 계산(`_pow_fits`), 구간 지수는 보수 유지.
-- 배열 bounds: 정상 접근 뒤 `length > i` 로 좁히기·범위 밖 접근 경로 차단(지금은 ⊤ 셀) — Phase 5. a → (외부) b → a 재진입 모델 (논의 대기).
-- 저장소 후속: enum 값 mapping 의 기본값이 첫 멤버(D5 의 ⊤ 아님 — 기존), `from` 을 식별자로 쓴 줄 파싱 실패(기존 문법 한계).
-- 루프 정밀도 (원인 확인 2026-10-23, 사용자 결정: **시간 되면** 해결 — 우선순위 낮음): 한 번만 도는 루프(n=1)에서도 `total += 1` 누적 변수가 [0,MAX].
-  ① 주원인 = non-relational 구간 도메인 — 헤더 join 에서 i·total 상관(i=1 ⇒ total=101)이 사라져 본문이 매 반복 total 을
-  키운다 → widening 필수(늦춰도 수렴 안 함 — "이른 widening" 아님). 저장소·weak update 무관(`total += 1` 로 재현).
-  후보: 작은 상수 반복 횟수 unrolling / widening threshold / 관계 도메인. ② 보조 = checked 산술 오버플로를 [0,MAX] 로 근사
-  (0.8 에서 `a + 1`, a∈[100,MAX] → [101,MAX] 가 정확 — 넘치는 상태는 revert) → 하한이 0 으로 붕괴.
-
-### 7.2 증분 편집
-- 미지원 수술(try/catch·do-while·break/continue 의 삭제·수정): 지금은 `IncrementalSurgeryError`. 구현 방향 = return/revert/
-  break/continue 삭제를 **소스 구조 기반 fall-through** 로 일반화, builder 수술 함수의 조용한 `return []` 를 "이미 제거됨"/
-  "처리 불가" 로 구분해 후자는 오류. (사용자: 추후 전부 구현)
-- SourceError 분류 확대(지금은 미정의 타입 1곳). 애매하면 내부 실패가 기본.
-- 프론트 revision 표시(현재 소스 revision ≠ committed revision 이면 CFG 결과를 "직전 정상 코드 기준"으로 — 지금은 진단 배너로 대신).
-
-### 7.3 의존성 (C: 선언 header 레지스트리)
-- 1A 등록 → 1B 해석(정적 타입·struct/enum·C3 선형화·using·시그니처) → 2 CFG 구성(순서 무관), 부모·라이브러리는 이름 연결,
-  본문·바인딩은 디버깅 시점, 빌드 후 **해석 커버리지 검사**(의존성은 forge 가 컴파일한 소스라 Solidity 유효성은 보장됨).
-- DeclarationId = 프로젝트 안의 이름 + 모호하면 오류(import alias 로 같은 이름 다른 선언 = limitation).
-- 폐기 예정: `_topo_order`·`_type_refs_in`·`reorder_members`·`_load_type_ref_pkls`. w36/w58/w65 순환 해소.
-- `get_full_struct_enum_defs` 가 직속 부모만 봄(visitor 는 체인 전체).
-- 의존성 재빌드로 바뀐 10 케이스(16_H_04/06, 70_H_04/05/10, 31_H_01, 52_H_23, 45_H_01, 47_H_02, 60_H_01) 원인 조사 — 다음 작업.
-- numscout_HIT 컴파일 불가 contraction 처리.
-
-### 7.4 프론트
-- 브라우저에서 실제 탐색 동작 확인(Continue 의 callee 진입·분기점 정지 포함).
-- 의존성 업로드 빌드 API(`DependencyStore` 자리), 업로드만으로 오류가 풀리는 경우 재검증.
-- solc 진단(선택): 엔진이 못 잡는 컴파일 오류(인자 타입 등)를 추가 진단으로.
 - 2026-10-22 (8): 사용자 결정 반영 — ① 컨트랙트 수준 선언 줄의 삭제·수정 = 후보를 **현재 소스 전체 재분석**(의존성만 올린
   빈 세션 `_pristine` 사본에서; 함수 본문 편집·선언 추가는 증분 그대로) → 지운 선언이 엔진에 남던 문제 해소, 참조가
   남으면 SourceError 로 거부. ② `_shift_cfg_meta` 는 의존성 CFG 를 옮기지 않음. ③ 입력 전제 검사 확장(`}` 뒤 문장,
@@ -488,3 +447,249 @@ SolQDebug 에서 물려받은 "편집 시점 즉시 평가" CFG 구성을
     조용히 사라짐, B2 다중 반환 tuple 첫 경로만(**unsound**, Engine:1755-1776), checked 오버플로 [0,MAX](Interval:737-746),
     `_pow_fits` 비트수 과대(2**200 → ⊤), immutable 상수 초기화식 버림, 함수 포인터 크래시, D10 루프 본문 intent 허용,
     `1 << x`/`2 ** x` 리터럴 mobile type 의심(solc 확인 필요), 부호 혼합 항목은 폐기 후보(Solidity 가 암묵 변환 불허).
+- 2026-10-23 (16): **남은 구현 + Yul P0-a (사용자 승인 — 의견 일치 항목만)**. 기록 = engine_fixes F68.
+  - 빈 본문 callee: 진입 환경을 ENTRY 에(타깃·callee 둘 다) → 47_H_02·78_H_02 Violated.
+  - 다중 return tuple 원소별 join(B2), 정적 배열 **전부** 범위 밖 디버그 입력 = 입력 오류(일부만 범위 밖은 미결정),
+    재귀 = 쓰기 집합(전이적, 컨테이너 단위) ⊤ + 반환 ⊤ 요약(D7), 함수 포인터 = ⊤(`Domain/FunctionRef.py`, internal 은 상태변수
+    전체 ⊤, D9 일부), library event(51_H_02 엔진 오류 해소 — cases74 메타데이터 Swap↔SwapUtils 불일치는 남음).
+  - using-for 수신자 = **정적 타입**(`_static_type_of` 확장: 전역·`.length`·`.balance`·멤버 호출 반환 타입), `"address.x"` 문자열
+    폴백 제거, 동적 bytes/string `.length` = ⊤.
+  - 함수 소유 컨트랙트 `owner_contract`(등록 시점) — pkl 이 부모·using 라이브러리 CFG 를 사본으로 중복 로드해 identity 역색인이
+    실패하던 문제(callee Step Into 누락 포함).
+  - 상속 디스패치: 인터페이스 함수 파라미터 기록, `has_body`, C3 선형화, 오버로드 해소(선언 포함·전 계층) → 본문 있는 첫 구현
+    디스패치, super/`Base.f()`/`this.f()` 도 선형화 기준 → 52_H_23 Warning.
+  - StructDefinition.members = {이름: SolType}(A-1) — 정적 타입의 struct 멤버 분기가 늘 죽어 있던 결함.
+  - **Yul P0-a** (`Interpreter/Semantics/YulEval.py`): builtin 을 Solidity 연산으로 낮추지 않고 EVM word 의미(mod 2^256,
+    0 나누기 = 0, 부호 연산, `shl/shr` 인자 순서)로 평가, 미지원 반환 builtin = ⊤ word, 효과 표(`sstore`·`delegatecall` = 상태변수
+    ⊤, `mstore`류 = 메모리 객체 ⊤ — 상수 주소 [0,0x60) 제외, call 출력 메모리), `revert`/`invalid` = ERROR, 좁은 타입 읽기 = ⊤ word,
+    쓰기 = cleanup. 임시: Yul `if/switch/for/function/return/stop/leave/break/continue`·파싱 실패 줄 = **실행되면 명시적 미지원
+    오류**(본문 줄은 CFG 에 만들지 않음). 슬라이서: assembly 안 여러 줄 식을 괄호가 닫힐 때까지 한 레코드로.
+  - 결과: rebuilt 48 일치 **23 → 26**(s13). 16_H_04 는 Violated → Warning — PRBMath mulDiv 의 `sub(sub(mm, prod0), …)` 를 구간
+    도메인이 관계 없이 wrap ⊤ 로 봄(예전 Violated 는 Yul 을 checked 산술로 잘못 평가한 결과). temp 전 스크립트 통과.
+  - 결정: A-2 = 부모 정의는 Complete 승격 시점에 가져오기 + 소유자 표시 + 한정 이름은 소유자 조회(승인). B(파라미터가 상태변수를
+    가림, 31_H_01) = 다른 LLM 검토 중. 16_H_04 정밀도(Yul 값 번호) = 나중. 다음 = **레지스트리(Temporary/Complete pkl)**.
+- 2026-10-23 (17): **의존성 레지스트리 R0~R3 (사용자 승인)** — `Dependencies/registry.py`. 단위 = 원본 소스 파일 하나의
+  전처리본(contraction 과 같은 전처리, 선언별 조각 폐기), 프로젝트별 이름 공간(같은 이름 두 단위 = 둘 다 Invalid — 현재 0건).
+  의존 = 본문 식별자 중 다른 단위가 선언한 이름(어휘 과근사), SCC 역위상 순서로 분석하고 의존 폐포의 결과가 바뀌면(지문)
+  다시 분석하는 고정점(합의안의 SCC 승격). 상태 Pending(미해석 이름 `UnresolvedName`)/Invalid(그 밖 오류)/Complete.
+  저장 = `deps/<p>/builds/build_NNN/{manifest.json, units/*.pkl}` + `CURRENT`, CFG 참조는 전부 이름(persistent id) → 로드 때
+  선언마다 객체 하나(사본 중복 제거). 로드 = 타깃 선언 집합과 같은 단위를 타깃 파일이 통째로 대신하고 그 의존 폐포만.
+  `_topo_order`·`_load_parent_pkls`·`_load_type_ref_pkls`·정규식 사전 수집·`split_decls` 폐기.
+  - 코어: 부모·using 라이브러리를 못 찾으면 조용히 건너뛰던 것 → `UnresolvedName`, 미정의 타입 → `UndefinedType`(SourceError).
+  - 새로 드러난 결함과 처리: F1 같은 파일 안 뒤쪽 최상위 선언 참조(w42 `enum Status`, w44 interface) → (a) 전처리 최상위
+    재배치(`reorder_top_level`, 사용자 승인; 근본 해법 (b) = 지연 해석, §7.3). F2 부모(인터페이스) struct 를 자식 상태변수
+    타입으로 사용(w36·w65 Basket, w58 VaultGovernance) → **A-2 구현**(사용자 승인): 부모 생성 시 struct·enum 정의를 자식 표로
+    가져옴(`ContractCFG.inherit_definitions`, 정의 객체에 `owner`), 소유자가 다른 같은 이름 = 오류.
+  - 결과: 42 프로젝트 전부 빌드(w34·w36·w58·w65 포함, 순환 프로젝트 3라운드). Complete 아닌 단위 = 기존 분석기 오류(Invalid 23).
+    rebuilt 48 일치 26 → **30** (s15: 42_H_01 회복, 65_H_01·70_H_04/05/10 해결, 36_H_02 판정 생김).
+    temp 전부 통과(transaction 35, session_flow 7, update 10, delete_cfg 7, smoke).
+  - 남음(보고): 58_H_02 `vg.internalParams().protocolGovernance.protocolTreasury()` — 부모 인터페이스 struct 를 반환하는 외부 호출의
+    멤버 정적 타입을 실행 컨트랙트 기준으로만 찾음. 31_H_01 = B 결함. R4(업로드 API)·R5(Complete 게이트) 미착수.
+
+- 2026-10-23 (18): **R4·R5 + Invalid 의존성·불일치 케이스 정리 (사용자 승인)**.
+  - 레지스트리: R4 증분(`ProjectRegistry.from_build`/`apply`, CLI `--add/--remove`, 영향 단위만 재분석), R5 게이트
+    (`load(require_complete)`, `DependencyNotReady`; `REQUIRE_COMPLETE` 는 아직 False — 케이스가 쓰는 의존 폐포에 Invalid 0).
+    타깃이 타입 순환(IA↔IB)에 걸려도 허용(객체 참조가 있을 때만 로드 오류). 단위 하나의 슬라이스 오류 = 그 단위만 Invalid.
+  - 58_H_02 정적 타입: struct·enum 타입에 선언 컨트랙트(`structOwner`/`enumOwner`) — 멤버 타입을 그 컨트랙트 정의 표에서.
+  - 파일 수준 error/event, `errorDefinition` 문법(`(p (',' p)*)?` — `*` 누락으로 1·3개 파라미터 불가), `visitErrorDefinition`.
+  - try/catch 빌드 경로 연결(방문자 빈 껍데기·try 줄 함수헤더 오분류·catch 다중·name mangling·join 줄 등록·catch 줄 밀림).
+  - Invalid 원인 6종: I1 함수 문맥 = 블록 시작 줄에 **등록된** 함수(텍스트 추측 폐기: `received` → receive 오인, 오버로드
+    타입 표기 불일치) + receive/fallback 등록, I2 배열 길이 = 컴파일 타임 상수식(`compile_time_constant`) + 의존성 멤버
+    재배치에서 constant 를 struct 앞으로, I3 `revert()`(문법), I4 값만 있는 식 문장(`expression` 문장), I5 슬라이서가
+    괄호가 닫힐 때까지 줄을 잇는다(여러 줄 for 헤더), I6 struct 이름 정규식.
+  - 케이스: S2 구간 비트 연산(`|`·`^` 상한 unsound → [max lo, 2^k−1]/[0, 2^k−1], 단일값 정확), M1 인자 intent = 호출 직전
+    상태(before_envs) + intent 평가 중 callee 캡처 끔, M2 한정 라이브러리 오버로드 반환 타입, M3 명시한 타깃 컨트랙트·함수
+    없음 = 오류(조용한 빈 결과 폐기), M4 intent 의 미선언 이름 = 사용자 진단, M5 IReturn = 받는 타입(부모 포함)이 선언한
+    view/pure 만(fail-open 폐기), M6 지역·파라미터 **인터페이스** 핸들도 IReturn + struct 반환 leaf 펼침·leaf 값 종류,
+    M8 analyze 가 intent 를 받아 intent 가 참조하는 상태변수·전역도 슬롯(`set_intents` = 슬롯만 재도출), 빈 줄 @During =
+    프로그램 지점(앞 문장 / 합류·출구 / 블록 진입). M7(callee 지역 인덱스)은 사용자 결정으로 하지 않음(⊤ 허용).
+  - 데이터(사용자 승인): override 16_H_06·36_H_02 = Violated(손계산), Nokon `@StateVar ethRateFix` 추가, 31_H_01 @During 앵커
+    L100 → L102(원본 작성 때 빈 줄 삽입으로 앵커가 `currentLockRatio` 선언 앞으로 밀렸다 — 원본 도구도 같은 위치로 해석).
+  - 결과: rebuilt 48 일치 30 → **39** (s18). 의존성 41 프로젝트 전부 Complete(n_HIT 제외). temp 전부 통과(서버 필요 2개 제외),
+    새 테스트 `temp/test_try_catch.py`·`temp/test_blank_during.py`·`temp/test_registry.py`.
+  - 후속(사용자 결정): **F49 폐기** — IReturn 은 인터페이스 호출 전용(컨트랙트 타입 캐스트·상태변수는 슬롯 아님, `process_ireturn`
+    도 거부). 다른 컨트랙트 인스턴스 storage 모델링은 future work(그때까지 컨트랙트 타입 외부 호출 반환 = ⊤).
+    cases74.csv 51_H_02 → SwapUtils, 60_H_01 → OptimisticLedgerLib(원본 intent 가 그 라이브러리 함수 안). rebuilt 48 일치 **41** (s19).
+  - 45_H_01 (사용자 결정: Warning 유지): 리포트 H-01 은 "borrow 가 maxBorrow·신용한도 검사를 accrueInterest **전에** 한다"(순서
+    버그)인데 케이스 intent `@Post borrowIndex(Entry) < borrowIndex(Exit)` 는 이를 표현하지 못한다 — 양의 이율이면 Satisfied,
+    0 이면 Violated(이자가 붙지 않는 정상 동작). `@During accrualBlockNumber == block.number`(L123 검사 줄) 은 Violated 로 버그를
+    표현함을 확인(케이스는 바꾸지 않음). n_HIT: 의존성 소스에서 0.4 이름 없는 fallback 제거(`SOURCE_EDITS`) → Complete.
+  - ⚠ w34 미빌드: 상수 길이가 평가되자 `Observation[16777215]` 정적 배열을 원소 단위로 만들다 메모리 8GB 초과(강제 종료).
+    정적 배열 표현 결정 대기(§7.1). w34 를 쓰는 케이스는 없다.
+
+- 2026-10-23 (19): **희소 원소별 배열 + 지연 widening 정리 (사용자 승인)**.
+  - 배열 A = (N 길이, D summary, M `elements: {index: 셀}`, S 선택자 셀). 정적 배열도 선언 때 원소를 만들지 않는다(예전
+    `_init_recursive` 가 `Observation[16777215]` 을 원소 단위로 만들어 w34 빌드가 8GB 초과). Read(k) = M[k] 또는 D,
+    join = 키 합집합 Read₁ ⊔ Read₂ + D₁ ⊔ D₂, 비교 = 의미상 Read. 0 초기화(지역 정적 배열·new·delete) = D 를 0 셀로.
+    지연 생성 경로의 qualified struct 정의 조회 통일(못 찾으면 오류 — 예전엔 조용히 멤버 없는 struct).
+    정적 범위 밖 디버그 입력·다른 길이의 값 목록 = 잘못된 디버깅 입력.
+  - 원소별 strong update 로 정밀해지자 3_H_05 가 160 초 → 900 초 초과. 원인 = 길이가 ⊤ 인 루프(`i < tokens.length - 1`)의
+    widening 지연이 [1,20] 상한 20 이었고, 그 callee 가 바깥 루프에서 79 회 재해석.
+  - 지연 widening(다른 LLM 검토 반영): d(L) = 조건에서 N̂ 를 얻으면 min(N̂, 300), 못 얻으면(평가 불가·`!=`·정보 없는 경계 —
+    폭 ≥ 타입 범위 절반) 2. 지연 횟수 = 루프 join 노드 방문 수(사용자 결정 유지). W_MAX(300) 에 닿으면 **강제 widening 으로 계속**,
+    600 에서도 수렴 안 하면 오류 — 예전엔 작업 목록이 남은 채 빠져나와 고정점이 아닌 환경을 썼다(unsound).
+  - 결과: rebuilt 48 일치 41 (s21, s19 와 판정·메시지 동일), 48 케이스 총 시간 640 초 → **55 초**, w34 빌드 최대 90MB,
+    의존성 42 프로젝트 전부 Complete. 새 테스트 `temp/test_sparse_array.py`.
+  - 남음: 선택자 셀(읽기로 만든 셀이 join 에서 버려졌다 다시 생김 — 수렴은 하지만 반복 낭비) → 다른 LLM 검토 프롬프트 전달.
+
+- 2026-10-24 (20): **R5 게이트 켬 + 프론트 M8 + 기록 정리 (사용자 승인)**.
+  - `REQUIRE_COMPLETE = True` — rebuilt 48 일치 41(s22, s21 과 판정·메시지 동일, 막힌 케이스 0), 총 49 초.
+  - M8 프론트: 서버 `_build` 가 요청 intent 를 `analyze_source` 에 넘김, 증분 `/analyze` 도 요청 intent 로 슬롯 도출,
+    새 `/set_intents`(CFG 그대로 슬롯만 재도출). 프론트 intent 추가·삭제 = `setIntents` → `verify`. tsc 통과,
+    새 테스트 `temp/test_set_intents.py`(7).
+  - 기록 정리: §7.4 아래에 잘못 붙어 있던 (8)~(16) 을 §6 으로 옮김, §7 완료 항목 삭제, 선택자 셀 계획(다른 LLM 검토) 기록.
+  - 발견(결정 대기): 52_H_04/34 IReturn 입력이 조용히 적용되지 않음 — case 키 `AggregatorV3Interface(chainlinkFeed)…` 가
+    소스(`AggregatorV3Interface(_aggregators[pairData.token1])…`)와 다름(s13 부터). 엔진이 내는 슬롯 키는 디버그 입력 문법이
+    파싱하지 못하고(캐스트 안 인덱스 식) 이어서 AttributeError.
+
+- 2026-10-25 (21): **어노테이션 파싱 실패 = 명시적 오류 + 52 입력 정리 (사용자 승인)**. 기록 = engine_fixes F72.
+  - 52_H_04/34: 소스와 맞지 않던 `AggregatorV3Interface(chainlinkFeed).latestRoundData()[0/1/4]` 입력 삭제(사용자 결정: 입력이 안
+    들어가면 지우고 Warning). 판정 Warning 그대로, slot_missing 0.
+  - 디버그 입력·intent 한 줄(`intentUnit`)에 문법 오류가 있으면 `AnnotationSyntaxError` — 예전엔 ANTLR 오류를 출력만 하고 복구된
+    트리로 진행해 visitor 가 None 으로 죽었다(`IF(feeds[t]).get()[k]`). engine_api 는 슬롯 입력 오류 Diagnostic 으로 돌려준다.
+  - 새 테스트 `temp/test_slot_roundtrip.py`: 48 케이스의 모든 슬롯 키가 입력 문법으로 다시 읽히는지. 못 읽는 키 = 52_H_04/34·192_H_01
+    (`IERC20(assets[i])`)·79_H_02(`IJoePair(IJoeFactory(factory).getPair())`) — 캐스트 인자가 식(KNOWN, future work). 29_H_08 의
+    `IBentoBoxMinimal.toAmount.selector` 는 호출이 아닌데 IReturn 슬롯으로 나옴 → (22) 에서 해결.
+  - rebuilt 48 일치 41 (s23 — s22 대비 52 두 케이스 slot_missing 만 사라짐), temp 전부 통과.
+  - 조사: `Evaluation.py` 의 IReturn 대체 조회(인터페이스·함수 이름만 비교, 주소 무시)가 실제 주 경로 — 31_H_01·52_H_04/34·5_H_12·
+    78_H_02·79_H_02 의 입력이 이 경로로 적용된다(B 패턴 조회가 잡지 못함) → (22) 에서 주소 비교 조회로 교체.
+
+- 2026-10-25 (22): **IReturn 캐스트 조회 = 주소까지 비교 + `.selector` 슬롯 제거 (사용자 승인)**. 기록 = engine_fixes F73.
+  - 원인: visitor 가 인터페이스 캐스트를 `TypeConversion(typeName, expression)` 으로 만드는데, Pattern B 조회는 `FunctionCallContext`
+    를 기대해 한 번도 실행되지 않았다 → 인터페이스·함수 이름만 맞추는 대체 조회가 모든 캐스트 호출을 처리(주소 무시).
+  - 수정: Pattern B 를 `TypeConversion` 으로 고치고(키 = 인터페이스, 주소 식별자, 함수), 대체 조회 삭제. 캐스트 인자가 식이면 ⊤.
+    호출 인자는 지금처럼 무시(사용자 결정). 슬롯 스캐너: 호출 없는 함수 멤버 참조(`I.f.selector`)는 IReturn 슬롯 아님.
+  - 결과: rebuilt 48 일치 41 (s24 — s23 과 판정·메시지 완전히 동일, 대체 조회로 받던 6 케이스도 Pattern B 로 같은 값),
+    `temp/test_slot_roundtrip.py` 48/48(29_H_08 해소), 새 `temp/test_ireturn_cast.py`(7), temp 전부 통과.
+  - 이어서(사용자 승인): 디버그 입력 Pattern B(`process_ireturn_cast`)도 본문 있는 컨트랙트·라이브러리 캐스트를 명시적 오류로
+    (Pattern A 와 같은 규칙 — 예전엔 받아 두고 실행 시 조회가 인터페이스만 봐서 조용히 무시). s25 = s24 동일, 테스트 10.
+
+- 2026-10-25 (23): **B 결함 = 명시적 미지원 + 31_H_01 rename (사용자 결정, DeclID = future work)**. 기록 = engine_fixes F74.
+  - 파라미터·named return 이 같은 이름의 상태변수를 가리면 `UnsupportedShadowing` — 함수 CFG 생성(`StaticCFGFactory.make_function_cfg`,
+    예전엔 상태변수 주입이 파라미터를 덮어씀)과 나중에 선언된 상태변수 주입(`ContractAnalyzer` 상태변수·상수) 두 곳. 지역변수 가림은
+    기존 D8(보관·복원)이 처리.
+  - 31_H_01: `wantToCVX(uint256 want)` → `_want`(타깃 contraction·case JSON·deps w31 `SOURCE_EDITS`). 결과 Violated(기대 일치).
+  - rebuilt 48 일치 **42** (s26 — s25 대비 31_H_01 만 바뀜).
+  - 재빌드에서 새로 Invalid 4 단위(48 케이스 의존 폐포 밖): w8 NFTXVaultUpgradeable·w110 StakedCitadel(`_name`), w61 CreditLine·
+    YearnYield(`_owner`) — 가려지는 상태변수가 모두 **부모의 private**(Solidity 이름 해석으로는 보이지 않아 실제 가림이 아님).
+    이름 하나짜리 환경에선 그래도 충돌한다 → (사용자 결정) `SOURCE_EDITS` 로 파라미터 rename(`nameArg`/`symbolArg`/`ownerArg` —
+    w8·w110 은 `_symbol` 도 같은 이유). 42 프로젝트 전부 Complete, s27 = s26 동일(42/48).
+  - 환경 구조(상태변수를 함수마다 이름으로 복사해 넣는 방식 vs 이름 해석 + 소유자 키 storage 조회)는 다른 LLM 검토 프롬프트 작성.
+
+## 7. 추후 구현·결정 대기 목록 (2026-10-22 정리 — §6 에 흩어진 항목을 모음, 완료 시 여기서 지운다)
+
+### 7.1 엔진 의미론 (Phase 5~7)
+- Phase 5: D10 루프 본문 intent 거부. (D7 재귀·D9 함수 포인터 ⊤·Yul P0-a 는 2026-10-23 (16) 완료)
+- Yul P0-b: 블록 단위 파싱 + if/switch/for CFG화, Yul 함수, `return`/`stop` 종료 sink, `.slot`/`.offset` 접근.
+- Yul 정밀도: 블록 안 값 번호(같은 식 = 같은 값). (16_H_04 의 실제 원인은 구간 비트 연산이었다 — (18) 에서 해결)
+- **future work (사용자 결정 2026-10-23)**: 외부 호출 뒤 `address(this).balance` 효과 미반영 — 외부 호출이 이 컨트랙트로 ETH 를
+  보내도 값이 진입 값 그대로라 numscout_EthereumGod 이 Satisfied(unsound). 외부 호출 뒤 havoc 이 해법 후보.
+- 배열 선택자 셀 (2026-10-24 사용자 결정: **지금은 수렴하므로 그대로 둔다** — 반복 낭비만 있음. 손댈 때 계획 = 다른 LLM 검토 의견):
+  - 1차 = (a) 읽기는 선택자 셀을 만들지 않는다(기존 유효 셀은 재사용, 쓰기·디버그 입력 제약만 생성). (b) 한쪽 셀을 의미상 읽기와
+    병합 / (c) 의미적 동치 비교는 별도 정밀도 작업으로 보류.
+  - join 에서 한쪽에만 있는 셀을 버리는 것은 "바인딩이 끊김"이 아니라 **sound 한 보수적 셀 제거**로 정의(쓰기 효과는 구체 셀·summary 에 남아야 함).
+  - 선택자 identity = (위치, 정규화 식, 바인딩 문맥 — 식별자가 가리키는 선언·호출 프레임) → B 결함의 DeclID 와 함께 설계.
+    vals 메타데이터는 보존 상태가 아니라 의존 변수 환경에서 재계산되는 파생 정보로. 불안정 선택자는 summary 로 흡수(구조적 widening).
+  - 회귀 시나리오 6: ① `m[i]=9; x=m[i]` → 9 ② `m[i]=9; i=j; x=m[i]` → 옛 셀 재사용 금지 ③ 한쪽 분기에서만 읽기 → join 뒤 셀 없음
+    ④ 한쪽 분기에서만 쓰기 → 셀을 버려도 쓰기 효과 포함 ⑤ `amounts[i+1]` 반복 쓰기 → widening 뒤 값·저장소 표현 함께 안정
+    ⑥ 내부 호출로 같은 선택자 전달 → 같은 위치 유지, 프레임 종료 뒤 옛 셀 재사용 금지.
+- callee 결과 재사용(같은 입력 환경이면 재해석 생략) — future work.
+- **future work (사용자 결정 2026-10-25)**: IReturn 키 문법 확장 — 캐스트 인자를 식별자에서 일반 식으로(`IF(feeds[t]).get()`,
+  중첩 캐스트). 호출 인자는 지금처럼 무시(함수당 슬롯 하나 — 어떤 인자든 준 값), 인자별 구분이 필요하면 그때.
+- **future work**: 다른 컨트랙트 인스턴스의 storage 모델 — 본문 있는 컨트랙트 타입 외부 호출을 그 본문으로 실행(지금은 반환 ⊤).
+- **future work**: B 결함(이름 충돌) — 환경 구조 변경. 설계안은 §7.5.
+- 정적 배열 디버그 입력 일부만 범위 밖(i∈[0,5], 길이 3) 처리 — 미결정.
+- Phase 6: do-while **빌드 경로 복구**(마이크로 실패: do-while 루프변수 미선언; try/catch 는 (18) 완료),
+  do-while 안 continue/break, 다중 `_` modifier.
+- Phase 7: 생성자 pre-state(D5 예외), 생성자 CFG 에 부모 상태변수 미주입(함수·modifier 는 주입).
+- 정수(A): 오류 3분류(리터럴 = 컴파일 오류 / 디버그 입력 = 입력 검증 오류 / 그 외 = 엔진 불변식 위반), 부호 혼합 공통 타입
+  (`uintM → intN`, N>M), 정확한 상수 평가기(리터럴 임의 정밀도 + `constant` 선언, 순환 = 오류 — C-6 과 하나로),
+  비교 연산 폭 처리·`1 << x`/`2 ** x` 리터럴 타입 규칙 확인.
+- B1: immutable 초기화식이 컴파일 타임 상수면 그 값(지금은 항상 ⊤ — sound·비정밀).
+- B3: 상수 ** 상수 정확 계산(`_pow_fits`), 구간 지수는 보수 유지.
+- 배열 bounds: 정상 접근 뒤 `length > i` 로 좁히기·범위 밖 접근 경로 차단(지금은 ⊤ 셀) — Phase 5. a → (외부) b → a 재진입 모델 (논의 대기).
+- 저장소 후속: enum 값 mapping 의 기본값이 첫 멤버(D5 의 ⊤ 아님 — 기존), `from` 을 식별자로 쓴 줄 파싱 실패(기존 문법 한계).
+- 루프 정밀도 (원인 확인 2026-10-23, 사용자 결정: **시간 되면** 해결 — 우선순위 낮음): 한 번만 도는 루프(n=1)에서도 `total += 1` 누적 변수가 [0,MAX].
+  ① 주원인 = non-relational 구간 도메인 — 헤더 join 에서 i·total 상관(i=1 ⇒ total=101)이 사라져 본문이 매 반복 total 을
+  키운다 → widening 필수(늦춰도 수렴 안 함 — "이른 widening" 아님). 저장소·weak update 무관(`total += 1` 로 재현).
+  후보: 작은 상수 반복 횟수 unrolling / widening threshold / 관계 도메인. ② 보조 = checked 산술 오버플로를 [0,MAX] 로 근사
+  (0.8 에서 `a + 1`, a∈[100,MAX] → [101,MAX] 가 정확 — 넘치는 상태는 revert) → 하한이 0 으로 붕괴.
+
+### 7.2 증분 편집
+- 미지원 수술(try/catch·do-while·break/continue 의 삭제·수정): 지금은 `IncrementalSurgeryError`. 구현 방향 = return/revert/
+  break/continue 삭제를 **소스 구조 기반 fall-through** 로 일반화, builder 수술 함수의 조용한 `return []` 를 "이미 제거됨"/
+  "처리 불가" 로 구분해 후자는 오류. (사용자: 추후 전부 구현)
+- SourceError 분류 확대(지금은 미정의 타입 1곳). 애매하면 내부 실패가 기본.
+- 프론트 revision 표시(현재 소스 revision ≠ committed revision 이면 CFG 결과를 "직전 정상 코드 기준"으로 — 지금은 진단 배너로 대신).
+
+### 7.3 의존성 (C: 선언 header 레지스트리)
+- 1A 등록 → 1B 해석(정적 타입·struct/enum·C3 선형화·using·시그니처) → 2 CFG 구성(순서 무관), 부모·라이브러리는 이름 연결,
+  본문·바인딩은 디버깅 시점, 빌드 후 **해석 커버리지 검사**(의존성은 forge 가 컴파일한 소스라 Solidity 유효성은 보장됨).
+- DeclarationId = 프로젝트 안의 이름 + 모호하면 오류(import alias 로 같은 이름 다른 선언 = limitation).
+- (2026-10-23 R0~R3 완료: `_topo_order`·`_type_refs_in`·`_load_type_ref_pkls` 폐기, w36/w58/w65 순환 해소.)
+- 남은 레지스트리: R4 서버 엔드포인트(업로드 UI 와 함께 — API `from_build`/`apply` 는 완료). (R5 게이트는 2026-10-24 켬)
+- F1 (b) 지연 해석: 선언 header 단계(이름·종류 → struct/enum 정의 → 나머지) 로 같은 파일·다른 파일 참조를 한 방식으로 —
+  되면 `reorder_members`·`reorder_top_level` 폐기.
+
+### 7.4 프론트
+- 브라우저에서 실제 탐색 동작 확인(Continue 의 callee 진입·분기점 정지 포함).
+- 의존성 업로드 빌드 API(`DependencyStore` 자리), 업로드만으로 오류가 풀리는 경우 재검증.
+- solc 진단(선택): 엔진이 못 잡는 컴파일 오류(인자 타입 등)를 추가 진단으로.
+
+### 7.5 환경 구조 — 선언 정체성(DeclID) 기반 이름 해석 + Locals/Storage 분리 (future work, 설계안 2026-10-25)
+배경: 노드 env 가 `dict[이름 → 변수]` 하나라 storage 와 지역이 같은 키 공간에 있다. 함수 CFG 생성이 자기·부모 상태변수(private 포함)를
+이름 키로 미리 넣고, callee 진입·복귀도 이름으로 복사한다 → 파라미터·named return 과 상태변수 이름이 같으면 덮어씀(31_H_01 `want`,
+OZ upgradeable 부모 private `_name/_symbol/_owner`). 지금은 `UnsupportedShadowing` + 소스 rename(§6 (23)). 다른 LLM 검토 2회
+(10-23: 전면 DeclID 권고, 10-25: 아래 절충안 찬성 + 보완 3가지). 사용자 의견: DeclID 쪽이 나아 보임.
+
+**목표 모델** — E_n = (L_n, S_n), 실행별 불변 S_0
+- **정적 Resolver**: 식 참조마다 `Resolve(e, 소스 위치) → Ref`(LocalRef / StateRef(StateDeclID) / GlobalRef / ConstantRef /
+  StoragePathRef(root, path)). **이름 해석과 값 조회를 분리** — "env 에 없으면 부모 조회"(동적)가 아니라 CFG 구성 때 소스 위치의
+  lexical scope 로 결정(지역 선언이 아직 실행되지 않았다고 상태변수로 떨어지면 안 됨). 상속 함수 본문의 참조는 **그 본문의 lexical
+  context**(Base.g() 안의 Base private x)로, `super`/`Base.f()` 는 먼저 실행 본문을 C3 로 정한 뒤 그 본문 기준. 필요한 메타데이터 =
+  선언 ID·소유 컨트랙트·이름·타입·**가시성**(지금 미기록)·constant/immutable·소스 위치·scope, 상속 그래프, 컴파일러 버전.
+- **Storage S_n**: `StateDeclID → 값` 희소 override. Read(S,k) = S[k] 또는 S_0[k]. join/widening = 키 합집합에서 Read₁ ⊔/∇ Read₂,
+  비교 = 의미상(S_0 와 같은 override 제거 정규화 후 dict 비교 재사용). "키 없음 ≠ ⊤" (S_0 값 보존). S_0 = D5 정책(디버그 입력 >
+  mutable 은 ⊤, initializer 는 진입값 아님) — 같은 위치에 모순 입력이면 오류. constant/immutable 은 별도 정적 값 테이블. S_0 객체는
+  절대 수정하지 않는다(경로·실행 간 누수 금지 — 테스트).
+- **Locals L_n**: 당분간 이름 키 + D8(가림 보관·복원) 유지, 단 Resolver 의 LocalRef 는 선언 정체성을 기록 → 나중에 지역도 DeclID
+  저장으로 바꿀 때 저장 방식만 교체.
+- **전역 Γ**: msg/block/tx 는 Storage 가 아닌 별도 실행 문맥(지금은 이름에 `.` 이 있으면 공유 — 의미 기준 아님).
+- **호출**: callee = 새 Locals + caller 의 Storage 스냅샷 그대로 → 정상 복귀 경로들의 Storage join 을 caller 로. 이름 필터·파라미터
+  예외 제거. 재귀 근사 쓰기 집합 = StateDeclID. 경로 간 공유 mutable dict 금지(copy-on-write).
+
+**검토 의견(내 판단, 결정 필요)**
+- **StateDeclID 형태**: 리뷰어는 "(컨트랙트 이름, 변수 이름)" 대신 고유 선언 ID 를 권했으나, 레지스트리가 프로젝트 전역 선언 이름 유일성을
+  이미 강제한다(같은 이름 두 단위 = Invalid). 그래서 **(소유 컨트랙트, 변수 이름) 은 이 프로젝트에서 유일한 선언 ID** 다(0.5 부모·자식
+  동명 상태변수도 소유자가 달라 구분). 장점 = 피클·레지스트리 로드·타깃 단위 교체에도 안정적(줄 번호·카운터 기반 ID 는 증분 편집·
+  재빌드마다 바뀜). → 구조화 ID `StateDeclID(owner, name)` + "유일성은 레지스트리 불변식" 명시를 권함.
+- **지역까지 전면 DeclID 를 지금 하지 않는 이유**: 지역 선언 ID 는 함수 안 위치(scope 경로)가 필요한데 **증분 편집이 라인 이벤트마다
+  CFG 를 수술**하므로 ID 가 편집에 흔들리고, D8 재작성이 필요. Resolver 가 LocalRef 에 선언을 기록해 두면 이후 전환은 저장 교체만 남는다.
+- **리뷰어가 다루지 않은 이 프로젝트 고유 쟁점**: (1) 증분 편집 — 선언 추가·삭제·수정(지역 `want` 를 앞에 추가 등)은 뒤 참조의 해석을
+  바꾸므로 Resolver 결과를 해당 함수(상태변수 선언 변경이면 컨트랙트·자식 전체) 단위로 다시 계산해야 한다 — 트랜잭션 후보 적용 경로에
+  포함. (2) 의존성 pkl 의 CFG 는 IR 에 Ref 를 실어 저장하므로 Ref 직렬화가 레지스트리의 이름 기반 persistent-id 와 맞아야 한다.
+  (3) 프론트 노드별 상태 표시는 지금 env 전체를 내보낸다 — 희소 Storage 에선 "함수·callee·intent 가 참조하는 상태변수"의 Read 값만
+  내보내고, 표시 이름은 Locals / State(`BaseStrategy.want`) 영역 분리(평면 dict 로 합치면 충돌 재발).
+- **디버그 슬롯·intent**: 슬롯 문자열(`@Param want` / `@StateVar want`)은 그대로, 서버가 슬롯 종류로 Ref 를 정함. 같은 원문이 서로 다른
+  상태변수로 해석되면(0.5 동명) 명시적 모호성 오류. intent 는 그 위치의 Solidity 해석을 따르고(파라미터 우선), 가려진 상태변수 직접
+  참조는 미지원(문법 동결). 부모 함수에 단 intent 는 부모 lexical scope 로 해석. 복합 슬롯 `poolInfo[_pid].x` = 루트 StateRef + 인덱스
+  식의 Ref — 선택자 셀 identity(§7.1)와 같은 기반.
+- **경계**: storage reference alias(`S storage p = m[a]`, library `S storage s` 인자)는 이 변경으로 해결되지 않는다 — LocalRef 값이
+  StoragePathRef 를 가리키게 하거나 참조 인자 효과 전달이 필요(별도 과제).
+
+**이행 순서(안)**
+1. **Phase 1 — Resolver 도입, 표현 유지**: `ref = resolve(expr, ctx)` / `env.read(ref)` / `env.write(ref, v)` 로 이름 접근을 모두 이전
+   (Evaluation·Update·Refine·modifier 합성 `_rename_in_expr`·재귀 쓰기 집합·선택자 셀 무효화 `purge_scope`·intent·디버그 주입·슬롯·
+   직렬화). Ref 는 아직 기존 이름 키로 변환, 두 선언이 같은 키가 되면 `UnsupportedShadowing` 유지. 기대 = 48 케이스·temp 결과 불변.
+   modifier 이름 치환은 이 단계에서 선언 기준으로(잘못된 치환 검출).
+2. **Phase 2 — E = (L, S) 교체**: 상태변수 주입·늦은 주입·callee 이름 필터 제거, Storage = StateDeclID 희소 + S_0, Γ 분리.
+   이 단계부터 `UnsupportedShadowing` 제거. 평면 dict 직접 접근이 남지 않도록 Environment API 외 접근 금지 검사.
+3. 이후 선택: 지역 DeclID 저장, storage alias.
+
+**회귀 테스트(최소)**: 48 케이스(Phase 1 불변 / Phase 2 변화는 모두 설명) · Param vs State 같은 이름 · 부모 private vs 자식 Param(내부 호출
+뒤 둘 다 보존) · named return vs State · 블록 지역 가림(D8 동일) · modifier 지역 vs 상태변수 · super/부모 함수의 private · 재귀 havoc =
+StateID 만 · 배열·매핑 선택자 must-alias 보존 · 디버그 입력 A→B→A 격리 · join/widening 희소 Storage 의미 · S_0 불변.
+
+**평가 기록**: 소스 rename 은 실험 자산 변경 — 원본 그대로 / 의미 보존 rename / `UnsupportedShadowing` 사례를 구분해 기록.
+현재 rename = 31_H_01 타깃(`want`→`_want`), deps `SOURCE_EDITS` w31·w8·w110·w61(`build_project_deps.py`). 리뷰어 권고 = 논문 최종 평가 전
+우선순위 상향.

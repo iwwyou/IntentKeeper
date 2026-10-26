@@ -7,6 +7,7 @@ if TYPE_CHECKING:                                         # 타입 검사 전용
 
 from Utils.CFG import ContractCFG, FunctionCFG
 from Utils.Helper import VariableEnv
+from Utils.Errors import UnsupportedShadowing
 from Domain.Interval import UnsignedIntegerInterval, IntegerInterval, BoolInterval
 from Domain.Variable import GlobalVariable, Variables, ArrayVariable, StructVariable, EnumVariable, MappingVariable
 from Domain.AddressSet import AddressSet
@@ -309,10 +310,17 @@ class StaticCFGFactory:
 
         # (1) state / constant variables  ─ 존재할 때만 주입
         #     현재 contract + parent 체인 순회
+        # (2026-10-25) 파라미터·named return 이 같은 이름의 상태변수를 가리면 명시적 미지원 — 예전엔 아래 주입이 파라미터를
+        #   덮어썼다(31_H_01 `wantToCVX(uint256 want)` vs 상태변수 `address want`).
+        _locals = {p_name: "parameter" for _, p_name in params if p_name}
+        _locals.update({r_name: "named return" for _, r_name in returns if r_name})
+
         def _inject_state_vars(cfg_obj):
             sv_node = getattr(cfg_obj, "state_variable_node", None)
             if sv_node and getattr(sv_node, "variables", None):
                 for v in sv_node.variables.values():
+                    if v.identifier in _locals:
+                        raise UnsupportedShadowing(name, v.identifier, _locals[v.identifier])
                     fcfg.add_related_variable(v)
             # parent 체인 재귀
             for parent_cfg in getattr(cfg_obj, "parent_cfgs", {}).values():

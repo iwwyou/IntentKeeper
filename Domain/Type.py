@@ -18,6 +18,11 @@ class SolType:
         # 구조체 타입 정보
         self.structTypeName = None  # 구조체 이름 (문자열)
         self.enumTypeName = None
+        # (2026-10-23) struct·enum 을 **선언한** 컨트랙트/라이브러리 이름 (파일 수준 = None).
+        #   Solidity 의 struct 타입 = (선언 스코프, 이름). 이름만으로 실행 중인 컨트랙트에서 찾으면, 다른 컨트랙트가 선언한
+        #   struct 를 반환하는 외부 호출(`vg.internalParams().protocolGovernance`)의 멤버 타입을 못 찾는다.
+        self.structOwner = None
+        self.enumOwner = None
 
         # user-defined value type alias (type UFixed18 is uint256;)
         self.aliasName = None  # resolve 전 원래 타입 이름 (library function lookup용)

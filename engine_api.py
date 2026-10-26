@@ -405,9 +405,9 @@ def _external_call_roots(ccf, interface_names, contract_cfgs) -> dict:
       · 캐스트 `IFoo(a).f()` / `Vault(a).f()` → 루트가 **타입 이름** 자체
       · 변수  `v.f()`                        → 루트가 변수명, 타입은 `typeInfo.interfaceName`
 
-    ★ 구체 컨트랙트도 인터페이스와 **동일 취급**한다(F49) — 컨트랙트 타입 캐스트는 런타임
-      검사가 없으므로 주소에 배포된 임의의 코드가 실행된다 = callee 코드가 타입으로 정해지지
-      않는다. 라이브러리는 제외한다(external call 이 아니라 하강 해석 대상).
+    ★ (2026-10-23 사용자 결정, F49 폐기) **인터페이스만**. IReturn 은 본문이 없는 인터페이스 호출의 반환값을 입력으로 주는
+      장치다 — 본문이 있는 컨트랙트 타입(`ERC20(x).f()`, `Vault v; v.f()`)은 그 본문을 실행해야 하는 대상이지 입력이 아니다.
+      다른 컨트랙트 인스턴스의 storage 모델링은 future work(그때까지 컨트랙트 타입 외부 호출 반환은 ⊤).
 
     ⚠ 이 판정은 **@IReturn 슬롯 도출(`_derive_debug_slots`)과 opaque 호출 표시(N4)** 양쪽이
       쓴다. 두 곳에 각각 적으면 조용히 어긋나므로 여기 한 곳에만 둔다.
@@ -419,15 +419,12 @@ def _external_call_roots(ccf, interface_names, contract_cfgs) -> dict:
     # 타입 이름 (캐스트 형태)
     for nm in interface_names:
         roots[nm] = nm
-    for nm, c in contract_cfgs.items():
-        if c is not None and not isinstance(c, LibraryCFG):
-            roots.setdefault(nm, nm)
-    # 그 타입의 상태변수 (변수 형태)
+    # 그 타입의 상태변수 (변수 형태) — visitor 는 컨트랙트 타입도 typeCategory "interface" 로 적으므로 이름으로 가른다
     svn = getattr(ccf, "state_variable_node", None) if ccf is not None else None
     for nm, var in ((getattr(svn, "variables", {}) if svn is not None else {}) or {}).items():
-        ti = getattr(var, "typeInfo", None)
-        if getattr(ti, "typeCategory", None) == "interface" or getattr(ti, "interfaceName", None):
-            roots[nm] = getattr(ti, "interfaceName", None) or nm
+        ifc = getattr(getattr(var, "typeInfo", None), "interfaceName", None)
+        if ifc and ifc in interface_names:
+            roots[nm] = ifc
     return roots
 
 
@@ -986,6 +983,26 @@ def _navigate(obj, accs):
     return cur
 
 
+def _interface_handles(f, interface_names) -> dict:
+    """(2026-10-23, M6) 함수 f 의 파라미터·지역변수 중 **인터페이스 타입**(본문 없는 선언)인 것 → 인터페이스 이름.
+    `ILpIssuerGovernance vg = ILpIssuerGovernance(addr); vg.delayedStrategyParams(n)` 처럼 지역 핸들로 하는 외부 view
+    호출도 @IReturn 입력 대상이다(58_H_02 — SolidityGuardian 케이스가 이렇게 줬다). 컨트랙트 타입은 여기 넣지 않는다
+    (IReturn 은 인터페이스 전용 — 2026-10-23 사용자 결정)."""
+    out = {}
+    def _take(name, ti):
+        nm = getattr(ti, "interfaceName", None)
+        if name and nm and nm in interface_names:
+            out[name] = nm
+    for n in f.graph.nodes():
+        for st in getattr(n, "statements", []) or []:
+            if getattr(st, "statement_type", None) == "variableDeclaration":
+                _take(st.var_name, getattr(st, "type_obj", None))
+    rv = getattr(f, "related_variables", {}) or {}
+    for pn in getattr(f, "parameters", []) or []:
+        _take(pn, getattr(rv.get(pn), "typeInfo", None))
+    return out
+
+
 def _declared_locals(f) -> set:
     """함수 안에서 선언된 지역변수 이름 (파라미터 제외)."""
     names = set()
@@ -1048,7 +1065,7 @@ def _is_address_this(b) -> bool:
 
 
 def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
-                        interface_names=None, contract_cfgs=None, an=None) -> list[DebugSlot]:
+                        interface_names=None, contract_cfgs=None, an=None, intent_texts=()) -> list[DebugSlot]:
     """구조적 debug 슬롯 도출(값 이전). 디버그 입력 = **타깃 함수 진입 시점**의 값이므로, 이 함수가 실행 중 읽을 수 있는
     모든 것 — 타깃 본문 + (2026-10-23) 내부 호출·modifier·라이브러리·super/this 로 이어지는 함수들(footprint) — 을 본다.
       Param     = 파라미터(스칼라) · 복합 파라미터의 접근 경로(`accepted.valuation`, `self.balances[account]`)
@@ -1087,6 +1104,8 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
         sub, locs = frame["sub"], frame["locs"]
         if name in sub:
             return sub[name][1]
+        if name in frame.get("ifc", {}):
+            return "IReturn"
         if name in locs:
             return None
         if name in ext_roots:
@@ -1154,22 +1173,26 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
             cls = classify(root, frame)
             has_call = any(k == "call" for k, _ in accs)
             if cls is not None and not (cls != "IReturn" and has_call):
-                try:
-                    label = lab(e, frame)
-                except _Untranslatable:
-                    label = None
-                if label is not None:
-                    if cls == "IReturn":
-                        # IReturn 값은 **호출 지점 원문**(callee 안이면 callee 의 이름)으로 조회된다(ireturn_registry 키) —
-                        #   슬롯 키는 원문, view/pure·튜플 판정용 타입만 번역된 루트로 찾는다.
-                        raw = _ap_label(e)
-                        ireturn_labels.add(raw)
-                        rn = label_root_name(label)
-                        _tn = ext_roots.get(rn) or ext_roots.get(getattr(root, "typeName", None))
-                        _fn = next((k for kind, k in reversed(accs) if kind == "member"), None)
-                        if _tn and _fn:
-                            ireturn_meta[raw] = (_tn, _fn)
-                    elif accs:
+                if cls == "IReturn" and not has_call:
+                    # (2026-10-25) 호출 없이 함수 멤버만 참조(`I.f.selector`)는 외부 호출이 아니다 — 컴파일 시점 상수, 슬롯 없음(29_H_08).
+                    pass
+                elif cls == "IReturn":
+                    # IReturn 값은 **호출 지점 원문**(callee 안이면 callee 의 이름)으로 조회된다(ireturn_registry 키) —
+                    #   슬롯 키는 원문이라 타깃 이름으로 번역할 필요가 없다(지역 핸들 `vg.f()` 도). 타입은 루트에서 찾는다.
+                    raw = _ap_label(e)
+                    rn = getattr(root, "identifier", None) if _ap_is_ident(root) else None
+                    _tn = (frame.get("ifc", {}).get(rn) if rn else None) or ext_roots.get(rn) \
+                        or ext_roots.get(getattr(root, "typeName", None))
+                    _fn = next((k for kind, k in accs if kind == "member"), None)
+                    ireturn_labels.add(raw)
+                    if _tn and _fn:
+                        ireturn_meta[raw] = (_tn, _fn)
+                else:
+                    try:
+                        label = lab(e, frame)
+                    except _Untranslatable:
+                        label = None
+                    if label is not None and accs:
                         compound.setdefault(label, cls)
                 for side in _ap_side_exprs(e):
                     scan(side, frame)
@@ -1270,7 +1293,8 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
             return
         visited.add(key)
         locs = declared_locals(f) | {p for p, (lb, _c) in sub.items() if lb is None}
-        queue.append((f, {"sub": sub, "locs": locs, "lib": lib, "strict": depth > 0}, depth))
+        ifc = {k: v for k, v in _interface_handles(f, interface_names).items() if k not in sub}
+        queue.append((f, {"sub": sub, "locs": locs, "lib": lib, "strict": depth > 0, "ifc": ifc}, depth))
 
     def follow_call(e, frame):
         args = list(getattr(e, "arguments", None) or [])
@@ -1298,6 +1322,32 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
             for e in _ap_node_exprs(n):
                 scan(e, frame)
         modifiers_of(f, frame, depth)
+
+    # ── intent 가 참조하는 진입 값 (2026-10-23, M8) ───────────────────
+    #   함수가 읽지 않고 intent 만 참조하는 상태변수도 진입 값이 있어야 한다 — 버그가 "함수가 그 변수를 갱신하지 않는다"
+    #   이면 그 변수는 @Post 에만 나온다(SwordCrowdsale `weiRaised(Entry) > weiRaised(Exit)`). 슬롯이 없으면 진입 값이 ⊤ 라
+    #   Entry/Exit 가 같은 값이라는 것을 도메인이 모른다. 대상: 상태변수(스칼라·접근 경로)·전역. 지역변수는 입력이 아니다.
+    _AP = _re.compile(r"(?<![\w$.])([A-Za-z_]\w*)((?:\[[^\[\]]+\]|\.[A-Za-z_]\w*)*)")
+    _ok_index = set(params) | set(statevars) | {"msg", "block", "tx", "this", "address", "true", "false"}
+    for text in intent_texts or ():
+        t = _re.sub(r"\(\s*(?:Entry|Exit|Before|After)\s*\)", "", text or "")
+        if _re.search(r"address\s*\(\s*this\s*\)\s*\.\s*balance", t):
+            globals_used.add("address(this).balance")
+        for m in _AP.finditer(t):
+            root, tail = m.group(1), m.group(2).replace(" ", "")
+            if root in ("msg", "block", "tx"):
+                mm = _re.match(r"\.([A-Za-z_]\w*)", tail)
+                if mm:
+                    globals_used.add(f"{root}.{mm.group(1)}")
+                continue
+            if root not in statevars:
+                continue
+            if not tail:
+                scalars.add(root)
+                continue
+            if not all(_idents_in(ix) <= _ok_index for ix in _index_texts(root + tail)):
+                continue                       # 인덱스가 지역변수 등 — 진입 시점 입력 경로가 아니다
+            compound.setdefault(root + tail, "StateVar")
 
     # ── 슬롯 만들기 ───────────────────────────────────────────────
     def root_obj(label, cls):
@@ -1370,15 +1420,23 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
         add("GlobalVar", g, _valuekind_of(getattr(gvar, "typeInfo", None), type(gvar).__name__, g))
 
     # 5) @IReturn — 스캔 ∪ registry. 튜플 반환이면 원소별 `[k]`
+    _handles = _interface_handles(fcfg, interface_names)
     for key in getattr(fcfg, "ireturn_registry", {}) or {}:
-        ireturn_labels.add(".".join(str(x) for x in key if x))
+        label = ".".join(str(x) for x in key if x)
+        ireturn_labels.add(label)
+        if label not in ireturn_meta and len(key) >= 2:      # 입력으로 들어온 키 = (핸들 이름, 함수 이름, 접근 체인)
+            tn = ext_roots.get(key[0]) or _handles.get(key[0]) or \
+                (getattr(fcfg, "interface_var_types", None) or {}).get(key[0])
+            if tn:
+                ireturn_meta[label] = (tn, key[1])
 
     def ireturn_rejected(label: str) -> bool:
-        """선언 mutability 가 view/pure 가 아님이 확정된 슬롯인가 (S0b — `process_ireturn_*` 게이트와 같은 규칙).
-        fail-open: 타입/함수를 못 찾으면 제외하지 않는다."""
+        """IReturn 슬롯이 **아닌가**: 받는 쪽 타입(부모 포함)이 그 이름의 view/pure 함수를 선언하지 않았다.
+        (2026-10-23, M5) 예전엔 fail-open(못 찾으면 통과)이라 using-for 라이브러리 함수
+        `ERC20(token).safeTransfer(..)`(62_H_10) 가 IReturn 슬롯이 됐다 — 그 타입의 멤버가 아니므로 외부 호출이 아니다."""
         fcs = ireturn_cands(label)
         if not fcs:
-            return False
+            return True
         return all(getattr(c, "mutability", None) not in ("view", "pure") for c in fcs)
 
     def ireturn_cands(label):
@@ -1386,16 +1444,38 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
         if meta is None:
             return []
         tn, fn = meta
-        cfg = contract_cfgs.get(tn)
-        if cfg is None:
-            return []
-        try:
-            fc = cfg.get_function_cfg(fn)
-        except Exception:
-            fc = (getattr(cfg, "functions", {}) or {}).get(fn)
-        if fc is None:
-            return []
-        return list(fc.values()) if isinstance(fc, dict) else [fc]
+        out, seen, todo = [], set(), [tn]
+        while todo:                                  # 인터페이스 상속 체인(IVaultGovernance ← ILpIssuerGovernance)
+            nm = todo.pop(0)
+            if nm in seen:
+                continue
+            seen.add(nm)
+            cfg = contract_cfgs.get(nm)
+            if cfg is None:
+                continue
+            sub = (getattr(cfg, "functions", {}) or {}).get(fn) or {}
+            out.extend(sub.values() if isinstance(sub, dict) else [sub])
+            todo.extend(getattr(cfg, "parent_contracts", None) or [])
+        return out
+
+    def ret_struct_def(t):
+        """struct 반환 타입의 정의 — 선언한 인터페이스(structOwner) 기준."""
+        if getattr(t, "typeCategory", None) != "struct":
+            return None
+        owner, name = getattr(t, "structOwner", None), getattr(t, "structTypeName", None) or ""
+        cfg = contract_cfgs.get(owner) if owner else None
+        return (getattr(cfg, "structDefs", None) or {}).get(name.split(".")[-1]) if cfg is not None else None
+
+    def add_ireturn(label, t, depth=0):
+        """(2026-10-23, M6) struct 반환은 멤버 leaf 까지 펼친다 — `p = vg.delayedStrategyParams(n); p.managementFee` 처럼
+        반환값을 통째로 받으면 접근식에 멤버가 없어 struct 전체 슬롯 하나만 생겼다(58_H_02). leaf 값 종류는 타입대로
+        (예전엔 언제나 interval — 주소 반환도)."""
+        sd = ret_struct_def(t)
+        if sd is not None and depth < 4 and isinstance(getattr(sd, "members", None), dict):
+            for m, mt in sd.members.items():
+                add_ireturn(f"{label}.{m}", mt, depth + 1)
+            return
+        add("IReturn", label, _valuekind_of(t, "", label) if t is not None else ("interval", True, None, None))
 
     for label in sorted(ireturn_labels):
         if ireturn_rejected(label):
@@ -1405,8 +1485,20 @@ def _derive_debug_slots(fcfg, ccf=None, func_src: str = "", func_name: str = "",
         if arity > 1 and not label.endswith("]"):
             for k in range(arity):
                 add("IReturn", f"{label}[{k}]", ("interval", True, None, None))
+            continue
+        # 반환 타입 → 라벨의 호출 뒤 멤버 체인(`().a.b`)을 따라간 타입. 그 뒤에 또 호출이 있으면 타입을 정하지 않는다.
+        rts = list(getattr(cands[0], "return_types", []) or []) if cands else []
+        t = rts[0] if len(rts) == 1 else None
+        tail = label.split("()", 1)[1] if "()" in label else ""
+        if t is not None and _re.fullmatch(r"(?:\.[A-Za-z_]\w*)*", tail):
+            for m in [x for x in tail.split(".") if x]:
+                sd = ret_struct_def(t)
+                t = sd.members.get(m) if sd is not None and isinstance(sd.members, dict) else None
+                if t is None:
+                    break
         else:
-            add("IReturn", label, ("interval", True, None, None))
+            t = None
+        add_ireturn(label, t)
     return slots
 
 
@@ -1532,6 +1624,14 @@ class EngineSession:
     def _resolve_fcfg(self, contract: Optional[str], func: Optional[str]):
         """타겟 FunctionCFG 회수. contract/func 미지정 시 단일 후보를 추정."""
         cfgs = self._ca.contract_cfgs
+        # (2026-10-23) 명시한 컨트랙트·함수가 없으면 오류. 예전엔 fcfg=None 을 돌려 evaluate/verify 가 **빈 결과**(노드 0개)를
+        #   냈다 — 케이스 메타데이터의 컨트랙트 이름이 틀린 51_H_02·60_H_01 이 오류 없이 판정 None 이었다.
+        if contract is not None and contract not in cfgs:
+            raise ValueError(f"target contract '{contract}' is not defined in the analyzed source")
+        if contract is not None and func is not None:
+            ccf0 = cfgs[contract]
+            if ccf0.get_function_cfg(func) is None:
+                raise ValueError(f"target function '{contract}.{func}' is not defined")
         if contract is None:
             # 의존성으로 로드된 ifc_/lib_/con_ 제외하고, 입력으로 빌드된 컨트랙트 우선.
             candidates = [c for c in cfgs if c not in getattr(self._ca, "interface_names", set())]
@@ -1588,6 +1688,7 @@ class EngineSession:
     def _queue_debug_values(self, debug_values: dict[str, RangeValue]) -> int:
         """debug 값 → 캐논 어노테이션 라인 → batch. 적용 개수 반환.
         빈 경계는 슬롯 타입으로 치환(Fix B), 파싱 실패는 _last_value_errors 에 수집(Fix A, crash 대신)."""
+        from Utils.Helper import ParserHelpers
         self._batch.reset()
         applied = 0
         errors: list[Diagnostic] = []
@@ -1613,7 +1714,14 @@ class EngineSession:
             if text is None:
                 continue
             kw = _KIND_KW.get(slot.kind if slot else "Param", "@Param")
-            self._batch.add(f"{kw} {key} = {text}")
+            line = f"{kw} {key} = {text}"
+            # (2026-10-25) 입력 문법으로 읽을 수 없는 키는 그 슬롯의 입력 오류 — 예전엔 파서가 출력만 하고 진행해 visitor 가 죽었다.
+            syn = ParserHelpers.annotation_syntax_errors(line)
+            if syn:
+                errors.append(Diagnostic(line=(slot.line if slot and slot.line else 0), severity="error",
+                                         message=f"{key}: 디버그 입력 문법으로 읽을 수 없는 키다 ({'; '.join(syn)})"))
+                continue
+            self._batch.add(line)
             applied += 1
         self._last_value_errors = errors
         return applied
@@ -1647,7 +1755,8 @@ class EngineSession:
     # ── 결정론 코어 ──────────────────────────────────────────────────────────
 
     def analyze(self, records: list[Record],
-                contract: Optional[str] = None, func: Optional[str] = None) -> Structure:
+                contract: Optional[str] = None, func: Optional[str] = None,
+                intents: Optional[list] = None) -> Structure:
         """편집 delta records 를 누적 적용 → CFG 구조 + 빈 debug 슬롯. 값/상태 없음. [코드 편집 트리거]
 
         입력 모델 (delta fragment, full-slice 아님):
@@ -1676,6 +1785,8 @@ class EngineSession:
                 cur["op"] = rec
                 self._apply_code_record(rec["code"], rec["startLine"], rec["endLine"], rec["event"],
                                         rec.get("closeBefore", False))
+        if intents is not None:
+            self._intents = list(intents)       # (2026-10-23, M8) 슬롯 도출이 intent 가 참조하는 진입 값도 본다
         errs = self._run_transaction(apply)
         if errs:
             # 사용자 소스 오류 — 아무것도 반영하지 않는다(committed = 빈 세션). 다음 update 가 [] 와 diff 한다.
@@ -1688,7 +1799,7 @@ class EngineSession:
         return self.structure(contract, func, [])
 
     def analyze_source(self, source: str, contract: Optional[str] = None,
-                       func: Optional[str] = None) -> Structure:
+                       func: Optional[str] = None, intents: Optional[list] = None) -> Structure:
         """전체 소스 → slice → analyze. 슬라이스 단계의 입력 전제 위반(SourceError)도 진단으로 돌려준다."""
         from Dependencies.main import slice_solidity
         try:
@@ -1697,11 +1808,21 @@ class EngineSession:
             self._editor_errors = [Diagnostic(line=ex.line if ex.line is not None else -1,
                                               message=str(ex), category="semantic")]
             return self.structure(contract, func, self._editor_errors)
-        return self.analyze(records, contract=contract, func=func)
+        return self.analyze(records, contract=contract, func=func, intents=intents)
+
+    def set_intents(self, intents: list, contract: Optional[str] = None, func: Optional[str] = None) -> Structure:
+        """(2026-10-23, M8) intent 만 바뀌었을 때 — CFG 는 그대로, 슬롯만 다시 도출한다(intent 가 참조하는 진입 값 슬롯)."""
+        self._intents = list(intents or [])
+        return self.structure(contract, func, list(getattr(self, "_editor_errors", []) or []))
 
     def structure(self, contract: Optional[str] = None, func: Optional[str] = None,
                   diagnostics: Optional[list] = None) -> Structure:
         """현재 세션 상태(fcfg)를 Structure 로 직렬화. analyze/update 후 공용."""
+        if diagnostics and contract is not None and contract not in self._ca.contract_cfgs:
+            # 소스 오류로 아무것도 반영되지 않은 상태(빈 committed) — 대상이 없는 이유는 진단이 설명한다
+            self._scope = Scope(contract=contract, function=func or "")
+            return Structure(scope=self._scope, cfg=CFG(entry="ENTRY", exit="EXIT"),
+                             debug_slots=[], diagnostics=list(diagnostics))
         contract, func, fcfg = self._resolve_fcfg(contract, func)
         self._scope = Scope(contract=contract or "", function=func or "")
         diags = diagnostics or []
@@ -1718,7 +1839,8 @@ class EngineSession:
                              if lo_ln <= r.get("startLine", -1) <= hi_ln)
         slots = _derive_debug_slots(fcfg, ccf, func_src, func or "",
                                     interface_names=getattr(self._ca, "interface_names", None),
-                                    contract_cfgs=getattr(self._ca, "contract_cfgs", None), an=self._ca)
+                                    contract_cfgs=getattr(self._ca, "contract_cfgs", None), an=self._ca,
+                                    intent_texts=[getattr(i, "text", "") for i in (getattr(self, "_intents", None) or [])])
         self._slots = {s.key: s for s in slots}
         self._slot_locals = _declared_locals(fcfg) - set(getattr(fcfg, "parameters", []) or [])
         return Structure(scope=self._scope, cfg=cfg, debug_slots=slots, diagnostics=diags)

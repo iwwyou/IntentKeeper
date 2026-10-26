@@ -497,8 +497,8 @@ class Update :
         if isinstance(base_obj, ArrayVariable):
             # (1) .length  ─ Read-only.  LHS 로 올 수 없으므로 rVal 는 None
             if member == "length":
-                ln = len(base_obj.elements)
-                return UnsignedIntegerInterval(ln, ln, 256)  # ← Interval 반환
+                from Domain.Variable import array_length
+                return array_length(base_obj)      # (2026-10-23) 구체화한 원소 수가 아니라 배열 길이
 
             # (2) .push / .pop 은 LHS 로 오지 않으므로 여기서 무시
             return base_obj  # 깊은 체이닝 대비 그대로 전달
@@ -626,12 +626,8 @@ class Update :
             # `_create_new_array_element`를 통해서(struct 등을 무조건 raw
             # 심볼 문자열로 바텀아웃시키면 그 다음 leaf-업데이트에서
             # elementaryTypeName=None 크래시남, web3bugs_35_H_08/35_H_12에서 발견)
-            while idx >= len(caller_object.elements):
-                caller_object.elements.append(
-                    caller_object._create_new_array_element(len(caller_object.elements))
-                )
-
-            elem = caller_object.elements[idx]
+            # (2026-10-23, 희소 배열) 그 칸만 구체화(정적 배열은 선언 길이로 범위 검사)
+            elem = caller_object.get_or_create_element(idx)
 
             # ── (a) nested composite (struct/array/map) 먼저 체크 ──────────
             # (StructVariable/ArrayVariable/MappingVariable 모두 Variables의
@@ -828,21 +824,9 @@ class Update :
                     if idx < 0:
                         continue  # 음수 인덱스는 skip
 
-                    # 배열 크기 확장 필요 시
-                    if idx >= len(caller_object.elements):
-                        if caller_object.typeInfo.isDynamicArray:
-                            # 동적 배열이 너무 크면 추상화
-                            if idx >= MAX_CONCRETE_INDICES:
-                                return caller_object
-                        else:
-                            decl_len = caller_object.typeInfo.arrayLength or 0
-                            if idx >= decl_len:
-                                continue  # out of range
-
-                        # ArrayVariable의 get_or_create_element() 사용 (TOP 값으로 초기화)
-                        elem = caller_object.get_or_create_element(idx)
-                    else:
-                        elem = caller_object.elements[idx]
+                    if not caller_object.in_static_range(idx):
+                        continue  # 정적 배열 범위 밖
+                    elem = caller_object.get_or_create_element(idx)      # (희소 배열) 그 칸만 구체화
                     if isinstance(elem, (StructVariable, ArrayVariable, MappingVariable)):
                         # composite는 처리 불가, 추상화
                         return caller_object
@@ -860,23 +844,9 @@ class Update :
             if idx < 0:
                 raise IndexError(f"Negative index {idx} for array '{caller_object.identifier}'")
 
-            # 정적/동적 패딩 로직
-            if idx >= len(caller_object.elements):
-                if caller_object.typeInfo.isDynamicArray:
-                    return caller_object  # 전체-쓰기 추상화
-                decl_len = caller_object.typeInfo.arrayLength or 0
-                if idx >= decl_len:
-                    raise IndexError(f"Index {idx} out of range (decl len={decl_len})")
-                base_t = caller_object.typeInfo.arrayBaseType
-                # ★ (Phase 2, D2) 아직 구체화되지 않은 앞쪽 원소 = 값을 모름 → typed ⊤.
-                #   예전엔 ⊥ 로 채워, 그 원소를 읽는 순간 env 전체가 도달 불가로 판정될 수 있었다.
-                while len(caller_object.elements) <= idx:
-                    caller_object.elements.append(VariableEnv.top_from_soltype(
-                        base_t, getattr(caller_object, "struct_defs", None) or {},
-                        getattr(caller_object, "enum_defs", None) or {},
-                        identifier=f"{caller_object.identifier}[{len(caller_object.elements)}]"))
-
-            elem = caller_object.elements[idx]
+            # (2026-10-23, 희소 배열) 그 칸만 구체화 — 앞쪽 원소를 채우지 않는다(구체화 안 된 원소 = D).
+            #   정적 배열은 선언 길이로 범위 검사(IndexError).
+            elem = caller_object.get_or_create_element(idx)
             if isinstance(elem, (StructVariable, ArrayVariable, MappingVariable)):
                 # 통짜 재할당(arr[i] = StructLit 등)이면 내부 상태 교체,
                 # 아니면(체이닝 중) 그대로 반환해 더 내려감
@@ -1192,7 +1162,7 @@ class Update :
         – str('symbolicAddress …') → 160-bit interval
         – list   → nested ArrayVariable
         """
-        arr.elements.clear()  # 새로 만들기
+        arr.elements = {}  # 새로 만들기
         baseT = arr.typeInfo.arrayBaseType
 
         def _make_elem(eid: str, raw):
@@ -1230,7 +1200,7 @@ class Update :
 
         for i, raw in enumerate(py_val):
             elem_id = f"{arr.identifier}[{i}]"
-            arr.elements.append(_make_elem(elem_id, raw))
+            arr.elements[i] = _make_elem(elem_id, raw)
 
         # ───────── 값 덮어쓰기 (debug 주석용) ────────────────────────────────────
 
